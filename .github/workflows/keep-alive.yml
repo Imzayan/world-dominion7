@@ -1,0 +1,33 @@
+# World Dominion — Render free-tier keep-alive
+# Render free instances spin down after 15 minutes of inactivity, and a cold
+# start takes 30-60s (painful for players on slow/filtered networks).
+# This workflow pings the service every 10 minutes so it never sleeps.
+# Free budget: ~720h/month on Render < 750h included; GitHub Actions minutes fine.
+name: keep-alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Ping home (warms the instance)
+        run: |
+          code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 180 \
+            -H "Cache-Control: no-cache" \
+            https://world-dominionnrg.onrender.com/ || echo "000")
+          echo "home status: $code"
+          test "$code" != "000" || echo "::warning::home ping failed (network glitch) — next run will retry"
+      - name: Ping DB health endpoint (warms database pool)
+        run: |
+          code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 60 \
+            https://world-dominionnrg.onrender.com/api/db/server_stats || echo "000")
+          echo "db status: $code"
