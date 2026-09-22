@@ -765,11 +765,11 @@
       🪖
      </span>
      <span>
-      آرسنال
+      ارتش
      </span>
     </button>
    </div>
-   <!-- ============ آرسنال نظامی ============ -->
+   <!-- ============ ارتش (آرسنال سابق) ============ -->
    <div class="modal" id="m-army">
     <div class="modal-card">
      <div class="modal-title-row">
@@ -954,7 +954,7 @@
       </div>
      </div>
      <button class="action-btn btn-gold" id="lobby-open-army" style="margin-top:6px;">
-      🪖 رفتن به آرسنال برای خرید تجهیزات جنگی
+      🪖 رفتن به ارتش برای خرید تجهیزات جنگی
      </button>
     </div>
    </div>
@@ -3923,7 +3923,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
   const lessons=[
     ['شروع بازی','اول یک کشور را به‌عنوان پایتخت انتخاب کن. بعد از انتخاب پایتخت، همان کشور مرکز اقتصاد و ارتش تو می‌شود.'],
     ['منابع','💰 طلا برای اقتصاد و ارتقا، 🛢️ نفت برای ارتش و تولید، 🌾 غذا برای جمعیت و مالیات استفاده می‌شود.'],
-    ['ارتش','از بخش «آرسنال» نیرو بساز. هر یگان قدرت و هزینه خودش را دارد؛ بدون نیروی کافی حمله موفق نمی‌شود.'],
+    ['ارتش','از بخش «ارتش» نیرو بساز. هر یگان قدرت و هزینه خودش را دارد؛ بدون نیروی کافی حمله موفق نمی‌شود.'],
     ['حمله به کشورها','روی یک کشور آزاد بزن و گزینه «فرمان حمله» را انتخاب کن. اشغال مرحله‌ای است و با قدرت بیشتر سریع‌تر پیش می‌رود.'],
     ['حمله به بازیکنان','کشور رنگیِ بازیکن دیگر، قلمرو اوست. با «حمله به بازیکن» وارد نبرد PvP می‌شوی؛ نتیجه به قدرت مهاجم و دفاع هدف وابسته است.'],
     ['زیرساخت','در «لابی ← زیرساخت» پالایشگاه، کارخانه تسلیحات، پایگاه هوایی و مخازن را ارتقا بده. مخزن، سقف ذخیره نفت را بالا می‌برد.'],
@@ -4112,7 +4112,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
   }
   function pvpUnitRows(){
     const keys=['infantry','tank','bomber','fighter','heli','missile','drone','transport','destroyer','carrier'];
-    return keys.filter(k=>ARMY_UNITS[k]&&ARMY_UNITS[k].count>0).map(k=>{const u=ARMY_UNITS[k];return `<div class="wdp-unit"><div class="ico">${u.icon}</div><div><b>${esc(u.name.split(' (')[0])}</b><small>قدرت هر واحد: ${Math.round(u.attack*(u.air?airBonus():1))}</small></div><div class="num">${u.count.toLocaleString()}</div></div>`}).join('')||'<div class="wd-card wd-muted">هیچ یگانی برای حمله نداری. از آرسنال نیرو بساز.</div>';
+    return keys.filter(k=>ARMY_UNITS[k]&&ARMY_UNITS[k].count>0).map(k=>{const u=ARMY_UNITS[k];return `<div class="wdp-unit"><div class="ico">${u.icon}</div><div><b>${esc(u.name.split(' (')[0])}</b><small>قدرت هر واحد: ${Math.round(u.attack*(u.air?airBonus():1))}</small></div><div class="num">${u.count.toLocaleString()}</div></div>`}).join('')||'<div class="wd-card wd-muted">هیچ یگانی برای حمله نداری. از ارتش نیرو بساز.</div>';
   }
   function renderPvp(body,target,o,occ=0,defense=0,status='آماده حمله'){
     const power=calculateTotalAttack();
@@ -4596,7 +4596,7 @@ function installReliableActions(){
    const b=e.target.closest('[data-v11]');if(!b)return;const t=b.dataset.v11;
    if(t==='army'){
      const ok=clickFirst(['[data-tab*="ارتش"]','#tab-army','button[onclick*="army"]','.army-btn']);
-     if(!ok){toast('⚔️ برای باز کردن ارتش، بخش آرسنال را از نوار پایین انتخاب کن');}
+     if(!ok){toast('⚔️ برای باز کردن ارتش، بخش ارتش را از نوار پایین انتخاب کن');}
      else toast('⚔️ مرکز ارتش باز شد');
    }else if(t==='intel'){
      const ok=clickFirst(['[data-tab*="اطلاعات"]','#tab-intel','button[onclick*="intel"]','.intel-btn']);
@@ -4708,8 +4708,8 @@ function bindCommand(){
     const t=b.dataset.v11;
     if(t==='army'){
       const m=$('m-army');
-      if(m){m.classList.add('open');m.style.display='flex';m.style.zIndex='10050';toast('⚔️ آرسنال باز شد')}
-      else toast('⚔️ آرسنال در این نسخه موجود نیست');
+      if(m){m.classList.add('open');m.style.display='flex';m.style.zIndex='10050';toast('⚔️ ارتش باز شد')}
+      else toast('⚔️ ارتش در این نسخه موجود نیست');
     }else if(t==='intel'){
       if(typeof window.wd7_spy==='function'){window.wd7_spy();toast('🛰️ عملیات اطلاعاتی اجرا شد')}
       else {const tabs=$('wd7-tabs');const x=tabs&&tabs.querySelector('[data-tab="intel"]');if(x)x.click()}
@@ -5002,7 +5002,7 @@ function applyMapPerf(){try{if(typeof map!=='undefined'&&map){map.options.prefer
 function cleanDock(){
  const dock=document.querySelector('.bottom-nav');
  if(!dock)return;
- dock.querySelectorAll('.nav-btn').forEach((b,i)=>{b.setAttribute('data-wd16','1'); if(i===4)b.title='آرسنال';});
+ dock.querySelectorAll('.nav-btn').forEach((b,i)=>{b.setAttribute('data-wd16','1'); if(i===4)b.title='ارتش';});
  const launcher=$('wd7-btn');
  if(launcher){launcher.textContent='☰';launcher.setAttribute('aria-label','مرکز فرماندهی');launcher.title='مرکز فرماندهی';}
  const old=$('wd5-launcher');if(old)old.remove();
@@ -5792,7 +5792,7 @@ function viewHelp(){
   '<b>💰 اقتصاد:</b> هر ۹۰ ثانیه از دکمه مالیات (🏛) درآمد جمع کن و در بازار (📈) کالا بخر و بفروش.<br>'+
   '<b>🏗️ زیرساخت:</b> با دکمه زیرساختِ بالای صفحه، پالایشگاه نفت، کارخانه اسلحه و فرودگاه بساز تا درآمد و قدرت ارتش‌ات بالا برود.<br>'+
   '<b>⚔️ حمله:</b> روی کشور هم‌مرز بزن و «فرمان حمله» را بزن. حمله به کشورهای بدون فرمانده آزاد است؛ به کشور بازیکنان دیگر هم می‌توانی حمله کنی (نبرد زنده). مرز هر بازیکن <b>هاشورِ رنگیِ مخصوص خودش</b> را دارد.<br>'+
-  '<b>🪖 ارتش:</b> در آرسنال (سپر) با طلا و نفت سرباز، تانک و هواپیما استخدام کن؛ بدون ارتش حمله ممکن نیست.<br>'+
+  '<b>🪖 ارتش:</b> در ارتش (سپر) با طلا و نفت سرباز، تانک و هواپیما استخدام کن؛ بدون ارتش حمله ممکن نیست.<br>'+
   '<b>🏆 رتبه‌بندی:</b> در ۴ رشته‌ی کشورگشایی، کشتار، اقتصاد و استخدام با بقیه بازیکنان سرور رقابت کن؛ نفر اول تاج می‌گیرد و جایزه‌ی هفتگی دارد.<br>'+
   '<b>💎 جم:</b> هر روز وارد شوی ۲۰ جم هدیه می‌گیری؛ با جم از فروشگاه بوست و منابع بخر.<br>'+
   '<b>💾 ذخیره:</b> پیشرفت تو هر ۸ ثانیه روی سرور ذخیره می‌شود؛ از هر دستگاهی با همان حساب وارد شو.';
@@ -6181,7 +6181,7 @@ function viewHome(){
   g.appendChild(item('💬','چت جهانی','با بازیکنان سرور',function(){triggerBtn('wd-chat-btn')}));
   g.appendChild(item('🏗️','زیرساخت‌ها','پالایشگاه، کارخانه، فرودگاه',function(){try{openSites(null);sClose()}catch(e){}},1));
   g.appendChild(item('🏢','لابی','مدیریت و ارتقا',function(){triggerBtn('btn-m-lobby')}));
-  g.appendChild(item('🪖','آرسنال','استخدام نیرو',function(){triggerBtn('btn-m-army')}));
+  g.appendChild(item('🪖','ارتش','استخدام نیرو',function(){triggerBtn('btn-m-army')}));
   g.appendChild(item('🧭','مشاور','راهنمای گام‌به‌گام',function(){try{openAdvisor();sClose()}catch(e){}}));
   g.appendChild(item('⚙️','تنظیمات','صدا، کارایی، برچسب‌ها',function(){viewSettings()}));
   g.appendChild(item('🚪','خروج از حساب','تعویض کاربری',function(){doLogout()}));
@@ -6245,6 +6245,167 @@ function bindMenu(){
 }
 setTimeout(bindMenu,3600);
 setTimeout(bindMenu,5300);
+})();
+</script>
+<style id="wd26-css">
+/* ============ V26: tap feedback + rank podium ============ */
+/* -- tap pulse on map -- */
+.wd26-pulse-wrap{pointer-events:none}
+.wd26-pulse{position:absolute;left:0;top:0;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;
+  border:2.5px solid rgba(255,225,120,.95);box-shadow:0 0 14px rgba(255,204,0,.85),inset 0 0 6px rgba(255,204,0,.5);
+  animation:wd26Pulse .6s cubic-bezier(.2,.8,.3,1) forwards}
+@keyframes wd26Pulse{0%{transform:scale(.35);opacity:1}100%{transform:scale(4.4);opacity:0}}
+/* -- rank podium (GeoWar style + WD gold signature) -- */
+.wd26-podium{display:flex;gap:6px;align-items:flex-end;margin:10px 0 12px;direction:rtl}
+.wd26-pc{flex:1;min-width:0;border-radius:16px;padding:11px 5px 10px;text-align:center;position:relative;
+  border:1px solid rgba(255,255,255,.13);background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.03));
+  animation:wd26Pop .55s cubic-bezier(.2,1.2,.3,1) both}
+.wd26-pc:nth-child(2){animation-delay:.08s}.wd26-pc:nth-child(3){animation-delay:.16s}
+.wd26-pc .wd26-medal{font-size:23px;line-height:1.15;filter:drop-shadow(0 0 8px rgba(255,200,0,.55))}
+.wd26-pc b{display:block;font-size:11.5px;font-weight:900;color:#fff;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wd26-pc .lr-val{display:inline-block;margin-top:5px;font-size:10.5px;padding:2px 9px}
+.wd26-pc .wd26-you{position:absolute;top:5px;left:6px;font-size:8.5px;color:#7fe7ff;font-weight:800}
+.wd26-pc.p2{border-color:rgba(205,225,240,.5);background:linear-gradient(180deg,rgba(205,225,240,.2),rgba(160,185,205,.05))}
+.wd26-pc.p1{border-color:rgba(255,204,0,.7);background:linear-gradient(180deg,rgba(255,204,0,.28),rgba(255,160,0,.07));padding-top:16px;order:2;
+  box-shadow:0 0 24px rgba(255,190,0,.18),inset 0 1px 0 rgba(255,255,255,.15)}
+.wd26-pc.p1 .wd26-medal{font-size:30px}
+.wd26-pc.p3{border-color:rgba(205,127,50,.55);background:linear-gradient(180deg,rgba(205,127,50,.22),rgba(150,90,40,.06))}
+.wd26-pc.p2{order:1}.wd26-pc.p3{order:3}
+.wd26-pc.me{outline:1.5px solid rgba(0,240,255,.55);outline-offset:1px}
+@keyframes wd26Pop{from{opacity:0;transform:translateY(14px) scale(.88)}to{opacity:1;transform:none}}
+/* -- world-rank (strongest countries) cards restyle -- */
+#world-rank>div{background:linear-gradient(90deg,rgba(56,198,255,.1),rgba(155,92,255,.07))!important;
+  border:1px solid rgba(56,198,255,.22)!important;border-radius:12px!important;padding:8px 11px!important;
+  font-size:10.5px!important;color:#d7ecff!important;font-weight:700}
+</style>
+<script id="wd26-core">
+(function(){
+'use strict';
+if(window.__wd26)return;window.__wd26=true;
+var D=document;
+function toast26(m,t){try{if(typeof showToast==='function')showToast(m,t||'')}catch(e){}}
+
+/* ============ 1) فیدبک تاپ: پالس طلایی + ویبره ============ */
+function pulseAt(latlng){
+  try{
+    var m=L.marker(latlng,{interactive:false,keyboard:false,zIndexOffset:1200,
+      icon:L.divIcon({className:'wd26-pulse-wrap',iconSize:[0,0],html:'<i class="wd26-pulse"></i>'})}).addTo(map);
+    setTimeout(function(){try{m.remove()}catch(e){}},720);
+  }catch(e){}
+}
+function haptic(){try{if(navigator.vibrate)navigator.vibrate(12)}catch(e){}}
+
+/* ============ 2) ضد-تپ-مرده: اگر لایه کلیک را بلعید، خودمان hit-test می‌کنیم ============ */
+function ringsOf(l){
+  try{
+    var ll=l.getLatLngs();if(!Array.isArray(ll))return[];
+    if(ll.length&&typeof ll[0].lat==='number')return[ll];                 /* polygon: [[ring]] */
+    if(ll.length&&Array.isArray(ll[0])&&ll[0].length&&typeof ll[0][0].lat==='number')return ll; /* polygon: [ring] */
+    var out=[];                                                           /* multipolygon */
+    ll.forEach(function(p){(Array.isArray(p)?p:[]).forEach(function(rg){if(rg&&typeof rg[0].lat==='number')out.push(rg)})});
+    return out;
+  }catch(e){return[]}
+}
+function pip(pt,rings){
+  var inside=false;
+  for(var r=0;r<rings.length;r++){
+    var ring=rings[r],j=ring.length-1;
+    for(var i=0;i<ring.length;i++){
+      var yi=ring[i].lat,xi=ring[i].lng,yj=ring[j].lat,xj=ring[j].lng;
+      if(((yi>pt.lat)!=(yj>pt.lat))&&(pt.lng<(xj-xi)*(pt.lat-yi)/(yj-yi)+xi))inside=!inside;
+      j=i;
+    }
+  }
+  return inside;
+}
+function hitTest(latlng){
+  var names=[];try{names=Object.keys(layersByName||{})}catch(e){return null}
+  for(var i=0;i<names.length;i++){
+    var l=layersByName[names[i]];
+    if(!l||!l.getLatLngs)continue;
+    try{if(pip(latlng,ringsOf(l)))return{name:names[i],layer:l}}catch(e){}
+  }
+  return null;
+}
+try{window.wd26HitTest=hitTest}catch(e){}
+function drawerIsOpen(){var d=D.getElementById('country-drawer');return !!(d&&d.classList.contains('open'))}
+(function bindMapSafety(){
+  var n=0,t=setInterval(function(){
+    if(++n>60){clearInterval(t);return}
+    if(typeof map==='undefined'||!map||!map.on||map.__wd26bound)return;
+    clearInterval(t);map.__wd26bound=true;
+    map.on('click',function(e){
+      pulseAt(e.latlng);haptic();
+      var beforeName='';try{beforeName=(D.getElementById('c-name')||{}).textContent||''}catch(err){}
+      var wasOpen=drawerIsOpen();
+      setTimeout(function(){
+        var nowName='';try{nowName=(D.getElementById('c-name')||{}).textContent||''}catch(err){}
+        if(drawerIsOpen()&&nowName!==beforeName)return;   /* a country layer already reacted with a NEW country */
+        var hit=null;
+        try{hit=hitTest(e.latlng)}catch(err){}
+        if(hit){
+          if(typeof battleBusy!=='undefined'&&battleBusy){toast26('⏳ نبرد در جریان است؛ چند لحظه صبر کن...','lose');return}
+          try{onCountryClick({properties:{name:hit.name}},hit.layer)}catch(err){}
+        }else if(wasOpen){
+          try{D.getElementById('country-drawer').classList.remove('open')}catch(err){}
+        }
+      },280);
+    });
+  },400);
+})();
+
+/* ============ 3) پالس روی مسیر عادی کلیک لایه ============ */
+(function wrapOCC(){
+  if(typeof onCountryClick!=='function'){setTimeout(wrapOCC,500);return}
+  if(window.onCountryClick&&window.onCountryClick.__wd26)return;
+  var prev=window.onCountryClick;
+  window.onCountryClick=function(f,l){
+    try{var g=(typeof getG==='function')?getG(f.properties.name):null;if(g)pulseAt(g.c);haptic()}catch(e){}
+    return prev(f,l);
+  };
+  window.onCountryClick.__wd26=true;
+})();
+
+/* ============ 4) پادیوم رتبه‌بندی: سکوی طلایی/نقره‌ای/برنزی ============ */
+function podiumify(box){
+  try{
+    if(!box||box.querySelector('.wd26-podium'))return;
+    var all=box.querySelectorAll('.lr-row'),rows=[];
+    for(var i=0;i<all.length;i++){if(all[i].style.display!=='none')rows.push(all[i])}
+    if(rows.length<3)return;
+    var order=[1,0,2],cls=['p2','p1','p3'],medals=['🥈','👑','🥉'];
+    var pod=D.createElement('div');pod.className='wd26-podium';
+    for(var k=0;k<3;k++){
+      var row=rows[order[k]];
+      var nick='',val='',me=row.classList.contains('me');
+      var nb=row.querySelector('.lr-nick b');
+      if(nb)nick=nb.textContent;
+      else{var sp=row.querySelectorAll('span');if(sp.length>=2){nick=(sp[0].textContent||'').replace(/^\s*[۰-۹0-9]+[\.\-\)]\s*/,'');val=(sp[1].textContent||'').trim()}}
+      var vv=row.querySelector('.lr-val');if(vv)val=vv.textContent;
+      var c=D.createElement('div');c.className='wd26-pc '+cls[k]+(me?' me':'');
+      c.innerHTML=(me?'<span class="wd26-you">شما</span>':'')+
+        '<div class="wd26-medal">'+medals[k]+'</div><b>'+String(nick).replace(/[<>&"]/g,'')+'</b>'+
+        (val?'<span class="lr-val">'+String(val).replace(/[<>&]/g,'')+'</span>':'');
+      pod.appendChild(c);
+    }
+    box.insertBefore(pod,rows[0]);
+    for(var j=0;j<3;j++){try{rows[j].style.display='none'}catch(e){}}
+  }catch(e){}
+}
+function watchRank(){
+  var card=D.querySelector('#m-rank .modal-card');
+  if(!card||card.__wd26watch)return;
+  card.__wd26watch=true;
+  var tm=null;
+  new MutationObserver(function(){
+    clearTimeout(tm);
+    tm=setTimeout(function(){
+      podiumify(D.getElementById('live-rank'));
+    },160);
+  }).observe(card,{childList:true,subtree:true});
+}
+setTimeout(watchRank,2200);
+setTimeout(watchRank,6000);
 })();
 </script>
 </body>
