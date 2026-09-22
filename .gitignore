@@ -53,3 +53,16 @@ server.log
 # Skills directory
 /skills/
 !.env.example
+
+# --- sandbox/dev-only artifacts (NOT for GitHub) ---
+/db/
+/download/
+/upload/
+/tool-results/
+/.zscripts/
+/examples/
+/mini-services/
+/tests/
+/Caddyfile
+/worklog.md
+bun.lock

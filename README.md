@@ -52,6 +52,11 @@
 ## 🚀 استقرار روی Render با GitHub (قدم‌به‌قدم)
 
 ### قدم ۱: پروژه را به GitHub ببرید
+
+> 💡 **میان‌بر:** فایل `push-to-github.bat` را (در ویندوز با دابل‌کلیک، بعد از باز کردن و گذاشتن آدرس مخزن) اجرا کنید — همه‌ی قدم‌های زیر خودکار انجام می‌شود. در مک/لینوکس: `bash push-to-github.sh`
+
+یا دستی در پوشه پروژه:
+
 ```bash
 git init
 git add .
@@ -60,6 +65,8 @@ git branch -M main
 git remote add origin https://github.com/USERNAME/world-dominion.git
 git push -u origin main
 ```
+
+> ⚠️ فایل `.env` هرگز به GitHub فرستاده نمی‌شود (در `.gitignore` است) — این درست است و نباید تغییر کند.
 
 ### قدم ۲: ساخت دیتابیس (برای ماندگاری داده‌ها)
 1. وارد [dashboard.render.com](https://dashboard.render.com) شوید
