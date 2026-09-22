@@ -1,0 +1,160 @@
+// World Dominion — database schema
+// SQLite for local dev; switchable to PostgreSQL for Render deployment
+// (see scripts/prisma-setup.mjs and README.md)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  nick         String
+  nickLower    String   @unique @map("nick_lower")
+  passwordHash String   @map("password_hash")
+  deviceId     String?  @map("device_id")
+  isAdmin      Boolean  @default(false) @map("is_admin")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  save        Save?
+  score       Score?
+  wallet      Wallet?
+  sessions    Session[]
+  territories Territory[]
+  grants      AdminGrant[]
+  weeklyClaims WeeklyClaim[]
+  chatMessages WorldChat[]
+
+  @@map("users")
+}
+
+model Session {
+  token     String   @id
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Save {
+  userId    String   @id @map("user_id")
+  nick      String
+  state     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saves")
+}
+
+model Score {
+  userId    String @id @map("user_id")
+  nick      String
+  server    Int    @default(1)
+  conquered Int    @default(0)
+  score     Int    @default(0)
+  kills     Int    @default(0)
+  economy   Int    @default(0)
+  recruits  Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("scores")
+}
+
+model ServerStat {
+  server  Int @id
+  taken   Int @default(0)
+  players Int @default(0)
+
+  @@map("server_stats")
+}
+
+model Territory {
+  server    Int
+  country   String
+  userId    String  @map("user_id")
+  nick      String
+  isCapital Boolean @default(false) @map("is_capital")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([server, country])
+  @@index([userId, server])
+  @@map("territories")
+}
+
+model AdminGrant {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  gold      Int      @default(0)
+  oil       Int      @default(0)
+  food      Int      @default(0)
+  claimed   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_grants")
+}
+
+model WorldChat {
+  id        Int      @id @default(autoincrement())
+  server    Int
+  userId    String   @map("user_id")
+  nick      String
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([server, createdAt])
+  @@map("world_chat")
+}
+
+model WorldNews {
+  id        Int      @id @default(autoincrement())
+  server    Int
+  action    String
+  country   String?
+  actorNick String?  @map("actor_nick")
+  targetNick String? @map("target_nick")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([server, createdAt])
+  @@map("world_news")
+}
+
+model Wallet {
+  userId    String    @id @map("user_id")
+  gems      Int       @default(0)
+  boostUntil DateTime? @map("boost_until")
+  lastDaily DateTime? @map("last_daily")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("wallets")
+}
+
+model WeeklyClaim {
+  id         Int    @id @default(autoincrement())
+  userId     String @map("user_id")
+  weekKey    String @map("week_key")
+  category   String
+  rank       Int
+  rewardGold Int    @map("reward_gold")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekKey, category])
+  @@map("weekly_claims")
+}
