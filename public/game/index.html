@@ -351,7 +351,7 @@
 #wd-splash .sp-burst{background:repeating-conic-gradient(from 0deg,rgba(0,255,224,.055) 0 2deg,transparent 2deg 11deg),radial-gradient(circle,rgba(150,0,255,.12),transparent 52%)!important;animation:spBurst 9s linear infinite}
 @keyframes spBurst{to{transform:rotate(360deg)}}
 #wd-splash .sp-vig{background:radial-gradient(circle at 50% 43%,transparent 10%,rgba(2,2,8,.22) 42%,rgba(0,0,0,.9) 100%)!important}
-#wd-splash .sp-globe{display:none!important}
+/* globe restored in V22 — the egg variant is retired */
 .sp-egg{position:relative;width:min(46vw,210px);height:min(60vw,270px);margin-top:-12px;filter:drop-shadow(0 0 28px rgba(0,255,225,.25));transform:translateY(35px) scale(.58);opacity:0;animation:eggIn 1s cubic-bezier(.15,1.25,.25,1) .15s forwards;will-change:transform,opacity}
 .sp-egg-shell{position:absolute;inset:0;border-radius:48% 52% 52% 48% / 34% 34% 66% 66%;background:
  radial-gradient(circle at 35% 22%,rgba(255,255,255,.8) 0 2%,transparent 7%),
@@ -418,22 +418,6 @@
    <div class="sp-stars" id="sp-stars">
    </div>
    <div class="sp-center">
-    <div aria-label="World Dominion Core" class="sp-egg" id="sp-egg">
-     <div class="sp-egg-aura">
-     </div>
-     <div class="sp-egg-shell">
-     </div>
-     <div class="sp-egg-core">
-     </div>
-     <div class="sp-egg-crack c1">
-     </div>
-     <div class="sp-egg-crack c2">
-     </div>
-     <div class="sp-egg-crack c3">
-     </div>
-     <div class="sp-egg-shine">
-     </div>
-    </div>
     <div class="sp-globe">
      <div class="sp-halo">
      </div>
@@ -545,23 +529,42 @@
    </div>
   </div>
   <script>
-   /* V15 safe-start: never waits for network, map, images, or window load. */
+   /* V15 safe-start → V22 cinematic intro: staggered letters + synced progress + tap-to-skip. */
 (function(){
   var sp=document.getElementById('wd-splash'); if(!sp)return;
   var left=false;
   function leave(){
     if(left)return; left=true;
     sp.classList.add('out');
-    setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp)},360);
+    setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp)},780);
   }
   var t=document.getElementById('sp-title');
-  if(t&&!t.children.length){
-    ['WORLD','DOMINION'].forEach(function(txt){var r=document.createElement('div');r.className='sp-row';r.textContent=txt;t.appendChild(r)});
+  if(t&&!t.querySelector('.sp-row')){
+    var seq=['WORLD','DOMINION'];
+    for(var r=0;r<seq.length;r++){
+      var row=document.createElement('div');row.className='sp-row';
+      var offs=r===1?2:0;
+      for(var i=0;i<seq[r].length;i++){
+        var s=document.createElement('span');s.textContent=seq[r][i];
+        s.style.setProperty('--i',(i+offs));row.appendChild(s);
+      }
+      t.appendChild(row);
+    }
   }
-  var msg=document.getElementById('sp-msg'); if(msg)msg.textContent='آماده‌سازی جهان…';
-  var fill=document.getElementById('sp-fill'); if(fill)fill.style.transform='scaleX(.72)';
-  // Hard upper bound: splash can never block the game.
-  setTimeout(leave,320);
+  var msgs=['\u0622\u0645\u0627\u062f\u0647\u200c\u0633\u0627\u0632\u06cc \u062c\u0647\u0627\u0646\u2026','\u062a\u0631\u0633\u06cc\u0645 \u0645\u0631\u0632\u0647\u0627 \u0648 \u0627\u0642\u06cc\u0627\u0646\u0648\u0633\u200c\u0647\u0627\u2026','\u0628\u06cc\u062f\u0627\u0631 \u06a9\u0631\u062f\u0646 \u0641\u0631\u0645\u0627\u0646\u062f\u0647\u0627\u0646\u2026','\u0648\u0631\u0648\u062f \u0628\u0647 \u0645\u06cc\u062f\u0627\u0646 \u0646\u0628\u0631\u062f!'];
+  var msg=document.getElementById('sp-msg'), fill=document.getElementById('sp-fill');
+  if(fill){
+    fill.style.transform='scaleX(.05)';
+    setTimeout(function(){fill.style.transform='scaleX(.42)'},350);
+    setTimeout(function(){fill.style.transform='scaleX(.78)'},1300);
+    setTimeout(function(){fill.style.transform='scaleX(1)'},2450);
+  }
+  var mi=0; if(msg)msg.textContent=msgs[0];
+  var mt=setInterval(function(){mi++;if(mi<msgs.length&&msg)msg.textContent=msgs[mi]},850);
+  setTimeout(function(){clearInterval(mt)},3500);
+  /* cinematic ~3.35s, tap to skip, hard safety cap */
+  setTimeout(leave,3350);
+  setTimeout(function(){left||leave()},6000);
   sp.addEventListener('click',leave,{passive:true});
 })();
   </script>
@@ -1604,9 +1607,9 @@ addEventListener('error',e=>{const b=document.getElementById('status-banner');if
 const $=id=>document.getElementById(id), sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const hueOf=n=>{let h=7;for(const c of n)h=(h*31+c.charCodeAt(0))%360;return h};
 function baseStyle(n){const h=hueOf(String(n||''));
-  /* cinematic atlas palette: deep desaturated tones with stable per-country variance */
-  const light=20+((h*7919)%9);
-  return{color:`hsla(${h},55%,64%,.45)`,weight:.8,fillColor:`hsl(${h},46%,${light}%)`,fillOpacity:.9,smoothFactor:1.1,noClip:false}}
+  /* V22 atlas palette tuned for the bright ocean */
+  const light=40+((h*7919)%9);
+  return{color:`hsla(${h},50%,30%,.5)`,weight:.9,fillColor:`hsl(${h},46%,${light}%)`,fillOpacity:.95,smoothFactor:1.1,noClip:false}}
 
 // ISO codes for flags (Intl names + aliases for geojson spellings)
 const N2C={"united states of america":"us","democratic republic of the congo":"cd","republic of the congo":"cg","united republic of tanzania":"tz","republic of serbia":"rs","macedonia":"mk","ivory coast":"ci","czech republic":"cz","guinea bissau":"gw","the bahamas":"bs","east timor":"tl","swaziland":"sz","myanmar":"mm","turkey":"tr","french southern and antarctic lands":"tf","kosovo":"xk"};
@@ -2223,7 +2226,7 @@ showDate=function(){const e=H$('hud-date');if(!e)return;let s;const d=new Date()
 /* ---- no radar grid / night overlay ---- */
 addGrid=function(){};addNight=function(){};
 /* ---- natural land colors ---- */
-baseStyle=function(n){const h=hueOf(String(n||''));return{color:`hsl(${h},28%,78%)`,weight:.8,fillColor:`hsl(${h},36%,42%)`,fillOpacity:.92}};
+baseStyle=function(n){const h=hueOf(String(n||''));return{color:`hsl(${h},48%,29%)`,weight:.9,fillColor:`hsl(${h},46%,45%)`,fillOpacity:.95}};
 /* ---- flags built in small batches (no freeze while the intro plays) ---- */
 buildFlags=function(){const ks=Object.keys(layersByName).filter(n=>N2C[n.toLowerCase()]&&n!=='Antarctica');let i=0;
   (function step(){const end=Math.min(i+20,ks.length);
@@ -4729,56 +4732,27 @@ window.addEventListener('load',()=>setTimeout(start,200),{once:true});
     body.wd12-command-open .bottom-nav{opacity:0!important;pointer-events:none!important;transform:translateY(20px)!important;transition:.18s ease!important}
    </style>
    <style id="wd-v13-startup-stability">
-    /* V13: ultra-light startup. Keep the turquoise/purple/black identity without blocking game boot. */
-#wd-splash{position:fixed!important;inset:0!important;z-index:999999!important;display:flex!important;align-items:center!important;justify-content:center!important;background:#03050b!important;contain:strict!important;pointer-events:auto!important;opacity:1!important}
-#wd-splash .sp-burst,#wd-splash .sp-vig,#wd-splash .sp-stars,#wd-splash .sp-globe,#wd-splash .sp-orn,#wd-splash .sp-fa,#wd-splash .sp-tag,#wd-splash .sp-load,#wd-splash .sp-skip{display:none!important}
-#wd-splash .sp-center{width:auto!important;display:flex!important;align-items:center!important;justify-content:center!important;transform:none!important;opacity:1!important}
-#wd-splash .sp-title{margin:0!important;position:relative!important;text-align:center!important;direction:ltr!important}
-#wd-splash .sp-titleglow{display:none!important}
-#wd-splash .sp-row.w1{font-size:clamp(17px,5vw,25px)!important;letter-spacing:.28em!important;margin:0 0 5px!important;padding-left:.28em!important;opacity:1!important;animation:none!important}
-#wd-splash .sp-row.w2{font-size:clamp(35px,11vw,56px)!important;opacity:1!important;animation:none!important}
-#wd-splash .sp-row span{animation:none!important;opacity:1!important;transform:none!important;text-shadow:0 0 18px rgba(0,255,225,.16)!important}
-#wd-splash .sp-row.w1 span{background-image:linear-gradient(180deg,#eaffff,#45ffe9,#8c55ff)!important;background-clip:text!important;-webkit-background-clip:text!important}
-#wd-splash .sp-row.w2 span{background-image:linear-gradient(180deg,#fff,#57ffe9 38%,#9a5bff 76%,#26103f)!important;background-clip:text!important;-webkit-background-clip:text!important}
-/* Single lightweight core: transform/opacity only. */
-#wd-splash .sp-egg{display:block!important;position:absolute!important;width:112px!important;height:145px!important;margin:0!important;left:50%!important;top:50%!important;transform:translate(-50%,-118%) scale(.88)!important;opacity:1!important;filter:none!important;animation:none!important;will-change:transform!important}
-#wd-splash .sp-egg-aura{display:block!important;position:absolute!important;inset:-18px!important;border-radius:50%!important;background:radial-gradient(circle,rgba(0,255,224,.18),rgba(130,0,255,.08) 42%,transparent 72%)!important;animation:wd13Pulse 1.6s ease-in-out infinite alternate!important;filter:none!important;will-change:transform,opacity!important}
-#wd-splash .sp-egg-shell{box-shadow:0 0 24px rgba(0,255,224,.18),inset -10px -16px 24px rgba(0,0,0,.5),inset 7px 7px 16px rgba(255,255,255,.12)!important;border-color:rgba(126,255,245,.62)!important}
-#wd-splash .sp-egg-shell:before,#wd-splash .sp-egg-shine,#wd-splash .sp-egg-crack{animation:none!important;box-shadow:none!important}
-#wd-splash .sp-egg-core{filter:none!important;animation:wd13Core 1.4s ease-in-out infinite alternate!important;will-change:transform,opacity!important}
-@keyframes wd13Pulse{from{transform:scale(.94);opacity:.35}to{transform:scale(1.03);opacity:.7}}
-@keyframes wd13Core{from{transform:scale(.92);opacity:.68}to{transform:scale(1.04);opacity:.95}}
-#wd-splash.out{animation:wd13Out .28s ease forwards!important;pointer-events:none!important}
-#wd-splash.out .sp-center{animation:none!important}
-@keyframes wd13Out{to{opacity:0}}
-@media(prefers-reduced-motion:reduce){#wd-splash .sp-egg-aura,#wd-splash .sp-egg-core{animation:none!important;transform:none!important}}
+    /* V22: the old "static egg" restyle is RETIRED — the full cinematic intro is back:
+       rotating globe, halo, satellites, staggered letters, progress bar, tap-to-skip. */
+#wd-splash{position:fixed!important;inset:0!important;z-index:999999!important;display:flex!important;align-items:center!important;justify-content:center!important;pointer-events:auto!important}
+#wd-splash .sp-egg,#wd-splash .sp-egg-aura,#wd-splash .sp-egg-shell,#wd-splash .sp-egg-core,#wd-splash .sp-egg-crack,#wd-splash .sp-egg-shine{display:none!important}
    </style>
    <script id="wd-v13-startup-guard">
-    (function(){
+    /* V22: the old 700-1200ms splash closer is retired — the V22 cinematic intro
+       manages its own duration (~3.35s), tap-to-skip and a 6s hard safety cap. */
+(function(){
   'use strict';
   var sp=document.getElementById('wd-splash');
   if(!sp) return;
-  var closed=false;
-  function closeSplash(){
-    if(closed) return; closed=true;
-    sp.classList.add('out');
-    setTimeout(function(){ if(sp && sp.parentNode) sp.parentNode.removeChild(sp); },320);
-  }
-  /* Never wait for window.load/network/assets. The game initializes underneath the splash. */
-  requestAnimationFrame(function(){ requestAnimationFrame(function(){
-    setTimeout(closeSplash,700);
-  });});
-  /* Absolute safety valve. */
-  setTimeout(closeSplash,1200);
-  /* First user touch skips it immediately. */
-  sp.addEventListener('pointerdown',function(){closeSplash();},{passive:true});
+  /* keep only the absolute safety valve, now aligned with the V22 cap */
+  setTimeout(function(){if(sp&&sp.parentNode&&!sp.classList.contains('out')){sp.classList.add('out');setTimeout(function(){if(sp&&sp.parentNode)sp.parentNode.removeChild(sp)},400)}},6500);
 })();
    </script>
    <style id="wd-v14-performance">
     /* V14 PERFORMANCE MODE: keep the premium look, remove compositor-heavy effects. */
 html.wd-perf,html.wd-perf body{scroll-behavior:auto!important}
 #wd-splash{background:linear-gradient(135deg,#02050a 0%,#071b28 52%,#090313 100%)!important;animation:none!important;transition:none!important;filter:none!important;backdrop-filter:none!important}
-#wd-splash *{animation:none!important;transition:none!important;filter:none!important;backdrop-filter:none!important;box-shadow:none!important}
+/* V22: keep splash animations alive for the cinematic intro (was: * {animation:none}) */
 #wd-splash .sp-egg-shell{box-shadow:inset -8px -12px 18px rgba(0,0,0,.45),inset 5px 5px 12px rgba(255,255,255,.08)!important}
 #wd-splash .sp-egg-core{opacity:.9!important;transform:none!important}
 #wd-splash .sp-egg-aura{opacity:.55!important;transform:none!important}
@@ -4811,18 +4785,11 @@ html.wd-perf,html.wd-perf body{scroll-behavior:auto!important}
    <script id="wd-v14-performance-js">
     (function(){
   'use strict';
-  document.documentElement.classList.add('wd-perf');
+  /* V22: forced perf class removed — users control it from ☰ Settings; intro needs its animations. */
   try{ if(window.auraTimer) clearInterval(window.auraTimer); }catch(e){}
   // Stop any legacy visual timer that was only decorative; gameplay timers are untouched.
   try{ var v=document.getElementById('wd5-battle-visual'); if(v) v.remove(); }catch(e){}
-  // Make startup deterministic: no animation and no network/load dependency.
-  var sp=document.getElementById('wd-splash');
-  if(sp){
-    var done=false;
-    function close(){if(done)return;done=true;sp.classList.add('out');setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp)},190)}
-    sp.addEventListener('pointerdown',close,{passive:true});
-    setTimeout(close,420);
-  }
+  /* V22: the 420ms splash closer is retired (V22 intro manages itself). */
   // Let Leaflet paint with Canvas even if the map was created before this patch.
   try{
     if(window.map){ map.options.preferCanvas=true; }
@@ -4842,7 +4809,7 @@ body.wd-low-power *{scroll-behavior:auto!important}
    <script id="wd15-performance-js">
     (function(){
  'use strict';
- var low=(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=6)||((navigator.deviceMemory||8)<=4)||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+ var low=(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=6)||((navigator.deviceMemory||8)<=4)||/Android|iPhone|iPad|Mobile|HeadlessChrome/i.test(navigator.userAgent);
  if(low)document.body.classList.add('wd-low-power');
  document.addEventListener('visibilitychange',function(){
    document.body.classList.toggle('wd-page-hidden',document.hidden);
@@ -4857,16 +4824,18 @@ body.wd-low-power *{scroll-behavior:auto!important}
    </script>
    <style id="wd-v19-ocean-news-css">
     /* V19: premium but lightweight ocean. Land polygons remain untouched. */
+    /* V22: bright friendly ocean with sun-glint and depth vignette. Land polygons untouched. */
 #map,.leaflet-container{
   background:
-    radial-gradient(ellipse at 48% 42%,rgba(0,184,255,.18) 0%,rgba(0,76,128,.10) 34%,transparent 65%),
-    linear-gradient(180deg,#061b32 0%,#04223a 45%,#031321 100%) !important;
+    radial-gradient(ellipse at 50% 36%,rgba(255,255,255,.55) 0%,rgba(255,255,255,.14) 32%,transparent 60%),
+    radial-gradient(ellipse at 50% 110%,rgba(6,50,90,.38) 0%,transparent 62%),
+    linear-gradient(180deg,#a6ddf4 0%,#7cc4ea 48%,#5eb1e2 100%) !important;
 }
 #map::before{
-  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.55;
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5;
   background:
-    repeating-linear-gradient(115deg,transparent 0 54px,rgba(0,226,255,.025) 55px,transparent 56px 108px),
-    radial-gradient(circle at 70% 30%,rgba(124,82,255,.09),transparent 38%);
+    repeating-linear-gradient(115deg,transparent 0 54px,rgba(255,255,255,.17) 55px,transparent 56px 108px),
+    radial-gradient(circle at 72% 26%,rgba(255,255,255,.22),transparent 40%);
 }
 .leaflet-map-pane,.leaflet-control-container{position:relative;z-index:1}
 .leaflet-overlay-pane{z-index:400}
@@ -5423,6 +5392,555 @@ setInterval(function(){
     }
   }catch(e){}
 },2000);
+})();
+</script>
+<style id="wd22-css">
+/* ============ V22: ownership outlines / war cinema / icons / rank / menu / perf ============ */
+/* -- per-player ownership borders -- */
+.wd-own-glow{filter:blur(.4px)}
+.wd-own-dash{animation:wdAnts 14s linear infinite}
+@keyframes wdAnts{to{stroke-dashoffset:-340}}
+/* -- war cinema -- */
+#wd-war-vig{position:fixed;inset:0;z-index:99990;pointer-events:none;opacity:0;transition:opacity .35s;
+  background:radial-gradient(ellipse at 50% 50%,transparent 42%,rgba(255,20,40,.34) 78%,rgba(120,0,10,.55) 100%)}
+#wd-war-vig.on{opacity:1;animation:wdWarPulse 1.1s ease-in-out 2}
+@keyframes wdWarPulse{0%,100%{opacity:.55}50%{opacity:1}}
+#wd-war-banner{position:fixed;top:22%;left:50%;transform:translate(-50%,-50%) scale(.6);z-index:99991;pointer-events:none;opacity:0;
+  font-size:clamp(26px,8vw,54px);font-weight:900;color:#fff;letter-spacing:.06em;direction:rtl;
+  text-shadow:0 0 18px #ff2444,0 0 46px rgba(255,0,40,.8),0 3px 0 #6b0010;white-space:nowrap}
+#wd-war-banner.on{opacity:1;animation:wdWarBang 1.7s cubic-bezier(.2,1.4,.3,1) forwards}
+@keyframes wdWarBang{0%{opacity:0;transform:translate(-50%,-50%) scale(2.2)}18%{opacity:1;transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.12)}}
+.wd-shake{animation:wdShake .75s cubic-bezier(.36,.07,.19,.97) both}
+@keyframes wdShake{10%,90%{transform:translate3d(-1px,1px,0)}20%,80%{transform:translate3d(2px,-2px,0)}30%,50%,70%{transform:translate3d(-4px,2px,0)}40%,60%{transform:translate3d(4px,-1px,0)}}
+#m-battle.wd-war .modal-card{border-color:rgba(255,60,80,.75)!important;box-shadow:0 0 0 1px rgba(255,40,60,.4),0 0 44px rgba(255,20,50,.45),0 24px 70px rgba(0,0,0,.6)!important;background:linear-gradient(180deg,#2a0a12 0%,#170410 100%)!important}
+#m-battle.wd-war .modal-title-row span:first-child{color:#ff9aa8;text-shadow:0 0 12px rgba(255,40,60,.8)}
+.wd-shockwrap{pointer-events:none}
+.wd-shockwrap i{position:absolute;left:0;top:0;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:3px solid rgba(255,60,60,.9);opacity:0;animation:wdShock 1.15s ease-out infinite}
+.wd-shockwrap i:nth-child(2){animation-delay:.38s;border-color:rgba(255,170,60,.85)}
+.wd-shockwrap i:nth-child(3){animation-delay:.76s;border-color:rgba(255,240,120,.8)}
+@keyframes wdShock{0%{transform:scale(.4);opacity:1}100%{transform:scale(7);opacity:0}}
+/* -- premium nav icons -- */
+.nav-btn span:first-child{display:flex;align-items:center;justify-content:center;height:24px}
+.nav-btn span:first-child svg{width:23px;height:23px;filter:drop-shadow(0 0 7px rgba(0,240,255,.6))}
+.nav-btn span:first-child svg.wd-gold{filter:drop-shadow(0 0 8px rgba(255,204,0,.75))}
+/* -- rank panel redesign -- */
+#m-rank .modal-card{background:linear-gradient(180deg,rgba(10,20,40,.97),rgba(4,10,22,.98))!important;border:1px solid rgba(255,204,0,.35)!important;box-shadow:0 0 50px rgba(255,180,0,.14),0 26px 70px rgba(0,0,0,.6)!important}
+#m-rank .modal-title-row span:first-child{font-size:15px;font-weight:900;color:#ffd45a;text-shadow:0 0 14px rgba(255,190,0,.5)}
+#m-rank .lobby-tab-btn{border-radius:10px}
+.lr-row{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);margin:5px 0;overflow:hidden}
+.lr-row::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--cyan-glow),transparent)}
+.lr-row.me{background:linear-gradient(90deg,rgba(0,240,255,.13),rgba(0,240,255,.03));border-color:rgba(0,240,255,.4)}
+.lr-row .lr-nick{display:flex;align-items:center;gap:8px;font-weight:800;color:#eef8ff;min-width:0}
+.lr-row .lr-nick b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:38vw}
+.lr-row .lr-dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 8px currentColor}
+.lr-row .lr-val{flex:0 0 auto;font-weight:900;color:#ffd45a;font-variant-numeric:tabular-nums;background:rgba(255,204,0,.1);border:1px solid rgba(255,204,0,.3);padding:3px 9px;border-radius:999px;font-size:11.5px}
+.lr-row .lr-medal{font-size:15px;flex:0 0 auto;filter:drop-shadow(0 0 6px rgba(255,200,0,.6))}
+.lr-row.pod-1{background:linear-gradient(90deg,rgba(255,204,0,.2),rgba(255,204,0,.04));border-color:rgba(255,204,0,.55)}
+.lr-row.pod-2{background:linear-gradient(90deg,rgba(200,215,230,.16),rgba(200,215,230,.03));border-color:rgba(200,215,230,.4)}
+.lr-row.pod-3{background:linear-gradient(90deg,rgba(205,127,50,.16),rgba(205,127,50,.03));border-color:rgba(205,127,50,.4)}
+.lr-row.wd-pop{animation:wdRowIn .45s cubic-bezier(.2,1.2,.3,1) both}
+@keyframes wdRowIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+/* -- infra prominent chip -- */
+#wd-infra-chip{position:fixed;top:106px;right:8px;z-index:9997;display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:14px;cursor:pointer;
+  background:linear-gradient(180deg,rgba(12,40,74,.94),rgba(5,16,32,.94));border:1px solid rgba(255,204,0,.5);
+  box-shadow:0 6px 22px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.14);color:#fff;font-size:12px;font-weight:800}
+#wd-infra-chip::after{content:"";position:absolute;inset:-1px;border-radius:14px;border:1px solid rgba(255,204,0,.55);opacity:.25;animation:wdInfraGlow 2.8s ease-in-out infinite;pointer-events:none}
+@keyframes wdInfraGlow{0%,100%{opacity:.12}50%{opacity:.65}}
+#wd-infra-chip svg{width:19px;height:19px}
+#wd-infra-chip small{display:block;font-size:9px;font-weight:700;color:#ffd45a}
+/* -- V22 command menu -- */
+#wd22-sheet{position:fixed;inset:0;z-index:100300;display:none;align-items:flex-end;justify-content:center;background:rgba(2,8,18,.62);backdrop-filter:blur(3px)}
+#wd22-sheet.open{display:flex}
+#wd22-card{width:min(96vw,560px);max-height:82vh;overflow:auto;border-radius:22px 22px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(180deg,rgba(11,22,42,.98),rgba(4,10,22,.99));border:1px solid rgba(0,240,255,.28);box-shadow:0 -18px 60px rgba(0,0,0,.55);
+  animation:wdSheetUp .32s cubic-bezier(.2,1.1,.3,1)}
+@keyframes wdSheetUp{from{transform:translateY(60px);opacity:0}to{transform:none;opacity:1}}
+.wd22-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.wd22-title{font-weight:900;font-size:15px;color:#eaf8ff}
+.wd22-x{cursor:pointer;font-size:17px;color:#9fc6e8;padding:4px 8px}
+.wd22-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.wd22-item{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:13px 12px;border-radius:16px;cursor:pointer;
+  background:linear-gradient(180deg,rgba(20,48,86,.85),rgba(8,20,40,.9));border:1px solid rgba(255,255,255,.1);
+  transition:transform .15s,box-shadow .15s}
+.wd22-item:active{transform:scale(.96)}
+.wd22-item b{font-size:13px;color:#fff;display:flex;align-items:center;gap:7px}
+.wd22-item small{font-size:10px;color:#8fb8d9}
+.wd22-item svg{width:20px;height:20px}
+.wd22-item.wd22-admin{border-color:rgba(255,204,0,.45)}
+.wd22-doc{font-size:12px;line-height:2;color:#d7ecff;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 14px}
+.wd22-doc b{color:#ffd45a}
+.wd22-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);margin-bottom:8px}
+.wd22-sw{position:relative;width:44px;height:24px;border-radius:99px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);cursor:pointer;transition:.2s;flex:0 0 auto}
+.wd22-sw::after{content:"";position:absolute;top:2px;inset-inline-start:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}
+.wd22-sw.on{background:rgba(0,240,255,.45);border-color:rgba(0,240,255,.6)}
+.wd22-sw.on::after{transform:translateX(-20px)}
+/* -- admin v2 -- */
+#m-admin .modal-card{width:min(96vw,620px)}
+.wd22-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
+.wd22-stat{background:rgba(0,240,255,.07);border:1px solid rgba(0,240,255,.25);border-radius:12px;padding:7px 4px;text-align:center}
+.wd22-stat b{display:block;font-size:15px;color:#7fe7ff;font-variant-numeric:tabular-nums}
+.wd22-stat small{font-size:9px;color:#8fb8d9}
+.wd22-search{width:100%;background:#081c33;color:#fff;border:1px solid rgba(0,240,255,.3);border-radius:10px;padding:8px 10px;font-size:12px;margin-bottom:8px}
+.wd22-player{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:10px;margin-bottom:9px}
+.wd22-player .wd22-phead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.wd22-player .wd22-pname{font-weight:900;color:#fff;display:flex;align-items:center;gap:6px}
+.wd22-pdot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 8px currentColor}
+.wd22-pmeta{display:flex;gap:5px;flex-wrap:wrap;margin:7px 0}
+.wd22-tag{font-size:9.5px;padding:2px 8px;border-radius:99px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.25);color:#bfeaff;font-variant-numeric:tabular-nums}
+.wd22-tag.gold{background:rgba(255,204,0,.1);border-color:rgba(255,204,0,.35);color:#ffe08a}
+.wd22-tag.red{background:rgba(255,60,80,.1);border-color:rgba(255,60,80,.3);color:#ffb3bd}
+.wd22-gift{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:7px}
+.wd22-gift input{width:74px;background:#081c33;color:#fff;border:1px solid rgba(0,240,255,.3);border-radius:8px;padding:5px 6px;text-align:center;font-size:11px}
+.wd22-gbtn{background:linear-gradient(180deg,#0e7a4d,#0a5c3a);color:#fff;border:1px solid rgba(0,255,150,.4);border-radius:9px;padding:6px 11px;font-weight:800;font-size:11px;cursor:pointer}
+.wd22-gbtn.gem{background:linear-gradient(180deg,#7a0ee0,#5a0aa0);border-color:rgba(220,120,255,.5)}
+.wd22-gbtn:active{transform:scale(.95)}
+.wd22-lastseen{font-size:9px;color:#7fa8c9}
+/* -- perf mode + light-sea label fixes -- */
+body.wd-perf .wd-own-dash{animation:none!important}
+body.wd-perf #wd-infra-chip{animation:none!important}
+body.wd-hide-labels .wd-clabel-wrap{display:none!important}
+.wd-clabel{color:#123c63!important;text-shadow:0 1px 2px rgba(255,255,255,.85),0 0 6px rgba(255,255,255,.6)!important;font-weight:900}
+.own.oth{background:rgba(6,14,28,.88)!important}
+.flag{filter:drop-shadow(0 1px 2px rgba(0,30,60,.45))}
+</style>
+<script id="wd22-core">
+(function(){
+'use strict';
+if(window.__wd22)return;window.__wd22=true;
+/* ---------- settings ---------- */
+var SET={perf:false,labels:true,sound:true};
+try{Object.assign(SET,JSON.parse(localStorage.getItem('wd22_set')||'{}'))}catch(e){}
+function saveSet(){try{localStorage.setItem('wd22_set',JSON.stringify(SET))}catch(e){}}
+function applySet(){
+  document.body.classList.toggle('wd-perf',!!SET.perf);
+  document.body.classList.toggle('wd-hide-labels',!SET.labels);
+  try{if(typeof muted!=='undefined')muted=!SET.sound}catch(e){}
+  try{window.muted=!SET.sound}catch(e){}
+}
+applySet();
+window.wd22ApplySet=applySet;
+
+/* ---------- per-player ownership outlines ---------- */
+var DASHES=['14 5 3 5','4 4','12 3 3 3 3 3','2 6','18 6 2 6','8 8','3 3 10 3','6 3 2 3 8 3'];
+function sigOf(nick){
+  var h=11;for(var i=0;i<String(nick).length;i++)h=(h*37+String(nick).charCodeAt(i))%360;
+  return{color:'hsl('+h+',90%,62%)',glow:'hsla('+h+',95%,55%,.42)',dash:DASHES[h%DASHES.length]};
+}
+var OUT={};
+function ringPolys(l){try{var ll=l.getLatLngs();return Array.isArray(ll[0][0])?ll:[ll]}catch(e){return[]}}
+function drawOwnerOutline(n){
+  var o=null;try{if(typeof OTH!=='undefined')o=OTH[n]}catch(e){}
+  var l=null;try{if(typeof layersByName!=='undefined')l=layersByName[n]}catch(e){}
+  var mp=null;try{if(typeof map!=='undefined')mp=map}catch(e){}
+  if(!o||!l||!mp)return;
+  clearOutline(n);
+  var s=sigOf(o.nick),arr=[],polys=ringPolys(l);
+  var renderer=null;try{renderer=l._renderer||undefined}catch(e){}
+  for(var i=0;i<polys.length;i++){
+    arr.push(L.polygon(polys[i],{renderer:renderer,interactive:false,keyboard:false,color:s.glow,weight:7,opacity:.95,fill:false,className:'wd-own-glow'}));
+    arr.push(L.polygon(polys[i],{renderer:renderer,interactive:false,keyboard:false,color:s.color,weight:2.6,opacity:1,fill:false,dashArray:s.dash,className:'wd-own-dash'}));
+  }
+  arr.forEach(function(x){try{x.addTo(mp)}catch(e){}});
+  OUT[n]=arr;
+}
+function drawMyOutline(n){
+  var l=null;try{if(typeof layersByName!=='undefined')l=layersByName[n]}catch(e){}
+  var mp=null;try{if(typeof map!=='undefined')mp=map}catch(e){}
+  if(!l||!mp)return;
+  var key='__me__'+n;
+  clearOutline(key);
+  var arr=[],polys=ringPolys(l);
+  var renderer=null;try{renderer=l._renderer||undefined}catch(e){}
+  for(var i=0;i<polys.length;i++){
+    arr.push(L.polygon(polys[i],{renderer:renderer,interactive:false,keyboard:false,color:'rgba(255,204,0,.4)',weight:6,opacity:.9,fill:false,className:'wd-own-glow'}));
+    arr.push(L.polygon(polys[i],{renderer:renderer,interactive:false,keyboard:false,color:'#ffd45a',weight:2.4,opacity:1,fill:false,dashArray:'10 5',className:'wd-own-dash'}));
+  }
+  arr.forEach(function(x){try{x.addTo(mp)}catch(e){}});
+  OUT[key]=arr;
+}
+function clearOutline(n){(OUT[n]||[]).forEach(function(x){try{x.remove()}catch(e){}});delete OUT[n]}
+try{
+  var _po=window.paintOther;
+  if(typeof _po==='function')window.paintOther=function(n){_po(n);try{drawOwnerOutline(n)}catch(e){}};
+  var _ao=window.applyOthers;
+  if(typeof _ao==='function')window.applyOthers=function(nw){
+    try{var cur=(typeof OTH!=='undefined')?OTH:{};Object.keys(cur).forEach(function(n){if(!nw||!nw[n])clearOutline(n)})}catch(e){}
+    return _ao(nw);
+  };
+  var _acc=window.applyCountryColor;
+  if(typeof _acc==='function')window.applyCountryColor=function(n){
+    _acc(n);
+    try{
+      var mine=false;
+      try{mine=(typeof myCountryName!=='undefined'&&n===myCountryName)||(typeof conqueredCountries!=='undefined'&&conqueredCountries.has&&conqueredCountries.has(n))}catch(e){}
+      if(mine)drawMyOutline(n);else clearOutline('__me__'+n);
+      if(typeof OTH!=='undefined'&&OTH[n]&&typeof window.paintOther==='function')window.paintOther(n);
+    }catch(e){}
+  };
+}catch(e){}
+
+/* ---------- war cinema ---------- */
+var vig=null,banner=null;
+function ensureWarDom(){
+  if(!vig){vig=document.createElement('div');vig.id='wd-war-vig';document.body.appendChild(vig)}
+  if(!banner){banner=document.createElement('div');banner.id='wd-war-banner';banner.textContent='⚔ حمله آغاز شد ⚔';document.body.appendChild(banner)}
+}
+var AC22=null;
+function drums(){
+  try{
+    if(SET.sound===false)return;
+    AC22=AC22||new (window.AudioContext||window.webkitAudioContext)();
+    if(AC22.state==='suspended')AC22.resume();
+    var t=AC22.currentTime;
+    [0,.32,.64].forEach(function(off){
+      var o=AC22.createOscillator(),g=AC22.createGain();
+      o.type='sine';o.frequency.setValueAtTime(105,t+off);o.frequency.exponentialRampToValueAtTime(38,t+off+.24);
+      g.gain.setValueAtTime(.0001,t+off);g.gain.exponentialRampToValueAtTime(.55,t+off+.02);g.gain.exponentialRampToValueAtTime(.0001,t+off+.3);
+      o.connect(g);g.connect(AC22.destination);o.start(t+off);o.stop(t+off+.34);
+    });
+    var s=AC22.createOscillator(),sg=AC22.createGain();
+    s.type='sawtooth';s.frequency.setValueAtTime(620,t);s.frequency.exponentialRampToValueAtTime(140,t+1.05);
+    sg.gain.setValueAtTime(.0001,t);sg.gain.exponentialRampToValueAtTime(.055,t+.06);sg.gain.exponentialRampToValueAtTime(.0001,t+1.1);
+    s.connect(sg);sg.connect(AC22.destination);s.start(t);s.stop(t+1.15);
+  }catch(e){}
+}
+function shockwave(n){
+  try{
+    var l=(typeof layersByName!=='undefined')?layersByName[n]:null;var mp=(typeof map!=='undefined')?map:null;if(!l||!mp)return;
+    var g=(typeof mainRing==='function'?mainRing(l):null)||((typeof getG==='function')?getG(n):null);if(!g)return;
+    var m=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:950,icon:L.divIcon({className:'wd-shockwrap',iconSize:[0,0],html:'<i></i><i></i><i></i>'})}).addTo(mp);
+    setTimeout(function(){try{m.remove()}catch(e){}},2400);
+  }catch(e){}
+}
+window.wd22WarCinema=function(n){
+  try{
+    ensureWarDom();drums();shockwave(n);
+    vig.classList.remove('on');void vig.offsetWidth;vig.classList.add('on');
+    setTimeout(function(){vig.classList.remove('on')},2300);
+    banner.classList.remove('on');void banner.offsetWidth;banner.classList.add('on');
+    var mc=document.querySelector('#map,.leaflet-container');
+    if(mc){mc.classList.remove('wd-shake');void mc.offsetWidth;mc.classList.add('wd-shake');setTimeout(function(){mc.classList.remove('wd-shake')},800)}
+  }catch(e){}
+};
+try{
+  var _at=window.attackTarget;
+  if(typeof _at==='function')window.attackTarget=async function(n){
+    try{window.wd22WarCinema(n)}catch(e){}
+    return _at(n);
+  };
+}catch(e){}
+/* battle modal gets the war theme while open (covers normal + PvP arena) */
+try{
+  var mb=document.getElementById('m-battle');
+  if(mb&&window.MutationObserver){
+    new MutationObserver(function(){
+      var open=mb.classList.contains('active')||mb.classList.contains('open');
+      mb.classList.toggle('wd-war',open);
+    }).observe(mb,{attributes:true,attributeFilter:['class']});
+  }
+}catch(e){}
+
+/* ---------- performance: rAF-coalesced sizeFlags + perf vehicle skip ---------- */
+try{
+  var _sf=window.sizeFlags,_pend=false;
+  if(typeof _sf==='function')window.sizeFlags=function(){
+    if(_pend)return;_pend=true;
+    requestAnimationFrame(function(){_pend=false;try{_sf()}catch(e){}});
+  };
+}catch(e){}
+try{
+  var _ship=window.shipment;
+  if(typeof _ship==='function')window.shipment=function(k,i){
+    if(SET.perf)return;return _ship(k,i);
+  };
+}catch(e){}
+window.wd22SET=SET;
+})();
+</script>
+<script id="wd22-ui">
+(function(){
+'use strict';
+if(window.__wd22ui)return;window.__wd22ui=true;
+var D=document;
+function h(tag,txt,cls,fn){var e=D.createElement(tag);if(txt)e.textContent=txt;if(cls)e.className=cls;if(fn)e.addEventListener('click',fn);return e}
+var SET=window.wd22SET||{perf:false,labels:true,sound:true};
+
+/* ================= premium SVG icons ================= */
+function svg(inner,cls){return '<svg viewBox="0 0 24 24" '+(cls?('class="'+cls+'"'):'')+' xmlns="http://www.w3.org/2000/svg">'+inner+'</svg>'}
+function lg(id,c1,c2){return '<linearGradient id="'+id+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+c1+'"/><stop offset="1" stop-color="'+c2+'"/></linearGradient>'}
+var ICON={
+trophy:svg(lg('wdgT','#fff3b0','#d98a00')+'<path d="M7 3h10v6a5 5 0 0 1-10 0V3z" fill="url(#wdgT)" stroke="#8a5a00" stroke-width=".7"/><path d="M7 5H4v2a4 4 0 0 0 4 4" fill="none" stroke="#e8b400" stroke-width="1.6"/><path d="M17 5h3v2a4 4 0 0 1-4 4" fill="none" stroke="#e8b400" stroke-width="1.6"/><rect x="10.6" y="13.6" width="2.8" height="4" fill="url(#wdgT)"/><rect x="8" y="17.6" width="8" height="2.6" rx="1" fill="url(#wdgT)" stroke="#8a5a00" stroke-width=".6"/><ellipse cx="12" cy="5.6" rx="4.2" ry="1.3" fill="#fff8d6" opacity=".85"/>','wd-gold'),
+bank:svg(lg('wdgB','#cfeaff','#4a9fd8')+'<path d="M12 2.5 21.5 8v2h-19V8L12 2.5z" fill="url(#wdgB)"/><rect x="4.5" y="11" width="2.6" height="7" fill="url(#wdgB)"/><rect x="9" y="11" width="2.6" height="7" fill="url(#wdgB)"/><rect x="13.5" y="11" width="2.6" height="7" fill="url(#wdgB)"/><rect x="18" y="11" width="2.6" height="7" fill="url(#wdgB)"/><rect x="3" y="18.6" width="18" height="2.4" rx="1" fill="url(#wdgB)"/>'),
+chart:svg(lg('wdgC','#8dffc4','#0e9e5c')+'<rect x="3.5" y="13" width="3.6" height="7.5" rx="1" fill="url(#wdgC)"/><rect x="9.2" y="9.5" width="3.6" height="11" rx="1" fill="url(#wdgC)"/><rect x="14.9" y="6" width="3.6" height="14.5" rx="1" fill="url(#wdgC)"/><path d="M4 9.5 10 5.5l4 2.6 5.2-4.4" stroke="#b8ffd6" stroke-width="1.7" fill="none" stroke-linecap="round"/><path d="M16.2 2.9h3.6l-.3 3.6" stroke="#b8ffd6" stroke-width="1.7" fill="none" stroke-linecap="round"/>'),
+building:svg(lg('wdgL','#a8c8f0','#3d6fb8')+'<rect x="5" y="3" width="14" height="18" rx="1.5" fill="url(#wdgL)"/><g fill="#eaf4ff" opacity=".92"><rect x="7.4" y="5.5" width="2.4" height="2.4"/><rect x="10.8" y="5.5" width="2.4" height="2.4"/><rect x="14.2" y="5.5" width="2.4" height="2.4"/><rect x="7.4" y="9.4" width="2.4" height="2.4"/><rect x="10.8" y="9.4" width="2.4" height="2.4"/><rect x="14.2" y="9.4" width="2.4" height="2.4"/><rect x="10.4" y="15.4" width="3.2" height="5.6"/></g>'),
+swords:svg('<g transform="rotate(45 12 12)"><rect x="11.15" y="2" width="1.7" height="12.5" rx=".85" fill="#e6eef8"/><rect x="8.9" y="14.6" width="6.2" height="1.7" rx=".85" fill="#c9a23f"/><rect x="11.3" y="16.3" width="1.4" height="3.4" rx=".7" fill="#8a5a00"/></g><g transform="rotate(-45 12 12)"><rect x="11.15" y="2" width="1.7" height="12.5" rx=".85" fill="#e6eef8"/><rect x="8.9" y="14.6" width="6.2" height="1.7" rx=".85" fill="#c9a23f"/><rect x="11.3" y="16.3" width="1.4" height="3.4" rx=".7" fill="#8a5a00"/></g>'),
+gem:svg(lg('wdgG','#c9f6ff','#2b9fd0')+'<polygon points="12 3 19 9 12 21 5 9" fill="url(#wdgG)" stroke="#0e6e96" stroke-width=".7"/><path d="M5 9h14M12 3l-3 6 3 12 3-12-3-6" fill="none" stroke="#eafcff" stroke-width=".8" opacity=".8"/>'),
+crown:svg(lg('wdgK','#ffe680','#e8a000')+'<path d="M4 8l4 3.6L12 5l4 6.6L20 8v8.4H4V8z" fill="url(#wdgK)" stroke="#8a5a00" stroke-width=".7"/><rect x="4" y="17" width="16" height="2.5" rx="1.1" fill="url(#wdgK)"/>','wd-gold'),
+hammer:svg('<g transform="rotate(-38 12 12)"><rect x="5.6" y="3.6" width="12.8" height="5.2" rx="1.3" fill="#cdd9e6"/><rect x="7.6" y="8.8" width="2.2" height="1.6" fill="#9fb2c5"/><rect x="14.2" y="8.8" width="2.2" height="1.6" fill="#9fb2c5"/><rect x="10.9" y="8.8" width="2.2" height="11.4" rx="1" fill="#b08055"/></g>','wd-gold'),
+shield:svg(lg('wdgS','#d7e6f5','#5a86b8')+'<path d="M12 2.6 20 5.4v6.2c0 5-3.4 8.6-8 9.8-4.6-1.2-8-4.8-8-9.8V5.4L12 2.6z" fill="url(#wdgS)" stroke="#2e5a86" stroke-width=".8"/><path d="M8.6 11.6l2.4 2.6 4.6-5" fill="none" stroke="#0e5a2e" stroke-width="1.9" stroke-linecap="round"/>'),
+book:svg(lg('wdgH','#ffe0a8','#d08a2a')+'<path d="M4 4.8C6.5 3.6 9.5 3.6 12 5c2.5-1.4 5.5-1.4 8 0v13.4c-2.5-1.4-5.5-1.4-8 0-2.5-1.4-5.5-1.4-8 0V4.8z" fill="url(#wdgH)" stroke="#8a5a00" stroke-width=".7"/><path d="M12 5v13.4" stroke="#8a5a00" stroke-width=".8"/>'),
+gear:svg('<g fill="#b9cfe6"><path d="M12 8.6a3.4 3.4 0 1 1 0 6.8 3.4 3.4 0 0 1 0-6.8z"/><path d="M10.8 2.6h2.4l.5 2.6 2 .8 2.2-1.5 1.7 1.7-1.5 2.2.8 2 2.6.5v2.4l-2.6.5-.8 2 1.5 2.2-1.7 1.7-2.2-1.5-2 .8-.5 2.6h-2.4l-.5-2.6-2-.8-2.2 1.5-1.7-1.7 1.5-2.2-.8-2-2.6-.5v-2.4l2.6-.5.8-2L4.6 6.2l1.7-1.7 2.2 1.5 2-.8.3-2.6z"/></g><circle cx="12" cy="12" r="2.1" fill="#0b2240"/>'),
+globe:svg(lg('wdgO','#9fd9f4','#2b7fc0')+'<circle cx="12" cy="12" r="9" fill="url(#wdgO)" stroke="#1a5a8c" stroke-width=".8"/><ellipse cx="12" cy="12" rx="4.2" ry="9" fill="none" stroke="#dff2ff" stroke-width=".8" opacity=".85"/><path d="M3.4 9.4h17.2M3.4 14.6h17.2" stroke="#dff2ff" stroke-width=".8" opacity=".85"/>'),
+exit:svg('<path d="M10 3H5.8A1.8 1.8 0 0 0 4 4.8v14.4A1.8 1.8 0 0 0 5.8 21H10" fill="none" stroke="#ff8a9a" stroke-width="2" stroke-linecap="round"/><path d="M15 7.5 19.5 12 15 16.5M19 12H9.4" fill="none" stroke="#ff8a9a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'),
+door:svg(lg('wdgX','#ffd0a8','#c86a1a')+'<rect x="6" y="3" width="12" height="18" rx="1.6" fill="url(#wdgX)"/><circle cx="14.6" cy="12" r="1.2" fill="#5a2a00"/>')
+};
+var NAV_ICON={'btn-m-lobby':'building','btn-m-tax':'bank','btn-m-market':'chart','btn-m-rank':'trophy','btn-m-army':'swords','btn-m-shop':'gem','btn-m-admin':'crown'};
+function applyIcons(){
+  Object.keys(NAV_ICON).forEach(function(id){
+    var b=D.getElementById(id);if(!b)return;
+    var sp=b.querySelector('span');if(!sp)return;
+    if(sp.querySelector('svg'))return;
+    sp.innerHTML=ICON[NAV_ICON[id]]||'';
+  });
+}
+setTimeout(applyIcons,700);setTimeout(applyIcons,2200);
+
+/* ================= rank rows beautify ================= */
+var MEDALS=['🥇','🥈','🥉'];
+function hueOf22(n){var x=7;for(var i=0;i<String(n).length;i++)x=(x*31+String(n).charCodeAt(i))%360;return x}
+function beautify(box){
+  try{
+    var rows=box.querySelectorAll('.lr-row');if(!rows.length)return;
+    for(var i=0;i<rows.length;i++){
+      var row=rows[i];
+      if(row.getAttribute('data-wd22'))continue;
+      row.setAttribute('data-wd22','1');
+      var spans=row.querySelectorAll('span');
+      if(spans.length<2)continue;
+      var left=(spans[0].textContent||'').trim(),right=(spans[1].textContent||'').trim();
+      var nick=left.replace(/^\s*\d+[\.\-\)]\s*/,''),val=right;
+      row.classList.remove('pod-1','pod-2','pod-3');row.textContent='';
+      if(i<3){row.classList.add('pod-'+(i+1));row.appendChild(h('span',MEDALS[i],'lr-medal'))}
+      var nickWrap=h('span','','lr-nick');
+      var dot=h('i','','lr-dot');dot.style.background='hsl('+hueOf22(nick)+',85%,60%)';dot.style.color='hsl('+hueOf22(nick)+',85%,60%)';
+      nickWrap.appendChild(dot);nickWrap.appendChild(h('b',nick));
+      row.appendChild(nickWrap);
+      row.appendChild(h('span',val,'lr-val'));
+      row.style.animationDelay=(i*0.05)+'s';row.classList.add('wd-pop');
+      try{if(row.className.indexOf('me')<0&&typeof ACC!=='undefined'&&ACC.nick&&nick===ACC.nick)row.classList.add('me')}catch(e){}
+    }
+  }catch(e){}
+}
+try{
+  if(typeof window.rankOnline==='function'){var _ro=window.rankOnline;
+    window.rankOnline=function(box){var p=_ro(box);
+      if(p&&typeof p.then==='function')return p.then(function(r){setTimeout(function(){beautify(box)},40);return r});
+      setTimeout(function(){beautify(box)},80);return p};}
+  if(typeof window.rankOnlineBy==='function'){var _rob=window.rankOnlineBy;
+    window.rankOnlineBy=function(box,cat){var p=_rob(box,cat);
+      if(p&&typeof p.then==='function')return p.then(function(r){setTimeout(function(){beautify(box)},40);return r});
+      setTimeout(function(){beautify(box)},80);return p};}
+}catch(e){}
+try{
+  var wr=D.getElementById('world-rank');
+  if(wr&&window.MutationObserver)new MutationObserver(function(){beautify(wr)}).observe(wr,{childList:true,subtree:true});
+}catch(e){}
+
+/* ================= infra prominent chip ================= */
+setTimeout(function(){
+  try{
+    if(D.getElementById('wd-infra-chip'))return;
+    var chip=D.createElement('div');chip.id='wd-infra-chip';
+    chip.innerHTML=ICON.hammer+'<span>زیرساخت<small id="wd-infra-lv">سطح ۰</small></span>';
+    chip.onclick=function(){try{openModal('m-lobby');switchLobbyTab('infra')}catch(e){}};
+    D.body.appendChild(chip);
+    setInterval(function(){
+      try{
+        var t=0;if(typeof infra!=='undefined')t=(infra.oil||0)+(infra.arms||0)+(infra.air||0);
+        var lv=D.getElementById('wd-infra-lv');if(lv)lv.textContent='سطح '+t.toLocaleString('fa-IR');
+      }catch(e){}
+    },2000);
+  }catch(e){}
+},1300);
+
+/* ================= V22 command menu (replaces old ☰ panel) ================= */
+function buildSheet(){
+  var sheet=D.getElementById('wd22-sheet');
+  if(sheet)return sheet;
+  sheet=D.createElement('div');sheet.id='wd22-sheet';
+  var card=D.createElement('div');card.id='wd22-card';
+  card.innerHTML='<div class="wd22-head"><div class="wd22-title">☰ مرکز فرماندهی</div><div class="wd22-x">✕</div></div><div id="wd22-body"></div>';
+  sheet.appendChild(card);D.body.appendChild(sheet);
+  sheet.querySelector('.wd22-x').onclick=function(){sheet.classList.remove('open')};
+  sheet.addEventListener('click',function(e){if(e.target===sheet)sheet.classList.remove('open')});
+  return sheet;
+}
+function sheetBody(){return D.getElementById('wd22-body')}
+function viewHome(){
+  var b=sheetBody();b.innerHTML='';
+  var g=D.createElement('div');g.className='wd22-grid';
+  var items=[
+    ['book','راهنمای بازی','هر چیزی که برای فتح جهان لازم داری',function(){viewHelp()}],
+    ['gear','تنظیمات و کارایی','حالت کم‌مصرف، صدا، برچسب نقشه',function(){viewSettings()}],
+    ['globe','سرورهای جهان','لیست سرورها و بازیکنان آنلاین',function(){try{renderSrv();openModal('m-srv')}catch(e){}closeSheet()}],
+    ['trophy','رتبه‌بندی','قدرت‌های نظامی جهان',function(){try{openModal('m-rank')}catch(e){}closeSheet()}],
+    ['shield','خلاصه فرماندهی','لقب، قلمرو، ارتش و جم شما',function(){viewSummary()}],
+    ['exit','خروج از حساب','تعویض حساب کاربری',function(){doLogout()}],
+  ];
+  try{if(typeof isAdmin==='function'&&isAdmin())items.push(['crown','پنل مدیریت','اطلاعات و دارایی همه بازیکنان',function(){try{renderAdmin();openModal('m-admin')}catch(e){}closeSheet()}])}catch(e){}
+  items.forEach(function(it){
+    var d=D.createElement('div');d.className='wd22-item'+(it[0]==='crown'?' wd22-admin':'');
+    d.innerHTML=ICON[it[0]]+'<b>'+it[1]+'</b><small>'+it[2]+'</small>';
+    d.onclick=it[3];g.appendChild(d);
+  });
+  b.appendChild(g);
+}
+function viewHelp(){
+  var b=sheetBody();b.innerHTML='';
+  b.appendChild(backBtn());
+  var doc=D.createElement('div');doc.className='wd22-doc';
+  doc.innerHTML='<b>🎯 شروع بازی:</b> یک کشور آزاد به‌عنوان پایتخت انتخاب کن. کشور سبزِ درخشان پایتخت توست و کشورهای آبی قلمروهای توست که دورشان <b>خط طلایی</b> کشیده شده.<br>'+
+  '<b>💰 اقتصاد:</b> هر ۹۰ ثانیه از دکمه مالیات (🏛) درآمد جمع کن و در بازار (📈) کالا بخر و بفروش.<br>'+
+  '<b>🏗️ زیرساخت:</b> با دکمه زیرساختِ بالای صفحه، پالایشگاه نفت، کارخانه اسلحه و فرودگاه بساز تا درآمد و قدرت ارتش‌ات بالا برود.<br>'+
+  '<b>⚔️ حمله:</b> روی کشور هم‌مرز بزن و «فرمان حمله» را بزن. حمله به کشورهای بدون فرمانده آزاد است؛ به کشور بازیکنان دیگر هم می‌توانی حمله کنی (نبرد زنده). مرز هر بازیکن <b>هاشورِ رنگیِ مخصوص خودش</b> را دارد.<br>'+
+  '<b>🪖 ارتش:</b> در آرسنال (سپر) با طلا و نفت سرباز، تانک و هواپیما استخدام کن؛ بدون ارتش حمله ممکن نیست.<br>'+
+  '<b>🏆 رتبه‌بندی:</b> در ۴ رشته‌ی کشورگشایی، کشتار، اقتصاد و استخدام با بقیه بازیکنان سرور رقابت کن؛ نفر اول تاج می‌گیرد و جایزه‌ی هفتگی دارد.<br>'+
+  '<b>💎 جم:</b> هر روز وارد شوی ۲۰ جم هدیه می‌گیری؛ با جم از فروشگاه بوست و منابع بخر.<br>'+
+  '<b>💾 ذخیره:</b> پیشرفت تو هر ۸ ثانیه روی سرور ذخیره می‌شود؛ از هر دستگاهی با همان حساب وارد شو.';
+  b.appendChild(doc);
+}
+function viewSettings(){
+  var b=sheetBody();b.innerHTML='';
+  b.appendChild(backBtn());
+  function swRow(title,sub,val,fn){
+    var r=D.createElement('div');r.className='wd22-row';
+    var t=D.createElement('div');t.innerHTML='<b style="font-size:12.5px;color:#eaf6ff">'+title+'</b><div style="font-size:10px;color:#8fb8d9">'+sub+'</div>';
+    var sw=D.createElement('div');sw.className='wd22-sw'+(val?' on':'');
+    sw.onclick=function(){var on=sw.classList.toggle('on');fn(on);try{saveSet()}catch(e){}};
+    r.appendChild(t);r.appendChild(sw);b.appendChild(r);
+  }
+  swRow('حالت کارایی (رفع لگ)','خاموش‌کردن انیمیشن‌های اضافه و کاروان‌ها',SET.perf,function(v){SET.perf=v;window.wd22ApplySet()});
+  swRow('صدای بازی','افکت‌ها و طبل جنگ',SET.sound,function(v){SET.sound=v;window.wd22ApplySet()});
+  swRow('نام کشورها روی نقشه','برچسب فارسی کشورها',SET.labels,function(v){SET.labels=v;window.wd22ApplySet()});
+  function saveSet(){try{localStorage.setItem('wd22_set',JSON.stringify(SET))}catch(e){}}
+}
+function viewSummary(){
+  var b=sheetBody();b.innerHTML='';
+  b.appendChild(backBtn());
+  var doc=D.createElement('div');doc.className='wd22-doc';doc.id='wd22-summary';b.appendChild(doc);
+  var terr=0,army=0,rank='';
+  try{terr=((typeof conqueredCountries!=='undefined'&&conqueredCountries.size)||0)+((typeof myCountryName!=='undefined'&&myCountryName)?1:0)}catch(e){}
+  try{army=Math.round((typeof calculateTotalAttack==='function')?calculateTotalAttack():0)}catch(e){}
+  try{if(typeof rankOf==='function')rank=rankOf(terr)[1]}catch(e){}
+  var nick22='مهمان';try{if(typeof ACC!=='undefined'&&ACC.nick)nick22=ACC.nick}catch(e){}
+  var srv22='—';try{if(typeof SRV!=='undefined')srv22=SRV}catch(e){}
+  doc.innerHTML='<b>فرمانده:</b> '+nick22+'<br><b>لقب:</b> '+rank+'<br><b>قلمرو:</b> 🏴 '+terr+' کشور<br><b>قدرت ارتش:</b> ⚔️ '+army.toLocaleString('fa-IR')+'<br><b>سرور:</b> 🖥️ '+srv22+'<br><b>جم:</b> 💎 <span id="wd22-gems">…</span>';
+  try{if(typeof sb!=='undefined'&&sb&&sb.rpc)sb.rpc('get_wallet').then(function(r){
+    var g=r&&r.data&&r.data.gems;var s=D.getElementById('wd22-gems');if(s&&typeof g==='number')s.textContent=g.toLocaleString('fa-IR');
+    else if(s)s.textContent='—';
+  })}catch(e){}
+}
+function doLogout(){
+  closeSheet();
+  var msg='از حساب خارج می‌شوی؟';
+  var go=function(){
+    try{if(typeof saveNow==='function')saveNow()}catch(e){}
+    try{localStorage.removeItem('wd_last')}catch(e){}
+    try{if(typeof sb!=='undefined'&&sb)sb.auth.signOut()}catch(e){}
+    location.reload();
+  };
+  try{
+    if(typeof wdConfirm==='function')wdConfirm(msg,'خروج').then(function(y){if(y)go()});
+    else if(confirm(msg))go();
+  }catch(e){if(confirm(msg))go()}
+}
+function backBtn(){var x=h('div','→ بازگشت','',function(){viewHome()});x.style.cssText='cursor:pointer;color:#8fd0ff;font-size:12px;font-weight:800;margin-bottom:9px';return x}
+function closeSheet(){var s=D.getElementById('wd22-sheet');if(s)s.classList.remove('open')}
+function openSheet(){var s=buildSheet();s.classList.add('open');viewHome()}
+window.wd22Menu=openSheet;
+setTimeout(function(){
+  try{
+    var hooked=function(q){if(q){q.onclick=function(e){try{e.preventDefault&&e.preventDefault()}catch(x){}openSheet()};q.title='مرکز فرماندهی'}};
+    hooked(D.getElementById('wd7-btn'));
+    hooked(D.getElementById('wd5-launcher'));
+    var n=D.getElementById('wd5-notify');if(n)n.remove();
+  }catch(e){}
+},1600);
+setTimeout(function(){
+  try{hooked22(D.getElementById('wd7-btn'));hooked22(D.getElementById('wd5-launcher'))}catch(e){}
+  function hooked22(q){if(q){q.onclick=function(e){try{e.preventDefault&&e.preventDefault()}catch(x){}openSheet()};q.title='مرکز فرماندهی'}}
+},3200);
+
+/* ================= admin panel v2 ================= */
+function fmt(n){try{return Number(n||0).toLocaleString('fa-IR')}catch(e){return String(n||0)}}
+function rel(t){try{if(!t)return 'هرگز';var d=(Date.now()-new Date(t).getTime())/60000;
+  if(d<1)return 'همین حالا آنلاین';if(d<60)return Math.floor(d)+' دقیقه پیش';if(d<1440)return Math.floor(d/60)+' ساعت پیش';return Math.floor(d/1440)+' روز پیش'}catch(e){return '—'}}
+window.renderAdmin=async function(){
+  var b=D.getElementById('admin-body');if(!b)return;b.textContent='';
+  b.appendChild(h('div','⏳ در حال دریافت اطلاعات بازیکنان...','sites-info'));
+  var ok=false;try{ok=!!(await serverAdmin())}catch(e){}
+  if(!ok){b.textContent='';b.appendChild(h('div','❌ این بخش فقط برای مدیر بازی فعال است.','sites-info'));return}
+  var rows=null;
+  try{var r=await sb.rpc('admin_list_players');if(!r.error&&Array.isArray(r.data))rows=r.data}catch(e){}
+  if(!rows){b.textContent='';b.appendChild(h('div','❌ دریافت اطلاعات بازیکنان ناموفق بود.','sites-info'));return}
+  b.textContent='';
+  var tot={p:rows.length,t:0,s:0,act:0};
+  rows.forEach(function(x){tot.t+=(Number(x.territories)||0);tot.s+=(Number(x.score)||0);
+    if(x.last_save&&(Date.now()-new Date(x.last_save).getTime())<300000)tot.act++});
+  var st=D.createElement('div');st.className='wd22-stats';
+  [['بازیکن',tot.p],['کشورها',tot.t],['امتیاز کل',fmt(tot.s)],['فعال (۵دقیقه)',tot.act]].forEach(function(x){
+    var d=D.createElement('div');d.className='wd22-stat';d.innerHTML='<b>'+fmt(x[1])+'</b><small>'+x[0]+'</small>';st.appendChild(d)});
+  b.appendChild(st);
+  var search=D.createElement('input');search.className='wd22-search';search.placeholder='🔍 جستجوی نام بازیکن...';b.appendChild(search);
+  var list=D.createElement('div');b.appendChild(list);
+  function giftLine(p){
+    var line=D.createElement('div');line.className='wd22-gift';
+    function inp(ph){var i=D.createElement('input');i.type='number';i.value='';i.placeholder=ph;return i}
+    var gI=inp('طلا'),oI=inp('نفت'),fI=inp('غذا'),mI=inp('جم ±');
+    var send=h('button','🎁 هدیه','wd22-gbtn',async function(){
+      var gg=Math.round(+gI.value||0),oo=Math.round(+oI.value||0),ff=Math.round(+fI.value||0);
+      if(!gg&&!oo&&!ff)return;
+      send.disabled=true;send.textContent='⏳';
+      try{var ins=await sb.from('admin_grants').insert({user_id:p.user_id,gold:gg,oil:oo,food:ff});
+        if(ins.error)throw ins.error;
+        gI.value='';oI.value='';fI.value='';
+        try{showToast('✅ برای '+p.nick+' ارسال شد','win')}catch(e){}
+      }catch(e){try{showToast('❌ خطا در ارسال','lose')}catch(x){}}
+      send.disabled=false;send.textContent='🎁 هدیه';
+    });
+    var gem=h('button','💎 جم','wd22-gbtn gem',async function(){
+      var mm=Math.round(+mI.value||0);if(!mm)return;
+      gem.disabled=true;
+      try{var rr=await sb.rpc('admin_set_gems',{p_user_id:p.user_id,p_delta:mm});
+        if(rr.error)throw rr.error;mI.value='';
+        try{showToast('✅ جم '+p.nick+' تنظیم شد','win')}catch(e){}
+      }catch(e){try{showToast('❌ خطا در جم','lose')}catch(x){}}
+      gem.disabled=false;
+    });
+    line.appendChild(gI);line.appendChild(oI);line.appendChild(fI);line.appendChild(send);
+    line.appendChild(mI);line.appendChild(gem);
+    return line;
+  }
+  function renderList(){
+    var q=(search.value||'').trim().toLowerCase();
+    list.textContent='';
+    var shown=rows.filter(function(p){return !q||String(p.nick).toLowerCase().indexOf(q)>=0});
+    if(!shown.length){list.appendChild(h('div','بازیکنی پیدا نشد.','sites-info'));return}
+    shown.forEach(function(p){
+      var w=D.createElement('div');w.className='wd22-player';
+      var head=D.createElement('div');head.className='wd22-phead';
+      var hue=7;try{var s=String(p.nick);for(var i=0;i<s.length;i++)hue=(hue*31+s.charCodeAt(i))%360}catch(e){}
+      var dot=D.createElement('i');dot.className='wd22-pdot';dot.style.background='hsl('+hue+',85%,60%)';dot.style.color='hsl('+hue+',85%,60%)';
+      var nm=D.createElement('span');nm.className='wd22-pname';nm.textContent=p.nick+(p.is_admin?' 👑':'');
+      var seen=D.createElement('span');seen.className='wd22-lastseen';seen.textContent='🕒 '+rel(p.last_save);
+      head.appendChild(dot);head.appendChild(nm);head.appendChild(seen);w.appendChild(head);
+      var meta=D.createElement('div');meta.className='wd22-pmeta';
+      function tag(t,c){var s=D.createElement('span');s.className='wd22-tag'+(c?' '+c:'');s.textContent=t;meta.appendChild(s)}
+      tag('🖥️ سرور '+(p.server||'—'));
+      tag('🏴 '+fmt(p.territories)+' کشور'+(p.capitals?' (⭐'+p.capitals+')':''));
+      tag('🏆 '+fmt(p.score),'gold');
+      tag('⚔️ '+fmt(p.kills));
+      tag('💰 '+fmt(p.economy));
+      tag('🪖 '+fmt(p.recruits));
+      tag('💎 '+fmt(p.gems));
+      w.appendChild(meta);w.appendChild(giftLine(p));list.appendChild(w);
+    });
+  }
+  search.addEventListener('input',renderList);
+  renderList();
+  var rf=h('button','🔄 بروزرسانی','wd22-gbtn',function(){window.renderAdmin()});
+  rf.style.marginTop='6px';b.appendChild(rf);
+};
 })();
 </script>
 </body>

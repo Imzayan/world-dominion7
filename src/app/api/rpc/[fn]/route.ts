@@ -110,6 +110,48 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       /* ---------------- admin ---------------- */
       case 'is_admin':
         return R(user.isAdmin)
+      case 'admin_list_players': {
+        if (!user.isAdmin) return R(null)
+        const users = await db.user.findMany({
+          select: {
+            id: true, nick: true, isAdmin: true, createdAt: true,
+            score: { select: { server: true, conquered: true, score: true, kills: true, economy: true, recruits: true } },
+            wallet: { select: { gems: true } },
+            save: { select: { updatedAt: true } },
+            territories: { select: { isCapital: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 300,
+        })
+        const rows = users.map((u) => ({
+          user_id: u.id,
+          nick: u.nick,
+          is_admin: u.isAdmin,
+          created_at: u.createdAt.toISOString(),
+          server: u.score?.server ?? null,
+          conquered: u.score?.conquered ?? 0,
+          score: u.score?.score ?? 0,
+          kills: u.score?.kills ?? 0,
+          economy: u.score?.economy ?? 0,
+          recruits: u.score?.recruits ?? 0,
+          gems: u.wallet?.gems ?? 0,
+          last_save: u.save?.updatedAt ? u.save.updatedAt.toISOString() : null,
+          territories: u.territories.length,
+          capitals: u.territories.filter((t) => t.isCapital).length,
+        }))
+        return R(rows)
+      }
+      case 'admin_set_gems': {
+        if (!user.isAdmin) return R(null)
+        const uid = String(args.p_user_id || '')
+        const delta = Math.round(Number(args.p_delta) || 0)
+        if (!uid || !delta) return R({ ok: false })
+        const target = await db.user.findUnique({ where: { id: uid } })
+        if (!target) return R({ ok: false })
+        const w = await ensureWallet(uid)
+        const nw = await db.wallet.update({ where: { userId: uid }, data: { gems: Math.max(0, w.gems + delta) } })
+        return R({ ok: true, gems: nw.gems })
+      }
       case 'claim_admin_grants': {
         const grants = await db.adminGrant.findMany({ where: { userId: user.id, claimed: false }, orderBy: { createdAt: 'asc' } })
         if (!grants.length) return R(null)
