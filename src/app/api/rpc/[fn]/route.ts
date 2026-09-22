@@ -13,7 +13,13 @@ export const dynamic = 'force-dynamic'
    get_world_chat, wd_init_player, wd_get_state
    ============================================================ */
 
-const GEM_COSTS: Record<string, number> = { boost: 20, gold: 15, oil: 15, peace: 12, tax: 6 }
+const GEM_COSTS: Record<string, number> = {
+  /* economy boosters (v3) */
+  boost: 20, gold: 15, oil: 15, peace: 12, tax: 6,
+  /* V27 — cosmetics & services: visuals / convenience / collection only, zero combat power (anti-P2W rule) */
+  col_pack: 25, emblem: 20, title: 25, border_glow: 30, fx_conq: 20,
+  lucky: 10, medal_s1: 40, vip7: 45, radar: 30, stats: 15, bundle_cos: 100
+}
 const WEEKLY_REWARDS: Record<number, number> = { 1: 5000, 2: 2500, 3: 1000 }
 const WEEKLY_CATEGORIES = ['score', 'kills', 'economy', 'recruits'] as const
 

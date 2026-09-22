@@ -1860,8 +1860,8 @@ const EV=[()=>{const g=150*Math.max(1,conqueredCountries.size);playerRes.gold+=g
 function showDate(){const d=new Date(Date.UTC(2026,8,20)+GAME.days*864e5);let s;try{s=d.toLocaleDateString('fa-IR-u-ca-persian',{year:'numeric',month:'long',day:'numeric',timeZone:'UTC'})}catch(e){s=d.toISOString().slice(0,10)}H$('hud-date').textContent='📅 '+s}
 function gameTick(){GAME.days++;showDate();tension=Math.max(0,tension-.3);H$('tn-fill').style.width=tension+'%';
   if(++tk4%4===0)econ();if(myCountryName&&--evT<=0){evT=45+(Math.random()*45|0);EV[Math.random()*EV.length|0]()}}
-function exportExt(){return{d:GAME.days,t:tension,u:unrest,s:sanction,n:NEWS}}
-function importExt(x){if(!x)return;GAME.days=x.d||0;tension=x.t||0;unrest=x.u||{};sanction=x.s||0;NEWS.length=0;(x.n||[]).forEach(m=>NEWS.push(m));const t=H$('tk');if(t)t.textContent=NEWS.slice().reverse().join('    ◆    ');showDate()}
+function exportExt(){return{d:GAME.days,t:tension,u:unrest,s:sanction,n:NEWS,c:(typeof COS27!=='undefined'?COS27:null)}}
+function importExt(x){if(!x)return;GAME.days=x.d||0;tension=x.t||0;unrest=x.u||{};sanction=x.s||0;NEWS.length=0;(x.n||[]).forEach(m=>NEWS.push(m));if(x.c&&typeof cosRestore==='function'){try{cosRestore(x.c)}catch(e){}}const t=H$('tk');if(t)t.textContent=NEWS.slice().reverse().join('    ◆    ');showDate()}
 // --- drawer extras ---
 const _oc2=onCountryClick;
 onCountryClick=function(f,l){_oc2(f,l);if(!myCountryName)return;const n=f.properties.name,r=H$('c-role'),st=statusOf(n);
@@ -6406,6 +6406,344 @@ function watchRank(){
 }
 setTimeout(watchRank,2200);
 setTimeout(watchRank,6000);
+})();
+</script>
+<script id="v27-shop">
+/* ============ V27: فروشگاه جم ۲.۰ — زیبایی‌شناسی، مجموعه‌داری، خدمات VIP (قانون ضد-P2W: صفر قدرت جنگی) ============ */
+(function(){
+'use strict';
+var D=document;
+/* ---------------- CSS ---------------- */
+var css=D.createElement('style');css.id='cos27-css';
+css.textContent=[
+'.cos27-bal{display:flex;align-items:center;justify-content:space-between;gap:8px;background:linear-gradient(135deg,rgba(255,216,77,.14),rgba(57,230,208,.10));border:1px solid rgba(255,216,77,.30);border-radius:14px;padding:10px 12px;margin-bottom:10px}',
+'.cos27-bal b{font-size:15px;color:#ffd84d}',
+'.cos27-tabs{display:flex;gap:5px;margin:8px 0 12px;flex-wrap:wrap}',
+'.cos27-tab{flex:1;min-width:58px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.05);color:#cdd7e8;border-radius:12px;padding:8px 4px;font-size:11px;font-weight:700;cursor:pointer;text-align:center;transition:.18s;font-family:inherit}',
+'.cos27-tab.on{background:linear-gradient(135deg,#ffd84d,#39e6d0);color:#081426;border-color:transparent;box-shadow:0 6px 18px rgba(57,230,208,.25)}',
+'.cos27-card{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:11px 12px;margin-bottom:8px}',
+'.cos27-ico{width:42px;height:42px;flex:0 0 42px;display:flex;align-items:center;justify-content:center;font-size:22px;background:rgba(255,216,77,.10);border:1px solid rgba(255,216,77,.22);border-radius:12px}',
+'.cos27-tx{flex:1;min-width:0}.cos27-tx b{display:block;font-size:12.5px}.cos27-tx small{display:block;color:#9fadc4;font-size:10.5px;line-height:1.55;margin-top:2px}',
+'.cos27-buy{border:0;border-radius:11px;padding:8px 12px;font-weight:800;font-size:12px;cursor:pointer;background:linear-gradient(135deg,#ffd84d,#ffb02e);color:#201500;white-space:nowrap;font-family:inherit}',
+'.cos27-buy.alt{background:linear-gradient(135deg,#39e6d0,#2bb8ff);color:#00231f}',
+'.cos27-buy.off{background:rgba(255,255,255,.08);color:#8b97ab;cursor:default}',
+'.cos27-buy.own{background:rgba(62,232,165,.15);color:#3ee8a5;border:1px solid rgba(62,232,165,.35);cursor:default}',
+'.cos27-lim{font-size:9.5px;background:rgba(255,77,77,.16);color:#ff8f8f;border:1px solid rgba(255,77,77,.30);border-radius:8px;padding:2px 6px;display:inline-block;margin-top:4px}',
+'.cos27-h{font-size:12px;color:#ffd84d;font-weight:800;margin:12px 2px 8px}',
+'.cos27-sw{width:34px;height:34px;border-radius:50%;border:3px solid transparent;cursor:pointer;padding:0}',
+'.cos27-sw.on{border-color:#fff;box-shadow:0 0 0 2px #39e6d0}',
+'.cos27-em{font-size:22px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;width:46px;height:46px;cursor:pointer}',
+'.cos27-em.on{border-color:#ffd84d;background:rgba(255,216,77,.15)}',
+'.cos27-slider{width:100%;accent-color:#ffd84d;margin:10px 0}',
+'.cos27-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:6px 11px;font-size:11.5px;margin:0 5px 6px 0}',
+'.cos27-ring{position:absolute;width:14px;height:14px;margin:-7px;border-radius:50%;border:3px solid #ffd84d;pointer-events:none;animation:cos27ring 1.3s ease-out forwards}',
+'.cos27-ring.f{border-color:#ff9f43}.cos27-ring.q{border-color:#ff5252}',
+'.cos27-pt{position:absolute;width:7px;height:7px;margin:-3px;border-radius:50%;background:#ffd84d;pointer-events:none;animation:cos27fly 1.4s ease-out forwards;box-shadow:0 0 8px rgba(255,216,77,.9)}',
+'.cos27-pt.f{background:#ff7043;box-shadow:0 0 8px rgba(255,112,67,.9)}',
+'.cos27-pt.q{background:#b0bec5;box-shadow:0 0 8px rgba(176,190,197,.9)}',
+'.cos27-fxwrap{position:absolute;inset:0;pointer-events:none;z-index:900;overflow:hidden}',
+'@keyframes cos27ring{from{transform:scale(1);opacity:.95}to{transform:scale(9);opacity:0}}',
+'@keyframes cos27fly{from{transform:translate(0,0) scale(1);opacity:1}to{transform:translate(var(--dx),var(--dy)) scale(.4);opacity:0}}',
+'.cos27-lucky{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:rgba(4,8,16,.72)}',
+'.cos27-lk-in{text-align:center;animation:cos27pop .45s cubic-bezier(.2,1.6,.4,1)}',
+'.cos27-lk-gift{font-size:88px;display:inline-block;animation:cos27shake .5s ease-in-out infinite}',
+'.cos27-lk-rw{margin-top:14px;background:linear-gradient(135deg,#1b2b4d,#0d1830);border:1px solid rgba(255,216,77,.4);border-radius:18px;padding:16px 26px;font-size:15px;font-weight:800;color:#ffd84d;animation:cos27pop .4s cubic-bezier(.2,1.6,.4,1)}',
+'@keyframes cos27shake{0%,100%{transform:rotate(-7deg) scale(1)}50%{transform:rotate(7deg) scale(1.08)}}',
+'@keyframes cos27pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}',
+'.cos27-vip{background:linear-gradient(135deg,rgba(255,216,77,.16),rgba(255,159,67,.10));border:1px solid rgba(255,216,77,.35)}'
+].join('');
+D.head.appendChild(css);
+/* ---------------- state ---------------- */
+var COS=window.COS27={owned:[],hue:null,emblem:null,title:null,fx:null,vipUntil:0,radarUntil:0,statsOn:false,hist:[],luckyDay:'',luckyN:0,lastRadar:0,medals:[],vipGiftDay:''};
+function cosOwned(k){return COS.owned.indexOf(k)>-1}
+function vipActive(){return Date.now()<(COS.vipUntil||0)}
+function radarActive(){return Date.now()<(COS.radarUntil||0)}
+function todayKey(){return new Date().toISOString().slice(0,10)}
+function faN(n){try{return faNum(n)}catch(e){return String(n)}}
+function cosTagText(nick){return nick+(COS.emblem?' '+COS.emblem:'')+(COS.title?' «'+COS.title+'»':'')+(vipActive()?' 👑':'')}
+window.cosRestore=function(x){try{if(!x)return;Object.assign(COS,x||{});cosRepaint()}catch(e){}};
+function ownedList(){var a=[];try{if(typeof myCountryName!=='undefined'&&myCountryName)a.push(myCountryName);if(typeof conqueredCountries!=='undefined')conqueredCountries.forEach(function(n){a.push(n)})}catch(e){}return a}
+function cosRepaint(){try{var list=ownedList();for(var i=0;i<list.length;i++){if(typeof applyCountryColor==='function')applyCountryColor(list[i])}}catch(e){}}
+/* ---------------- catalog ---------------- */
+var CAT={
+ col_pack:{i:'🎨',t:'رنگ اختصاصی امپراتوری',d:'به‌جای رنگ خودکار، رنگ قلمروهایت را خودت انتخاب کن.',c:25},
+ emblem:{i:'🏳️',t:'نشان اختصاصی',d:'یک نماد اختصاصی کنار نامت روی نقشه و رتبه‌بندی.',c:20},
+ title:{i:'👑',t:'لقب اختصاصی',d:'امپراتور، فاتح، سایه… کنار اسمت می‌درخشد.',c:25},
+ border_glow:{i:'✨',t:'مرز درخشان متحرک',d:'مرز قلمروهایت با هاله‌ی طلایی نفس می‌کشد.',c:30},
+ fx_conq:{i:'🎆',t:'افکت فتح اختصاصی',d:'هر کشوری که می‌گیری، انیمیشن مخصوص خودت پخش می‌شود.',c:20},
+ lucky:{i:'🎁',t:'باکس شانسی روزانه',d:'جایزه‌ی تصادفی: طلا، نفت، غذا یا بوست درآمد. هیچ سلاحی نیست — فقط شوخی و شانس!',c:10},
+ medal:{i:'🏆',t:'مدال فصل',d:'آیتم کمیاب فقط در همین فصل؛ در موزه‌ی امپراتوریت نمایش داده می‌شود.',c:40},
+ vip7:{i:'📅',t:'پک VIP هفتگی',d:'۷ روز: ۳۰۰ طلا هدیه‌ی روزانه + نشان 👑 + سورپرایز روزانه. هیچ قدرت جنگی اضافه نمی‌کند.',c:45},
+ radar:{i:'🔔',t:'رادار حمله (۷ روز)',d:'هر حمله به قلمروت را با گزارش کامل، همان اول می‌فهمی.',c:30},
+ stats:{i:'📊',t:'آمار و تحلیل پیشرفته',d:'نمودار روند امتیاز، قلمروها و طلا در طول زمان.',c:15}
+};
+var TITLES=['امپراتور','فاتح','سایه','سردار','دریاسالار','پادشاه','تایتان','طوفان','افسانه','فرمانده اسطوره‌ای'];
+var EMBLEMS=['🦅','👑','🐺','🦁','⚔️','🌙','☀️','🐉','🔥','⭐','🌊','🛡️','💀','🎯','⚡','🌟','🗡️','🦂'];
+var HUES=[0,25,45,95,140,172,205,235,265,290,320,345];
+var FXN={gold:'شعاع طلایی',fire:'آتش‌بازی',quake:'زلزله'};
+function fxName(k){return FXN[k]||k}
+function season27(){var fa='پاییز',slug='season-x',daysLeft=0;
+ try{var parts=new Intl.DateTimeFormat('en-u-ca-persian',{year:'numeric',month:'numeric',day:'numeric'}).formatToParts(new Date());var g={};parts.forEach(function(x){g[x.type]=x.value});
+  var m=+g.month,y=+g.year,d=+g.day;
+  var names={1:'بهار',2:'بهار',3:'بهار',4:'تابستان',5:'تابستان',6:'تابستان',7:'پاییز',8:'پاییز',9:'پاییز',10:'زمستان',11:'زمستان',12:'زمستان'};
+  fa=names[m]+' '+faN(y);
+  var dim=[31,31,31,31,31,31,30,30,30,30,30,29];
+  var endM=Math.ceil(m/3)*3;var left=dim[m-1]-d;for(var i=m+1;i<=endM;i++)left+=dim[i-1];daysLeft=Math.max(0,left);
+  slug='season-'+y+'-'+Math.ceil(m/3)}catch(e){}
+ return{fa:fa,slug:slug,daysLeft:daysLeft}}
+function hasMedal(slug){try{return (COS.medals||[]).some(function(m){return m.k===slug})}catch(e){return false}}
+function luckyToday(){return COS.luckyDay===todayKey()?(COS.luckyN||0):0}
+/* ---------------- buy dispatch (uses server-authoritative spendGem) ---------------- */
+function cosBuy(k){var it=CAT[k];if(!it)return;
+ if(k==='medal'){var s=season27();
+  if(hasMedal(s.slug)){showToast('🏆 مدال این فصل را داری','win');return}
+  spendGem({k:'medal_s1',c:it.c,t:'مدال فصل '+s.fa,f:function(){COS.medals.push({k:s.slug,fa:s.fa});try{if(typeof saveNow==='function')saveNow()}catch(e){}}});return}
+ if(cosOwned(k)&&k!=='lucky'){openPick(k);return}
+ spendGem({k:k,c:it.c,t:it.t,f:function(){
+  if(k==='lucky'){var done=luckyToday();COS.luckyDay=todayKey();COS.luckyN=done+1;luckyOpen();return}
+  if(k==='col_pack'||k==='emblem'||k==='title'||k==='fx_conq'){if(!cosOwned(k))COS.owned.push(k);openPick(k);return}
+  if(k==='border_glow'){if(!cosOwned(k))COS.owned.push(k);showToast('✨ مرز درخشان فعال شد','win');return}
+  if(k==='vip7'){COS.vipUntil=Date.now()+7*864e5;COS.vipGiftDay='';showToast('👑 پک VIP فعال شد — ۷ روز','win');try{cosVipTick()}catch(e){}return}
+  if(k==='radar'){COS.radarUntil=Date.now()+7*864e5;COS.lastRadar=Date.now();radarStart();showToast('🔔 رادار حمله فعال شد','win');return}
+  if(k==='stats'){COS.statsOn=true;showStats();return}
+ }})}
+function bundleBuy(){spendGem({k:'bundle_cos',c:100,t:'پک کامل امپراتور',f:function(){
+ ['col_pack','emblem','title','border_glow','fx_conq'].forEach(function(k){if(!cosOwned(k))COS.owned.push(k)});
+ shopTab='beauty';showToast('👑 پک کامل امپراتور فعال شد! همه‌ی زیبایی‌ها مال توست','win')}})}
+/* ---------------- shop UI (tabbed) ---------------- */
+var shopTab='res';
+function balHead(){var w=el('div','','cos27-bal');
+ var l=el('div');l.append(el('span','💎 موجودی: '),el('b',faN(GEMS)));w.append(l);
+ var r=el('span',boostMult()>1?'⚡ بوست فعال — '+faN(Math.ceil((BOOST-Date.now())/60000))+' دقیقه':'👑 فروشگاه امپراتوری');r.style.cssText='font-size:10.5px;color:#9fadc4';w.append(r);return w}
+function tabBar(){var t=el('div','','cos27-tabs');
+ [['res','🛒 منابع'],['beauty','🎨 زیبایی'],['collect','🎁 مجموعه'],['vip','👑 خدمات'],['museum','🖼️ موزه']].forEach(function(x){
+  var b=el('button',x[1],'cos27-tab'+(shopTab===x[0]?' on':''),function(){shopTab=x[0];renderShop()});t.append(b)});return t}
+function shopCard(ic,name,desc,btn){var r=el('div','','cos27-card');r.append(el('div',ic,'cos27-ico'));
+ var tx=el('div','','cos27-tx');tx.append(el('b',name));if(desc)tx.append(el('small',desc));r.append(tx);
+ if(btn)r.append(btn);return r}
+function tabRes(c){c.append(el('div','➕ خرید جم (پرداخت واقعی)','cos27-h'));
+ SHOP.packs.forEach(function(p){var b=p.url?el('button','خرید','cos27-buy alt',function(){window.open(p.url,'_blank')}):(function(){var d=el('button','به‌زودی','cos27-buy off');d.disabled=true;return d})();
+  c.append(shopCard('💎',faN(p.gems)+' جم',p.price,b))});
+ c.append(el('div','🛒 بوست و منابع','cos27-h'));
+ GEM_ITEMS.forEach(function(it){c.append(shopCard(it.i,it.t,null,el('button','💎 '+faN(it.c),'cos27-buy',function(){spendGem(it)})))})}
+function tabBeauty(c){c.append(el('div','🎨 زیبایی‌شناسی — کاملاً نمایشی، صفر تأثیر بر قدرت','cos27-h'));
+ ['col_pack','emblem','title','border_glow','fx_conq'].forEach(function(k){var it=CAT[k];var btn;
+  if(cosOwned(k)){var hasCfg=(k==='col_pack'&&COS.hue!=null)||(k==='emblem'&&COS.emblem)||(k==='title'&&COS.title)||(k==='fx_conq'&&COS.fx);
+   btn=el('button',hasCfg?'تغییر':'انتخاب','cos27-buy alt',function(){openPick(k)})}
+  else btn=el('button','💎 '+faN(it.c),'cos27-buy',function(){cosBuy(k)});
+  var extra='';if(k==='col_pack'&&COS.hue!=null)extra=' — فعال';if(k==='emblem'&&COS.emblem)extra=' — '+COS.emblem;if(k==='title'&&COS.title)extra=' — «'+COS.title+'»';if(k==='fx_conq'&&COS.fx)extra=' — '+fxName(COS.fx);
+  c.append(shopCard(it.i,it.t+extra,it.d,btn))});
+ var r=el('div','','cos27-card cos27-vip');r.append(el('div','📦','cos27-ico'));
+ var tx=el('div','','cos27-tx');tx.append(el('b','پک کامل امپراتور'),el('small','هر ۵ زیبایی‌شناسی با هم: رنگ + نشان + لقب + مرز درخشان + افکت فتح. به‌جای ۱۲۰، فقط ۱۰۰ جم!'));r.append(tx);
+ r.append(el('button','💎 '+faN(100),'cos27-buy',function(){bundleBuy()}));c.append(r)}
+function tabCollect(c){c.append(el('div','🎁 مجموعه‌داری و شانس','cos27-h'));
+ var left=Math.max(0,3-luckyToday());
+ c.append(shopCard('🎁','باکس شانسی روزانه','جایزه‌ی تصادفی: طلا، نفت، غذا یا بوست. امروز '+faN(left)+' فرصت باقی مانده. محتوا هیچ‌وقت سلاح نیست!',
+  left>0?el('button','💎 '+faN(10),'cos27-buy',function(){cosBuy('lucky')}):(function(){var d=el('button','فردا بیا','cos27-buy off');d.disabled=true;return d})()));
+ var s=season27(),mbtn;
+ if(hasMedal(s.slug))mbtn=(function(){var d=el('button','داری ✓','cos27-buy own');d.disabled=true;return d})();
+ else mbtn=el('button','💎 '+faN(40),'cos27-buy',function(){cosBuy('medal')});
+ var r=shopCard('🏆','مدال فصل '+s.fa,'آیتم کمیاب فصلی — بعد از پایان فصل دیگر هیچ‌وقت گیر نمی‌آید. برای همیشه در موزه‌ات می‌ماند.',mbtn);
+ (function(){var lim=el('span','⏳ '+faN(s.daysLeft)+' روز تا پایان فصل','cos27-lim');r.querySelector('.cos27-tx').append(lim)})();c.append(r)}
+function tabVip(c){c.append(el('div','👑 خدمات و راحتی — بدون برتری جنگی','cos27-h'));
+ var vd=vipActive()?Math.max(1,Math.ceil((COS.vipUntil-Date.now())/864e5)):0;
+ c.append(shopCard('📅','پک VIP هفتگی'+(vd?' — فعال ('+faN(vd)+' روز مانده)':''),'هر روز ۳۰۰ طلا هدیه + شانس سورپرایز + نشان 👑 کنار اسمت. فقط باکلاس‌تر و راحت‌تر — هیچ قدرت جنگی اضافه نمی‌دهد.',
+  vd?(function(){var d=el('button','داری ✓','cos27-buy own');d.disabled=true;return d})():el('button','💎 '+faN(45),'cos27-buy',function(){cosBuy('vip7')})));
+ var rd=radarActive()?Math.max(1,Math.ceil((COS.radarUntil-Date.now())/864e5)):0;
+ c.append(shopCard('🔔','رادار حمله'+(rd?' — فعال ('+faN(rd)+' روز مانده)':''),'وقتی آفلاینی و به قلمروت حمله می‌شود، با ورود بعدی گزارش کامل می‌گیری. رایگان‌ها دیرتر می‌فهمند — تو اول از همه!',
+  rd?(function(){var d=el('button','داری ✓','cos27-buy own');d.disabled=true;return d})():el('button','💎 '+faN(30),'cos27-buy',function(){cosBuy('radar')})));
+ var sb2=[];
+ if(COS.statsOn){sb2.push(el('button','نمودار','cos27-buy alt',function(){showStats()}));sb2.push((function(){var d=el('button','داری ✓','cos27-buy own');d.disabled=true;return d})())}
+ else sb2.push(el('button','💎 '+faN(15),'cos27-buy',function(){cosBuy('stats')}));
+ c.append(shopCard('📊','آمار و تحلیل پیشرفته','نمودار روند امتیاز، قلمروها و طلا در طول زمان. برای فرمانده‌هایی که با دیتا فکر می‌کنند.',sb2[0]));
+ if(sb2[1])c.append(shopCard('📈','گزارش قبلی','نمودار ذخیره‌شده‌ی روند امپراتوری را دوباره ببین.',sb2[1]))}
+function tabMuseum(c){c.append(el('div','🖼️ موزه‌ی امپراتوری','cos27-h'));
+ var n=0;
+ function chip(ic,tx){n++;var s=el('span','','cos27-chip');s.append(el('b',ic),el('span',tx));c.append(s)}
+ if(COS.hue!=null)chip('🎨','رنگ اختصاصی فعال');
+ if(COS.emblem)chip(COS.emblem,'نشان اختصاصی: '+COS.emblem);
+ if(COS.title)chip('👑','لقب: «'+COS.title+'»');
+ if(COS.fx)chip('🎆','افکت فتح: '+fxName(COS.fx));
+ if(cosOwned('border_glow'))chip('✨','مرز درخشان متحرک');
+ if(vipActive())chip('👑','VIP تا '+new Date(COS.vipUntil).toLocaleDateString('fa-IR'));
+ if(radarActive())chip('🔔','رادار حمله فعال');
+ if(COS.statsOn)chip('📊','تحلیل پیشرفته فعال');
+ (COS.medals||[]).forEach(function(m){chip('🏆','مدال فصل '+m.fa)});
+ if(!n)c.append(el('div','هنوز آیتمی در موزه نداری — از تب‌های «زیبایی» و «مجموعه» شروع کن!','cos27-h'));
+ c.append(el('div','📌 خلاصه امپراتوری','cos27-h'));
+ try{var sc=conqueredCountries.size*1000+(typeof calculateTotalAttack==='function'?calculateTotalAttack():0);
+  c.append(el('div','🏴 قلمروها: '+faN(conqueredCountries.size)+' • ⭐ امتیاز: '+faN(sc)+' • 💎 جم: '+faN(GEMS),'cos27-h'))}catch(e){}
+ c.append(el('div','🗺️ به‌زودی در فروشگاه: اسکین‌های فصلی نقشه (جنگ جهانی دوم، امپراتوری روم، آخرالزمان)','cos27-h'))}
+renderShop=function(){try{var b=S$('shop-body');if(!b)return;b.textContent='';
+ b.append(balHead());
+ if(!WALLET_OK)b.append(el('div','⚠️ خرید فقط با حساب آنلاین و انتخاب پایتخت فعال می‌شود.','cos27-h'));
+ b.append(tabBar());
+ var c=el('div');b.append(c);
+ if(shopTab==='res')tabRes(c);else if(shopTab==='beauty')tabBeauty(c);else if(shopTab==='collect')tabCollect(c);else if(shopTab==='vip')tabVip(c);else tabMuseum(c)}catch(e){console.log('shop27',e)}};
+/* ---------------- picker modal ---------------- */
+(function(){var m=D.createElement('div');m.id='cos-pick';m.className='modal';
+ m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span id="cos-pick-t">انتخاب</span><span class="close-modal" id="cos-pick-x" style="cursor:pointer;font-size:18px">✕</span></div><div id="cos-pick-b"></div></div>';
+ D.body.appendChild(m);m.querySelector('#cos-pick-x').onclick=function(){closeModal('cos-pick')};
+ m.addEventListener('click',function(e){if(e.target===m)closeModal('cos-pick')})})();
+function refreshChip(){try{var c=A$('acc-chip');if(c&&c.textContent.indexOf('خروج')>-1){var n=(typeof ACC!=='undefined'&&ACC.nick)||'';if(n)c.textContent='👤 '+cosTagText(n)+' ✕ خروج'}}catch(e){}}
+function setColor(h){COS.hue=h;cosRepaint();closeModal('cos-pick');try{if(typeof saveNow==='function')saveNow()}catch(e){}refreshChip();showToast(h==null?'🎨 رنگ پیش‌فرض':'🎨 رنگ امپراتوری عوض شد','win')}
+function setEmblem(e2){COS.emblem=e2;cosRepaint();closeModal('cos-pick');try{if(typeof saveNow==='function')saveNow()}catch(e){}refreshChip();showToast(e2?'🏳️ نشان تو: '+e2:'🏳️ نشان حذف شد','win')}
+function setTitle(t2){COS.title=t2;closeModal('cos-pick');try{if(typeof saveNow==='function')saveNow()}catch(e){}refreshChip();showToast(t2?'👑 لقب تو: «'+t2+'»':'👑 لقب حذف شد','win')}
+function setFx(k){COS.fx=k;closeModal('cos-pick');try{if(typeof saveNow==='function')saveNow()}catch(e){}refreshChip();showToast(k?'🎆 افکت فتح: '+fxName(k):'🎆 افکت پیش‌فرض','win')}
+function openPick(kind0){var kind=kind0==='fx_conq'?'fx':kind0;var b=S$('cos-pick-b'),t=S$('cos-pick-t');if(!b)return;b.textContent='';
+ if(kind==='col_pack'){t.textContent='🎨 رنگ امپراتوری';
+  var grid=el('div');grid.style.cssText='display:flex;flex-wrap:wrap;gap:8px;justify-content:center';
+  HUES.forEach(function(h){var s=el('button','','cos27-sw'+(COS.hue===h?' on':''));s.style.background='hsl('+h+',78%,46%)';s.onclick=function(){setColor(h)};grid.append(s)});
+  b.append(grid);
+  b.append(el('div','🎛️ رنگ دلخواه','cos27-h'));
+  var sl=el('input');sl.type='range';sl.min='0';sl.max='360';sl.value=COS.hue!=null?COS.hue:210;sl.className='cos27-slider';
+  sl.onchange=function(){setColor(+sl.value)};b.append(sl);
+  var def=el('button','بازگشت به رنگ پیش‌فرض','cos27-buy off');def.style.cssText='width:100%;margin-top:6px';def.onclick=function(){setColor(null)};b.append(def)}
+ else if(kind==='emblem'){t.textContent='🏳️ نشان اختصاصی';
+  var g2=el('div');g2.style.cssText='display:flex;flex-wrap:wrap;gap:8px;justify-content:center';
+  EMBLEMS.forEach(function(e3){var s=el('button',e3,'cos27-em'+(COS.emblem===e3?' on':''));s.onclick=function(){setEmblem(e3)};g2.append(s)});
+  b.append(g2);
+  var rm=el('button','حذف نشان','cos27-buy off');rm.style.cssText='width:100%;margin-top:12px';rm.onclick=function(){setEmblem(null)};b.append(rm)}
+ else if(kind==='title'){t.textContent='👑 لقب اختصاصی';
+  TITLES.forEach(function(x){var r=el('div','','cos27-card');r.append(el('div','👑','cos27-ico'));
+   var tx=el('div','','cos27-tx');tx.append(el('b',x));r.append(tx);
+   r.append(el('button',COS.title===x?'انتخاب شده':'انتخاب','cos27-buy'+(COS.title===x?' own':' alt'),function(){setTitle(x)}));b.append(r)});
+  var rm2=el('button','حذف لقب','cos27-buy off');rm2.style.cssText='width:100%;margin-top:8px';rm2.onclick=function(){setTitle(null)};b.append(rm2)}
+ else if(kind==='fx'){t.textContent='🎆 افکت فتح';
+  ['gold','fire','quake'].forEach(function(k){var r=el('div','','cos27-card');r.append(el('div',k==='gold'?'✨':k==='fire'?'🎆':'🌋','cos27-ico'));
+   var tx=el('div','','cos27-tx');tx.append(el('b',fxName(k)));r.append(tx);
+   r.append(el('button','پیش‌نمایش','cos27-buy alt',function(){try{var ct=map.getCenter();cosFxAt(ct.lat,ct.lng,k)}catch(e){}}));
+   b.append(r);
+   var sel=el('button',COS.fx===k?'انتخاب شده':'انتخاب این افکت','cos27-buy'+(COS.fx===k?' own':''),function(){setFx(k)});sel.style.cssText='width:100%;margin:-4px 0 8px';b.append(sel)});
+  var rm3=el('button','افکت پیش‌فرض بازی','cos27-buy off');rm3.style.cssText='width:100%;margin-top:8px';rm3.onclick=function(){setFx(null)};b.append(rm3)}
+ openModal('cos-pick')}
+/* ---------------- conquest FX ---------------- */
+var ownSnap=new Set(),cosArmed=false,recentFx=new Set();
+function cosArm(){try{ownSnap=new Set(typeof conqueredCountries!=='undefined'?conqueredCountries:[]);if(typeof myCountryName!=='undefined'&&myCountryName)ownSnap.add(myCountryName)}catch(e){}
+ setTimeout(function(){cosArmed=true},25000)}
+function cosDetect(n){try{if(!cosArmed||!n)return;if(typeof statusOf!=='function')return;var st=statusOf(n);if(st==='neutral')return;
+ if(ownSnap.has(n))return;ownSnap.add(n);
+ if(!COS.fx)return;if(recentFx.has(n))return;recentFx.add(n);setTimeout(function(){recentFx.delete(n)},6e4);
+ var g=(typeof getG==='function')?getG(n):null;if(g&&g.c&&typeof map!=='undefined'&&map)cosFxAt(g.c[0],g.c[1],COS.fx)}catch(e){}}
+function cosFxAt(lat,lng,kind){try{var pt=map.latLngToContainerPoint([lat,lng]);var host=map.getContainer();
+ var wrap=D.createElement('div');wrap.className='cos27-fxwrap';host.appendChild(wrap);
+ var cx=pt.x,cy=pt.y;
+ if(kind==='quake'&&typeof shake==='function')try{shake()}catch(e){}
+ for(var i=0;i<3;i++)(function(i){setTimeout(function(){var r=D.createElement('div');r.className='cos27-ring '+(kind==='fire'?'f':kind==='quake'?'q':'g');
+  r.style.left=cx+'px';r.style.top=cy+'px';wrap.appendChild(r);setTimeout(function(){try{r.remove()}catch(e){}},1400)},i*220)})(i);
+ var parts=kind==='gold'?26:kind==='fire'?34:20;
+ for(var p=0;p<parts;p++)(function(p){setTimeout(function(){var d2=D.createElement('div');d2.className='cos27-pt '+(kind==='fire'?'f':kind==='quake'?'q':'g');
+  var ang=Math.random()*Math.PI*2,dist=40+Math.random()*90;
+  d2.style.left=cx+'px';d2.style.top=cy+'px';d2.style.setProperty('--dx',Math.cos(ang)*dist+'px');d2.style.setProperty('--dy',(Math.sin(ang)*dist-40)+'px');
+  wrap.appendChild(d2);setTimeout(function(){try{d2.remove()}catch(e){}},1500)},p*28)})(p);
+ setTimeout(function(){try{wrap.remove()}catch(e){}},1900)}catch(e){}}
+/* ---------------- lucky box ---------------- */
+function luckyRoll(){var r=Math.random();
+ if(r<.42)return{i:'💰',t:'طلا',v:400+Math.floor(Math.random()*1800),f:function(){playerRes.gold+=this.v}};
+ if(r<.62)return{i:'🛢️',t:'نفت',v:250+Math.floor(Math.random()*950),f:function(){playerRes.oil+=this.v}};
+ if(r<.77)return{i:'🌾',t:'غذا',v:300+Math.floor(Math.random()*1200),f:function(){playerRes.food+=this.v}};
+ if(r<.92)return{i:'⚡',t:'بوست درآمد',v:20+Math.floor(Math.random()*26),f:function(){BOOST=Math.max(Date.now(),BOOST)+this.v*60000}};
+ return{i:'💰',t:'طلا (جک‌پات!)',v:4000,f:function(){playerRes.gold+=this.v}}}
+function luckyOpen(){try{var ov=D.createElement('div');ov.className='cos27-lucky';ov.innerHTML='<div class="cos27-lk-in"><div class="cos27-lk-gift">🎁</div></div>';D.body.appendChild(ov);
+ setTimeout(function(){var rw=luckyRoll();rw.f();
+  ov.innerHTML='<div class="cos27-lk-in"><div class="cos27-lk-gift" style="animation:none">🎉</div><div class="cos27-lk-rw">'+rw.i+' '+rw.t+' — '+faN(rw.v)+'</div></div>';
+  showToast('🎁 '+rw.t+': '+faN(rw.v),'win');try{updateUI()}catch(e){}
+  setTimeout(function(){try{ov.remove()}catch(e){}},2300)},1400)}catch(e){}}
+/* ---------------- VIP ---------------- */
+function cosVipTick(){try{if(!vipActive())return;var today=todayKey();if(COS.vipGiftDay===today)return;COS.vipGiftDay=today;
+ var extra='';if(Math.random()<.22){playerRes.gold+=500;extra=' + 🎉 سورپرایز VIP: ۵۰۰ طلای اضافه!'}
+ playerRes.gold+=300;showToast('👑 هدیه‌ی روزانه VIP: ۳۰۰ طلا'+extra,'win');try{updateUI()}catch(e){}
+ try{if(typeof saveNow==='function')saveNow()}catch(e){}}catch(e){}}
+/* ---------------- radar ---------------- */
+var radarTimer=null;
+function radarStart(){try{if(radarTimer)clearInterval(radarTimer);radarTimer=setInterval(cosRadarCheck,90000);setTimeout(cosRadarCheck,5000)}catch(e){}}
+async function cosRadarCheck(){try{if(!radarActive())return;if(typeof sb==='undefined'||!sb||typeof ACC==='undefined'||!ACC.uid||!ACC.nick)return;
+ var r=await sb.rpc('get_world_news',{p_server:(typeof SRV!=='undefined'?SRV:1),p_limit:80});
+ var rows=(r&&r.data)||[];var since=COS.lastRadar||Date.now()-864e5;
+ var hits=rows.filter(function(x){return x&&x.target_nick===ACC.nick&&String(x.action||'').indexOf('pvp')===0&&(Date.parse(x.created_at)||0)>since});
+ if(!hits.length)return;
+ COS.lastRadar=Date.now();radarReport(hits);
+ try{navigator.vibrate&&navigator.vibrate([60,40,60])}catch(e){}
+ try{if(typeof saveNow==='function')saveNow()}catch(e){}}catch(e){}}
+function radarReport(rows){try{var ov=D.createElement('div');ov.className='modal active';ov.style.zIndex='10060';
+ ov.innerHTML='<div class="modal-card" style="max-width:430px"><div class="modal-title-row"><span>🔔 رادار حمله — گزارش جدید</span><span class="close-modal" style="cursor:pointer;font-size:18px">✕</span></div><div class="cos27-radar-b"></div></div>';
+ D.body.appendChild(ov);ov.addEventListener('click',function(e){if(e.target===ov)ov.remove()});
+ var b=ov.querySelector('.cos27-radar-b');
+ b.append(el('div','⚠️ '+faN(rows.length)+' رویداد جدید علیه قلمرو تو ثبت شد:','cos27-h'));
+ rows.slice(0,10).forEach(function(x){var r=el('div','','cos27-card');r.append(el('div',x.action==='pvp_capture'?'🏆':'⚔️','cos27-ico'));
+  var tx=el('div','','cos27-tx');tx.append(el('b',(x.country||'?')+' — '+(x.action==='pvp_capture'?'فتح شد!':'حمله شد!')),
+   el('small','توسط '+(x.actor_nick||'؟')+' • '+new Date(x.created_at).toLocaleString('fa-IR')));r.append(tx);b.append(r)});
+ var cx2=ov.querySelector('.close-modal');if(cx2)cx2.onclick=function(){ov.remove()}}catch(e){}}
+/* ---------------- advanced stats ---------------- */
+function cosRecordStat(){try{if(!COS.statsOn)return;var d=todayKey();
+ var s=(typeof conqueredCountries!=='undefined'?conqueredCountries.size:0)*1000+(typeof calculateTotalAttack==='function'?calculateTotalAttack():0);
+ var g=Math.floor((typeof playerRes!=='undefined'&&playerRes.gold)||0),c=(typeof conqueredCountries!=='undefined'?conqueredCountries.size:0);
+ var last=COS.hist[COS.hist.length-1];
+ if(last&&last.d===d){last.s=s;last.g=g;last.c=c}
+ else{COS.hist.push({d:d,s:s,g:g,c:c});if(COS.hist.length>60)COS.hist.shift()}}catch(e){}}
+function showStats(){try{var m=S$('cos-stats');if(!m){m=D.createElement('div');m.id='cos-stats';m.className='modal';
+  m.innerHTML='<div class="modal-card" style="max-width:520px"><div class="modal-title-row"><span>📊 آمار و تحلیل امپراتوری</span><span class="close-modal" style="cursor:pointer;font-size:18px">✕</span></div><canvas id="cos-chart" width="560" height="300" style="width:100%;border-radius:12px;background:rgba(255,255,255,.04)"></canvas><div id="cos-stats-sum" style="margin-top:8px;font-size:11px;color:#9fadc4;line-height:1.7"></div></div>';
+  D.body.appendChild(m);m.querySelector('.close-modal').onclick=function(){closeModal('cos-stats')}}
+ drawChart();openModal('cos-stats')}catch(e){}}
+function drawChart(){try{var cv=S$('cos-chart');if(!cv)return;var ctx=cv.getContext('2d');var Wd=cv.width,Hg=cv.height;
+ ctx.clearRect(0,0,Wd,Hg);var h=COS.hist||[];var sum=S$('cos-stats-sum');
+ if(h.length<2){if(sum)sum.textContent='داده کافی نیست — با هر ذخیره‌ی بازی، یک نقطه‌ی روزانه ثبت می‌شود. از فردا نمودار شکل می‌گیرد! 📈';return}
+ var P=38,maxS=Math.max.apply(null,h.map(function(x){return x.s}))||1,maxC=Math.max.apply(null,h.map(function(x){return x.c}))||1;
+ ctx.strokeStyle='rgba(255,255,255,.10)';ctx.fillStyle='rgba(255,255,255,.45)';ctx.font='11px sans-serif';ctx.textAlign='right';
+ for(var i=0;i<=3;i++){var y=P+(Hg-2*P)*i/3;ctx.beginPath();ctx.moveTo(P,y);ctx.lineTo(Wd-10,y);ctx.stroke();ctx.fillText(faN(Math.round(maxS*(1-i/3))),Wd-14,y-4)}
+ function line(key,max,col){ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.beginPath();
+  h.forEach(function(p2,i2){var x=P+(Wd-P-14)*i2/(h.length-1),y=P+(Hg-2*P)*(1-(p2[key]||0)/max);i2?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()}
+ line('s',maxS,'#ffd84d');line('c',maxC,'#39e6d0');
+ ctx.fillStyle='#ffd84d';ctx.textAlign='left';ctx.fillText('⭐ امتیاز',P,20);ctx.fillStyle='#39e6d0';ctx.fillText('🏴 قلمرو',P+80,20);
+ ctx.fillStyle='rgba(255,255,255,.45)';ctx.fillText(faN(h[0].d),P,Hg-8);ctx.fillText(faN(h[h.length-1].d),Wd-110,Hg-8);
+ if(sum)sum.textContent='از '+faN(h[0].d)+' تا امروز — امتیاز: '+faN(h[h.length-1].s)+' • قلمروها: '+faN(h[h.length-1].c)+' • طلا: '+faN(h[h.length-1].g)}catch(e){}}
+/* ---------------- hooks: رنگ و نشان روی نقشه ---------------- */
+try{var _ph=plHue;plHue=function(){if(COS.hue!=null)return COS.hue;return _ph()}}catch(e){}
+/* plNick is a const binding — cannot reassign; inject emblem via ownership label markers (OL) instead */
+function cosLabelFix(n){try{if(typeof OL==='undefined'||!OL||!OL[n]||!OL[n].getElement)return;if(typeof statusOf!=='function')return;var st=statusOf(n);if(st==='neutral')return;
+ var elx=OL[n].getElement();if(!elx||!elx.firstChild)return;
+ var base=(st==='capital'?'⭐ ':'')+plNick();elx.firstChild.textContent=COS.emblem?COS.emblem+' '+base:base}catch(e){}}
+try{var _ac=applyCountryColor;applyCountryColor=function(n){_ac(n);try{cosLabelFix(n)}catch(e){}cosDetect(n)}}catch(e){}
+/* ---------------- hooks: چرخه‌ی حیات بازی ---------------- */
+try{var _rs=restoreState;restoreState=function(st){var r=_rs(st);try{cosArm()}catch(e){}return r}}catch(e){}
+try{var _lw=loadWallet;loadWallet=async function(){var r=await _lw.apply(this,arguments);try{cosVipTick()}catch(e){}return r}}catch(e){}
+try{var _sn=saveNow;saveNow=function(){try{cosRecordStat()}catch(e){}return _sn.apply(this,arguments)}}catch(e){}
+try{var _sc=showChip;showChip=function(n){_sc(n);try{var c=A$('acc-chip');if(c)c.textContent='👤 '+cosTagText(n)+' ✕ خروج'}catch(e){}}}catch(e){}
+/* menuHead/item live inside the V26 IIFE — decorate the ☰ menu reactively instead */
+(function(){var mo=new MutationObserver(function(){try{var nn=A$('wd-menu-nick');if(!nn)return;
+ if(typeof ACC==='undefined'||!ACC)return;var nick=ACC.nick||'مهمان';
+ if(nn.textContent===nick)nn.textContent=cosTagText(nick);
+ var ss=A$('wd-menu-sub');if(ss&&vipActive()&&ss.textContent.indexOf('VIP')<0)ss.textContent+=' • 👑 VIP'}catch(e){}});
+ var iv=setInterval(function(){try{var h=A$('wd-menu-head');if(h){mo.observe(h,{childList:true,subtree:true,characterData:true});clearInterval(iv)}}catch(e){}},1000)})();
+try{var _eo=enterOnline;enterOnline=async function(u,nick){var r=await _eo(u,nick);try{cosArm()}catch(e){}try{radarStart()}catch(e){}return r}}catch(e){}
+/* ---------------- مرز درخشان (پالس طلایی) ---------------- */
+var glowOn=false;
+setInterval(function(){try{
+ if(COS.owned.indexOf('border_glow')<0)return;
+ if(D.hidden)return;
+ if(typeof SET!=='undefined'&&SET&&SET.perf)return;
+ if(typeof conqueredCountries==='undefined')return;
+ var list=ownedList();if(!list.length||list.length>90)return;
+ glowOn=!glowOn;
+ for(var i=0;i<list.length;i++){var l=typeof layersByName!=='undefined'?layersByName[list[i]]:null;if(!l||!l.setStyle)continue;
+  l.setStyle({color:glowOn?'#ffd84d':'#fff6d8',weight:glowOn?3.2:2.2})}
+}catch(e){}},950);
+/* ---------------- پایش فتح جدید (برای افکت) ---------------- */
+setInterval(function(){try{if(!cosArmed||!COS.fx)return;if(typeof conqueredCountries==='undefined')return;
+ conqueredCountries.forEach(function(n){cosDetect(n)});
+ if(typeof myCountryName!=='undefined'&&myCountryName)cosDetect(myCountryName)}catch(e){}},2500);
+/* ---------------- نشان کنار نام در رتبه‌بندی ---------------- */
+setInterval(function(){try{if(typeof ACC==='undefined'||!ACC||!ACC.nick)return;var nick=ACC.nick;
+ var rows=D.querySelectorAll('#m-rank .lr-row,#m-rank .wd26-pc');
+ for(var i=0;i<rows.length;i++){var r=rows[i];if(r.getAttribute('data-cos27'))continue;
+  var b=r.querySelector('b');
+  if(b&&b.textContent.indexOf(nick)>-1){b.textContent=cosTagText(nick);r.setAttribute('data-cos27','1');continue}
+  var sp=r.querySelector('span');
+  if(sp&&sp.textContent.indexOf(nick)>-1&&!sp.getAttribute('data-cos27')){sp.setAttribute('data-cos27','1');sp.textContent=sp.textContent.replace(nick,cosTagText(nick))}}
+}catch(e){}},1300);
+/* ---------------- شروع ---------------- */
+setTimeout(function(){try{cosRepaint()}catch(e){}},3500);
+setTimeout(function(){try{if(typeof myCountryName!=='undefined'&&myCountryName)cosRecordStat()}catch(e){}},6000);
 })();
 </script>
 </body>
