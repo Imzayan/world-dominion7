@@ -280,6 +280,61 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R(r.ok)
       }
 
+      /* ---------------- V30 special ops (server-enforced limits) ----------------
+         coup  : 100 gems, 1 per 24h per player  — artificial unrest on a foreign country
+         meteor:  80 gems, 1 per 72h per player AND max 3 per rolling 7 days server-wide */
+      case 'use_special': {
+        const item = String(args.p_item || '')
+        const country = String(args.p_country || '')
+        const server = Math.max(1, Number(args.p_server || 1))
+        if (!['coup', 'meteor'].includes(item)) return R({ ok: false, error: 'item' })
+        if (!country) return R({ ok: false, error: 'country' })
+        const costs: Record<string, number> = { coup: 100, meteor: 80 }
+        const cooldownMs: Record<string, number> = { coup: 24 * 3600_000, meteor: 72 * 3600_000 }
+        const cost = costs[item]
+        const w = await ensureWallet(user.id)
+        if (w.gems < cost) return R({ ok: false, error: 'funds' })
+        const last = await db.specialUse.findFirst({ where: { userId: user.id, item }, orderBy: { usedAt: 'desc' } })
+        if (last && Date.now() - last.usedAt.getTime() < cooldownMs[item]) {
+          return R({ ok: false, error: 'cooldown', next_ok: new Date(last.usedAt.getTime() + cooldownMs[item]).toISOString() })
+        }
+        if (item === 'meteor') {
+          /* rolling-week global cap: max 3 meteor strikes in any 7-day window */
+          const since = new Date(Date.now() - 7 * 24 * 3600_000)
+          const used = await db.specialUse.count({ where: { item: 'meteor', usedAt: { gte: since } } })
+          if (used >= 3) {
+            const oldest = await db.specialUse.findFirst({ where: { item: 'meteor', usedAt: { gte: since } }, orderBy: { usedAt: 'asc' } })
+            return R({ ok: false, error: 'weekly_cap', next_ok: oldest ? new Date(oldest.usedAt.getTime() + 7 * 24 * 3600_000).toISOString() : null })
+          }
+        }
+        const terr = await db.territory.findUnique({ where: { server_country: { server, country } } })
+        if (terr && terr.userId === user.id) return R({ ok: false, error: 'own' })
+        const nw = await db.wallet.update({ where: { userId: user.id }, data: { gems: w.gems - cost } })
+        await db.specialUse.create({ data: { userId: user.id, item } })
+        await addNews(server, item, country, user.nick, terr && terr.nick ? terr.nick : null)
+        return R({ ok: true, gems: nw.gems, owner_nick: terr && terr.nick ? terr.nick : null, next_ok: new Date(Date.now() + cooldownMs[item]).toISOString() })
+      }
+
+      /* ---------------- V30 season reset (admin only) ----------------
+         Crowns the champion (top-3 by score), archives it into world_news,
+         then wipes the map so a new season starts fair for everyone. */
+      case 'season_reset': {
+        if (!user.isAdmin) return R(null)
+        const server = Math.max(1, Number(args.p_server || 1))
+        const top = await db.score.findMany({ where: { server }, orderBy: { score: 'desc' }, take: 3 })
+        const top3: { nick: string; score: number }[] = []
+        for (const s of top) {
+          const u = await db.user.findUnique({ where: { id: s.userId } })
+          if (u) top3.push({ nick: u.nick, score: s.score })
+        }
+        await addNews(server, 'season_champion', null, top3[0] ? top3[0].nick : null, top3[1] ? top3[1].nick : null)
+        await db.territory.deleteMany({ where: { server } })
+        await db.score.updateMany({ where: { server }, data: { score: 0, conquered: 0, kills: 0 } })
+        const players = await db.score.groupBy({ by: ['userId'], where: { server } })
+        await db.serverStat.upsert({ where: { server }, create: { server, taken: 0, players: players.length }, update: { taken: 0, players: players.length } })
+        return R({ ok: true, top3 })
+      }
+
       /* ---------------- P2P trade offers (V28, escrow) ----------------
          create: give_qty is deducted from the owner's SAVED state immediately (escrow)
                  and from the owner's live resources by the client → no double-spend.

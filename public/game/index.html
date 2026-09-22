@@ -1775,7 +1775,7 @@ async function attackTarget(n){
   if(power<=0){showToast("❌ شما هیچ نیروی نظامی ندارید!","lose");return}
   const sup=250+Math.round(power*.06);
   if(playerRes.food<sup||playerRes.oil<sup){showToast(`❌ لجستیک ناکافی! این نبرد ${sup} غذا و ${sup} نفت می‌خواهد`,"lose");return}
-  playerRes.food-=sup;playerRes.oil-=sup;battleBusy=true;
+  playerRes.food-=sup;playerRes.oil-=sup;battleBusy=true;window.__warLaunched=true;
   const t=getCountryData(n),start=occupationPct[n]||0,power0=power;let occ=start;
   const uc=$("battle-units");uc.innerHTML="";
   BATTLE_UNIT_ORDER.forEach(k=>{const u=ARMY_UNITS[k];if(u.count>0){const d=document.createElement("div");d.className="battle-unit-card";d.innerHTML=`<div class="bic-icon">${u.icon}</div><div class="bic-name">${u.name}</div><div class="bic-count">${u.count}</div>`;uc.appendChild(d)}});
@@ -1784,7 +1784,7 @@ async function attackTarget(n){
   txt.textContent="🚢 نیروها در حال اعزام به جبهه...";$("battle-close-btn").style.display="none";
   $("country-drawer").classList.remove("open");openModal("m-battle");updateUI();
   const g=getG(n);if(map&&g)map.flyToBounds([[g.s,g.w],[g.n,g.e]],{maxZoom:4,duration:1.2,paddingBottomRight:[0,220]});
-  await sleep(1400);const line=atkLine(n),def0=t.def*1.25;
+  await sleep(1400);const line=atkLine(n),def0=t.def*1.25*(window.__wdDebuff&&window.__wdDebuff[n]&&window.__wdDebuff[n].until>Date.now()?(1-window.__wdDebuff[n].pct):1);
   for(let r=1;r<=5;r++){
     txt.textContent=`⚔️ دور ${r} از ۵ — درگیری سنگین در خط مقدم`;
     const defNow=Math.max(def0*(1-occ/100*.75),def0*.2),ratio=power*(.8+Math.random()*.4)/defNow;
@@ -1806,7 +1806,7 @@ async function attackTarget(n){
   applyCountryColor(n);updateUI();$("battle-close-btn").style.display="block";battleBusy=false;
   if(activeEngName===n)onCountryClick({properties:{name:n}},layersByName[n])}
 function decay(){if(battleBusy)return;Object.keys(occupationPct).forEach(n=>{const o=occupationPct[n];
-  if(o>0&&o<100&&statusOf(n)==='neutral'){const v=Math.max(0,o-1.5);v?occupationPct[n]=v:delete occupationPct[n];setHatch(n,v,false,o);applyCountryColor(n)}})}
+  if(o>0&&o<100&&statusOf(n)==='neutral'&&!(window.__wdUnrest&&window.__wdUnrest[n]>Date.now())){const v=Math.max(0,o-1.5);v?occupationPct[n]=v:delete occupationPct[n];setHatch(n,v,false,o);applyCountryColor(n)}})}
 
 // ---- misc wiring ----
 const _oc=onCountryClick;
@@ -3564,6 +3564,9 @@ function diplomacy(action){
 }
 
 function chooseTactic(){
+ /* V30: no more mid-attack interruption — auto-keep the current doctrine;
+    players who want to change it still can from the command center (☰). */
+ if(window.__wd30NoTactic){st.tactic=st.tactic||'balanced';try{save()}catch(e){};return}
  const options=[
  ['blitz','⚡ حمله برق‌آسا','+15% قدرت / +20% مصرف نفت'],
  ['defense','🛡️ خط دفاعی','+20% بقا / -15% سرعت'],
@@ -8215,5 +8218,442 @@ setInterval(function(){
 },800);
 })();
 </script>
+<style id="v30-cinema-css">
+/* ===== V30 CINEMA ENGINE ===== */
+/* war bar (replaces center toasts during battle) */
+#wd-warbar{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:99500;min-width:min(92vw,420px);max-width:94vw;padding:9px 16px;border-radius:12px;background:linear-gradient(135deg,rgba(20,6,6,.94),rgba(48,10,14,.94));border:1px solid rgba(255,90,60,.45);color:#ffe9d8;font-size:12.5px;font-weight:800;text-align:center;box-shadow:0 10px 34px rgba(255,40,0,.25),0 2px 0 rgba(255,120,80,.15) inset;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;direction:rtl}
+#wd-warbar.on{opacity:1;transform:translateX(-50%) translateY(-4px)}
+#wd-warbar.lose{border-color:rgba(120,140,255,.4);background:linear-gradient(135deg,rgba(6,10,24,.94),rgba(14,20,48,.94));color:#dbe4ff}
+/* war overlay edges + op ribbon */
+#wd-warfx{position:fixed;inset:0;z-index:98000;pointer-events:none;opacity:0;transition:opacity .5s}
+#wd-warfx.on{opacity:1}
+#wd-warfx .fx-vig{position:absolute;inset:0;box-shadow:inset 0 0 120px 30px rgba(180,20,0,.38);animation:w30pulse 1.6s ease-in-out infinite}
+@keyframes w30pulse{0%,100%{opacity:.75}50%{opacity:1}}
+#wd-warfx .fx-ribbon{position:absolute;top:14px;left:50%;transform:translateX(-50%);padding:7px 22px;border-radius:999px;background:linear-gradient(90deg,rgba(120,10,0,.92),rgba(190,40,10,.92),rgba(120,10,0,.92));border:1px solid rgba(255,140,80,.5);color:#ffe8d6;font-weight:900;font-size:12px;letter-spacing:.5px;box-shadow:0 6px 24px rgba(255,60,0,.35);white-space:nowrap}
+#wd-warfx .fx-target{position:absolute;top:64px;left:50%;transform:translateX(-50%);font-size:clamp(20px,5.4vw,34px);font-weight:950;color:#fff;text-shadow:0 2px 18px rgba(255,80,20,.65),0 1px 3px #000;white-space:nowrap;opacity:0}
+#wd-warfx.on .fx-target{animation:w30target .8s ease-out .15s forwards}
+@keyframes w30target{from{opacity:0;transform:translateX(-50%) scale(1.5);filter:blur(6px)}to{opacity:1;transform:translateX(-50%) scale(1);filter:blur(0)}}
+/* battle modal → cinematic bottom sheet */
+body.wd-war #m-battle .modal-card{position:fixed!important;left:50%!important;bottom:calc(10px + env(safe-area-inset-bottom,0px))!important;top:auto!important;transform:translateX(-50%)!important;width:min(96vw,560px)!important;max-height:62vh!important;overflow:auto!important;border:1px solid rgba(255,110,60,.4)!important;background:linear-gradient(165deg,rgba(16,7,4,.97),rgba(30,10,8,.97))!important;box-shadow:0 -14px 50px rgba(255,60,0,.28)!important;animation:w30sheet .45s cubic-bezier(.2,.9,.25,1.2)!important}
+@keyframes w30sheet{from{transform:translateX(-50%) translateY(80px)!important;opacity:0}to{transform:translateX(-50%) translateY(0)!important;opacity:1}}
+body.wd-war #m-battle .modal-title-row{text-shadow:0 0 14px rgba(255,90,30,.6)}
+/* result stamp */
+#wd-stamp{position:fixed;left:50%;top:38%;z-index:99600;transform:translate(-50%,-50%) rotate(-8deg) scale(3);font-size:clamp(38px,11vw,84px);font-weight:950;color:#fff;opacity:0;pointer-events:none;text-shadow:0 4px 30px rgba(0,0,0,.6);border:6px solid currentColor;border-radius:14px;padding:8px 30px;background:rgba(10,5,2,.55);backdrop-filter:blur(2px)}
+#wd-stamp.go{animation:w30stamp 1.7s cubic-bezier(.15,.9,.2,1) forwards}
+#wd-stamp.win{color:#7dff9e;box-shadow:0 0 60px rgba(60,255,120,.4)}
+#wd-stamp.fail{color:#ff6b7d;box-shadow:0 0 60px rgba(255,50,80,.4)}
+@keyframes w30stamp{0%{opacity:0;transform:translate(-50%,-50%) rotate(-8deg) scale(3)}18%{opacity:1;transform:translate(-50%,-50%) rotate(-8deg) scale(1)}26%{transform:translate(-50%,-50%) rotate(-6deg) scale(1.06)}36%{transform:translate(-50%,-50%) rotate(-8deg) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-58%) rotate(-8deg) scale(1)}}
+/* global cinema banner */
+#wd-cine{position:fixed;left:0;right:0;top:16%;z-index:100400;display:flex;justify-content:center;pointer-events:none;opacity:0}
+#wd-cine.on{animation:w30cine 5.2s cubic-bezier(.2,.8,.25,1) forwards}
+@keyframes w30cine{0%{opacity:0;transform:translateY(-26px) scale(.92);filter:blur(8px)}8%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}86%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-18px) scale(.97)}}
+.wd-cine-card{position:relative;overflow:hidden;min-width:min(88vw,460px);max-width:92vw;padding:16px 26px;border-radius:18px;text-align:center;background:linear-gradient(150deg,rgba(20,4,2,.96),rgba(52,14,4,.94) 55%,rgba(16,6,14,.96));border:1px solid rgba(255,170,80,.55);box-shadow:0 18px 60px rgba(255,90,0,.3),0 0 0 1px rgba(0,0,0,.4);backdrop-filter:blur(4px)}
+.wd-cine-card.c-gold{background:linear-gradient(150deg,rgba(30,22,2,.96),rgba(72,52,6,.94) 55%,rgba(24,16,4,.96));border-color:rgba(255,220,120,.65)}
+.wd-cine-card.c-violet{background:linear-gradient(150deg,rgba(16,4,26,.96),rgba(40,10,64,.94) 55%,rgba(12,4,22,.96));border-color:rgba(190,130,255,.55)}
+.wd-cine-card .c-ico{font-size:34px;line-height:1;margin-bottom:6px;filter:drop-shadow(0 0 12px rgba(255,180,80,.8))}
+.wd-cine-card .c-t{font-size:clamp(16px,4.6vw,23px);font-weight:950;color:#fff;text-shadow:0 2px 14px rgba(255,140,40,.55)}
+.wd-cine-card .c-s{font-size:11.5px;color:#ffd9a8;margin-top:4px;font-weight:700}
+.wd-cine-card .c-shine{position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,230,180,.22) 50%,transparent 60%);transform:translateX(-120%);animation:w30shine 1.5s ease-out .3s forwards}
+@keyframes w30shine{to{transform:translateX(120%)}}
+/* meteors */
+.meteor{position:fixed;z-index:99000;width:88px;height:5px;border-radius:4px;background:linear-gradient(270deg,#fff,#ffd070 30%,#ff7b2e 70%,transparent);box-shadow:0 0 14px 3px rgba(255,150,50,.75);pointer-events:none;transform-origin:right center}
+@keyframes w30meteor{from{transform:translate(0,0) rotate(var(--ang));opacity:1}85%{opacity:1}to{transform:translate(var(--dx),var(--dy)) rotate(var(--ang));opacity:0}}
+/* unrest / meteor country markers */
+.wd-unrest{position:relative;z-index:500;font-size:19px;animation:w30bob 1.8s ease-in-out infinite;text-shadow:0 2px 8px #000,0 0 16px rgba(255,80,30,.9)}
+@keyframes w30bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.wd-unrest small{display:block;font-size:8.5px;font-weight:900;color:#ffb49a;background:rgba(30,6,2,.85);border-radius:8px;padding:1px 5px;margin-top:2px;border:1px solid rgba(255,110,60,.5)}
+/* targeting mode */
+body.wd-targeting #map{cursor:crosshair!important}
+#wd-target-hint{position:fixed;left:50%;top:74px;transform:translateX(-50%);z-index:100300;padding:9px 20px;border-radius:999px;background:linear-gradient(90deg,rgba(60,8,70,.96),rgba(110,20,120,.96));border:1px solid rgba(230,140,255,.6);color:#fbeaff;font-weight:900;font-size:12px;box-shadow:0 8px 30px rgba(180,40,220,.4);display:none;animation:w30bob 2s ease-in-out infinite}
+#wd-target-hint.on{display:block}
+/* fog chip + special-op chips */
+#hud-fog{cursor:pointer}
+/* premium lobby */
+#m-lobby .modal-card{max-height:86vh;overflow:auto}
+.lobby-item{position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s,border-color .18s}
+.lobby-item::before{content:'';position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(120deg,rgba(0,240,255,.25),transparent 35%,transparent 65%,rgba(120,90,255,.28));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:0;transition:opacity .25s}
+.lobby-item:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,150,255,.16);border-color:rgba(0,240,255,.4)!important}
+.lobby-item:hover::before{opacity:1}
+.lobby-item::after{content:'';position:absolute;top:0;bottom:0;width:34%;left:-45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.09),transparent);transform:skewX(-18deg)}
+.lobby-item:hover::after{animation:w30sweep .9s ease}
+@keyframes w30sweep{to{left:120%}}
+.lobby-panel{animation:w30fadein .3s ease}
+@keyframes w30fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.lobby-tab-btn{transition:transform .15s,box-shadow .15s}
+.lobby-tab-btn:active{transform:scale(.94)}
+.wd-world-strip{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:2px 0 10px}
+.wd-world-card{position:relative;overflow:hidden;background:linear-gradient(140deg,rgba(14,30,54,.9),rgba(6,14,30,.94));border:1px solid rgba(0,240,255,.22);border-radius:13px;padding:9px 11px;cursor:pointer;transition:transform .18s,border-color .18s}
+.wd-world-card:hover{transform:translateY(-2px);border-color:rgba(0,240,255,.5)}
+.wd-world-card b{display:block;font-size:12.5px;color:#eaf7ff}
+.wd-world-card small{font-size:9px;color:#8fb8d8;font-weight:700}
+.wd-world-card .wd-bar{height:5px;border-radius:3px;background:#0a2036;margin-top:6px;overflow:hidden}
+.wd-world-card .wd-bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#00e5ff,#7d5cff,#ffb02e);background-size:200% 100%;animation:w30grad 2.6s linear infinite;transition:width .8s}
+@keyframes w30grad{to{background-position:200% 0}}
+.wd-so-card{display:flex;gap:10px;align-items:center;background:linear-gradient(140deg,rgba(30,8,40,.92),rgba(10,6,20,.95));border:1px solid rgba(200,110,255,.35);border-radius:14px;padding:11px;margin-bottom:9px;position:relative;overflow:hidden}
+.wd-so-card.meteor{background:linear-gradient(140deg,rgba(40,16,4,.92),rgba(18,8,4,.95));border-color:rgba(255,150,60,.4)}
+.wd-so-ico{font-size:26px;filter:drop-shadow(0 0 10px rgba(255,120,220,.7))}
+.wd-so-card.meteor .wd-so-ico{filter:drop-shadow(0 0 10px rgba(255,150,50,.8))}
+.wd-so-body{flex:1;min-width:0}
+.wd-so-body b{font-size:12.5px;color:#fff}
+.wd-so-body small{display:block;font-size:9.5px;color:#c9a8e8;line-height:1.5;margin-top:2px}
+.wd-so-card.meteor .wd-so-body small{color:#ffce9e}
+.wd-so-cd{font-size:9px;font-weight:900;color:#ffd28a;margin-top:3px}
+.wd-go-btn{border:0;border-radius:11px;padding:9px 14px;font-weight:900;font-size:11.5px;cursor:pointer;background:linear-gradient(135deg,#b44dff,#6a2ae0);color:#fff;white-space:nowrap;box-shadow:0 4px 14px rgba(150,60,255,.4)}
+.wd-so-card.meteor .wd-go-btn{background:linear-gradient(135deg,#ff9b3d,#e0512a);box-shadow:0 4px 14px rgba(255,120,40,.4)}
+.wd-go-btn:disabled{filter:grayscale(.8);opacity:.55;cursor:not-allowed}
+.wd-tl{position:relative;padding-right:18px;max-height:52vh;overflow:auto}
+.wd-tl::before{content:'';position:absolute;right:5px;top:4px;bottom:4px;width:2px;background:linear-gradient(180deg,#00e5ff,#7d5cff,#ffb02e);border-radius:2px;opacity:.55}
+.wd-tl-item{position:relative;margin-bottom:10px;background:rgba(10,22,42,.8);border:1px solid rgba(0,240,255,.16);border-radius:12px;padding:8px 11px;animation:w30fadein .35s ease}
+.wd-tl-item::before{content:'';position:absolute;right:-17px;top:14px;width:9px;height:9px;border-radius:50%;background:#00e5ff;box-shadow:0 0 8px #00e5ff}
+.wd-tl-item.win::before{background:#57ff9a;box-shadow:0 0 8px #57ff9a}
+.wd-tl-item.bad::before{background:#ff5d7d;box-shadow:0 0 8px #ff5d7d}
+.wd-tl-item.epic::before{background:#c47dff;box-shadow:0 0 8px #c47dff}
+.wd-tl-item b{font-size:11.5px;color:#eaf6ff}
+.wd-tl-item small{display:block;font-size:9px;color:#7fa8c9;margin-top:2px}
+.wd-front{fill:none;stroke:#ff4a2e;stroke-width:2.6;stroke-dasharray:7 5;filter:drop-shadow(0 0 5px rgba(255,50,30,.9));pointer-events:none}
+@keyframes w30front{to{stroke-dashoffset:-48}}
+.wd-front{animation:w30front 1.6s linear infinite}
+</style>
+<script id="v30-cinema-a">
+/* ============ V30 CINEMA ENGINE — part A: sounds, global banner, war cinema ============ */
+(function(){
+'use strict';
+const D=document,H=id=>D.getElementById(id),S_=id=>D.getElementById(id);
+const faNum=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const faDate=t=>{try{return new Intl.DateTimeFormat('fa-IR',{month:'long',day:'numeric'}).format(new Date(t))+' • '+new Intl.DateTimeFormat('fa-IR',{hour:'2-digit',minute:'2-digit'}).format(new Date(t))}catch(e){return ''}};
+
+/* ---------- 1) ambient sound pack (WebAudio, zero assets) ---------- */
+function _w30noise(dur){const sr=AC.sampleRate,n=Math.floor(sr*dur),b=AC.createBuffer(1,n,sr),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2);return b}
+/* doctrine selector never interrupts attacks (V30) — set before any battle can start */
+window.__wd30NoTactic=true;
+const _snd30=snd;snd=function(k){
+  if(muted)return _snd30(k);
+  try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();
+  if(k==='drums'){/* war drums: deep toms accelerating */
+    const hits=[0,.28,.5,.72,.9],fs=[95,95,70,95,60];
+    hits.forEach((t,i)=>{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(fs[i],AC.currentTime+t);o.frequency.exponentialRampToValueAtTime(40,AC.currentTime+t+.22);
+      g.gain.setValueAtTime(0,AC.currentTime+t);g.gain.linearRampToValueAtTime(.5,AC.currentTime+t+.015);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+t+.26);
+      o.connect(g);g.connect(AC.destination);o.start(AC.currentTime+t);o.stop(AC.currentTime+t+.3)});
+    const n=_w30noise(.9),s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();f.type='lowpass';f.frequency.value=900;g.gain.value=.12;s.buffer=n;s.connect(f);f.connect(g);g.connect(AC.destination);s.start()}
+  else if(k==='horn'){/* cinematic braam */
+    [82,110,165].forEach((f0,i)=>{const o=AC.createOscillator(),g=AC.createGain(),fl=AC.createBiquadFilter();o.type='sawtooth';o.frequency.setValueAtTime(f0*.5,AC.currentTime);o.frequency.linearRampToValueAtTime(f0,AC.currentTime+.5);
+      fl.type='lowpass';fl.frequency.value=1200+i*300;g.gain.setValueAtTime(0,AC.currentTime);g.gain.linearRampToValueAtTime(.14,AC.currentTime+.3);g.gain.linearRampToValueAtTime(.0001,AC.currentTime+1.5);
+      o.connect(fl);fl.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+1.6)})}
+  else if(k==='cheer'){/* crowd cheer: filtered noise swells + rising arpeggio */
+    const n=_w30noise(1.4),s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();f.type='bandpass';f.frequency.value=1500;f.Q.value=.6;
+    g.gain.setValueAtTime(.001,AC.currentTime);g.gain.linearRampToValueAtTime(.3,AC.currentTime+.25);g.gain.linearRampToValueAtTime(.001,AC.currentTime+1.4);
+    s.buffer=n;s.loop=true;s.connect(f);f.connect(g);g.connect(AC.destination);s.start();s.stop(AC.currentTime+1.5);
+    [523,659,784,1046,1318].forEach((fq,i)=>tone(fq,.2+i*.13,.22,'triangle',.07))}
+  else if(k==='meteor'){/* falling whoosh + ground hit */
+    const n=_w30noise(1.2),s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();f.type='bandpass';f.Q.value=2;
+    f.frequency.setValueAtTime(2400,AC.currentTime);f.frequency.exponentialRampToValueAtTime(180,AC.currentTime+.95);
+    g.gain.setValueAtTime(.28,AC.currentTime);g.gain.linearRampToValueAtTime(.001,AC.currentTime+1);
+    s.buffer=n;s.connect(f);f.connect(g);g.connect(AC.destination);s.start();
+    setTimeout(()=>snd('boom'),950)}
+  else if(k==='coup'){/* thriller stab */
+    [233,246].forEach(f0=>{const o=AC.createOscillator(),g=AC.createGain();o.type='sawtooth';o.frequency.value=f0;
+      g.gain.setValueAtTime(.16,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+.55);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+.6)});
+    tone(1200,0,.05,'square',.05);tone(1180,.12,.05,'square',.04)}
+  else if(k==='stamp'){const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(150,AC.currentTime);o.frequency.exponentialRampToValueAtTime(45,AC.currentTime+.12);
+    g.gain.setValueAtTime(.5,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+.18);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+.2);return}
+  else return _snd30(k)}catch(e){}}
+D.addEventListener('pointerdown',function wake(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}},{passive:true});
+
+/* ---------- 2) global cinema banner (queued, min 5s gap) ---------- */
+let cineHost=null,cineQ=[],cineBusy=false;
+function cineShow(card){if(!cineHost){cineHost=D.createElement('div');cineHost.id='wd-cine';D.body.appendChild(cineHost)}
+  cineHost.textContent='';cineHost.appendChild(card);cineHost.classList.remove('on');void cineHost.offsetWidth;cineHost.classList.add('on');
+  setTimeout(()=>cineHost.classList.remove('on'),5400)}
+function cineNext(){if(cineBusy||!cineQ.length)return;cineBusy=true;const c=cineQ.shift();cineShow(c);setTimeout(()=>{cineBusy=false;cineNext()},5300)}
+window.WD30CINE=function(icon,title,sub,cls,sound){const card=D.createElement('div');card.className='wd-cine-card'+(cls?' '+cls:'');
+  card.innerHTML='<div class="c-ico">'+icon+'</div><div class="c-t"></div><div class="c-s"></div><i class="c-shine"></i>';
+  card.querySelector('.c-t').textContent=title;card.querySelector('.c-s').textContent=sub||'';
+  cineQ.push(card);if(cineQ.length>3)cineQ.shift();cineNext();if(sound)snd(sound)};
+
+/* ---------- 3) live broadcast channel (instant to the whole server) ---------- */
+const SRV30=String(window.SRV||'default');
+const MY30=()=>{try{return (typeof ACC!=='undefined'&&ACC&&ACC.uid)||'me'}catch(e){return 'me'}};
+let cineCh=null;
+window.WD30BC=function(type,payload){try{if(typeof sb==='undefined'||!sb)return;
+  cineCh=cineCh||sb.channel('wd30-cinema-'+SRV30);
+  cineCh.send({type:'broadcast',event:'wd30',payload:Object.assign({type,t:Date.now(),uid:MY30()},payload||{})})}catch(e){}};
+const seen30=[];
+function handleCine(p){if(!p||!p.type)return;if(p.uid===MY30())return;
+  const sig=p.type+'|'+(p.nick||'')+'|'+(p.country||'')+'|'+Math.round((p.t||Date.now())/4000);
+  if(seen30.indexOf(sig)>-1)return;seen30.push(sig);if(seen30.length>40)seen30.shift();
+  if(p.type==='conquest')WD30CINE('🏳️','فتح تاریخی!','⚔️ '+p.nick+' امپراتوری '+p.country+' را در هم کوبید','','horn');
+  else if(p.type==='capital')WD30CINE('👑','پایتخت سقوط کرد!','💀 امپراتوری '+p.target+' با حمله‌ی '+p.nick+' فروپاشید','','horn');
+  else if(p.type==='coup')WD30CINE('🎭','کودتای مخفی!','🐍 '+p.nick+' در خاک '+p.country+(p.target?' (بازیکن '+p.target+')':'')+' شورش برپا کرد','c-violet','coup');
+  else if(p.type==='meteor')WD30CINE('☄️','رگبار شهاب‌سنگ!','🔥 آسمان '+p.country+' آتش گرفت — دفاعش برای ۳۰ دقیقه زخمی است','','meteor');
+  else if(p.type==='season')WD30CINE('🏆','فصل جدید آغاز شد!','👑 قهرمان فصل قبل: '+(p.champ||'—'),'c-gold','cheer')}
+try{if(typeof sb!=='undefined'&&sb&&sb.channel){sb.channel('wd30-cinema-'+SRV30)
+  .on('broadcast',{event:'wd30'},m=>{try{handleCine(m&&m.payload)}catch(e){}}).subscribe()}}catch(e){}
+
+/* ---------- 4) WAR CINEMA — the attack moment ---------- */
+let warfx=null,warbar=null,warbarT=null,stampEl=null;
+function warfxEnsure(){if(!warfx){warfx=D.createElement('div');warfx.id='wd-warfx';warfx.innerHTML='<div class="fx-vig"></div><div class="fx-ribbon">⚔️ عملیات نظامی — WORLD DOMINION</div><div class="fx-target"></div>';D.body.appendChild(warfx)}
+  if(!warbar){warbar=D.createElement('div');warbar.id='wd-warbar';D.body.appendChild(warbar)}
+  if(!stampEl){stampEl=D.createElement('div');stampEl.id='wd-stamp';D.body.appendChild(stampEl)}}
+function warBar(msg,lose){warfxEnsure();warbar.textContent=msg;warbar.classList.toggle('lose',!!lose);warbar.classList.add('on');clearTimeout(warbarT);warbarT=setTimeout(()=>warbar.classList.remove('on'),3400)}
+function stamp(txt,win){warfxEnsure();stampEl.textContent=txt;stampEl.className=win?'win':'fail';void stampEl.offsetWidth;stampEl.classList.add('go');snd('stamp');setTimeout(()=>stampEl.classList.remove('go'),1800)}
+/* during battle: center toasts are silenced → routed to the bottom war bar */
+const _st30=showToast;showToast=function(m,k){if(window.__war30){warBar(m,k==='lose');snd(k==='lose'?'alert':'coin')}else _st30(m,k)};
+/* wrap the whole attack chain (outermost — V28 logistics/border checks stay intact) */
+const _atk30=attackTarget;
+attackTarget=async function(n){
+  if(battleBusy||!myCountryName)return _atk30(n);
+  const wasMine=conqueredCountries.has(n),t0=getCountryData(n),fa=t0.fa;
+  window.__warLaunched=false;window.__war30=true;D.body.classList.add('wd-war');warfxEnsure();
+  warfx.querySelector('.fx-target').textContent=fa;warfx.classList.add('on');snd('drums');
+  warBar('🎬 عملیات آغاز شد — نیروها به سمت '+fa+' حرکت کردند');
+  try{await _atk30(n)}catch(e){console.log(e)}
+  const launched=!!window.__warLaunched;
+  window.__war30=false;D.body.classList.remove('wd-war');warfx.classList.remove('on');
+  if(!launched)return;
+  try{
+    const won=conqueredCountries.has(n)&&!wasMine;
+    if(won){stamp('فتح شد ✓',true);snd('cheer');
+      const big=(t0.def>=600||t0.gold>=900);
+      WD30HIST({t:Date.now(),type:big?'epic':'win',txt:big?('امپراتوری '+fa+' را فتح کردی! فتح تاریخی'):('کشور '+fa+' را فتح کردی'),ico:'🏴'});
+      if(big){WD30BC('conquest',{country:fa});news('🏳️ تو امپراتوری '+fa+' را فتح کردی — جهان شنید!')}
+    }else if((occupationPct[n]||0)>0){stamp('پیشروی ⚔️',true);WD30HIST({t:Date.now(),type:'win',txt:'در '+fa+' '+Math.round(occupationPct[n])+'٪ خاک تصرف کردی',ico:'⚔️'})}
+    else{stamp('دفع شد ✕',false);WD30HIST({t:Date.now(),type:'bad',txt:'حمله به '+fa+' دفع شد',ico:'🛡️'})}
+  }catch(e){console.log(e)}
+};
+})();
+</script>
+<script id="v30-cinema-b">
+/* ============ V30 part B: fog of war, special ops, timeline, seasons, lobby ============ */
+(function(){
+'use strict';
+const D=document,H=id=>D.getElementById(id);
+const faNum=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+
+/* ---------- 5) empire timeline (تاریخچه امپراتوری من) ---------- */
+let HIST=[];try{HIST=JSON.parse(localStorage.getItem('wd30hist')||'[]')}catch(e){}
+window.WD30HIST=function(ev){try{if(!ev||!ev.txt)return;HIST.unshift(ev);if(HIST.length>150)HIST.length=150;
+  localStorage.setItem('wd30hist',JSON.stringify(HIST));renderTimeline()}catch(e){}}
+window.WD30TL_OPEN=function(){if(!H('m-tl')){const m=D.createElement('div');m.id='m-tl';m.className='modal';
+  m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span>📖 تاریخچه امپراتوری من</span><span class="close-modal" style="cursor:pointer;font-size:18px">✕</span></div><div id="tl-body"></div></div>';
+  D.body.appendChild(m)}
+  renderTimeline();openModal('m-tl')};
+function renderTimeline(){const b=H('tl-body');if(!b)return;b.textContent='';
+  if(!HIST.length){b.innerHTML='<div class="sites-info">هنوز صفحه‌ای از تاریخ نوشته نشده — اولین کشور را فتح کن!</div>';return}
+  const wrap=D.createElement('div');wrap.className='wd-tl';
+  HIST.slice(0,60).forEach(ev=>{const it=D.createElement('div');it.className='wd-tl-item '+(ev.type||'');
+    const b1=D.createElement('b');b1.textContent=(ev.ico||'•')+' '+ev.txt;const sm=D.createElement('small');sm.textContent=faDate(ev.t);
+    it.append(b1,sm);wrap.append(it)});
+  b.append(wrap)}
+const faDate=t=>{try{return new Intl.DateTimeFormat('fa-IR',{month:'long',day:'numeric'}).format(new Date(t))+' • '+new Intl.DateTimeFormat('fa-IR',{hour:'2-digit',minute:'2-digit'}).format(new Date(t))}catch(e){return ''}};
+
+/* ---------- 6) season state (۳۰ روز، همه‌ی کلاینت‌ها هم‌نظر) ---------- */
+const SEASON_ANCHOR=Date.UTC(2026,0,1),SEASON_LEN=30*86400000;
+function seasonState(){const now=Date.now(),no=Math.max(1,Math.floor((now-SEASON_ANCHOR)/SEASON_LEN)+1);
+  const end=SEASON_ANCHOR+no*SEASON_LEN,day=Math.floor((now-(SEASON_ANCHOR+(no-1)*SEASON_LEN))/86400000)+1;
+  return{no,day,left:end-now,end}}
+let champ30=null;try{champ30=JSON.parse(localStorage.getItem('wd30champ')||'null')}catch(e){}
+function seasonBannerIfNew(){const s=seasonState();const seen=Number(localStorage.getItem('wd30seen')||0);
+  if(s.no>seen){localStorage.setItem('wd30seen',s.no);
+    if(seen>0){WD30CINE('🏆','فصل '+faNum(s.no)+' آغاز شد!','👑 قهرمان فصل قبل: '+(champ30&&champ30.nick?champ30.nick:'—'),'c-gold','cheer');
+      WD30HIST({t:Date.now(),type:'epic',txt:'فصل '+s.no+' آغاز شد — صفحه‌ی دوباره',ico:'🏆'})}}}
+seasonBannerIfNew();setInterval(seasonBannerIfNew,60000);
+window.WD30_SEASON=seasonState;window.WD30_CHAMP=()=>champ30;
+window.WD30_SET_CHAMP=function(nick,no){champ30={nick,no:no||seasonState().no-1};try{localStorage.setItem('wd30champ',JSON.stringify(champ30))}catch(e){}};
+
+/* ---------- 7) daily server goal (هدف مشترک سرور) ---------- */
+const GOAL_BASE=25;
+function goalKey(){const d=new Date;return d.getUTCFullYear()+'-'+(d.getUTCMonth()+1)+'-'+d.getUTCDate()}
+let goalCount=-1,goalDone={};
+try{goalDone=JSON.parse(localStorage.getItem('wd30goal')||'{}')}catch(e){}
+function pollGoal(){try{/* sb/ACC are top-level lexical bindings of the page — access them directly (window.sb never exists) */
+  if(typeof sb==='undefined'||!sb||typeof ACC==='undefined'||!ACC||!ACC.uid)return;
+  sb.rpc('get_world_news',{p_server:Math.max(1,Number(window.SRV)||1),p_limit:120}).then(r=>{
+    if(r.error||!r.data)return;const mid=Date.UTC(new Date().getUTCFullYear(),new Date().getUTCMonth(),new Date().getUTCDate());
+    const c=r.data.filter(x=>['capture','conquer','pvp_capture','pvp_attack'].indexOf(x.action)>-1&&Date.parse(x.created_at)>=mid).length;
+    goalCount=c;const g=goalTarget();
+    if(c>=g&&!goalDone[goalKey()]){goalDone[goalKey()]=true;localStorage.setItem('wd30goal',JSON.stringify(goalDone));
+      WD30CINE('🎯','هدف روز سرور محقق شد!','🌍 مجموع فتوحات امروز به '+faNum(g)+' رسید — همه با هم','c-gold','cheer')}
+  })}catch(e){}}
+function goalTarget(){try{return Math.max(GOAL_BASE,(Number((window.__srvStats||{}).players)||20)*2)}catch(e){return GOAL_BASE}}
+window.WD30_GOAL=()=>({count:Math.max(0,goalCount),target:goalTarget()});
+pollGoal();setInterval(pollGoal,90000);
+try{fetch('/api/db/server_stats',{cache:'no-store'}).then(r=>r.json()).then(j=>{window.__srvStats=j&&j.data?j.data:j;pollGoal()}).catch(()=>{})}catch(e){}
+
+/* ---------- 8) fog of war (مه جنگ — بصری، غیرقفل‌کننده) ---------- */
+const FOG={on:true,revealed:{},MK:{}};
+try{FOG.on=!(localStorage.getItem('wd30fog')==='off')}catch(e){}
+function fogCenter(n){const g=getG(n);return g?g.c:null}
+function fogVisible(n){if(!FOG.on)return true;if(FOG.revealed[n]>Date.now())return true;
+  if(conqueredCountries.has(n)||n===myCountryName)return true;
+  if(typeof bordersOwned==='function'&&bordersOwned(n))return true;
+  const c=fogCenter(n);if(!c)return true;
+  let best=1e9;const mine=[...conqueredCountries];
+  if(myCountryName&&!conqueredCountries.has(myCountryName))mine.push(myCountryName);
+  if(!mine.length)return true;
+  mine.forEach(m=>{const mc=fogCenter(m);if(!mc)return;const dx=(mc[0]-c[0]),dy=(mc[1]-c[1])*Math.cos(c[0]*Math.PI/180);
+    best=Math.min(best,Math.hypot(dx,dy))});
+  return best<15}
+function applyFogOne(n){const l=layersByName[n];if(!l)return;
+  if(fogVisible(n)){if(l._fogged){l._fogged=false;try{applyCountryColor(n)}catch(e){}}}
+  else{if(!l._fogged){l._fogged=true;l.setStyle({fillColor:'#0a1424',fillOpacity:.9,color:'#22354f',weight:.7,dashArray:'3 4'})}}}
+let fogBusy=false;
+function computeFog(){if(fogBusy)return;fogBusy=true;setTimeout(()=>{fogBusy=false;
+  try{Object.keys(layersByName).forEach(applyFogOne)}catch(e){}},50)}
+window.WD30_FOG={get on(){return FOG.on},set on(v){FOG.on=v;localStorage.setItem('wd30fog',v?'on':'off');if(v){computeFog()}else{Object.keys(layersByName).forEach(n=>{if(layersByName[n]._fogged){layersByName[n]._fogged=false;try{applyCountryColor(n)}catch(e){}}})}},
+  reveal(list,min){list.forEach(n=>FOG.revealed[n]=Date.now()+(min||10)*60000);computeFog()},compute:computeFog};
+window.addEventListener('load',()=>{setTimeout(computeFog,4000);setInterval(computeFog,9000)});
+
+/* ---------- 9) special ops: کودتا + رگبار شهاب ---------- */
+window.__wdDebuff=window.__wdDebuff||{};window.__wdUnrest=window.__wdUnrest||{};
+let targeting=null;
+function targetHint(msg){let h=H('wd-target-hint');if(!h){h=D.createElement('div');h.id='wd-target-hint';D.body.appendChild(h)}
+  h.textContent=msg;h.classList.add('on');D.body.classList.add('wd-targeting')}
+function targetStop(){const h=H('wd-target-hint');if(h)h.classList.remove('on');D.body.classList.remove('wd-targeting');targeting=null}
+function startTargeting(kind){if(!myCountryName){showToast('❌ اول پایتخت انتخاب کن','lose');return}
+  if(!sb||!ACC.uid||!WALLET_OK){showToast('❌ عملیات ویژه فقط با حساب آنلاین فعال است','lose');return}
+  targeting=kind;targetHint(kind==='coup'?'🎭 کشور هدف برای کودتا را روی نقشه بزن':'☄️ کشور هدف را برای رگبار شهاب روی نقشه بزن');
+  showToast(kind==='coup'?'🎭 حالت کودتا فعال شد — کشور هدف را انتخاب کن':'☄️ حالت شهاب فعال شد — کشور هدف را انتخاب کن','win')}
+window.WD30_TARGET=startTargeting;
+const _oc30=onCountryClick;
+onCountryClick=function(f,l){const n=f&&f.properties&&f.properties.name;
+  if(targeting&&n){const kind=targeting;targetStop();
+    if(conqueredCountries.has(n)||n===myCountryName){showToast('❌ این خاک خودِ توست!','lose');return}
+    if(kind==='coup')doCoup(n);else doMeteor(n);return}
+  _oc30(f,l)};
+function debuff(n,pct,min){window.__wdDebuff[n]={until:Date.now()+min*60000,pct};
+  const g=getG(n);if(!g||!map)return;const m=L.marker(g.c,{interactive:false,keyboard:false,icon:L.divIcon({className:'wd-unrest-wrap',iconSize:[0,0],html:'<div class="wd-unrest">'+(pct>=.15?'🎭':'☄️')+'<small>'+faNum(min)+' دقیقه</small></div>'}),zIndexOffset:900}).addTo(map);
+  const key='debuff_'+n;if(FOG.MK[key])FOG.MK[key].remove();FOG.MK[key]=m;
+  setTimeout(()=>{try{m.remove();delete FOG.MK[key];delete window.__wdDebuff[n]}catch(e){}},min*60000)}
+function unrest(n,min){window.__wdUnrest[n]=Date.now()+min*60000;debuff(n,.15,min)}
+async function doCoup(n){const fa=getCountryData(n).fa;
+  if(battleBusy){showToast('⏳ وسط نبرد نمی‌توانی کودتا بزنی','lose');return}
+  const r=await sb.rpc('use_special',{p_item:'coup',p_country:n,p_server:Math.max(1,Number(window.SRV)||1)}).catch(()=>null);
+  const d=r&&r.data;if(!d||!d.ok){
+    const msg=d&&d.error==='funds'?'❌ ۱۰۰ Gem لازم داری':d&&d.error==='cooldown'?'⏳ کودتای بعدی: '+faDate(d.next_ok):'❌ عملیات انجام نشد';
+    showToast(msg,'lose');GEMS=d&&d.gems!=null?d.gems:GEMS;return}
+  GEMS=d.gems;unrest(n,30);
+  occupationPct[n]=Math.min(95,(occupationPct[n]||0)+18);setHatch(n,occupationPct[n],true,occupationPct[n]-18);applyCountryColor(n);
+  snd('coup');if(d.owner_nick)debuff(n,.15,360);
+  WD30CINE('🎭','کودتا موفق بود!','🐍 در '+fa+' شورش برپا شد — '+faNum(18)+'٪ خاک بدون یک گلوله','c-violet','coup');
+  WD30BC('coup',{country:fa,target:d.owner_nick||''});
+  news('🎭 کودتا در '+fa+(d.owner_nick?' (خاک '+d.owner_nick+')':'')+' — '+faNum(18)+'٪ اشغال بدون جنگ');
+  WD30HIST({t:Date.now(),type:'epic',txt:'در '+fa+' کودتا برپا کردی'+(d.owner_nick?' (خاک '+d.owner_nick+')':''),ico:'🎭'});
+  showToast('🎭 کودتا انجام شد — مدافع ۶ ساعت ضعیف‌تر است','win');updateUI();saveNow&&saveNow()}
+async function doMeteor(n){const fa=getCountryData(n).fa;
+  const r=await sb.rpc('use_special',{p_item:'meteor',p_country:n,p_server:Math.max(1,Number(window.SRV)||1)}).catch(()=>null);
+  const d=r&&r.data;if(!d||!d.ok){
+    let msg='❌ عملیات انجام نشد';
+    if(d&&d.error==='funds')msg='❌ ۸۰ Gem لازم داری';
+    else if(d&&d.error==='cooldown')msg='⏳ شهاب‌سنگ بعدی: '+faDate(d.next_ok);
+    else if(d&&d.error==='weekly_cap')msg='🌩️ سهمیه‌ی هفته‌ی سرور پر شد (۳ در هفته) — '+faDate(d.next_ok);
+    showToast(msg,'lose');GEMS=d&&d.gems!=null?d.gems:GEMS;return}
+  GEMS=d.gems;
+  const g=getG(n);snd('meteor');
+  if(g&&map){const pt=map.latLngToContainerPoint(g.c);const rect=map.getContainer().getBoundingClientRect();
+    const tx=rect.left+pt.x,ty=rect.top+pt.y;
+    for(let i=0;i<6;i++){setTimeout(()=>{const fromX=tx+(Math.random()*260-130),fromY=ty-window.innerHeight*.55;
+      const m=D.createElement('div');m.className='meteor';m.style.left=fromX+'px';m.style.top=fromY+'px';
+      m.style.setProperty('--ang','32deg');m.style.setProperty('--dx',(tx-fromX)+'px');m.style.setProperty('--dy',(ty-fromY)+'px');
+      m.style.animation='w30meteor '+(.55+Math.random()*.25)+'s linear forwards';D.body.appendChild(m);
+      setTimeout(()=>{m.remove();if(typeof boomAt==='function'&&g.c)boomAt(g.c[0],g.c[1],i%2===0);if(typeof shake==='function'&&i===5)shake()},620)},i*170)}}
+  setTimeout(()=>{debuff(n,.13,30);
+    WD30CINE('☄️','رگبار شهاب‌سنگ!','🔥 دفاع '+fa+' تا ۳۰ دقیقه '+faNum(13)+'٪ ضعیف شد','','meteor');
+    WD30BC('meteor',{country:fa,target:d.owner_nick||''});
+    news('☄️ رگبار شهاب‌سنگ بر '+fa+(d.owner_nick?' (خاک '+d.owner_nick+')':'')+' بارید — دفاع زخمی شد');
+    WD30HIST({t:Date.now(),type:'epic',txt:'بر '+fa+' رگبار شهاب‌سنگ انداختی',ico:'☄️'});
+    showToast('☄️ دفاع '+fa+' زخمی شد — حالا زمان حمله است','win');updateUI()},1400);
+  if(d.owner_nick)debuff(n,.13,30);updateUI();saveNow&&saveNow()}
+window.WD30_COUP=doCoup;window.WD30_METEOR=doMeteor;
+
+/* ---------- 11) lobby upgrade: world strip + ویژه tab ---------- */
+function worldStrip(){const s=seasonState(),g=window.WD30_GOAL();
+  const pctS=Math.min(100,s.day/30*100),pctG=Math.min(100,g.count/g.target*100);
+  const wrap=D.createElement('div');wrap.className='wd-world-strip';
+  wrap.innerHTML='<div class="wd-world-card" id="wd30-season-card"><small>⚔️ فصل جنگ</small><b>فصل '+faNum(s.no)+' — روز '+faNum(s.day)+'</b><div class="wd-bar"><i style="width:'+pctS+'%"></i></div><small id="wd30-season-left" style="color:#ffd28a"></small></div>'+
+   '<div class="wd-world-card" id="wd30-goal-card"><small>🎯 هدف روز سرور</small><b>'+faNum(Math.max(0,g.count))+' / '+faNum(g.target)+' فتح</b><div class="wd-bar"><i style="width:'+pctG+'%"></i></div><small>فتح‌های امروز کل سرور</small></div>'+
+   (champ30&&champ30.nick?'<div class="wd-world-card" style="grid-column:1/-1"><small>👑 افتخار</small><b>قهرمان فصل قبل: '+champ30.nick+'</b></div>':'');
+  const sc=wrap.querySelector('#wd30-season-left');
+  const tick=()=>{const st=seasonState();if(!sc.isConnected)return;const h=Math.floor(st.left/3600000),m2=Math.floor(st.left%3600000/60000);
+    sc.textContent='⏳ '+faNum(h)+' ساعت تا پایان فصل';setTimeout(tick,30000)};tick();
+  return wrap}
+function soCard(kind){const coup=kind==='coup';
+  const card=D.createElement('div');card.className='wd-so-card'+(coup?'':' meteor');
+  const ico=D.createElement('div');ico.className='wd-so-ico';ico.textContent=coup?'🎭':'☄️';
+  const body=D.createElement('div');body.className='wd-so-body';
+  body.innerHTML=coup?'<b>🎭 عملیات مخفی: کودتا</b><small>روی یک کشور غیرپایتخت شورش مصنوعی برپا می‌کنی — '+faNum(18)+'٪ اشغال بدون جنگ. مدافع ۶ ساعت ضعیف می‌شود.</small><div class="wd-so-cd"></div>'
+    :'<b>☄️ رگبار شهاب‌سنگ</b><small>ضربه‌ی آسمانی یک‌باره: دفاع کشور هدف تا ۳۰ دقیقه '+faNum(13)+'٪ ضعیف می‌شود. کمیاب: کل سرور فقط ۳ بار در هفته!</small><div class="wd-so-cd"></div>';
+  const btn=D.createElement('button');btn.className='wd-go-btn';btn.textContent=coup?'۱۰۰ 💎':'۸۰ 💎';
+  btn.addEventListener('click',()=>startTargeting(kind));
+  card.append(ico,body,btn);
+  return card}
+function specialPanel(p){p.textContent='';
+  const h=D.createElement('div');h.className='sites-h';h.textContent='🎬 عملیات‌های ویژه (سینمایی)';p.append(h);
+  p.append(soCard('coup'),soCard('meteor'));
+  const h2=D.createElement('div');h2.className='sites-h';h2.textContent='📖 هویت امپراتوری';p.append(h2);
+  const b1=D.createElement('button');b1.className='action-btn btn-cyan';b1.style.width='100%';b1.textContent='📖 تاریخچه امپراتوری من (تایم‌لاین)';
+  b1.addEventListener('click',()=>WD30TL_OPEN());p.append(b1);
+  const h3=D.createElement('div');h3.className='sites-h';h3.style.marginTop='10px';h3.textContent='🗺️ تجربه‌ی نقشه';p.append(h3);
+  const fogB=D.createElement('button');fogB.className='action-btn btn-ghost';fogB.style.width='100%';
+  const setFog=()=>{fogB.textContent=window.WD30_FOG.on?'🌫️ مه جنگ: روشن (بزن برای خاموشی)':'🌫️ مه جنگ: خاموش (بزن برای روشنی)'};
+  setFog();fogB.addEventListener('click',()=>{window.WD30_FOG.on=!window.WD30_FOG.on;setFog();snd('click')});p.append(fogB)}
+/* inject: 4th tab + world strip on open */
+(function(){const tabs=D.querySelector('#m-lobby .lobby-tabs');if(!tabs)return;
+  if(!tabs.querySelector('[data-tab="sp"]')){const b=D.createElement('button');b.className='lobby-tab-btn';b.setAttribute('data-tab','sp');b.textContent='✨ ویژه';tabs.appendChild(b)}
+  const panel=D.getElementById('lobby-panel-sp')||(()=>{const p=D.createElement('div');p.className='lobby-panel';p.id='lobby-panel-sp';D.getElementById('lobby-panel-barter').after(p);return p})();
+  const mo=new MutationObserver(()=>{if(panel.classList.contains('active'))specialPanel(panel)});
+  mo.observe(panel,{attributes:true,attributeFilter:['class']});
+  if(typeof renderLobbyInfra==='function'){const _rl=renderLobbyInfra;renderLobbyInfra=function(){try{const pane=D.getElementById('lobby-panel-infra');
+      if(pane&&!pane.querySelector('.wd-world-strip'))pane.prepend(worldStrip())}catch(e){}return _rl()}}
+})();
+
+/* ---------- 12) shop: special ops section ---------- */
+const _rs30=renderShop;renderShop=function(){_rs30();const b=H('shop-body');if(!b)return;
+  const h=D.createElement('div');h.className='sites-h';h.textContent='⚡ عملیات‌های ویژه';b.append(h);
+  const info=D.createElement('div');info.className='sites-info';info.textContent='سلاح‌های نادر و سینمایی — با کول‌داون سخت‌گیرانه از سرور (ضد P2W)';b.append(info);
+  b.append(soCard('coup'),soCard('meteor'))};
+
+/* ---------- 13) admin: season reset button ---------- */
+const _ra30=renderAdmin;renderAdmin=function(){_ra30();const b=H('admin-body');if(!b)return;
+  const wrap=D.createElement('div');wrap.style.marginTop='12px';
+  const btn=D.createElement('button');btn.className='action-btn btn-cyan';btn.style.width='100%';
+  btn.textContent='🏆 اعلام قهرمان + ریست نقشه برای فصل جدید';
+  btn.addEventListener('click',async()=>{if(!confirm('فصل تمام و نقشه ریست شود؟ قهرمان (تاپ ۳) ثبت می‌شود و همه از صفر شروع می‌کنند.'))return;
+    try{const r=await sb.rpc('season_reset',{p_server:Math.max(1,Number(window.SRV)||1)});
+      if(r.error||!r.data||!r.data.ok){showToast('❌ ریست انجام نشد','lose');return}
+      const champ=r.data.top3&&r.data.top3[0]?r.data.top3[0].nick:'—';
+      WD30_SET_CHAMP(champ,seasonState().no);
+      WD30BC('season',{champ});WD30CINE('🏆','قهرمان اعلام شد!','👑 '+champ+' — نقشه برای فصل جدید ریست شد','c-gold','cheer');
+      news('🏆 قهرمان فصل: '+champ+' — نقشه ریست شد برای فصل '+faNum(seasonState().no));
+      showToast('🏆 فصل بسته شد؛ قهرمان: '+champ,'win')}catch(e){showToast('❌ خطا در اتصال','lose')}});
+  wrap.append(btn);b.append(wrap)};
+})();
+</script>
+<script id="v30-fronts">
+/* ============ V30 part C: front lines (جبهه‌ی فعال) ============ */
+(function(){
+'use strict';
+const FL30={};
+function sharedBorderPts(a,b){try{if(typeof ringsOf!=='function')return[];const M=.7,ta=ringsOf(a),tb=ringsOf(b);
+  if(ta.w>tb.e+M||ta.e<tb.w-M||ta.s>tb.n+M||ta.n<tb.s-M)return[];
+  const sb2=[];tb.rs.forEach(r=>{for(let i=0;i<r.length;i+=2)sb2.push(r[i])});
+  const out=[];ta.rs.forEach(r=>{for(let i=0;i<r.length;i+=2){const p=r[i];
+    if(p.lat<tb.s-M||p.lat>tb.n+M||p.lng<tb.w-M||p.lng>tb.e+M)continue;
+    for(const q of sb2)if(Math.abs(p.lat-q.lat)<M&&Math.abs(p.lng-q.lng)<M&&Math.hypot(p.lat-q.lat,p.lng-q.lng)<M){out.push([p.lat,p.lng]);break}}});
+  return out}catch(e){return[]}}
+function drawFronts(){if(typeof map==='undefined'||!map||typeof occupationPct==='undefined')return;
+  /* fronts live where MY empire touches a country I am actively occupying */
+  const want={};
+  Object.keys(occupationPct).forEach(n=>{const o=occupationPct[n];
+    if(o>0&&o<100&&!conqueredCountries.has(n)&&layersByName[n]&&conqueredCountries.size){
+      conqueredCountries.forEach(m=>{if(!layersByName[m])return;const key=m+'|'+n;
+        if(want[key])return;const pts=sharedBorderPts(m,n);
+        if(pts.length>2)want[key]=pts})}});
+  Object.keys(FL30).forEach(k=>{if(!want[k]){try{FL30[k].remove()}catch(e){}delete FL30[k]}});
+  Object.keys(want).forEach(k=>{if(!FL30[k]){try{FL30[k]=L.polyline(want[k],{className:'wd-front',interactive:false,keyboard:false,weight:2.6}).addTo(map)}catch(e){}}
+    else{try{FL30[k].setLatLngs(want[k])}catch(e){}}})}
+window.addEventListener('load',()=>{setInterval(drawFronts,4000)});
+})();
+</script>
 </body>
 </html>
+

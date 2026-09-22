@@ -174,3 +174,13 @@ model TradeOffer {
   @@index([server, status, createdAt])
   @@map("trade_offers")
 }
+
+model SpecialUse {
+  id     String   @id @default(cuid())
+  userId String   @map("user_id")
+  item   String
+  usedAt DateTime @default(now()) @map("used_at")
+
+  @@index([userId, item, usedAt])
+  @@map("special_uses")
+}
