@@ -68,3 +68,4 @@ server.log
 bun.lock
 /--timeout
 /public/game/pre-v22-test.html
+scripts/
