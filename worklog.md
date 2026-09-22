@@ -32,3 +32,20 @@ Stage Summary:
 - فایل اصلی بازی: public/game/index.html (served at /game/index.html، root redirect به آن)
 - اسکرین‌شات‌ها در download/ (register, rank, shop, map views)
 - آماده استقرار: push به GitHub → Render Web Service (+ اختیاری Render Postgres) طبق README.md
+
+---
+Task ID: 2
+Agent: Super Z (main)
+Task: آماده‌سازی پروژه برای GitHub (پاک‌سازی ریپو + بسته ZIP)
+
+Work Log:
+- فایل .env که قبلاً track شده بود از git حذف شد (نکته امنیتی)
+- .gitignore به‌روز شد: db/, download/, upload/, tool-results/, .zscripts/, examples/, mini-services/, tests/, Caddyfile, worklog.md, bun.lock
+- اسکریپت‌های کمکی push-to-github.bat (ویندوز) و push-to-github.sh ساخته شدند
+- README.md قدم ۱ با میان‌بر اسکریپت‌ها و هشدار .env به‌روز شد
+- commit پاک‌سازی انجام شد (۹۰ فایل، صفر فایل اضافی)
+- بسته world-dominion.zip با git archive ساخته شد (۳۵۶KB) = دقیقاً همان فایل‌هایی که به GitHub می‌روند
+
+Stage Summary:
+- ریپو آماده push است: git remote add origin + git push
+- ZIP آماده دانلود: download/world-dominion.zip (شامل بازی کامل، پرisma، README، اسکریپت‌های push)
