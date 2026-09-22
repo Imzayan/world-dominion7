@@ -591,6 +591,8 @@
   <script>
    setTimeout(function(){var loader=document.getElementById('map-loader');if(loader)loader.style.display='none';},900);
   </script>
+  <link rel="preconnect" href="https://flagcdn.com">
+  <link rel="dns-prefetch" href="https://flagcdn.com">
   <link href="/cdn/leaflet/leaflet.min.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'" rel="stylesheet">
    <script src="/cdn/leaflet/leaflet.min.js">
    </script>
@@ -599,6 +601,18 @@
    </script>
    <script>
     if(typeof L==='undefined'){document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"><script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"><\/script>')}
+   </script>
+   <script>
+    /* V29 — zero-VPN resilience: start downloading country borders IMMEDIATELY,
+       in parallel with the rest of the page (it used to wait for window.onload).
+       force-cache lets the service worker / HTTP cache answer instantly on repeat visits. */
+   (function(){try{
+    if(location.protocol.indexOf('http')!==0)return;
+    window.__geoStart=Date.now();
+    window.__geoPromise=fetch('/cdn/geo/countries.geo.json',{cache:'force-cache'})
+      .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+      .catch(function(e){window.__geoPromise=null;window.__geoErr=e});
+   }catch(e){}})();
    </script>
    <div class="top-bar">
     <div class="brand">
@@ -1083,16 +1097,29 @@ function initGame() {
 
     function fetchGeoJSON(index) {
       if (index >= geoUrls.length) {
-        document.getElementById("status-banner").textContent = "⚠️ نقشه مرزها بارگذاری نشد؛ اتصال اینترنت را بررسی کنید. " + (window.__geoErr ? "[" + window.__geoErr.message + "]" : "");
+        const sbm = document.getElementById("status-banner");
+        if (sbm) {
+          sbm.textContent = "⚠️ دریافت مرزهای نقشه ناموفق بود — اینترنت را بررسی کنید یا ";
+          const b = document.createElement('button');
+          b.textContent = '🔄 تلاش دوباره';
+          b.style.cssText = 'background:#12b5e5;color:#00131f;border:0;border-radius:8px;padding:4px 12px;font-weight:800;cursor:pointer;font-family:inherit';
+          b.onclick = () => { sbm.textContent = '⏳ در حال تلاش مجدد…'; setTimeout(() => fetchGeoJSON(0), 60); };
+          sbm.appendChild(b);
+        }
         return;
       }
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
+      const timeout = setTimeout(() => controller.abort(), 8000);
       fetch(geoUrls[index], { signal: controller.signal })
-        .then(res => res.json())
-        .then(d => new Promise(r => { let k = 0; (function w() { if (!document.getElementById('wd-splash') || ++k > 60) r(d); else setTimeout(w, 100); })(); }))
-        .then(geoData => {
-          clearTimeout(timeout);
+        .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+        .then(d => waitSplash(d))
+        .then(geoData => { clearTimeout(timeout); mountWorld(geoData); })
+        .catch((err) => { clearTimeout(timeout); window.__geoErr = err; console.log(err); fetchGeoJSON(index + 1); });
+    }
+    function waitSplash(d) {
+      return new Promise(r => { let k = 0; (function w() { if (!document.getElementById('wd-splash') || ++k > 60) r(d); else setTimeout(w, 100); })(); });
+    }
+    function mountWorld(geoData) {
           const feats = (geoData.features || []).slice();
           // Performance: simplify world geometry before creating Leaflet paths.
           // This preserves the country silhouettes while removing excessive vertices on phones.
@@ -1155,10 +1182,16 @@ function initGame() {
             if (gi < feats.length) { setTimeout(step, document.hidden ? 0 : 16); }
             else { try { if (typeof afterGeo === 'function') afterGeo(); } catch (e) { console.log(e); } }
           })();
-        })
-        .catch((err) => { clearTimeout(timeout); window.__geoErr = err; console.log(err); fetchGeoJSON(index + 1); });
     }
-    fetchGeoJSON(0);
+    /* V29 — the early prefetch (started at page top) usually wins; URL chain is the fallback. */
+    if (window.__geoPromise) {
+      window.__geoPromise
+        .then(d => waitSplash(d))
+        .then(geoData => mountWorld(geoData))
+        .catch((err) => { window.__geoErr = err; console.log('prefetch failed, falling back', err); fetchGeoJSON(0); });
+    } else {
+      fetchGeoJSON(0);
+    }
   } catch (err) { console.log("Map error safe-catch", err); }
 }
 
@@ -1626,9 +1659,11 @@ function baseStyle(n){const h=hueOf(String(n||''));
   return{color:`hsla(${h},50%,30%,.5)`,weight:.9,fillColor:`hsl(${h},46%,${light}%)`,fillOpacity:.95,smoothFactor:1.1,noClip:false}}
 
 // ISO codes for flags (Intl names + aliases for geojson spellings)
-const N2C={"united states of america":"us","democratic republic of the congo":"cd","republic of the congo":"cg","united republic of tanzania":"tz","republic of serbia":"rs","macedonia":"mk","ivory coast":"ci","czech republic":"cz","guinea bissau":"gw","the bahamas":"bs","east timor":"tl","swaziland":"sz","myanmar":"mm","turkey":"tr","french southern and antarctic lands":"tf","kosovo":"xk"};
+const N2C={"united states of america":"us","democratic republic of the congo":"cd","republic of the congo":"cg","united republic of tanzania":"tz","republic of serbia":"rs","macedonia":"mk","ivory coast":"ci","czech republic":"cz","guinea bissau":"gw","the bahamas":"bs","east timor":"tl","swaziland":"sz","myanmar":"mm","turkey":"tr","french southern and antarctic lands":"tf","kosovo":"xk","bosnia and herzegovina":"ba","trinidad and tobago":"tt","west bank":"ps"};
 try{const dn=new Intl.DisplayNames(['en'],{type:'region'});for(let i=65;i<91;i++)for(let j=65;j<91;j++){const c=String.fromCharCode(i,j),n=dn.of(c);if(n&&n!==c&&!/^(DD|VD|YD|BU|TP|ZR|FX|NT|SU|CS|YU)$/.test(c)&&!N2C[n.toLowerCase()])N2C[n.toLowerCase()]=c.toLowerCase()}}catch(e){}
-const flagUrl=c=>'https://flagcdn.com/w80/'+c+'.png';
+/* V29 — flags are self-hosted (same origin, works without VPN); flagcdn is only a fallback. */
+function wdFlagErr(img){if(img&&!img.dataset.fb){img.dataset.fb='1';const c=img.dataset.c;if(c)img.src='https://flagcdn.com/w80/'+c+'.png';else img.remove()}else if(img)img.remove()}
+const flagUrl=c=>'/cdn/flags/w80/'+c+'.png';
 
 function mainRing(l){const ll=l.getLatLngs(),polys=Array.isArray(ll[0][0])?ll:[ll];let best=null,ba=-1;
   polys.forEach(p=>{const r=p[0];let s=90,n=-90,w=180,e=-180;r.forEach(q=>{s=Math.min(s,q.lat);n=Math.max(n,q.lat);w=Math.min(w,q.lng);e=Math.max(e,q.lng)});
@@ -1637,7 +1672,7 @@ const FL={};
 function getG(n){return FL[n]?FL[n].g:(layersByName[n]?mainRing(layersByName[n]):null)}
 function buildFlags(){
   Object.keys(layersByName).forEach(n=>{const code=N2C[n.toLowerCase()];if(!code||n==='Antarctica')return;const g=mainRing(layersByName[n]);if(!g)return;
-    const m=L.marker(g.c,{interactive:false,keyboard:false,icon:L.divIcon({className:'flag-wrap',iconSize:[0,0],html:`<img class="flag" alt="" src="${flagUrl(code)}" onerror="this.remove()">`})}).addTo(map);
+    const m=L.marker(g.c,{interactive:false,keyboard:false,icon:L.divIcon({className:'flag-wrap',iconSize:[0,0],html:`<img class="flag" alt="" data-c="${code}" src="${flagUrl(code)}" onerror="wdFlagErr(this)">`})}).addTo(map);
     FL[n]={m,code,g,el:m.getElement().firstChild}});
   sizeFlags();
 }
@@ -1648,7 +1683,7 @@ function sizeFlags(){ // big countries -> bigger flags, tiny ones -> smaller / h
     if(s<10){el.style.display='none';return}
     el.style.display='';el.style.width=s+'px';el.style.height=s*.66+'px';el.classList.toggle('big',s>=28)})}
 function setFlag(n){const f=FL[n];if(!f||!f.el||!f.el.isConnected)return;const own=FL[myCountryName],s=statusOf(n);
-  const u=flagUrl(s!=='neutral'&&own?own.code:f.code);if(f.el.getAttribute('src')!==u)f.el.src=u;f.el.classList.toggle('cap',s!=='neutral')}
+  const u=flagUrl(s!=='neutral'&&own?own.code:f.code);if(f.el.getAttribute('src')!==u){f.el.dataset.fb='';f.el.src=u}f.el.classList.toggle('cap',s!=='neutral')}
 
 // ---- colors per country ----
 function applyCountryColor(n){const l=layersByName[n];if(!l)return;const s=statusOf(n),occ=occupationPct[n]||0;
@@ -1775,7 +1810,7 @@ function decay(){if(battleBusy)return;Object.keys(occupationPct).forEach(n=>{con
 
 // ---- misc wiring ----
 const _oc=onCountryClick;
-onCountryClick=function(f,l){_oc(f,l);const fl=FL[f.properties.name],e=$("c-name");if(fl&&e)e.innerHTML=`<img class="dflag" src="${flagUrl(fl.code)}" onerror="this.remove()"> `+e.textContent};
+onCountryClick=function(f,l){_oc(f,l);const fl=FL[f.properties.name],e=$("c-name");if(fl&&e)e.innerHTML=`<img class="dflag" data-c="${fl.code}" src="${flagUrl(fl.code)}" onerror="wdFlagErr(this)"> `+e.textContent};
 const _uu=updateUI;
 updateUI=function(){_uu();['gold','food','oil','army'].forEach(k=>{const e=$('r-'+k);if(e._p!==e.textContent){if(e._p!==undefined){const c=e.parentNode;c.classList.remove('bump');void c.offsetWidth;c.classList.add('bump')}e._p=e.textContent}})};
 addEventListener('load',()=>{if(typeof map==='undefined'||!map)return;
@@ -2244,7 +2279,7 @@ baseStyle=function(n){const h=hueOf(String(n||''));return{color:`hsl(${h},48%,29
 buildFlags=function(){const ks=Object.keys(layersByName).filter(n=>N2C[n.toLowerCase()]&&n!=='Antarctica');let i=0;
   (function step(){const end=Math.min(i+20,ks.length);
     for(;i<end;i++){const n=ks[i],g=mainRing(layersByName[n]);if(!g)continue;const c=N2C[n.toLowerCase()];
-      const m=L.marker(g.c,{interactive:false,keyboard:false,icon:L.divIcon({className:'flag-wrap',iconSize:[0,0],html:`<img class="flag" alt="" loading="lazy" decoding="async" fetchpriority="low" src="${flagUrl(c)}" onerror="this.remove()">`})}).addTo(map);
+      const m=L.marker(g.c,{interactive:false,keyboard:false,icon:L.divIcon({className:'flag-wrap',iconSize:[0,0],html:`<img class="flag" alt="" loading="lazy" decoding="async" fetchpriority="low" data-c="${c}" src="${flagUrl(c)}" onerror="wdFlagErr(this)">`})}).addTo(map);
       FL[n]={m,code:c,g,el:m.getElement().firstChild}}
     sizeFlags();if(i<ks.length)requestAnimationFrame(step);else Object.keys(layersByName).filter(n=>statusOf(n)!=='neutral').forEach(setFlag)})()};
 /* ---- ownership: player color + name label + counter ---- */
