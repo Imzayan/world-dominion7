@@ -4,30 +4,27 @@ title World Dominion - Push to GitHub
 
 echo ============================================
 echo   World Dominion - ارسال به GitHub
+echo   مخزن: Imzayan/world-dominion7
 echo ============================================
 echo.
-echo قبل از اجرا:
-echo   1) در github.com یک مخزن (Repository) خالی بسازید
-echo   2) این فایل را با Notepad باز کنید و آدرس مخزن خود را
-echo      جای YOUR-USERNAME/REPO-NAME بگذارید
+echo توجه: این اسکریپت محتوای قبلی مخزن را با نسخه
+echo جدید و کامل بازی جایگزین می‌کند (Force Push).
 echo.
 pause
-
-set REPO_URL=https://github.com/YOUR-USERNAME/REPO-NAME.git
 
 cd /d "%~dp0"
 
 git init
 git add .
-git commit -m "World Dominion - online multiplayer with database"
+git commit -m "World Dominion - online multiplayer with database (full version)"
 git branch -M main
 git remote remove origin 2>nul
-git remote add origin %REPO_URL%
-git push -u origin main
+git remote add origin https://github.com/Imzayan/world-dominion7.git
+git push -f -u origin main
 
 echo.
 echo ============================================
-echo   تمام شد! کد شما روی GitHub قرار گرفت.
+echo   تمام شد! نسخه کامل روی GitHub قرار گرفت.
 echo   حالا به render.com بروید و Web Service بسازید.
 echo ============================================
 pause
