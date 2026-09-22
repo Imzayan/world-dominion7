@@ -66,3 +66,21 @@ Stage Summary:
 - مخزن https://github.com/Imzayan/world-dominion7 کامل و به‌روز است (branch: main)
 - کاربر باید توکن را حذف کند
 - گام بعدی: ساخت PostgreSQL + Web Service روی Render طبق README
+
+---
+Task ID: 4
+Agent: Super Z (main)
+Task: دیباگ 502 روی Render و فیکس crash سرور
+
+Work Log:
+- سایت زنده 502 می‌داد با اینکه لاگ Render «Your service is live» بود
+- build محلی تست شد: سالم (exit 0، همه روت‌ها)
+- سرور standalone محلی تست شد: سالم (game 200، session 200، redirect 307)
+- crash بازسازی شد: Render متغیر HOSTNAME کانتینر را ست می‌کند و Next standalone آن را به‌عنوان bind address می‌گیرد → getaddrinfo ENOTFOUND → crash
+- فیکس: HOSTNAME=0.0.0.0 در اسکریپت‌های start و render-start در package.json
+- فیکس تست شد: با HOSTNAME غلط هم سرور بالا می‌ماند
+- commit 1ae5b88 با توکن هنوز معتبر push شد (Render auto-deploy)
+
+Stage Summary:
+- منتظر deploy خودکار Render؛ بعدش سایت باید زنده شود
+- یادآوری حذف توکن به کاربر
