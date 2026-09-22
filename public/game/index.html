@@ -529,15 +529,20 @@
    </div>
   </div>
   <script>
-   /* V15 safe-start → V22 cinematic intro: staggered letters + synced progress + tap-to-skip. */
+   /* V25 intro: cinematic on first visit of the session, instant-light on repeat visits.
+      Fix for lag: fewer concurrent animations, shorter timeline, tap-to-skip stays. */
 (function(){
   var sp=document.getElementById('wd-splash'); if(!sp)return;
-  var left=false;
+  var fast=false;
+  try{fast=!!sessionStorage.getItem('wd_intro_seen')}catch(e){}
   function leave(){
     if(left)return; left=true;
+    try{sessionStorage.setItem('wd_intro_seen','1')}catch(e){}
     sp.classList.add('out');
-    setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp)},780);
+    setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp)},760);
   }
+  var left=false;
+  if(fast)sp.classList.add('fast');
   var t=document.getElementById('sp-title');
   if(t&&!t.querySelector('.sp-row')){
     var seq=['WORLD','DOMINION'];
@@ -551,20 +556,29 @@
       t.appendChild(row);
     }
   }
-  var msgs=['\u0622\u0645\u0627\u062f\u0647\u200c\u0633\u0627\u0632\u06cc \u062c\u0647\u0627\u0646\u2026','\u062a\u0631\u0633\u06cc\u0645 \u0645\u0631\u0632\u0647\u0627 \u0648 \u0627\u0642\u06cc\u0627\u0646\u0648\u0633\u200c\u0647\u0627\u2026','\u0628\u06cc\u062f\u0627\u0631 \u06a9\u0631\u062f\u0646 \u0641\u0631\u0645\u0627\u0646\u062f\u0647\u0627\u0646\u2026','\u0648\u0631\u0648\u062f \u0628\u0647 \u0645\u06cc\u062f\u0627\u0646 \u0646\u0628\u0631\u062f!'];
+  if(fast){
+    /* repeat visit: no typing effects, just a quick branded flash → game */
+    var _f=document.getElementById('sp-fill');if(_f)_f.style.transform='scaleX(1)';
+    var _m=document.getElementById('sp-msg');if(_m)_m.textContent='ورود به میدان نبرد!';
+    setTimeout(leave,850);
+    setTimeout(function(){left||leave()},2200);
+    sp.addEventListener('click',leave,{passive:true});
+    return;
+  }
+  var msgs=['آماده\u200cسازی جهان\u2026','ترسیم مرزها و اقیانوس\u200cها\u2026','بیدار کردن فرماندهان\u2026','ورود به میدان نبرد!'];
   var msg=document.getElementById('sp-msg'), fill=document.getElementById('sp-fill');
   if(fill){
     fill.style.transform='scaleX(.05)';
-    setTimeout(function(){fill.style.transform='scaleX(.42)'},350);
-    setTimeout(function(){fill.style.transform='scaleX(.78)'},1300);
-    setTimeout(function(){fill.style.transform='scaleX(1)'},2450);
+    setTimeout(function(){fill.style.transform='scaleX(.45)'},300);
+    setTimeout(function(){fill.style.transform='scaleX(.8)'},900);
+    setTimeout(function(){fill.style.transform='scaleX(1)'},1650);
   }
   var mi=0; if(msg)msg.textContent=msgs[0];
-  var mt=setInterval(function(){mi++;if(mi<msgs.length&&msg)msg.textContent=msgs[mi]},850);
-  setTimeout(function(){clearInterval(mt)},3500);
-  /* cinematic ~3.35s, tap to skip, hard safety cap */
-  setTimeout(leave,3350);
-  setTimeout(function(){left||leave()},6000);
+  var mt=setInterval(function(){mi++;if(mi<msgs.length&&msg)msg.textContent=msgs[mi]},560);
+  setTimeout(function(){clearInterval(mt)},2300);
+  /* cinematic ~2.3s (was 3.35s), tap to skip, hard safety cap */
+  setTimeout(leave,2300);
+  setTimeout(function(){left||leave()},4200);
   sp.addEventListener('click',leave,{passive:true});
 })();
   </script>
@@ -2145,8 +2159,8 @@ function refreshSites(){
   const want={};allSites().forEach(s=>{if(owned(s.c)&&layersByName[s.c])want[s.id]=s});
   Object.keys(MK).forEach(id=>{const s=want[id];if(!s||MK[id]._b!==isBuilt(s)){MK[id].remove();delete MK[id]}});
   Object.keys(want).forEach(id=>{if(MK[id])return;const s=want[id],b=isBuilt(s);
-    const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'site-wrap',iconSize:[0,0],html:'<div class="site '+(b?'s-built':'s-free')+'">'+ST[s.t].i+'</div>'}),keyboard:false,zIndexOffset:600}).addTo(map);
-    m._b=b;m.on('click',e=>{L.DomEvent.stopPropagation(e);openSites(s.c)});MK[id]=m})}
+    const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'site-wrap',iconSize:[0,0],html:'<div class="site '+(b?'s-built':'s-free')+'">'+ST[s.t].i+'</div>'}),interactive:false,keyboard:false,zIndexOffset:600}).addTo(map);
+    m._b=b;MK[id]=m})}
 (function(){const ac=applyCountryColor;applyCountryColor=function(n){ac(n);queueRefresh()};
   const ag=afterGeo;afterGeo=function(){ag();try{const zc=()=>map.getContainer().classList.toggle('z4',map.getZoom()>=4);map.on('zoomend',zc);zc();queueRefresh()}catch(e){console.log(e)}}})();
 
@@ -2194,8 +2208,7 @@ function renderSites(){const b=S$('sites-body'),t=S$('sites-title');if(!b)return
     else if(list.length){const seen={};list.forEach(s=>{seen[s.t]=(seen[s.t]||0)+1});
       d.append(el('div','🏗️ زیرساخت‌های واقعی: '+Object.keys(seen).map(t=>ST[t].i+' '+ST[t].fa+(seen[t]>1?' ×'+seen[t]:'')).join(' ، ')+' — بعد از تصرف قابل ساخت است','sites-info'))}}
    catch(e){console.log(e)}}})();
-addEventListener('load',()=>{const s=S$('hud-strip');if(!s)return;
-  const c=el('div','🏗️','hchip',()=>openSites(null));c.id='hud-sites';c.style.cursor='pointer';s.prepend(c)});
+/* V25: top-right infra chip removed (was cluttering the HUD) — infra lives in the lobby, drawer and ☰ menu */
    </script>
    <style id="v3-css">
     /* natural sea + land, no radar rings */
@@ -2709,8 +2722,8 @@ refreshSites=function(){if(typeof map==='undefined'||!map||!Object.keys(layersBy
   Object.keys(MK).forEach(id=>{const s=want[id];if(!s||MK[id]._b!==isBuilt(s)){MK[id].remove();delete MK[id]}});
   const pos=spreadPos(Object.values(want));
   Object.keys(want).forEach(id=>{if(MK[id]){MK[id].setLatLng(pos[id]);return}const s=want[id],b=isBuilt(s);
-    const m=L.marker(pos[id],{icon:L.divIcon({className:'site-wrap',iconSize:[0,0],html:'<div class="site '+(b?'s-built':'s-free')+'">'+ST[s.t].i+'</div>'}),keyboard:false,zIndexOffset:600}).addTo(map);
-    m._b=b;m.on('click',e=>{L.DomEvent.stopPropagation(e);openSites(s.c)});MK[id]=m});declutter()};
+    const m=L.marker(pos[id],{icon:L.divIcon({className:'site-wrap',iconSize:[0,0],html:'<div class="site '+(b?'s-built':'s-free')+'">'+ST[s.t].i+'</div>'}),interactive:false,keyboard:false,zIndexOffset:600}).addTo(map);
+    m._b=b;MK[id]=m});declutter()};
 (function(){const ag=afterGeo;afterGeo=function(){ag();try{map.on('zoomend',declutter)}catch(e){}}})();
 /* ---- economy: no more buy-oil / sell-oil loops ---- */
 const TR={buys:[],sells:[]};let lastCap=0;
@@ -5736,22 +5749,8 @@ try{
   if(wr&&window.MutationObserver)new MutationObserver(function(){beautify(wr)}).observe(wr,{childList:true,subtree:true});
 }catch(e){}
 
-/* ================= infra prominent chip ================= */
-setTimeout(function(){
-  try{
-    if(D.getElementById('wd-infra-chip'))return;
-    var chip=D.createElement('div');chip.id='wd-infra-chip';
-    chip.innerHTML=ICON.hammer+'<span>زیرساخت<small id="wd-infra-lv">سطح ۰</small></span>';
-    chip.onclick=function(){try{openModal('m-lobby');switchLobbyTab('infra')}catch(e){}};
-    D.body.appendChild(chip);
-    setInterval(function(){
-      try{
-        var t=0;if(typeof infra!=='undefined')t=(infra.oil||0)+(infra.arms||0)+(infra.air||0);
-        var lv=D.getElementById('wd-infra-lv');if(lv)lv.textContent='سطح '+t.toLocaleString('fa-IR');
-      }catch(e){}
-    },2000);
-  }catch(e){}
-},1300);
+/* ================= infra prominent chip — REMOVED in V25 (user: top-right was cluttered) ================= */
+/* Infra is now reachable from: country drawer button, lobby tab, and the ☰ command menu. */
 
 /* ================= V22 command menu (replaces old ☰ panel) ================= */
 function buildSheet(){
@@ -5941,6 +5940,311 @@ window.renderAdmin=async function(){
   var rf=h('button','🔄 بروزرسانی','wd22-gbtn',function(){window.renderAdmin()});
   rf.style.marginTop='6px';b.appendChild(rf);
 };
+})();
+</script>
+<style id="wd-geo-skin">
+/* ============================================================
+   V25 «GEOWAR-INSPIRED SKIN» — کارت‌های سرمه‌ای گرد، اعداد فارسی،
+   دریای آبی روشن + امضای شخصی World Dominion: گرادیان طلایی-فیروزه‌ای
+   ============================================================ */
+:root{--g-gold:#ffc93c;--g-cyan:#38c6ff;--g-green:#2fd573;--g-orange:#ff9f43;--g-red:#ff5a7a;--g-blue:#4aa3ff;--g-purple:#9b6bff;--g-mut:#8fb3d9}
+
+/* ---------- 1) دریای آبی روشن ---------- */
+#map,.leaflet-container{background:#2e83ba!important}
+#waves{background:linear-gradient(180deg,#5cbcec 0%,#3d9bd3 45%,#2e83ba 100%)!important}
+#map::before{animation:none!important;opacity:.28!important}
+#v12-map-fx{opacity:.3!important}
+#v12-map-fx:after{display:none!important}
+#map-loader{background:#0a1524!important}
+
+/* ---------- 2) اسپلش: امضای طلایی + حالت fast بدون انیمیشن ---------- */
+#wd-splash .sp-row.w1 span{background-image:linear-gradient(180deg,#eaffff 0%,#7adcff 45%,#1e9be0 100%)!important}
+#wd-splash .sp-row.w2 span{background-image:linear-gradient(180deg,#ffffff 0%,#ffe9a8 42%,#ffc93c 72%,#d98a00 100%)!important}
+#wd-splash.fast .sp-row span{animation:none!important;opacity:1!important;transform:none!important}
+#wd-splash.fast .sp-fa,#wd-splash.fast .sp-tag,#wd-splash.fast .sp-orn,#wd-splash.fast .sp-load,#wd-splash.fast .sp-skip{animation:none!important;opacity:1!important;transform:none!important}
+#wd-splash.fast .sp-halo,#wd-splash.fast .sp-titleglow{animation:none!important;opacity:.5!important}
+#wd-splash.fast .sp-globe{animation:spGlobeIn .5s cubic-bezier(.2,1.2,.3,1) forwards!important}
+#wd-splash.fast .sp-fill{transition-duration:.4s!important}
+
+/* ---------- 3) پرفورمنس: انیمیشن‌های پرهزینه حذف ---------- */
+.res-card::after{display:none!important}
+@keyframes oceanWave{0%{opacity:.28}100%{opacity:.28}}
+
+/* ---------- 4) نوار بالا: کارت‌های قرصی ---------- */
+.top-bar{background:linear-gradient(180deg,rgba(9,20,38,.97),rgba(6,13,26,.94))!important;border-bottom:1px solid #14284a!important}
+.res-card{background:linear-gradient(180deg,#13253f,#0c1a30)!important;border:1px solid #1e3a5f!important;border-radius:14px!important;padding:3px 8px!important}
+.res-card span{color:#7fa6cf!important;font-weight:700}
+#r-gold{color:var(--g-gold)!important}#r-food{color:#6fe59a!important}#r-oil{color:#6fd8ff!important}#r-army{color:#ff8ba0!important}
+#hud-strip .hchip{background:linear-gradient(180deg,rgba(14,30,54,.95),rgba(8,18,36,.95))!important;border:1px solid #1d3a5f!important;border-radius:12px!important;color:#cfe6ff!important}
+.status-banner{background:linear-gradient(90deg,rgba(10,24,44,.97),rgba(13,32,58,.97))!important;color:var(--g-gold)!important;border-bottom:1px solid rgba(255,201,60,.22)!important}
+
+/* ---------- 5) منوی پایین ---------- */
+.bottom-nav{background:linear-gradient(180deg,rgba(10,22,40,.96),rgba(6,14,28,.97))!important;border:1px solid #1c3a60!important;border-radius:20px!important}
+.nav-btn{background:transparent!important;border:0!important;color:var(--g-mut)!important;border-radius:14px!important}
+.nav-btn:active{background:rgba(56,198,255,.14)!important;color:#fff!important}
+#wd7-btn{background:linear-gradient(145deg,#14335a,#0a1a34)!important;border:1.5px solid rgba(255,201,60,.5)!important;box-shadow:0 10px 26px rgba(0,0,0,.5),0 0 18px rgba(255,201,60,.15)!important;color:var(--g-gold)!important}
+
+/* ---------- 6) کشوی کشور: کارت GeoWar + نوارهای رنگی آمار ---------- */
+.country-drawer{background:linear-gradient(180deg,#101f36 0%,#0b1830 100%)!important;border:1px solid #1e3a5f!important;border-radius:20px!important}
+#c-name{font-size:17px!important;font-weight:900!important;color:var(--g-gold)!important}
+#c-role{color:var(--g-mut)!important;font-size:10px!important}
+.stats-grid{gap:7px!important;margin:10px 0 8px!important}
+.stat-box{background:rgba(255,255,255,.05)!important;border:1px solid rgba(255,255,255,.07)!important;border-radius:14px!important;padding:7px 4px 11px!important;position:relative!important;overflow:hidden}
+.stat-box::after{content:"";position:absolute;right:14%;left:14%;bottom:5px;height:3px;border-radius:2px;background:var(--g-cyan)}
+.stats-grid .stat-box:nth-child(1)::after{background:var(--g-blue)}
+.stats-grid .stat-box:nth-child(2)::after{background:var(--g-red)}
+.stats-grid .stat-box:nth-child(3)::after{background:var(--g-gold)}
+.stats-grid .stat-box:nth-child(4)::after{background:var(--g-cyan)}
+.stats-grid .stat-box:nth-child(5)::after{background:var(--g-green)}
+.stats-grid .stat-box:nth-child(6)::after{background:var(--g-purple)}
+.stat-box b{font-size:11.5px!important}
+
+/* ---------- 7) دکمه‌های بزرگ گرد ---------- */
+.action-btn{border-radius:14px!important;font-size:12.5px!important;padding:12px!important;box-shadow:0 6px 16px rgba(0,0,0,.28)!important}
+.btn-green{background:linear-gradient(180deg,#35d97e,#1fa858)!important;color:#04250f!important}
+.btn-red{background:linear-gradient(180deg,#ff6b88,#e63e5f)!important;color:#fff!important}
+.btn-gold{background:linear-gradient(180deg,#ffd45a,#f0a80a)!important;color:#3a2500!important}
+.btn-cyan{background:linear-gradient(180deg,#54d2ff,#1ea6dd)!important;color:#03263a!important}
+.action-btn:active{transform:scale(.97)}
+
+/* ---------- 8) مودال‌ها و لابی ---------- */
+.modal{background:rgba(3,9,20,.86)!important}
+.modal-card{background:linear-gradient(180deg,#0f2040 0%,#0a1730 100%)!important;border:1px solid #1f4270!important;border-radius:22px!important;box-shadow:0 24px 70px rgba(0,0,0,.6)!important}
+.modal-title-row{color:var(--g-gold)!important;font-weight:900}
+.lobby-tab-btn{border-radius:12px!important;background:rgba(255,255,255,.05)!important;border:1px solid rgba(255,255,255,.08)!important;color:var(--g-mut)!important}
+.lobby-tab-btn.active{background:linear-gradient(135deg,var(--g-gold),var(--g-cyan))!important;color:#06243a!important;border-color:transparent!important;font-weight:900}
+.lobby-item{background:rgba(255,255,255,.05)!important;border:1px solid rgba(255,255,255,.07)!important;border-radius:16px!important}
+.lobby-item-btn{border-radius:10px!important}
+.unit-card{background:linear-gradient(180deg,#12233e,#0c1930)!important;border:1px solid #1d3a5f!important;border-radius:16px!important}
+.toast{background:linear-gradient(180deg,rgba(13,30,54,.98),rgba(7,17,34,.98))!important;border-radius:14px!important;border:1px solid #1f4270!important;box-shadow:0 10px 26px rgba(0,0,0,.5)!important;font-size:11.5px!important}
+.toast.win{border-color:rgba(47,213,115,.55)!important}
+.toast.lose{border-color:rgba(255,90,122,.55)!important}
+
+/* ---------- 9) آیکون‌های زیرساخت بزرگ و خوانا ---------- */
+.site{width:30px!important;height:30px!important;font-size:16px!important;background:rgba(255,255,255,.96)!important;border:2.5px solid #17a557!important;box-shadow:0 2px 8px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.25)!important}
+.site.s-free{border-style:dashed!important;border-color:#2f6da8!important;background:rgba(240,248,255,.92)!important}
+.site-wrap{pointer-events:none!important}
+
+/* ---------- 10) برچسب کشورها روی نقشه (سبک GeoWar) ---------- */
+.wd-clabel{color:#fff!important;font-size:10.5px!important;font-weight:900!important;text-shadow:0 1px 2px rgba(3,14,30,.95),0 0 5px rgba(3,14,30,.8)!important;letter-spacing:.2px}
+
+/* ---------- 11) رتبه‌بندی: پادیوم شکیل ---------- */
+.lr-row{border-radius:14px!important;padding:9px 11px!important}
+.lr-row .lr-val{font-size:12px!important}
+
+/* ---------- 12) منوی ☰ جدید ---------- */
+#wd-menu{position:fixed;inset:0;z-index:100400;display:none;align-items:flex-end;justify-content:center;background:rgba(2,8,18,.66);backdrop-filter:blur(3px)}
+#wd-menu.open{display:flex}
+#wd-menu-card{width:min(96vw,560px);max-height:86vh;overflow:auto;border-radius:24px 24px 0 0;background:linear-gradient(180deg,#0f2040,#081426);border:1px solid #1f4270;padding:16px 14px calc(18px + env(safe-area-inset-bottom,0px));animation:wdSheetUp2 .3s cubic-bezier(.2,1.1,.3,1)}
+@keyframes wdSheetUp2{from{transform:translateY(70px);opacity:0}to{transform:none;opacity:1}}
+.wd-menu-head{display:flex;align-items:center;gap:11px;padding:2px 2px 12px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:12px}
+.wd-menu-ava{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900;color:#04263c;background:linear-gradient(135deg,var(--g-gold),var(--g-cyan));box-shadow:0 0 0 2px rgba(255,201,60,.25);flex:0 0 auto}
+.wd-menu-nick{font-size:15px;font-weight:900;color:#fff}
+.wd-menu-sub{font-size:10px;color:var(--g-mut);margin-top:2px}
+.wd-menu-x{margin-inline-start:auto;cursor:pointer;font-size:17px;color:#9fc6e8;padding:4px 8px}
+.wd-menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.wd-menu-item{display:flex;align-items:center;gap:9px;padding:12px;border-radius:16px;background:linear-gradient(180deg,rgba(23,52,92,.75),rgba(10,24,46,.85));border:1px solid rgba(255,255,255,.08);cursor:pointer;transition:transform .12s}
+.wd-menu-item:active{transform:scale(.96)}
+.wd-menu-item i{font-style:normal;font-size:19px;flex:0 0 auto;width:24px;text-align:center}
+.wd-menu-item b{font-size:12.5px;color:#eef8ff;display:block}
+.wd-menu-item small{display:block;font-size:9px;color:var(--g-mut);margin-top:1px}
+.wd-menu-item.gold{border-color:rgba(255,201,60,.45)}
+.wd-menu-back{cursor:pointer;color:#8fd0ff;font-size:12px;font-weight:800;margin-bottom:9px}
+.wd-menu-terr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 11px;border-radius:12px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);margin:5px 0;cursor:pointer;font-size:11.5px;color:#d7ecff}
+.wd-menu-terr:active{background:rgba(56,198,255,.12)}
+.wd-menu-terr em{font-style:normal;font-size:9.5px;color:var(--g-gold);background:rgba(255,201,60,.1);border:1px solid rgba(255,201,60,.3);padding:1px 8px;border-radius:99px}
+.wd-menu-row{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);margin-bottom:8px}
+.wd-menu-row b{font-size:12px;color:#eaf6ff}.wd-menu-row small{display:block;font-size:9.5px;color:var(--g-mut);margin-top:2px}
+.wd-menu-sw{position:relative;width:44px;height:24px;border-radius:99px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);cursor:pointer;flex:0 0 auto;transition:.2s}
+.wd-menu-sw::after{content:"";position:absolute;top:2px;inset-inline-start:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}
+.wd-menu-sw.on{background:rgba(255,201,60,.5);border-color:rgba(255,201,60,.7)}
+.wd-menu-sw.on::after{transform:translateX(-20px)}
+@media(max-width:600px){.wd-menu-grid{grid-template-columns:1fr 1fr}.wd-menu-item small{display:none}}
+</style>
+<script id="wd-geo-js">
+(function(){
+'use strict';
+var D=document;
+/* ============ 1) اعداد فارسی برای UI (امضای بازی فارسی) ============ */
+function faNum(s){return String(s).replace(/[0-9]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[+d]})}
+var FA_SEL='#r-gold,#r-food,#r-oil,#r-army,#total-attack-power,#hud-gem,#hud-terr,#battle-pct-label,#wd6-level,.lr-val,.wd22-stat b,#c-pop,#c-def-stat,#c-gold-stat,#c-oil-stat,#c-food-stat,#c-rank-stat';
+setInterval(function(){
+  try{
+    var els=D.querySelectorAll(FA_SEL);
+    for(var i=0;i<els.length;i++){
+      var e=els[i],t=e.textContent;
+      if(t&&/[0-9]/.test(t))e.textContent=faNum(t);
+    }
+  }catch(e){}
+},1200);
+
+/* ============ 2) هیچ تپ مرده‌ای: فیدبک هنگام درگیری + ضد-گیر کردن battleBusy ============ */
+setInterval(function(){
+  try{
+    var m=D.getElementById('m-battle');
+    var open=!!(m&&(m.classList.contains('active')||m.classList.contains('open')));
+    if(typeof battleBusy!=='undefined'&&battleBusy&&!open){
+      if(!window.__wdStuck){window.__wdStuck=Date.now();return}
+      if(Date.now()-window.__wdStuck>3500){battleBusy=false;window.__wdStuck=0}
+    }else window.__wdStuck=0;
+  }catch(e){}
+},1500);
+setTimeout(function(){
+  try{
+    if(typeof onCountryClick!=='function')return;
+    var _occGeo=onCountryClick;
+    onCountryClick=function(f,l){
+      try{
+        if(typeof battleBusy!=='undefined'&&battleBusy){
+          if(typeof showToast==='function')showToast('⏳ نبرد در جریان است؛ پایان گزارش را صبر کن...','lose');
+          return;
+        }
+      }catch(e){}
+      return _occGeo(f,l);
+    };
+    /* fa digits for the drawer stats right after each click */
+    var _faDraw='#c-pop,#c-def-stat,#c-gold-stat,#c-oil-stat,#c-food-stat,#c-rank-stat';
+    var _prevGeo=onCountryClick;
+    onCountryClick=function(f,l){var r=_prevGeo(f,l);setTimeout(function(){try{var es=D.querySelectorAll(_faDraw);for(var i=0;i<es.length;i++){var t=es[i].textContent;if(t&&/[0-9]/.test(t))es[i].textContent=faNum(t)}}catch(e){}},40);return r};
+  }catch(e){console.log(e)}
+},2500);
+
+/* ============ 3) تایم‌اوت RPC حمله PvP (جلوگیری از گیر ابدی) ============ */
+setTimeout(function(){
+  try{
+    if(typeof sb!=='undefined'&&sb&&sb.rpc){
+      var _rpcG=sb.rpc.bind(sb);
+      sb.rpc=function(fn,params){
+        var r=_rpcG(fn,params);
+        if(fn==='pvp_attack'){
+          return Promise.race([r,new Promise(function(_,rej){
+            setTimeout(function(){rej(new Error('اتصال به جبهه طول کشید'))},25000);
+          })]);
+        }
+        return r;
+      };
+    }
+  }catch(e){console.log(e)}
+},1500);
+
+/* ============ 4) منوی ☰ بازطراحی‌شده — همه دکمه‌ها واقعی ============ */
+function esc(s){return String(s==null?'':s).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function menuSheet(){
+  var s=D.getElementById('wd-menu');
+  if(s)return s;
+  s=D.createElement('div');s.id='wd-menu';
+  s.innerHTML='<div id="wd-menu-card"><div class="wd-menu-head" id="wd-menu-head"></div><div id="wd-menu-body"></div></div>';
+  D.body.appendChild(s);
+  s.addEventListener('click',function(e){if(e.target===s)s.classList.remove('open')});
+  return s;
+}
+function menuBody(){return D.getElementById('wd-menu-body')}
+function menuHead(){
+  var hD=D.getElementById('wd-menu-head');if(!hD)return;
+  var nick='مهمان',hue=42;
+  try{if(typeof ACC!=='undefined'&&ACC&&ACC.nick){nick=ACC.nick;var x=7,st=String(nick);for(var i=0;i<st.length;i++)x=(x*31+st.charCodeAt(i))%360;hue=x}}catch(e){}
+  var terr=0;
+  try{terr=((typeof conqueredCountries!=='undefined'&&conqueredCountries.size)||0)+((typeof myCountryName!=='undefined'&&myCountryName)?1:0)}catch(e){}
+  var gems='—';
+  try{var g=D.getElementById('hud-gem');if(g)gems=(String(g.textContent).replace(/[^۰-۹0-9]/g,''))||'—'}catch(e){}
+  hD.innerHTML='<div class="wd-menu-ava">'+esc((nick[0]||'؟').toUpperCase())+'</div>'+
+    '<div><div class="wd-menu-nick">'+esc(nick)+'</div>'+
+    '<div class="wd-menu-sub">🏴 '+faNum(terr)+' قلمرو • 💎 '+esc(gems)+' جم</div></div>'+
+    '<div class="wd-menu-x" id="wd-menu-close">✕</div>';
+  var x=D.getElementById('wd-menu-close');if(x)x.onclick=function(){sClose()};
+}
+var _curSheet=null;
+function sOpen(){_curSheet=menuSheet();_curSheet.classList.add('open');viewHome()}
+function sClose(){if(_curSheet)_curSheet.classList.remove('open')}
+function item(ic,t,sub,fn,gold){
+  var d=D.createElement('div');d.className='wd-menu-item'+(gold?' gold':'');
+  d.innerHTML='<i>'+ic+'</i><span><b>'+t+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</span>';
+  d.onclick=function(){try{fn()}catch(e){console.log(e)}};return d;
+}
+function triggerBtn(id){
+  var b=D.getElementById(id);
+  if(b){b.click();sClose();return true}
+  return false;
+}
+function flyToCountry(n){
+  try{
+    var g=(typeof getG==='function')?getG(n):null;
+    if(g&&typeof map!=='undefined'&&map)map.flyToBounds([[g.s,g.w],[g.n,g.e]],{maxZoom:5,duration:1,paddingBottomRight:[0,230]});
+  }catch(e){}
+}
+function viewHome(){
+  var b=menuBody();b.innerHTML='';menuHead();
+  var g=D.createElement('div');g.className='wd-menu-grid';
+  g.appendChild(item('🏴','قلمروهای من','پرش سریع روی نقشه',function(){viewTerr()}));
+  g.appendChild(item('🏆','رتبه‌بندی','برترین فرماندهان',function(){triggerBtn('btn-m-rank')},1));
+  g.appendChild(item('💎','فروشگاه جم','بوست و منابع',function(){if(!triggerBtn('btn-m-shop')){try{renderShop();openModal('m-shop');sClose()}catch(e){}}}));
+  g.appendChild(item('💬','چت جهانی','با بازیکنان سرور',function(){triggerBtn('wd-chat-btn')}));
+  g.appendChild(item('🏗️','زیرساخت‌ها','پالایشگاه، کارخانه، فرودگاه',function(){try{openSites(null);sClose()}catch(e){}},1));
+  g.appendChild(item('🏢','لابی','مدیریت و ارتقا',function(){triggerBtn('btn-m-lobby')}));
+  g.appendChild(item('🪖','آرسنال','استخدام نیرو',function(){triggerBtn('btn-m-army')}));
+  g.appendChild(item('🧭','مشاور','راهنمای گام‌به‌گام',function(){try{openAdvisor();sClose()}catch(e){}}));
+  g.appendChild(item('⚙️','تنظیمات','صدا، کارایی، برچسب‌ها',function(){viewSettings()}));
+  g.appendChild(item('🚪','خروج از حساب','تعویض کاربری',function(){doLogout()}));
+  try{if(typeof isAdmin==='function'&&isAdmin())g.appendChild(item('👑','پنل مدیریت','اطلاعات بازیکنان',function(){try{renderAdmin();openModal('m-admin');sClose()}catch(e){}},1))}catch(e){}
+  b.appendChild(g);
+}
+function viewTerr(){
+  var b=menuBody();b.innerHTML='';
+  var back=D.createElement('div');back.className='wd-menu-back';back.textContent='→ بازگشت';back.onclick=viewHome;b.appendChild(back);
+  var list=[];
+  try{if(typeof myCountryName!=='undefined'&&myCountryName)list.push(myCountryName)}catch(e){}
+  try{if(typeof conqueredCountries!=='undefined')conqueredCountries.forEach(function(n){if(list.indexOf(n)<0)list.push(n)})}catch(e){}
+  if(!list.length){b.appendChild(D.createRange().createContextualFragment('<div class="wd-menu-row"><span>هنوز قلمروی نداری؛ اول یک پایتخت انتخاب کن.</span></div>'));return}
+  list.forEach(function(n){
+    var fa=n;
+    try{fa=getCountryData(n).fa||n}catch(e){}
+    var isCap=(typeof myCountryName!=='undefined'&&n===myCountryName);
+    var r=D.createElement('div');r.className='wd-menu-terr';
+    r.innerHTML='<span>'+(isCap?'⭐ ':'')+esc(fa)+'</span><em>'+(isCap?'پایتخت':'قلمرو')+'</em>';
+    r.onclick=function(){sClose();flyToCountry(n);setTimeout(function(){try{onCountryClick({properties:{name:n}},typeof layersByName!=='undefined'?layersByName[n]:null)}catch(e){}},1050)};
+    b.appendChild(r);
+  });
+}
+function viewSettings(){
+  var b=menuBody();b.innerHTML='';
+  var back=D.createElement('div');back.className='wd-menu-back';back.textContent='→ بازگشت';back.onclick=viewHome;b.appendChild(back);
+  var SET=window.wd22SET||{perf:false,labels:true,sound:true};
+  function row(t,sub,val,fn){
+    var r=D.createElement('div');r.className='wd-menu-row';
+    var tx=D.createElement('div');tx.innerHTML='<b>'+t+'</b><small>'+sub+'</small>';
+    var sw=D.createElement('div');sw.className='wd-menu-sw'+(val?' on':'');
+    sw.onclick=function(){var on=sw.classList.toggle('on');fn(on);try{localStorage.setItem('wd22_set',JSON.stringify(SET))}catch(e){}};
+    r.appendChild(tx);r.appendChild(sw);b.appendChild(r);
+  }
+  row('حالت کارایی','خاموش‌کردن انیمیشن‌های اضافه (رفع لگ)',!!SET.perf,function(v){SET.perf=v;try{window.wd22ApplySet()}catch(e){}});
+  row('صدای بازی','افکت‌ها و طبل جنگ',SET.sound!==false,function(v){SET.sound=v;try{window.wd22ApplySet()}catch(e){}});
+  row('نام کشورها روی نقشه','برچسب فارسی کشورها',SET.labels!==false,function(v){SET.labels=v;try{window.wd22ApplySet()}catch(e){}});
+}
+function doLogout(){
+  sClose();
+  var go=function(){
+    try{if(typeof saveNow==='function')saveNow()}catch(e){}
+    try{localStorage.removeItem('wd_last')}catch(e){}
+    try{if(typeof sb!=='undefined'&&sb)sb.auth.signOut()}catch(e){}
+    try{sessionStorage.removeItem('wd_intro_seen')}catch(e){}
+    location.reload();
+  };
+  try{
+    if(typeof wdConfirm==='function')wdConfirm('از حساب خارج می‌شوی؟','خروج').then(function(y){if(y)go()});
+    else if(confirm('از حساب خارج می‌شوی؟'))go();
+  }catch(e){if(confirm('از حساب خارج می‌شوی؟'))go()}
+}
+/* bind ☰ after all earlier hooks (they bind at 1.6s & 3.2s) */
+function bindMenu(){
+  try{
+    var b=D.getElementById('wd7-btn');
+    if(b){b.onclick=function(ev){try{ev&&ev.preventDefault&&ev.preventDefault()}catch(e){}sOpen()};b.title='منوی بازی';b.setAttribute('aria-label','منوی بازی')}
+    var q=D.getElementById('wd5-launcher');
+    if(q){q.onclick=function(ev){try{ev&&ev.preventDefault&&ev.preventDefault()}catch(e){}sOpen()}}
+  }catch(e){console.log(e)}
+}
+setTimeout(bindMenu,3600);
+setTimeout(bindMenu,5300);
 })();
 </script>
 </body>
