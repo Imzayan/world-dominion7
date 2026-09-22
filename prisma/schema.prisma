@@ -158,3 +158,19 @@ model WeeklyClaim {
   @@unique([userId, weekKey, category])
   @@map("weekly_claims")
 }
+
+model TradeOffer {
+  id         String   @id @default(cuid())
+  server     Int
+  ownerUid   String   @map("owner_uid")
+  ownerNick  String   @map("owner_nick")
+  giveRes    String   @map("give_res")
+  giveQty    Int      @map("give_qty")
+  wantRes    String   @map("want_res")
+  wantQty    Int      @map("want_qty")
+  status     String   @default("open")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([server, status, createdAt])
+  @@map("trade_offers")
+}

@@ -1,5 +1,5 @@
 /* World Dominion — service worker: offline cache for game assets */
-const CACHE = 'wd-v3';
+const CACHE = 'wd-v4';
 const IMMUTABLE = [
   '/cdn/leaflet/leaflet.min.js',
   '/cdn/geo/countries.geo.json',

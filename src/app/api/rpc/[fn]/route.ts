@@ -81,6 +81,36 @@ async function transferTerritory(server: number, country: string, uid: string, n
   return { ok: true, prevOwner }
 }
 
+/* ---------- P2P trade offers (V28) ----------
+   Resources live inside each player's save.state JSON ({res:{gold,oil,food}}).
+   Offers are validated server-side at create AND at accept time, so neither
+   side can cheat. A small fee is burned on every completed trade. */
+const TRADE_FEE = 0.03
+const TRADE_RES = new Set(['gold', 'oil', 'food'])
+
+const resNum = (v: unknown): number => Math.max(0, Math.round(Number(v) || 0))
+
+function tradeRes(stateJson: string): { obj: Record<string, unknown>; res: Record<string, number> } {
+  let obj: Record<string, unknown> = {}
+  try { obj = JSON.parse(stateJson || '{}') || {} } catch { obj = {} }
+  const res = (obj.res || {}) as Record<string, number>
+  return { obj, res }
+}
+
+async function tradeApply(uid: string, mut: (res: Record<string, number>) => void): Promise<boolean> {
+  const save = await db.save.findUnique({ where: { userId: uid } })
+  if (!save) return false
+  const { obj, res } = tradeRes(save.state)
+  mut(res)
+  for (const k of ['gold', 'oil', 'food']) {
+    if (res[k] === undefined) res[k] = 0
+    if (!Number.isFinite(res[k]) || res[k] < 0) return false
+  }
+  obj.res = res
+  await db.save.update({ where: { userId: uid }, data: { state: JSON.stringify(obj) } })
+  return true
+}
+
 export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string }> }) {
   const { fn } = await ctx.params
   const user = await getSessionUser()
@@ -248,6 +278,88 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         lastCapture.set(user.id, now)
         const r = await transferTerritory(server, country, user.id, user.nick)
         return R(r.ok)
+      }
+
+      /* ---------------- P2P trade offers (V28, escrow) ----------------
+         create: give_qty is deducted from the owner's SAVED state immediately (escrow)
+                 and from the owner's live resources by the client → no double-spend.
+         accept: escrowed goods move to the acceptor; the owner receives want_qty.
+         cancel: escrow refunded to the owner's saved state. */
+      case 'trade_offer_create': {
+        const server = Math.max(1, Number(args.p_server || 1))
+        const giveRes = String(args.p_give_res || ''), wantRes = String(args.p_want_res || '')
+        const giveQty = Math.round(Number(args.p_give_qty) || 0), wantQty = Math.round(Number(args.p_want_qty) || 0)
+        if (!TRADE_RES.has(giveRes) || !TRADE_RES.has(wantRes) || giveRes === wantRes || giveQty < 10 || wantQty < 10)
+          return R({ ok: false, reason: 'bad' })
+        const mine = await db.save.findUnique({ where: { userId: user.id } })
+        if (!mine) return R({ ok: false, reason: 'nosave' })
+        const okEscrow = await tradeApply(user.id, (r) => { r[giveRes] = resNum(r[giveRes]) - giveQty })
+        if (!okEscrow) return R({ ok: false, reason: 'funds' })
+        const open = await db.tradeOffer.count({ where: { ownerUid: user.id, status: 'open' } })
+        if (open >= 5) {
+          await tradeApply(user.id, (r) => { r[giveRes] = resNum(r[giveRes]) + giveQty })
+          return R({ ok: false, reason: 'limit' })
+        }
+        await db.tradeOffer.create({
+          data: { server, ownerUid: user.id, ownerNick: user.nick, giveRes, giveQty, wantRes, wantQty },
+        })
+        return R({ ok: true })
+      }
+      case 'trade_offer_list': {
+        const server = Math.max(1, Number(args.p_server || 1))
+        const rows = await db.tradeOffer.findMany({
+          where: { server, status: 'open', createdAt: { gt: new Date(Date.now() - 24 * 3600 * 1000) } },
+          orderBy: { createdAt: 'desc' },
+          take: 60,
+        })
+        return R(rows.map((r) => ({
+          id: r.id, mine: r.ownerUid === user.id, nick: r.ownerNick,
+          give_res: r.giveRes, give_qty: r.giveQty, want_res: r.wantRes, want_qty: r.wantQty,
+          created_at: r.createdAt.toISOString(),
+        })))
+      }
+      case 'trade_offer_cancel': {
+        const id = String(args.p_id || '')
+        const off = await db.tradeOffer.findUnique({ where: { id } })
+        if (!off || off.ownerUid !== user.id || off.status !== 'open') return R({ ok: false })
+        await db.tradeOffer.update({ where: { id }, data: { status: 'cancelled' } })
+        await tradeApply(user.id, (r) => { r[off.giveRes] = resNum(r[off.giveRes]) + off.giveQty }) /* refund escrow */
+        return R({ ok: true })
+      }
+      case 'trade_offer_accept': {
+        const id = String(args.p_id || '')
+        const off = await db.tradeOffer.findUnique({ where: { id } })
+        if (!off || off.status !== 'open' || off.ownerUid === user.id) return R({ ok: false, reason: 'gone' })
+        const acceptor = await db.save.findUnique({ where: { userId: user.id } })
+        if (!acceptor) return R({ ok: false, reason: 'nosave' })
+        const aRes = tradeRes(acceptor.state).res
+        if (resNum(aRes[off.wantRes]) < off.wantQty) return R({ ok: false, reason: 'funds' })
+        const fee = Math.max(1, Math.round(off.giveQty * TRADE_FEE))
+        const acceptorGot = Math.max(0, off.giveQty - fee)
+        const okA = await tradeApply(user.id, (r) => {
+          r[off.wantRes] = resNum(r[off.wantRes]) - off.wantQty
+          r[off.giveRes] = resNum(r[off.giveRes]) + acceptorGot
+        })
+        const okO = await tradeApply(off.ownerUid, (r) => {
+          r[off.wantRes] = resNum(r[off.wantRes]) + off.wantQty /* escrowed give already left the owner at create */
+        })
+        if (!okA || !okO) return R({ ok: false, reason: 'apply' })
+        await db.tradeOffer.update({ where: { id }, data: { status: 'done' } })
+        await addNews(off.server, 'trade', null, user.nick, off.ownerNick)
+        return R({ ok: true, got: acceptorGot, fee, give_res: off.giveRes })
+      }
+      case 'trade_offer_mine': {
+        /* offers I own that finished in the last 24h — client credits itself once */
+        const cutoff = new Date(Date.now() - 24 * 3600 * 1000)
+        const rows = await db.tradeOffer.findMany({
+          where: { ownerUid: user.id, status: { in: ['done', 'cancelled'] }, createdAt: { gt: cutoff } },
+          orderBy: { createdAt: 'desc' },
+          take: 30,
+        })
+        return R(rows.map((r) => ({
+          id: r.id, status: r.status, give_res: r.giveRes, give_qty: r.giveQty,
+          want_res: r.wantRes, want_qty: r.wantQty,
+        })))
       }
 
       /* ---------------- news / chat ---------------- */

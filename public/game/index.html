@@ -4291,7 +4291,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
   }
   const cb=$('wd-chat-btn');if(cb)cb.onclick=async()=>{if($('wdc-server'))$('wdc-server').textContent=typeof SRV==='undefined'?'—':SRV;openModal('wd-chat');await loadChat();setTimeout(()=>{const i=$('wdc-input');if(i)i.focus()},80)};
   $('wdc-send').onclick=sendChat;$('wdc-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat()}});
-  setInterval(()=>{if($('wd-chat')&&$('wd-chat').classList.contains('active'))loadChat()},5000);
+  /* V28: the old 5s plain-refetch loop was removed — the WD28 chat engine owns refresh now */
 })();
    </script>
    <style id="wd-chat-pro-v2">
@@ -6178,11 +6178,11 @@ function viewHome(){
   g.appendChild(item('🏴','قلمروهای من','پرش سریع روی نقشه',function(){viewTerr()}));
   g.appendChild(item('🏆','رتبه‌بندی','برترین فرماندهان',function(){triggerBtn('btn-m-rank')},1));
   g.appendChild(item('💎','فروشگاه جم','بوست و منابع',function(){if(!triggerBtn('btn-m-shop')){try{renderShop();openModal('m-shop');sClose()}catch(e){}}}));
-  g.appendChild(item('💬','چت جهانی','با بازیکنان سرور',function(){triggerBtn('wd-chat-btn')}));
+  g.appendChild(item('💬','چت جهانی','با بازیکنان سرور',function(){if(!triggerBtn('wd-chat-btn')){if(window.WD28Chat){window.WD28Chat.open();sClose()}else{sClose()}}}));
   g.appendChild(item('🏗️','زیرساخت‌ها','پالایشگاه، کارخانه، فرودگاه',function(){try{openSites(null);sClose()}catch(e){}},1));
   g.appendChild(item('🏢','لابی','مدیریت و ارتقا',function(){triggerBtn('btn-m-lobby')}));
   g.appendChild(item('🪖','ارتش','استخدام نیرو',function(){triggerBtn('btn-m-army')}));
-  g.appendChild(item('🧭','مشاور','راهنمای گام‌به‌گام',function(){try{openAdvisor();sClose()}catch(e){}}));
+  g.appendChild(item('🧭','مشاور','راهنمای گام‌به‌گام',function(){sClose();if(window.WD28Advisor){window.WD28Advisor.open()}else{try{openModal('wd-advisor')}catch(e){}}}));
   g.appendChild(item('⚙️','تنظیمات','صدا، کارایی، برچسب‌ها',function(){viewSettings()}));
   g.appendChild(item('🚪','خروج از حساب','تعویض کاربری',function(){doLogout()}));
   try{if(typeof isAdmin==='function'&&isAdmin())g.appendChild(item('👑','پنل مدیریت','اطلاعات بازیکنان',function(){try{renderAdmin();openModal('m-admin');sClose()}catch(e){}},1))}catch(e){}
@@ -6744,6 +6744,1440 @@ setInterval(function(){try{if(typeof ACC==='undefined'||!ACC||!ACC.nick)return;v
 /* ---------------- شروع ---------------- */
 setTimeout(function(){try{cosRepaint()}catch(e){}},3500);
 setTimeout(function(){try{if(typeof myCountryName!=='undefined'&&myCountryName)cosRecordStat()}catch(e){}},6000);
+})();
+</script>
+<style id="v28-css">
+/* ==================== V28: Chat 2.0 + Advisor Pro + Rank Premium + Market 2.0 + Tax 2.0 + Army 2.0 ==================== */
+/* ---- chips: پایدار، بدون چشمک ---- */
+#hud-strip .hchip{font-variant-numeric:normal;transition:opacity .3s}
+#hud-strip .hchip .hchip-in{display:inline-block}
+/* ---- Chat 2.0 ---- */
+#wd-chat .wdc-list{height:min(56vh,460px)!important;padding:10px 8px!important;display:flex!important;flex-direction:column!important;gap:6px!important}
+.wd28-day{align-self:center;font-size:8.5px;color:#7f9cc0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:2px 10px;border-radius:999px;margin:4px 0}
+.wd28-msg{display:flex;gap:7px;max-width:88%;align-self:flex-start;animation:wd28In .22s ease both}
+.wd28-msg.me{flex-direction:row-reverse;align-self:flex-end}
+@keyframes wd28In{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.wd28-av{width:30px;height:30px;flex:0 0 30px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.4);margin-top:2px}
+.wd28-bub{background:linear-gradient(180deg,#12325a,#0b2340);border:1px solid rgba(120,190,255,.16);border-radius:13px 13px 13px 4px;padding:7px 10px;min-width:0}
+.wd28-msg.me .wd28-bub{background:linear-gradient(135deg,#0f4f46,#0b3a5e);border-color:rgba(57,230,208,.3);border-radius:13px 13px 4px 13px}
+.wd28-bub .wd28-nick{font-size:9px;font-weight:900;color:#7fd7ff;display:flex;align-items:center;gap:4px}
+.wd28-msg.me .wd28-bub .wd28-nick{color:#7dffcf}
+.wd28-bub .wd28-txt{font-size:11.5px;line-height:1.65;color:#eef7ff;word-break:break-word;margin-top:2px}
+.wd28-bub .wd28-t{font-size:7.5px;color:#7d99bb;margin-top:3px}
+.wd28-pend{opacity:.55}
+.wd28-compose{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:8px;position:sticky;bottom:0;background:transparent;padding-top:4px}
+.wd28-compose .wdc-input{background:rgba(6,17,30,.9);border:1px solid rgba(0,220,255,.28);border-radius:12px;padding:11px 12px;font-size:12px;transition:border .2s}
+.wd28-compose .wdc-input:focus{border-color:#39e6d0;box-shadow:0 0 0 3px rgba(57,230,208,.12)}
+.wd28-send{border:0;border-radius:12px;background:linear-gradient(135deg,#00d4ff,#39e6d0);color:#022;font-weight:900;padding:0 16px;font-size:12px;cursor:pointer;transition:transform .12s}
+.wd28-send:active{transform:scale(.94)}
+.wd28-send:disabled{filter:grayscale(.6);opacity:.6}
+.wd28-empty{text-align:center;padding:26px 12px;color:#8fb0d6}
+.wd28-empty .big{font-size:34px;filter:drop-shadow(0 0 14px rgba(0,220,255,.4))}
+.wd28-err{text-align:center;font-size:10px;color:#ff8ba0;padding:8px}
+.wd28-badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;border-radius:999px;background:#ff3366;color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 0 10px rgba(255,51,102,.6)}
+/* ---- Advisor Pro ---- */
+#wd-advisor .modal-card{background:radial-gradient(circle at 12% 0%,rgba(255,204,0,.09),transparent 34%),radial-gradient(circle at 100% 100%,rgba(0,220,255,.1),transparent 40%),linear-gradient(180deg,#0a1e36,#05101f)!important;border:1px solid rgba(255,204,0,.28)!important}
+#wd-advisor .wd28-adv-tabs{display:flex;gap:5px;margin:10px 0;flex-wrap:wrap}
+.wd28-adv-tab{flex:1;min-width:64px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#cdd7e8;border-radius:12px;padding:9px 4px;font-size:11px;font-weight:800;cursor:pointer;text-align:center;transition:.18s}
+.wd28-adv-tab.on{background:linear-gradient(135deg,#ffd84d,#39e6d0);color:#081426;border-color:transparent;box-shadow:0 6px 18px rgba(57,230,208,.25)}
+.wd28-lesson{background:linear-gradient(160deg,rgba(255,204,0,.08),rgba(0,220,255,.05));border:1px solid rgba(255,204,0,.22);border-radius:16px;padding:14px;animation:wd28In .3s ease both}
+.wd28-lesson .wd28-l-ico{font-size:26px;margin-bottom:6px}
+.wd28-lesson b{font-size:14.5px;color:#ffd84d;display:block;margin-bottom:6px}
+.wd28-lesson p{font-size:11.5px;line-height:1.95;color:#d7ecff;margin:0}
+.wd28-tip{display:flex;gap:8px;align-items:flex-start;background:rgba(0,220,255,.06);border:1px dashed rgba(0,220,255,.3);border-radius:12px;padding:9px 10px;margin-top:9px;font-size:10.5px;line-height:1.7;color:#a8e8ff}
+.wd28-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.wd28-stat{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:8px 6px;text-align:center}
+.wd28-stat b{display:block;font-size:13px;color:#fff}
+.wd28-stat small{font-size:8.5px;color:#8fb0d6}
+.wd28-check{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:9px 11px;margin-top:6px;font-size:11px;color:#d7ecff}
+.wd28-check .ck{width:20px;height:20px;flex:0 0 20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;background:rgba(255,255,255,.07)}
+.wd28-check.done{border-color:rgba(0,255,136,.35)}
+.wd28-check.done .ck{background:linear-gradient(135deg,#00ff88,#00c46a);color:#032}
+.wd28-adv-nav{display:flex;gap:6px;margin-top:10px}
+.wd28-adv-nav button{flex:1;border:0;border-radius:12px;padding:11px;font-weight:900;font-size:12px;cursor:pointer}
+.wd28-adv-nav .prev{background:rgba(255,255,255,.08);color:#cdd7e8}
+.wd28-adv-nav .next{background:linear-gradient(135deg,#ffd84d,#ffb02e);color:#201500}
+/* ---- Rank Premium ---- */
+#m-rank .modal-card{font-family:inherit}
+#m-rank .modal-title-row span:first-child{font-size:16px!important;letter-spacing:.3px}
+.wd28-rk-head{display:flex;align-items:center;justify-content:space-between;gap:8px;background:linear-gradient(135deg,rgba(255,204,0,.12),rgba(57,230,208,.07));border:1px solid rgba(255,204,0,.25);border-radius:14px;padding:10px 12px;margin:8px 0}
+.wd28-rk-head .t{font-size:12.5px;font-weight:900;color:#ffd84d}
+.wd28-rk-head .s{font-size:9.5px;color:#9fadc4;margin-top:2px}
+.wd28-rk-head .refresh{border:0;border-radius:10px;background:linear-gradient(135deg,#39e6d0,#2bb8ff);color:#00231f;font-weight:900;font-size:11px;padding:8px 13px;cursor:pointer}
+.wd28-rrow{display:flex;align-items:center;gap:9px;background:linear-gradient(90deg,rgba(56,198,255,.08),rgba(155,92,255,.05));border:1px solid rgba(120,190,255,.14);border-radius:13px;padding:9px 11px;margin-bottom:6px;animation:wd28In .25s ease both;position:relative}
+.wd28-rrow.me{border-color:rgba(0,240,255,.5);background:linear-gradient(90deg,rgba(0,240,255,.13),rgba(0,150,255,.06));box-shadow:0 0 16px rgba(0,240,255,.12)}
+.wd28-rrow .rk-n{width:24px;flex:0 0 24px;text-align:center;font-size:11px;font-weight:900;color:#ffd84d}
+.wd28-rav{width:34px;height:34px;flex:0 0 34px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;box-shadow:0 3px 9px rgba(0,0,0,.35)}
+.wd28-rrow .rk-mid{flex:1;min-width:0}
+.wd28-rrow .rk-nick{font-size:12px;font-weight:900;color:#fff;display:flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wd28-rrow .rk-title{font-size:8.5px;color:#ffd84d;background:rgba(255,204,0,.12);border:1px solid rgba(255,204,0,.25);padding:1px 6px;border-radius:999px;white-space:nowrap}
+.wd28-rrow .rk-bar{height:4px;background:rgba(255,255,255,.08);border-radius:4px;margin-top:5px;overflow:hidden}
+.wd28-rrow .rk-bar i{display:block;height:100%;background:linear-gradient(90deg,#ffd84d,#39e6d0);border-radius:4px}
+.wd28-rrow .rk-val{text-align:left}
+.wd28-rrow .rk-val b{display:block;font-size:12.5px;color:#7dffcf;font-weight:900}
+.wd28-rrow .rk-val small{font-size:8px;color:#8fb0d6}
+.wd28-you-tag{position:absolute;top:-6px;right:10px;font-size:8px;font-weight:900;color:#0af;background:linear-gradient(135deg,#39e6d0,#2bb8ff);padding:1px 7px;border-radius:999px}
+#m-rank .lr-h{font-size:12px;font-weight:900;color:#ffd84d;padding:6px 2px}
+/* ---- Market 2.0 ---- */
+#m-market .modal-card{background:linear-gradient(180deg,#0a1e36,#050f1e)!important;border-color:rgba(0,220,255,.25)!important}
+.wd28-mkt-tabs{display:flex;gap:5px;margin:8px 0 10px;flex-wrap:wrap}
+.wd28-mkt-tab{flex:1;min-width:62px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#cdd7e8;border-radius:12px;padding:8px 4px;font-size:10.5px;font-weight:800;cursor:pointer;transition:.18s}
+.wd28-mkt-tab.on{background:linear-gradient(135deg,#ffd84d,#39e6d0);color:#081426;border-color:transparent;box-shadow:0 5px 16px rgba(57,230,208,.22)}
+.wd28-mkt-ev{display:flex;align-items:center;gap:8px;background:linear-gradient(90deg,rgba(255,120,60,.16),rgba(255,60,120,.08));border:1px solid rgba(255,140,60,.4);border-radius:12px;padding:8px 11px;font-size:10.5px;color:#ffd7b0;margin-bottom:9px;animation:wd28In .3s ease both}
+.wd28-res-card{background:linear-gradient(160deg,rgba(56,198,255,.09),rgba(155,92,255,.05));border:1px solid rgba(120,190,255,.16);border-radius:16px;padding:11px 12px;margin-bottom:9px}
+.wd28-res-top{display:flex;align-items:center;gap:9px}
+.wd28-res-ico{width:38px;height:38px;flex:0 0 38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;background:rgba(255,255,255,.07)}
+.wd28-res-mid{flex:1;min-width:0}
+.wd28-res-mid b{font-size:12.5px;color:#fff;display:block}
+.wd28-res-mid small{font-size:9px;color:#8fb0d6}
+.wd28-res-price{text-align:left}
+.wd28-res-price b{font-size:15px;font-weight:900;color:#ffd84d;display:block;font-variant-numeric:normal}
+.wd28-res-price small{font-size:9px;font-weight:800;padding:1px 7px;border-radius:999px;display:inline-block;margin-top:2px}
+.wd28-up{color:#5cff9d;background:rgba(0,255,136,.12)}
+.wd28-dn{color:#ff8ba0;background:rgba(255,51,102,.12)}
+.wd28-spark{width:100%;height:44px;display:block;margin:8px 0 2px;border-radius:8px}
+.wd28-trades{display:flex;gap:6px;margin-top:6px}
+.wd28-trades input{flex:1;min-width:0;background:#06111e;border:1px solid rgba(0,220,255,.22);color:#fff;border-radius:10px;padding:9px 10px;font-size:11.5px;outline:none;text-align:center}
+.wd28-tbtn{flex:1;border:0;border-radius:10px;padding:9px 0;font-weight:900;font-size:11.5px;cursor:pointer;transition:transform .12s}
+.wd28-tbtn:active{transform:scale(.95)}
+.wd28-buy{background:linear-gradient(135deg,#00e08f,#00a862);color:#022}
+.wd28-sell{background:linear-gradient(135deg,#ff5c7c,#d4345e);color:#fff}
+.wd28-fee{font-size:8.5px;color:#7d99bb;margin-top:5px}
+.wd28-sec-h{font-size:12px;font-weight:900;color:#ffd84d;margin:12px 0 8px;display:flex;align-items:center;gap:6px}
+.wd28-sec-h small{font-weight:400;font-size:9px;color:#8fb0d6}
+.wd28-order{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:8px 10px;margin-bottom:6px;font-size:10.5px;color:#d7ecff}
+.wd28-order .x{border:0;background:rgba(255,51,102,.15);color:#ff8ba0;border-radius:8px;padding:5px 9px;font-weight:800;cursor:pointer;font-size:10px}
+.wd28-offer{background:linear-gradient(160deg,rgba(255,204,0,.07),rgba(0,220,255,.04));border:1px solid rgba(255,204,0,.2);border-radius:14px;padding:10px 11px;margin-bottom:7px}
+.wd28-offer .row1{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.wd28-offer .av{width:26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff}
+.wd28-offer .nick{font-size:11.5px;font-weight:900;color:#fff}
+.wd28-offer .swp{font-size:11.5px;color:#d7ecff;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.wd28-offer .pill{background:rgba(255,255,255,.08);border-radius:9px;padding:3px 9px;font-weight:800}
+.wd28-offer .pill b{color:#ffd84d}
+.wd28-accbtn{border:0;border-radius:10px;background:linear-gradient(135deg,#00e08f,#00a862);color:#022;font-weight:900;font-size:11px;padding:8px 14px;cursor:pointer;margin-top:7px}
+.wd28-accbtn.mine{background:rgba(255,51,102,.18);color:#ff8ba0}
+.wd28-accbtn:disabled{filter:grayscale(.7);opacity:.55;cursor:default}
+.wd28-hist{display:flex;justify-content:space-between;gap:8px;padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.06);font-size:10px;color:#cfe0f5}
+.wd28-hist:last-child{border:0}
+.wd28-prof{color:#5cff9d;font-weight:900}.wd28-loss{color:#ff8ba0;font-weight:900}
+.wd28-form-row{display:flex;gap:6px;margin-bottom:7px}
+.wd28-form-row select,.wd28-form-row input{flex:1;min-width:0;background:#06111e;border:1px solid rgba(0,220,255,.22);color:#fff;border-radius:10px;padding:9px 10px;font-size:11.5px;outline:none}
+.wd28-mkbtn{width:100%;border:0;border-radius:12px;padding:11px;background:linear-gradient(135deg,#ffd84d,#ffb02e);color:#201500;font-weight:900;font-size:12px;cursor:pointer}
+.wd28-mkbtn.cy{background:linear-gradient(135deg,#39e6d0,#2bb8ff);color:#00231f}
+/* ---- Tax 2.0 ---- */
+#m-tax .modal-card{background:radial-gradient(circle at 100% 0%,rgba(255,204,0,.09),transparent 40%),linear-gradient(180deg,#0a1e36,#050f1e)!important;border-color:rgba(255,204,0,.28)!important}
+.wd28-tax-slider{margin:10px 0 4px}
+.wd28-tax-slider input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:8px;border-radius:8px;background:linear-gradient(90deg,#00e08f,#ffd84d 55%,#ff5c7c);outline:none}
+.wd28-tax-slider input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#fff,#ffd84d);border:2px solid #b8860b;box-shadow:0 2px 10px rgba(0,0,0,.5);cursor:pointer}
+.wd28-tax-read{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.wd28-tax-read b{font-size:16px;color:#ffd84d}
+.wd28-tax-read .rate-txt{font-size:10px;color:#a8c4e8}
+.wd28-pol{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px}
+.wd28-pol-c{background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:13px;padding:9px 7px;text-align:center;cursor:pointer;transition:.18s}
+.wd28-pol-c.on{border-color:#ffd84d;background:linear-gradient(160deg,rgba(255,204,0,.16),rgba(255,204,0,.04));box-shadow:0 0 14px rgba(255,204,0,.15)}
+.wd28-pol-c .ic{font-size:19px}
+.wd28-pol-c b{display:block;font-size:10px;color:#fff;margin-top:3px}
+.wd28-pol-c small{font-size:8px;color:#8fb0d6;line-height:1.5;display:block;margin-top:2px}
+.wd28-ledger-c{width:100%;height:110px;display:block;background:rgba(6,17,30,.55);border:1px solid rgba(0,220,255,.14);border-radius:12px;margin-top:6px}
+.wd28-riot{background:linear-gradient(90deg,rgba(255,51,102,.2),rgba(120,20,50,.1));border:1px solid rgba(255,51,102,.5);border-radius:12px;padding:9px 11px;font-size:10.5px;color:#ffc2cf;margin-top:9px;animation:wd28In .3s ease both}
+.wd28-exemp{display:flex;justify-content:space-between;font-size:10px;color:#a8e8ff;background:rgba(0,220,255,.06);border:1px dashed rgba(0,220,255,.3);border-radius:10px;padding:6px 10px;margin-top:5px}
+/* ---- Army 2.0 ---- */
+.wd28-army-sec{background:linear-gradient(160deg,rgba(255,204,0,.06),rgba(0,220,255,.04));border:1px solid rgba(255,204,0,.2);border-radius:15px;padding:11px 12px;margin-bottom:10px}
+.wd28-army-sec .h{font-size:12px;font-weight:900;color:#ffd84d;display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.wd28-army-sec .h small{font-weight:400;color:#8fb0d6;font-size:9px}
+.wd28-cmds{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.wd28-cmd{background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:13px;padding:9px;display:flex;gap:8px;align-items:center;cursor:pointer;transition:.18s;position:relative}
+.wd28-cmd.on{border-color:#39e6d0;background:linear-gradient(160deg,rgba(57,230,208,.14),rgba(43,184,255,.05))}
+.wd28-cmd.lock{opacity:.5;cursor:default}
+.wd28-cmd .ic{width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;background:rgba(255,204,0,.12)}
+.wd28-cmd b{font-size:10.5px;color:#fff;display:block}
+.wd28-cmd small{font-size:8.5px;color:#8fb0d6;line-height:1.45;display:block}
+.wd28-cmd .lk{font-size:8px;color:#ffd84d}
+.wd28-fort-row{display:flex;align-items:center;gap:9px}
+.wd28-fort-lv{display:flex;gap:3px;flex:1}
+.wd28-fort-lv i{flex:1;height:12px;border-radius:4px;background:rgba(255,255,255,.08)}
+.wd28-fort-lv i.on{background:linear-gradient(90deg,#ffd84d,#ff8c1a);box-shadow:0 0 8px rgba(255,180,0,.4)}
+.wd28-fbuild{border:0;border-radius:10px;padding:9px 13px;background:linear-gradient(135deg,#00e08f,#00a862);color:#022;font-weight:900;font-size:11px;cursor:pointer;white-space:nowrap}
+.wd28-fbuild:disabled{filter:grayscale(.7);opacity:.5}
+.wd28-q{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:7px 10px;margin-bottom:5px;font-size:10.5px;color:#d7ecff}
+.wd28-q .x{border:0;background:rgba(255,51,102,.15);color:#ff8ba0;border-radius:7px;padding:4px 8px;font-size:10px;cursor:pointer;font-weight:800}
+.wd28-statmini{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.wd28-statmini .st{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:7px 4px;text-align:center}
+.wd28-statmini .st b{display:block;font-size:13px;color:#7dffcf}
+.wd28-statmini .st small{font-size:8px;color:#8fb0d6}
+.wd28-syn{display:flex;align-items:center;gap:8px;font-size:10.5px;color:#a8e8ff;background:rgba(0,220,255,.06);border:1px dashed rgba(0,220,255,.3);border-radius:10px;padding:7px 10px}
+.wd28-syn b{color:#7dffcf}
+.wd28-stand-row{display:flex;gap:6px;margin-top:6px}
+.wd28-stand-row button{flex:1;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#cdd7e8;border-radius:11px;padding:9px 4px;font-size:10.5px;font-weight:800;cursor:pointer}
+.wd28-stand-row button.on{border-color:#ffd84d;background:linear-gradient(160deg,rgba(255,204,0,.16),rgba(255,204,0,.04));color:#ffd84d}
+.wd28-drawer-add{margin-top:6px;width:100%}
+/* ---- color wheel (gem shop) ---- */
+.wd28-cw-wrap{display:flex;justify-content:center;margin:6px 0 10px;position:relative}
+.wd28-cw-wrap canvas{border-radius:50%;cursor:crosshair;touch-action:none;max-width:100%}
+.wd28-sw2{width:44px;height:44px;border-radius:14px;border:2px solid rgba(255,255,255,.15);cursor:pointer;padding:0;position:relative;overflow:hidden;transition:transform .15s}
+.wd28-sw2:hover{transform:scale(1.09)}
+.wd28-sw2.on{border-color:#fff;box-shadow:0 0 0 2.5px #39e6d0,0 0 18px rgba(57,230,208,.55)}
+.wd28-sw2.on::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;text-shadow:0 1px 4px rgba(0,0,0,.7);font-size:15px}
+.wd28-sw2 .shine{position:absolute;inset:0;background:linear-gradient(130deg,rgba(255,255,255,.35),transparent 45%);mix-blend-mode:overlay}
+.wd28-anim-sw{animation:wd28HueSpin 4s linear infinite}
+@keyframes wd28HueSpin{0%{filter:hue-rotate(0) saturate(1.15)}50%{filter:hue-rotate(28deg) saturate(1.35)}100%{filter:hue-rotate(0) saturate(1.15)}}
+.wd28-prev-chip{display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:6px 13px;font-size:10px;color:#d7ecff;margin:8px auto 0;width:fit-content}
+.wd28-prev-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(255,255,255,.4)}
+@media(max-width:420px){.wd28-stat-grid{grid-template-columns:repeat(3,1fr)}.wd28-pol{grid-template-columns:1fr 1fr 1fr}.wd28-statmini{grid-template-columns:repeat(4,1fr)}}
+@media (prefers-reduced-motion:reduce){.wd28-anim-sw,.wd28-msg,.wd28-rrow,.wd28-lesson{animation:none!important}}
+</style>
+<script id="v28-core">
+/* ============ V28 core: anti-flicker chips + persistent economy/military state ============ */
+(function(){
+'use strict';
+var D=document;
+function fa(s){return String(s).replace(/[0-9]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[+d]})}
+function esc(s){return String(s==null?'':s).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function num(v){v=Math.round(Number(v)||0);return fa(v.toLocaleString('en-US'))}
+window.WD28={fa:fa,num:num,esc:esc};
+
+/* ---------- 1) ضد-چشمک: هر نوشتاری که با ارقام لاتین روی چیپ‌ها می‌نشیند، فارسی و فقط-در-تغییر اعمال می‌شود ---------- */
+var CHIP_SEL='#r-gold,#r-food,#r-oil,#r-army,#total-attack-power,#hud-gem,#hud-terr,#battle-pct-label,#wd6-level,.lr-val,.wd22-stat b,#c-pop,#c-def-stat,#c-gold-stat,#c-oil-stat,#c-food-stat,#c-rank-stat,#hud-srv,#hud-t2,#hud-date';
+function rawTextSet(){
+  try{var d=Object.getOwnPropertyDescriptor(Node.prototype,'textContent');if(d&&d.set)return d.set}catch(e){}
+  try{var d2=Object.getOwnPropertyDescriptor(Element.prototype,'textContent');if(d2&&d2.set)return d2.set}catch(e){}
+  return null;
+}
+function guardChip(el){
+  if(!el||el.__wd28guard)return;
+  var raw=rawTextSet();
+  if(!raw)return; /* مرورگر بدون توصیف‌گر → گارد را رد کن، هیچ چیزی نشکند */
+  if(!el.__rawSet)el.__rawSet=raw;
+  var last=el.__wd28last!=null?el.__wd28last:el.textContent;
+  try{
+    Object.defineProperty(el,'textContent',{
+      get:function(){return last},
+      set:function(v){
+        var s=fa(String(v==null?'':v));
+        if(s===last)return;           /* همان مقدار قبلی (فقط تفاوت لاتین/فارسی) → هیچ کاری نکن */
+        last=s;el.__wd28last=s;
+        el.__rawSet.call(el,s);
+      },
+      configurable:true});
+    el.__wd28guard=true;
+  }catch(e){}
+}
+function guardAll(){try{D.querySelectorAll(CHIP_SEL).forEach(function(e){guardChip(e)})}catch(e){}
+  /* چیپ لقب/سطح با innerHTML نوشته می‌شود → گارد innerHTML فارسی‌ساز */
+  try{
+    var chip=D.getElementById('wd-lvlchip');
+    if(chip&&!chip.__wd28h){
+      var rawH=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+      if(rawH&&rawH.set){
+        chip.__wd28h=true;chip.__rawH=rawH.set;chip.__hlast=chip.innerHTML;
+        Object.defineProperty(chip,'innerHTML',{
+          get:function(){return chip.__hlast},
+          set:function(v){
+            var s=fa(String(v==null?'':v));
+            if(s===chip.__hlast)return;
+            chip.__hlast=s;chip.__rawH.call(chip,s);
+          },
+          configurable:true});
+      }
+    }
+  }catch(e){}
+}
+try{D.querySelectorAll(CHIP_SEL).forEach(function(e){guardChip(e)})}catch(e){}
+setInterval(guardAll,4000);
+/* رندر سطح چیپ‌ها: فقط وقتی مقدار واقعی عوض شود DOM لمس می‌شود */
+var _srvChip=null;
+window.renderSrvChip=function(){var c=S$('hud-srv'),t=S$('hud-t2');if(c){var txt=(typeof MP_OK!=='undefined'&&MP_OK===true)?'🖥️ '+(typeof SRV!=='undefined'?SRV:'')+' ('+(typeof taken==='function'?taken(SRV):0)+'/'+(typeof SRV_CAP!=='undefined'?SRV_CAP:80)+')':'🖥️ …';if(c.__wd28v!==txt){c.__wd28v=txt;c.textContent=txt;c.style.opacity=(typeof MP_OK!=='undefined'&&MP_OK===true)?'1':'.55'}}if(t){var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var tt='🏴 '+n;if(t.__wd28v!==tt){t.__wd28v=tt;t.textContent=tt}}};
+(function(){if(typeof renderLvlChip!=='function')return;var _rlc=renderLvlChip;window.renderLvlChip=function(){try{var chip=D.getElementById('wd-lvlchip');if(!chip)return;var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var r=(typeof rankOf==='function')?rankOf(n):['','🎖️'];var next=null;if(typeof RANKS!=='undefined'){for(var i=0;i<RANKS.length;i++){if(RANKS[i][0]>n){next=RANKS[i];break}}}var html='<span>'+r[1]+'</span><small>🏴 '+fa(n)+' کشور'+(next?(' → '+fa(next[0])):'')+'</small>';if(chip.__wd28v!==html){chip.__wd28v=html;chip.innerHTML=html}}catch(e){}}})();
+/* نمایش سرور هنگام قطعی لحظه‌ای: چیپ خاموش نمی‌شود، فقط کم‌نور */
+
+/* ---------- 2) وضعیت اقتصادی/نظامی V28 (ماندگار در سیو + localStorage) ---------- */
+var LSOK=true;try{localStorage.setItem('__wd28t','1');localStorage.removeItem('__wd28t')}catch(e){LSOK=false}
+var DEF={taxRate:12,policy:'balanced',ledger:[],orders:[],hist:[],fort:0,cmdr:'aria',stance:'attack',queue:[],stats:{wins:0,losses:0,battles:0,best:0},exemp:{},seenRiot:{}};
+var st28;
+try{st28=Object.assign({},DEF,JSON.parse(LSOK?(localStorage.getItem('wd28_state')||'{}'):'{}')||{})}catch(e){st28=Object.assign({},DEF)}
+window.st28=st28;
+function save28(){try{if(LSOK)localStorage.setItem('wd28_state',JSON.stringify(st28))}catch(e){}try{if(typeof saveNow==='function')saveNow()}catch(e){}}
+window.save28=save28;
+/* سیو سرور: همراه اسنپ‌شات بازی سفر می‌کند */
+try{
+  var _sn28=snapState;
+  snapState=function(){var s=_sn28();s.wd28=st28;return s};
+  var _rs28=restoreState;
+  restoreState=function(x){var pre=st28;_rs28(x);if(x&&x.wd28){try{st28=Object.assign({},DEF,x.wd28);window.st28=st28;
+    /* ادغام فهرست اعتبارهای ثبت‌شده تا معامله بعد از ریلود دوباره حساب نشود */
+    if(pre&&pre.tradeApplied&&pre.tradeApplied.length){st28.tradeApplied=Array.from(new Set([].concat(pre.tradeApplied,st28.tradeApplied||[])))}
+    save28()}catch(e){}}};
+}catch(e){}
+/* ledger: حداکثر ۶۰ ردیف */
+function ledger(io,gold,why){try{st28.ledger.push({t:Date.now(),io:io,g:Math.round(gold),w:why});if(st28.ledger.length>60)st28.ledger=st28.ledger.slice(-60);save28()}catch(e){}}
+window.ledger28=ledger;
+
+/* ---------- 3) ردیاب فتح/ازدست‌دادن (پیروزی، شکست، بهترین نبرد، معافیت مالیاتی) ---------- */
+var lastTerr=-1,terrDay=new Date().toISOString().slice(0,10),dayGain=0;
+setInterval(function(){
+  try{
+    if(typeof conqueredCountries==='undefined')return;
+    var n=conqueredCountries.size+((typeof myCountryName!=='undefined'&&myCountryName)?1:0);
+    if(lastTerr<0){lastTerr=n;return}
+    if(n>lastTerr){
+      var g=n-lastTerr;st28.stats.wins+=g;st28.stats.battles+=g;dayGain+=g;
+      var today=new Date().toISOString().slice(0,10);
+      if(today!==terrDay){terrDay=today;dayGain=g}
+      if(dayGain>st28.stats.best)st28.stats.best=dayGain;
+      /* معافیت مالیاتی ۳ روزه برای کشورهای تازه‌فتح‌شده */
+      if(typeof myCountryName!=='undefined'&&myCountryName){
+        conqueredCountries.forEach(function(cn){
+          if(cn===myCountryName)return;
+          if(!st28.exemp[cn]){st28.exemp[cn]=Date.now()+3*864e5}
+        });
+      }
+      save28();
+    }else if(n<lastTerr){
+      st28.stats.losses+=(lastTerr-n);st28.stats.battles+=(lastTerr-n);save28();
+    }
+    lastTerr=n;
+  }catch(e){}
+},2500);
+
+/* ---------- 4) نرخ مالیات → تنش (هر دقیقه) + هشدار شورش ---------- */
+setInterval(function(){
+  try{
+    if(typeof unrest==='undefined'||typeof conqueredCountries==='undefined')return;
+    var r=(st28.taxRate||0)/100;
+    if(r>0.15&&typeof myCountryName!=='undefined'&&myCountryName){
+      conqueredCountries.forEach(function(n){
+        if(n===myCountryName)return;
+        unrest[n]=(unrest[n]||25)+r*0.9*(st28.policy==='war'?1.4:st28.policy==='welfare'?0.6:1);
+        if(unrest[n]>100)unrest[n]=100;
+      });
+    }else if(st28.policy==='welfare'&&typeof myCountryName!=='undefined'&&myCountryName){
+      conqueredCountries.forEach(function(n){if(n!==myCountryName&&unrest[n]>0)unrest[n]=Math.max(0,unrest[n]-0.4)});
+    }
+    /* هشدار شورش */
+    var worst=null,wv=0;
+    conqueredCountries.forEach(function(n){if(n===myCountryName)return;var v=unrest[n]||0;if(v>wv){wv=v;worst=n}});
+    if(worst&&wv>=75){
+      var key=worst+new Date().toISOString().slice(0,10);
+      if(!st28.seenRiot[key]){st28.seenRiot[key]=1;save28();
+        var fa28=(typeof getCountryData==='function'&&(getCountryData(worst)||{}).fa)||worst;
+        if(typeof showToast==='function')showToast('🚨 '+fa28+' نزدیک شورش است! نرخ مالیات را کم کن یا کمک مردمی بده','lose');
+        if(typeof news==='function')news('🚨 خطر شورش در '+fa28);
+      }
+    }
+  }catch(e){}
+},60000);
+setTimeout(function(){try{guardAll()}catch(e){}},3000);
+})();
+</script>
+<script id="v28-chat">
+/* ============ V28 Chat 2.0: بابل‌ها، آواتار، ارسال خوش‌بینانه، بج ناخوانده ============ */
+(function(){
+'use strict';
+var D=document,W=window.WD28;
+var avColor=function(n){var h=11;for(var i=0;i<String(n).length;i++)h=(h*37+String(n).charCodeAt(i))%360;return h};
+var lastMsgAt=0,unread=0,menuBadge=null,lastId=0,sendCd=0;
+
+function ensureModal(){
+  var m=D.getElementById('wd-chat');if(!m)return null;
+  var card=m.querySelector('.modal-card');if(!card)return null;
+  if(!card.querySelector('.wd28-compose')){
+    card.innerHTML='<div class="modal-title-row"><span>💬 چت جهانی — سرور <span id="wdc-server">—</span></span>'+
+      '<span class="close-modal" style="cursor:pointer;font-size:18px" id="wd28-chat-x">✕</span></div>'+
+      '<div class="wd-muted" style="font-size:9.5px">پیام‌ها فقط برای بازیکنان همین سرور دیده می‌شود. با احترام بازی کن 🤝</div>'+
+      '<div id="wdc-list" class="wdc-list"></div>'+
+      '<div class="wd28-compose"><input id="wdc-input" class="wdc-input" maxlength="240" placeholder="پیامت را برای جهان بنویس..." autocomplete="off">'+
+      '<button id="wdc-send" class="wd28-send">ارسال</button></div>';
+    D.getElementById('wd28-chat-x').onclick=function(){try{closeModal('wd-chat')}catch(e){}};
+    D.getElementById('wdc-send').onclick=send;
+    D.getElementById('wdc-input').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();send()}});
+  }
+  return m;
+}
+function relTime(t){
+  var d=Math.floor((Date.now()-t)/1000);
+  if(d<60)return 'همین حالا';
+  if(d<3600)return W.fa(Math.floor(d/60))+' دقیقه پیش';
+  if(d<86400)return W.fa(Math.floor(d/3600))+' ساعت پیش';
+  return W.fa(Math.floor(d/86400))+' روز پیش';
+}
+function dayLabel(t){
+  var d=new Date(t),now=new Date();
+  var dd=function(x){return x.getFullYear()+'-'+x.getMonth()+'-'+x.getDate()};
+  if(dd(d)===dd(now))return 'امروز';
+  var y=new Date(Date.now()-864e5);if(dd(d)===dd(y))return 'دیروز';
+  try{return d.toLocaleDateString('fa-IR',{month:'long',day:'numeric'})}catch(e){return ''}
+}
+function bubble(x,me,pend){
+  var av=D.createElement('div');av.className='wd28-av';
+  av.style.background='linear-gradient(135deg,hsl('+avColor(x.nick)+',65%,45%),hsl('+((avColor(x.nick)+50)%360)+',70%,35%))';
+  av.textContent=(x.nick||'؟').trim().charAt(0).toUpperCase();
+  var bub=D.createElement('div');bub.className='wd28-bub'+(pend?' wd28-pend':'');
+  var nick=D.createElement('div');nick.className='wd28-nick';nick.textContent=x.nick||'بازیکن';
+  var txt=D.createElement('div');txt.className='wd28-txt';txt.textContent=x.message;
+  var t=D.createElement('div');t.className='wd28-t';t.textContent=relTime(new Date(x.created_at).getTime());
+  bub.append(nick,txt,t);
+  var row=D.createElement('div');row.className='wd28-msg'+(me?' me':'');row.append(av,bub);
+  return row;
+}
+var rows=[],lastDay='',lastSig='';
+function renderAll(){
+  var list=D.getElementById('wdc-list');if(!list)return;
+  var nearBottom=list.scrollHeight-list.scrollTop-list.clientHeight<80;
+  list.textContent='';
+  if(!rows.length){
+    list.innerHTML='<div class="wd28-empty"><div class="big">💬</div><b>هنوز پیامی نیست</b><div style="font-size:10px;margin-top:5px">اولین فرماندهی باش که صدایش را به جهان می‌رساند!</div></div>';
+    return;
+  }
+  lastDay='';
+  rows.forEach(function(x){
+    var dl=dayLabel(new Date(x.created_at).getTime());
+    if(dl&&dl!==lastDay){lastDay=dl;var dv=D.createElement('div');dv.className='wd28-day';dv.textContent=dl;list.append(dv)}
+    list.append(bubble(x,(typeof ACC!=='undefined'&&ACC&&x.user_id===ACC.uid),x.__pend));
+  });
+  if(nearBottom)list.scrollTop=list.scrollHeight;
+}
+async function fetchChat(){
+  if(typeof sb==='undefined'||!sb||typeof SRV==='undefined')return;
+  try{
+    var r=await sb.rpc('get_world_chat',{p_server:SRV,p_limit:80});
+    if(r.error)throw r.error;
+    var fresh=(r.data||[]).slice().reverse();
+    if(fresh.length&&fresh[fresh.length-1].created_at!==lastMsgAt){
+      var isOpen=false;try{var m=D.getElementById('wd-chat');isOpen=!!(m&&m.classList.contains('active'))}catch(e){}
+      if(!isOpen&&lastMsgAt&&fresh[fresh.length-1].user_id!==(typeof ACC!=='undefined'?ACC.uid:null)){
+        unread++;badge();
+      }
+      lastMsgAt=fresh.length?fresh[fresh.length-1].created_at:'';
+    }
+    var sig='';for(var i=0;i<fresh.length;i++)sig+=fresh[i].created_at+','+fresh[i].user_id+'|';
+    if(sig!==lastSig){lastSig=sig;rows=fresh;renderAll()}
+  }catch(e){console.log('chat28',e);var list=D.getElementById('wdc-list');if(list&&!rows.length)list.innerHTML='<div class="wd28-err">📡 اتصال چت برقرار نشد — چند لحظه دیگر دوباره تلاش می‌کنیم…</div>'}
+}
+function badge(){
+  try{
+    var sheet=D.getElementById('wd-menu');if(!sheet)return;
+    var items=sheet.querySelectorAll('.wd-menu-item');
+    for(var i=0;i<items.length;i++){
+      var b=items[i].querySelector('b');
+      if(b&&b.textContent.indexOf('چت جهانی')>-1){
+        var old=items[i].querySelector('.wd28-badge');if(old)old.remove();
+        if(unread>0){var bd=D.createElement('span');bd.className='wd28-badge';bd.textContent=W.fa(unread);items[i].appendChild(bd)}
+        break;
+      }
+    }
+  }catch(e){}
+}
+async function send(){
+  var input=D.getElementById('wdc-input'),btn=D.getElementById('wdc-send');
+  if(!input||!btn)return;
+  var msg=input.value.trim();
+  if(!msg)return;
+  if(typeof sb==='undefined'||!sb||typeof ACC==='undefined'||!ACC||!ACC.uid){try{showToast('❌ برای چت باید با حساب وارد شوی','lose')}catch(e){}return}
+  var now=Date.now();
+  if(now-sendCd<1400){try{showToast('⏳ آرام‌تر بنویس…','lose')}catch(e){}return}
+  sendCd=now;btn.disabled=true;
+  input.value='';
+  rows.push({user_id:ACC.uid,nick:(typeof ACC!=='undefined'&&ACC.nick)||'بازیکن',message:msg,created_at:new Date().toISOString(),__pend:true});
+  renderAll();
+  try{
+    var r=await sb.from('world_chat').insert({server:(typeof SRV!=='undefined')?SRV:1,user_id:ACC.uid,nick:ACC.nick||'بازیکن',message:msg}).select().single();
+    if(r.error)throw r.error;
+    await fetchChat();
+  }catch(e){
+    console.log(e);
+    rows=rows.filter(function(x){return !x.__pend});
+    renderAll();input.value=msg;
+    try{showToast('❌ پیام ارسال نشد — دوباره تلاش کن','lose')}catch(e2){}
+  }
+  btn.disabled=false;try{input.focus()}catch(e){}
+}
+window.WD28Chat={
+  open:function(){
+    var m=ensureModal();if(!m)return;
+    unread=0;badge();
+    try{if(typeof SRV!=='undefined')D.getElementById('wdc-server').textContent=W.fa(SRV)}catch(e){}
+    try{openModal('wd-chat')}catch(e){}
+    fetchChat();
+    setTimeout(function(){var i=D.getElementById('wdc-input');if(i)i.focus()},120);
+  }
+};
+/* auto-refresh while open + light poll while closed (for unread badge) */
+setInterval(function(){
+  try{var m=D.getElementById('wd-chat');if(m&&m.classList.contains('active'))fetchChat();
+  else if(typeof sb!=='undefined'&&sb&&typeof ACC!=='undefined'&&ACC&&ACC.uid&&lastMsgAt)pollLight()}catch(e){}
+},5000);
+var pollT=0;
+async function pollLight(){
+  if(Date.now()-pollT<25000)return;pollT=Date.now();
+  try{
+    var r=await sb.rpc('get_world_chat',{p_server:(typeof SRV!=='undefined')?SRV:1,p_limit:1});
+    if(r.error)return;
+    var last=(r.data||[])[0];
+    if(last&&last.created_at!==lastMsgAt&&last.user_id!==(typeof ACC!=='undefined'?ACC.uid:null)){unread++;badge()}
+  }catch(e){}
+}
+/* menu badge refresh hook (menu is rebuilt each open) */
+setInterval(badge,3000);
+})();
+</script>
+<script id="v28-advisor-rank">
+/* ============ V28: مشاور حرفه‌ای + رتبه‌بندی پریمیوم + چرخ رنگ فروشگاه ============ */
+(function(){
+'use strict';
+var D=document,W=window.WD28,fa=W.fa,esc=W.esc,num=W.num;
+function $$id(id){return D.getElementById(id)}
+function terr(){try{return (typeof conqueredCountries!=='undefined'?conqueredCountries.size:0)+((typeof myCountryName!=='undefined'&&myCountryName)?1:0)}catch(e){return 0}}
+function atk(){try{return (typeof calculateTotalAttack==='function')?calculateTotalAttack():0}catch(e){return 0}}
+
+/* ================= 1) مشاور حرفه‌ای ================= */
+var ADV_TABS=[
+ {k:'basics',ic:'🎓',t:'شروع'},
+ {k:'econ',ic:'💰',t:'اقتصاد'},
+ {k:'war',ic:'⚔️',t:'نظامی'},
+ {k:'diplo',ic:'🌍',t:'جهان'},
+ {k:'pro',ic:'🚀',t:'حرفه‌ای'}];
+var ADV={basics:[
+  {ic:'⭐',t:'اولین قدم: پایتخت',p:'روی یک کشور آزاد بزن و «انتخاب پایتخت» را بزن. پایتخت قلب امپراتوری توست: اقتصاد، ارتش و تکنولوژی از همان‌جا رشد می‌کنند. کشورهای پرجمعیت‌تر درآمد مالیاتی بیشتری دارند.'},
+  {ic:'🏴',t:'گسترش قلمرو',p:'روی هر کشور آزاد همسایه بزن و «فرمان حمله» را بزن. اشغال مرحله‌ای است؛ با موج‌های بعدی پیشروی می‌کنی. هر کشور جدید جمعیت، مالیات و سقف منابع بیشتری می‌دهد.'},
+  {ic:'🪖',t:'ساخت ارتش',p:'از بخش «ارتش» یگان بساز. پیاده‌نظام ظرفیتش به جمعیت وابسته است؛ تانک و هواپیما گران‌تر ولی قوی‌ترند. بدون نیروی کافی، حمله فقط تلفات است.'},
+  {ic:'🎓',t:'پاسداری و دفاع',p:'همیشه چند یگان دفاعی نگه دار! با «استحکامات مرزی» و ژنرال دفاعی، تلفات وقتی حمله می‌شوی کمتر می‌شود. کاملاً بی‌دفاع بودن یعنی دعوت به حمله.'}],
+ econ:[
+  {ic:'🏛️',t:'مالیات هوشمند',p:'در «مالیات» نرخ را خودت تنظیم کن: نرخ بالاتر = طلا بیشتر ولی نارضایتی بیشتر. بالای ۱۵٪ مردم معترض می‌شوند و کشورهای ناراضی ممکن است شورش کنند! کشورهای تازه‌فتح‌شده ۳ روز معافیت دارند.'},
+  {ic:'📈',t:'بازار زنده',p:'در «بازار» قیمت‌ها با عرضه و تقاضای واقعی بالا و پایین می‌شوند. گراف ۲۴ ساعته هر منبع را ببین؛ وقتی قیمت پایین است بخر و وقتی بالا رفت بفروش. کارمزد هر معامله ۲-۳٪ است.'},
+  {ic:'🛢️',t:'نفت و انبار',p:'نفت موتور جنگ است. مخزن پر شود، تولید دور ریخته نمی‌شود ولی متوقف می‌ماند — پس مخزن را ارتقا بده. حمله‌های سنگین نفت زیادی می‌سوزانند.'},
+  {ic:'💱',t:'سفارش خودکار',p:'در بازار، «سفارش محدود» بگذار: مثلاً «وقتی طلا به قیمت X رسید، خودکار بخر». بازی به‌عنوان یک بورس واقعی کار می‌کند؛ سفارش‌ها حتی وقتی آفلاینی بررسی می‌شوند.'}],
+ war:[
+  {ic:'🎖️',t:'فرماندهان',p:'با بازی کردن، فرماندهان جدید آزاد می‌شوند. هرکدام تخصصی دارد: «آریا» حمله را قوی می‌کند، «بوستانه» دفاع، «ساهی» اقتصاد. فقط یکی در هر زمان فعال است.'},
+  {ic:'🧱',t:'استحکامات مرزی',p:'دیوار بساز! هر سطح استحکامات، تلفات دفاعی را ۴٪ کم می‌کند (تا ۲۰٪). ساختش با منابع است، نه جم — استراتژی واقعی، نه خرید قدرت.'},
+  {ic:'⚔️',t:'ترکیب یگان‌ها',p:'ترکیب متعادل = قدرت بیشتر! تانک بدون پشتیبانی پیاده ضعیف است؛ «هم‌افزایی» در بخش ارتش نشان می‌دهد چه ترکیبی بونس می‌گیرد.'},
+  {ic:'📊',t:'آمار نبردها',p:'پیروزی‌ها، شکست‌ها و بهترین روز جنگی‌ات در بخش «ارتش» ثبت می‌شود. بعد از هر حمله، گزارش زنده با تلفات و لحظه سقوط را می‌بینی.'}],
+ diplo:[
+  {ic:'💬',t:'چت جهانی',p:'از منو «چت جهانی» را باز کن؛ با همه‌ی سرور حرف بزن، معامله پیشنهاد بده یا ائتلاف ببند. دیپلماسی در بازی چندنفره نصف پیروزی است.'},
+  {ic:'🤝',t:'معامله با بازیکنان',p:'در بازار، تب «معامله» پیشنهاد بگذار: «۱۰۰۰ نفت می‌دهم، ۵۰۰ غذا می‌خواهم». بازیکن دیگر قبول کند، منابع مستقیم جابه‌جا می‌شود — سریع‌تر از بازار خودکار.'},
+  {ic:'📰',t:'روزنامه جهانی',p:'همه فتوحات و حملات سرور در روزنامه ثبت می‌شود. رقیب‌های قدرتمند را زیر نظر بگیر و وقتی درگیر جنگند بهترین زمان برای حمله به نقطه‌های ضعفشان است.'},
+  {ic:'🏆',t:'رتبه‌بندی',p:'چهار دسته رقابت وجود دارد: کشورگشایی، کشتار، اقتصاد و استخدام. هر هفته ۳ نفر برتر هر دسته طلا می‌برند — سکو را از دست نده!'}],
+ pro:[
+  {ic:'🏭',t:'زیرساخت',p:'پالایشگاه = نفت بیشتر، کارخانه = آموزش سریع‌تر، پایگاه هوایی = یگان‌های هوایی قوی‌تر، مخزن = ذخیره بیشتر. اول اقتصاد، بعد ارتش.'},
+  {ic:'🎯',t:'صف حمله',p:'از کشوی هر کشور «افزودن به صف حمله» را بزن تا چند هدف را برنامه‌ریزی کنی و از بخش ارتش همه را پشت‌سرهم اجرا کنی — ضربه‌های هماهنگ، نه تک‌تک.'},
+  {ic:'👑',t:'راه امپراتور',p:'امتیاز = قلمرو×۱۰۰۰ + قدرت ارتش. برای صدرنشینی: کشورهای پرجمعیت بگیر، ارتش بزرگ نگه دار و رتبه هفتگی را ببر. لقب‌ها و نشان‌های فروشگاه جم فقط درخشش تو را بیشتر می‌کنند.'},
+  {ic:'⚡',t:'بوست جم',p:'با جم می‌توانی بوست اقتصادی بگیری (تولید سریع‌تر) یا مالیات را فوری آماده کنی. جم هر روز ورود = ۲۰ جم رایگان!'}]};
+var advTab='basics',advIdx=0;
+function ctxStats(){
+  var t=terr(),a=atk(),g=0;try{g=Math.floor(playerRes.gold)}catch(e){}
+  return {t:t,a:a,g:g};
+}
+function renderAdvisorPro(){
+  var b=$$id('wd-advisor-body');if(!b)return;
+  var tabs=D.createElement('div');tabs.className='wd28-adv-tabs';
+  ADV_TABS.forEach(function(x){
+    var bt=D.createElement('button');bt.className='wd28-adv-tab'+(advTab===x.k?' on':'');
+    bt.innerHTML=x.ic+'<br>'+x.t;
+    bt.onclick=function(){advTab=x.k;advIdx=0;renderAdvisorPro()};
+    tabs.append(bt);
+  });
+  b.textContent='';
+  b.append(tabs);
+  var les=ADV[advTab]||ADV.basics;
+  advIdx=Math.min(advIdx,les.length-1);
+  var x=les[advIdx];
+  var card=D.createElement('div');card.className='wd28-lesson';
+  card.innerHTML='<div class="wd28-l-ico">'+x.ic+'</div><b>'+esc(x.t)+'</b><p>'+esc(x.p)+'</p>';
+  b.append(card);
+  /* وضعیت زنده بازیکن */
+  var cs=ctxStats();
+  var sg=D.createElement('div');sg.className='wd28-stat-grid';
+  [[fa(cs.t),'قلمرو'],[num(cs.a),'قدرت ارتش'],[num(cs.g),'طلا']].forEach(function(p){
+    var s=D.createElement('div');s.className='wd28-stat';s.innerHTML='<b>'+p[0]+'</b><small>'+p[1]+'</small>';sg.append(s);
+  });
+  b.append(sg);
+  /* چک‌لیست قدم بعدی */
+  var checks=[
+    {done:cs.t>0,txt:'انتخاب پایتخت'},
+    {done:cs.t>1,txt:'تصرف اولین کشور دیگر'},
+    {done:cs.a>0,txt:'ساخت اولین یگان نظامی'},
+    {done:false,txt:'تنظیم نرخ مالیات در بخش مالیات'},
+    {done:false,txt:'اولین معامله در بازار زنده'},
+    {done:false,txt:'فرستادن اولین پیام در چت جهانی'}];
+  checks.forEach(function(c){
+    var ck=D.createElement('div');ck.className='wd28-check'+(c.done?' done':'');
+    ck.innerHTML='<span class="ck">'+(c.done?'✓':'○')+'</span><span>'+esc(c.txt)+'</span>';
+    b.append(ck);
+  });
+  var nav=D.createElement('div');nav.className='wd28-adv-nav';
+  var pv=D.createElement('button');pv.className='prev';pv.textContent='◀ قبلی';
+  pv.onclick=function(){advIdx=(advIdx-1+les.length)%les.length;renderAdvisorPro()};
+  var nx=D.createElement('button');nx.className='next';nx.textContent=(advIdx===les.length-1?'بازگشت به اول':'بعدی ▶');
+  nx.onclick=function(){advIdx=(advIdx+1)%les.length;renderAdvisorPro()};
+  nav.append(pv,nx);b.append(nav);
+  var pg=D.createElement('div');pg.style.cssText='font-size:9px;color:#6e98c8;text-align:center;margin-top:6px';
+  pg.textContent='درس '+fa(advIdx+1)+' از '+fa(les.length)+' — تب '+ADV_TABS.filter(function(x2){return x2.k===advTab})[0].t;
+  b.append(pg);
+}
+window.renderAdvisor=renderAdvisorPro;
+window.WD28Advisor={
+  open:function(){
+    try{localStorage.setItem('wd_advisor_seen','1')}catch(e){}
+    renderAdvisorPro();
+    try{openModal('wd-advisor')}catch(e){}
+  }
+};
+
+/* ================= 2) رتبه‌بندی پریمیوم ================= */
+var TITLE_BY_N=[[40,'👑 فرمانروای زمین'],[30,'🌐 سایه‌ی جهان'],[22,'👑 امپراتور'],[15,'💎 فتحگر بزرگ'],[10,'🥇 فتحگر'],[6,'🥈 سردار'],[3,'🥉 فرمانده'],[0,'🎖️ آغازگر']];
+function titleOf(n){for(var i=0;i<TITLE_BY_N.length;i++){if(n>=TITLE_BY_N[i][0])return TITLE_BY_N[i][1].replace(/^[^ ]+ /,'')}return 'آغازگر'}
+function avHue(n){var h=11;for(var i=0;i<String(n).length;i++)h=(h*37+String(n).charCodeAt(i))%360;return h}
+function richRow(x,i,maxVal){
+  var me=(typeof ACC!=='undefined'&&x.user_id===ACC.uid);
+  var row=D.createElement('div');row.className='wd28-rrow'+(me?' me':'');
+  if(me){var you=D.createElement('span');you.className='wd28-you-tag';you.textContent='شما';row.append(you)}
+  var n=D.createElement('span');n.className='rk-n';n.textContent=fa(i+1);row.append(n);
+  var av=D.createElement('div');av.className='wd28-rav';
+  av.style.background='linear-gradient(135deg,hsl('+avHue(x.nick)+',65%,45%),hsl('+((avHue(x.nick)+50)%360)+',70%,32%))';
+  av.textContent=(x.nick||'؟').charAt(0).toUpperCase();row.append(av);
+  var mid=D.createElement('div');mid.className='rk-mid';
+  var nick=D.createElement('div');nick.className='rk-nick';
+  var nb=D.createElement('b');nb.textContent=x.nick||'بازیکن';
+  var tt=D.createElement('span');tt.className='rk-title';tt.textContent=titleOf(x.conquered||0);
+  nick.append(nb,tt);mid.append(nick);
+  var bar=D.createElement('div');bar.className='rk-bar';
+  var fill=D.createElement('i');fill.style.width=Math.max(6,Math.round((x.score||x.conquered||0)/Math.max(1,maxVal)*100))+'%';
+  bar.append(fill);mid.append(bar);row.append(mid);
+  var val=D.createElement('div');val.className='rk-val';
+  var vb=D.createElement('b');vb.className='lr-val';vb.textContent=fa(x.conquered||0)+' کشور';
+  var vs=D.createElement('small');vs.textContent='⭐ '+num(x.score||0)+' امتیاز';
+  val.append(vb,vs);row.append(val);
+  return row;
+}
+async function renderRank28(box,cat){
+  var my=++RANK_TOKEN;box.textContent='';
+  var head=D.createElement('div');head.className='wd28-rk-head';
+  head.innerHTML='<div><div class="t">🏆 '+esc(catFa(cat))+'</div><div class="s" id="wd28-rk-sub">در حال دریافت…</div></div>';
+  var rf=D.createElement('button');rf.className='refresh';rf.textContent='⟳ بروزرسانی';
+  rf.onclick=function(){renderRank28(box,cat)};head.append(rf);box.append(head);
+  if(!sb){var e1=D.createElement('div');e1.className='lr-row';e1.textContent='رتبه‌بندی فقط با حساب آنلاین کار می‌کند';box.append(e1);return}
+  try{
+    var res=await Promise.race([rankQuery(cat),new Promise(function(_,no){setTimeout(function(){no(new Error('timeout'))},15000)})]);
+    if(my!==RANK_TOKEN)return;
+    var sub=head.querySelector('#wd28-rk-sub');
+    if(sub)sub.textContent=(res.scope==='server'?'🌍 سرور '+(typeof SRV!=='undefined'?fa(SRV):''):'🌐 همه‌ی بازیکنان')+' — '+fa(res.rows.length)+' فرمانده';
+    var maxVal=1;res.rows.forEach(function(x){if((x.score||0)>maxVal)maxVal=x.score;if((x.conquered||0)*1000>maxVal)maxVal=x.conquered*1000});
+    res.rows.forEach(function(x,i){box.append(richRow(x,i,maxVal))});
+    if(!res.rows.length){var e2=D.createElement('div');e2.className='lr-row';e2.textContent='هنوز کسی امتیازی ثبت نکرده.';box.append(e2)}
+  }catch(e){
+    if(my!==RANK_TOKEN)return;console.log(e);
+    var el2=D.createElement('div');el2.className='lr-row';el2.style.cursor='pointer';
+    el2.textContent='❌ دریافت ناموفق — برای تلاش دوباره بزن';el2.onclick=function(){renderRank28(box,cat)};box.append(el2);
+  }
+}
+window.renderRank=renderRank28;
+
+/* ================= 3) چرخ رنگ فروشگاه جم (کول‌پیک حرفه‌ای) ================= */
+var NAMED=[[0,'طلایی سلطنتی'],[25,'نارنجی آتشین'],[45,'زرد کویر'],[95,'سبز یشمی'],[140,'سبز جنگل'],[172,'فیروزه‌ای اقیانوس'],[205,'آبی کبود'],[235,'بنفش شب'],[265,'ارغوانی'],[290,'سرخابی'],[320,'گلگون'],[345,'اناری']];
+function buildWheel(container,onPick,curHue){
+  var size=Math.min(210,Math.max(170,(container.clientWidth||200)));
+  var cv=D.createElement('canvas');cv.width=size;cv.height=size;cv.className='wd28-anim-sw';
+  container.append(cv);
+  var ctx=cv.getContext('2d');
+  var R=cv.width/2,rIn=R-26;
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    for(var a=0;a<360;a+=1){
+      var a0=(a-1.6)*Math.PI/180,a1=(a+1.6)*Math.PI/180;
+      ctx.beginPath();ctx.moveTo(R,R);
+      ctx.arc(R,R,R,a0,a1);ctx.closePath();
+      ctx.fillStyle='hsl('+a+',80%,50%)';ctx.fill();
+    }
+    ctx.globalCompositeOperation='destination-out';
+    ctx.beginPath();ctx.arc(R,R,rIn,0,7);ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+    if(curHue!=null){
+      var rad=(curHue-90)*Math.PI/180;
+      var px=R+Math.cos(rad)*((R+rIn)/2),py=R+Math.sin(rad)*((R+rIn)/2);
+      ctx.beginPath();ctx.arc(px,py,7,0,7);ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();
+      ctx.beginPath();ctx.arc(px,py,10,0,7);ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=1.5;ctx.stroke();
+    }
+  }
+  draw();
+  var busy=false;
+  function pick(ev){
+    ev.preventDefault();
+    var t=ev.touches?ev.touches[0]:ev;var rect=cv.getBoundingClientRect();
+    var x=(t.clientX-rect.left)*(cv.width/rect.width)-R,y=(t.clientY-rect.top)*(cv.height/rect.height)-R;
+    var ang=Math.atan2(y,x)*180/Math.PI+90;if(ang<0)ang+=360;
+    busy=true;onPick(Math.round(ang)%360,draw);setTimeout(function(){busy=false},80);
+  }
+  cv.addEventListener('pointerdown',function(e){cv.setPointerCapture&&cv.setPointerCapture(e.pointerId);pick(e);var mv=function(e2){if(!busy)pick(e2)},up=function(){cv.removeEventListener('pointermove',mv);cv.removeEventListener('pointerup',up)};
+    cv.addEventListener('pointermove',mv);cv.addEventListener('pointerup',up)});
+}
+function repaint28(){
+  try{if(typeof applyCountryColor!=='function')return;
+    if(typeof myCountryName!=='undefined'&&myCountryName)applyCountryColor(myCountryName);
+    if(typeof conqueredCountries!=='undefined')conqueredCountries.forEach(function(n){applyCountryColor(n)});
+  }catch(e){}
+}
+function applyHue28(h){
+  try{window.COS27.hue=h}catch(e){}
+  repaint28();
+  try{if(typeof saveNow==='function')saveNow()}catch(e){}
+  try{showToast(h==null?'🎨 رنگ پیش‌فرض':'🎨 رنگ امپراتوری عوض شد','win')}catch(e){}
+}
+function openPick28(kind0){
+  var kind=kind0==='fx_conq'?'fx':kind0;
+  var b=$$id('cos-pick-b'),t=$$id('cos-pick-t');if(!b)return;
+  if(kind!=='col_pack')return; /* بقیه‌ی انتخابگرها با موتور قبلی خودشان کار می‌کنند */
+  b.textContent='';
+  t.textContent='🎨 رنگ امپراتوری';
+  /* چرخ رنگ تعاملی */
+  var wrap=D.createElement('div');wrap.className='wd28-cw-wrap';b.append(wrap);
+  var prev=D.createElement('div');prev.className='wd28-prev-chip';
+  prev.innerHTML='<span>پیش‌نمایش امپراتوری:</span><span class="wd28-prev-dot"></span><span id="wd28-hue-val">—</span>';
+  b.append(prev);
+  var dot=prev.querySelector('.wd28-prev-dot'),hval=prev.querySelector('#wd28-hue-val');
+  function upd(h){if(dot)dot.style.background='hsl('+h+',78%,46%)';if(hval)hval.textContent=fa(h)+'°'}
+  var curHue=(window.COS27&&window.COS27.hue!=null)?window.COS27.hue:null;upd(curHue!=null?curHue:210);
+  buildWheel(wrap,function(h,redraw){upd(h);applyHue28(h);redraw()},curHue);
+  var hint=D.createElement('div');hint.className='cos27-h';hint.textContent='👆 روی چرخ بکش تا رنگ زنده عوض شود';b.append(hint);
+  /* رنگ‌های نام‌دار انیمیشنی */
+  var grid=D.createElement('div');grid.style.cssText='display:flex;flex-wrap:wrap;gap:9px;justify-content:center';
+  NAMED.forEach(function(x){
+    var s=D.createElement('button');s.className='wd28-sw2'+((window.COS27&&window.COS27.hue===x[0])?' on':'');
+    s.title=x[1];
+    s.style.background='linear-gradient(135deg,hsl('+x[0]+',85%,55%),hsl('+x[0]+',78%,36%))';
+    var sh=D.createElement('span');sh.className='shine';s.append(sh);
+    s.onclick=function(){applyHue28(x[0])};
+    grid.append(s);
+  });
+  b.append(grid);
+  var nm=D.createElement('div');nm.style.cssText='font-size:9px;color:#8fb0d6;text-align:center;margin-top:7px';
+  nm.textContent='رنگ‌های نام‌دار — با کشیدن روی چرخ، هر رنگی بساز';b.append(nm);
+  var def=D.createElement('button');def.className='cos27-buy off';def.style.cssText='width:100%;margin-top:8px';
+  def.textContent='بازگشت به رنگ پیش‌فرض';def.onclick=function(){applyHue28(null)};b.append(def);
+}
+/* هر بار پیکر فروشگاه باز شد، اگر تب «رنگ» بود بدنه را با چرخ حرفه‌ای جایگزین کن */
+setTimeout(function(){
+  try{
+    var pick=D.getElementById('cos-pick');if(!pick)return;
+    var card=pick.querySelector('.modal-card');if(!card)return;
+    new MutationObserver(function(){
+      try{
+        var t=D.getElementById('cos-pick-t'),b=D.getElementById('cos-pick-b');
+        if(t&&b&&t.textContent.indexOf('رنگ امپراتوری')>-1&&!b.querySelector('.wd28-cw-wrap'))openPick28('col_pack');
+      }catch(e){}
+    }).observe(card,{childList:true,subtree:true,characterData:true});
+  }catch(e){console.log('wd28pick',e)}
+},1500);
+})();
+</script>
+<script id="v28-market-tax">
+/* ============ V28: بازار زنده (اسپارک‌لاین، عرضه/تقاضا، سفارش محدود، معامله P2P، کارمزد، رویداد، تاریخچه) + خزانه ۲.۰ ============ */
+(function(){
+'use strict';
+var D=document,W=window.WD28,fa=W.fa,esc=W.esc,num=W.num;
+function $$id(id){return D.getElementById(id)}
+var RES={oil:{ic:'🛢️',fa:'نفت',base:1.65},food:{ic:'🌾',fa:'غذا',base:1}};
+var FEE_BUY=0.02,FEE_SELL=0.03;
+
+/* ---------- موتور قیمت: قدم زدن تصادفی + فشار عرضه/تقاضا + رویداد ---------- */
+var M={hist:{oil:[],food:[],gold:[]},ev:null,prs:{oil:0,food:0},lastTick:0};
+try{var saved=JSON.parse(localStorage.getItem('wd28_mkt')||'{}');if(saved&&saved.hist)M=Object.assign(M,saved)}catch(e){}
+function saveM(){try{localStorage.setItem('wd28_mkt',JSON.stringify({hist:M.hist,ev:M.ev,prs:M.prs,lastTick:M.lastTick}))}catch(e){}}
+function priceOf(k){var p=RES[k];var pr=p.base*(1+M.prs[k]/100);if(M.ev&&M.ev.res===k)pr*=M.ev.mult;pr*=1+Math.sin(Date.now()/9e5+k.length)*0.03;return Math.max(0.2,pr)}
+function priceGold(){return Math.max(0.5,100/(priceOf('oil')+priceOf('food'))*2)} /* شاخص قدرت خرید طلا */
+function pushHist(){
+  var t=Math.floor(Date.now()/60000);
+  if(M.lastTick===t)return;
+  M.lastTick=t;
+  ['oil','food'].forEach(function(k){
+    M.prs[k]*=0.985; /* فشار کهنه می‌شود */
+    if(Math.abs(M.prs[k])<0.05)M.prs[k]=0;
+  });
+  ['oil','food'].forEach(function(k){M.hist[k].push({t:t,p:priceOf(k)});if(M.hist[k].length>48)M.hist[k]=M.hist[k].slice(-48)});
+  M.hist.gold.push({t:t,p:priceGold()});if(M.hist.gold.length>48)M.hist.gold=M.hist.gold.slice(-48);
+  saveM();
+}
+function bump(k,d){M.prs[k]=Math.max(-30,Math.min(45,M.prs[k]+d));pushHist()}
+setInterval(function(){pushHist();checkOrders()},30000);
+/* seed اولیه */
+(function(){if(!M.hist.oil.length){for(var i=48;i>0;i--){['oil','food'].forEach(function(k){M.hist[k].push({t:Math.floor(Date.now()/60000)-i,p:RES[k].base*(1+(Math.random()-0.5)*0.12)})});M.hist.gold.push({t:Math.floor(Date.now()/60000)-i,p:priceGold()})}saveM()}})();
+/* رویدادهای بازار */
+var EVENTS=[
+ {n:'🌪️ طوفان در بنادر! واردات غذا متوقف شد',res:'food',mult:1.45,d:5},
+ {n:'🔥 آتش‌سوزی در مزارع — غذا کمیاب شد',res:'food',mult:1.35,d:5},
+ {n:'🛢️ کشف میدان نفتی غول‌پیکر — نفت ارزان شد',res:'oil',mult:0.62,d:5},
+ {n:'⚓ تحریم تانکرهای نفتی — نفت گران شد',res:'oil',mult:1.5,d:5},
+ {n:'🌾 برداشت استثنایی گندم — غذای ارزان',res:'food',mult:0.65,d:5},
+ {n:'💥 انفجار خط لوله — جهش قیمت نفت',res:'oil',mult:1.65,d:4}];
+setInterval(function(){
+  if(M.ev&&Date.now()>M.ev.until){M.ev=null;saveM()}
+  if(!M.ev&&Math.random()<0.09){
+    var e=EVENTS[Math.floor(Math.random()*EVENTS.length)];
+    M.ev={n:e.n,res:e.res,mult:e.mult,until:Date.now()+e.d*60000};
+    saveM();
+    try{showToast(e.n,'lose')}catch(err){}
+    try{if(typeof news==='function')news(e.n)}catch(err){}
+  }
+},45000);
+
+/* ---------- اجرای معامله + کارمزد + تاریخچه ---------- */
+function trade28(k,side,qty){
+  qty=Math.round(Number(qty)||0);
+  if(qty<=0){showToast('❌ مقدار را وارد کن','lose');return false}
+  if(typeof myCountryName==='undefined'||!myCountryName){showToast('❌ اول پایتخت انتخاب کن','lose');return false}
+  var p=priceOf(k),fee=side==='buy'?FEE_BUY:FEE_SELL;
+  var goldDelta=qty*p*(1+(side==='buy'?1:-1)*fee);
+  if(typeof playerRes==='undefined')return false;
+  if(side==='buy'){
+    if(playerRes.gold<goldDelta){showToast('❌ طلای کافی نیست (نیاز: '+num(goldDelta)+')','lose');return false}
+    playerRes.gold-=goldDelta;playerRes[k]+=qty;bump(k,0.5);
+  }else{
+    if(playerRes[k]<qty){showToast('❌ '+RES[k].fa+' کافی نیست','lose');return false}
+    playerRes[k]-=qty;playerRes.gold+=goldDelta;bump(k,-0.5);
+  }
+  st28.hist.push({t:Date.now(),side:side,res:k,qty:qty,price:Math.round(p*100)/100,fee:Math.round(fee*100),total:Math.round(goldDelta)});
+  if(st28.hist.length>80)st28.hist=st28.hist.slice(-80);
+  if(typeof ledger28==='function')ledger28(side==='buy'?'out':'in',Math.abs(Math.round(goldDelta)),side==='buy'?('خرید '+RES[k].fa):('فروش '+RES[k].fa));
+  save28();if(typeof updateUI==='function')updateUI();
+  showToast((side==='buy'?'🛒 ':'💰 ')+(side==='buy'?'خرید':'فروش')+' '+num(qty)+' '+RES[k].fa+' — کارمزد '+fa(side==='buy'?FEE_BUY:FEE_SELL).toString().replace('۰.۰','۰/۰')+'','win');
+  return true;
+}
+window.trade28=trade28;
+
+/* ---------- سفارش محدود ---------- */
+function checkOrders(){
+  var done=false;
+  st28.orders=st28.orders.filter(function(o){
+    var p=priceOf(o.res);
+    var hit=o.side==='buy'?p<=o.target:p>=o.target;
+    if(!hit)return true;
+    var ok=trade28(o.res,o.side,o.qty);
+    if(ok){
+      showToast('🎯 سفارش خودکار اجرا شد: '+(o.side==='buy'?'خرید':'فروش')+' '+num(o.qty)+' '+RES[o.res].fa+' در '+fa(o.target),'win');
+      done=true;return false;
+    }
+    return true; /* منابع نشد → سفارش می‌ماند */
+  });
+  if(done)save28();
+}
+setInterval(checkOrders,20000);
+window.checkOrders28=checkOrders;
+
+/* ---------- UI بازار ---------- */
+var mktTab='live';
+function spark(cv,data,color){
+  try{
+    var ctx=cv.getContext('2d'),w=cv.width=cv.offsetWidth*2,h=cv.height=88;
+    ctx.scale(1,1);ctx.clearRect(0,0,w,h);
+    var min=Infinity,max=-Infinity;data.forEach(function(x){if(x.p<min)min=x.p;if(x.p>max)max=x.p});
+    if(max-min<1e-6){max=min+1}
+    var pad=6,step=(w-pad*2)/Math.max(1,data.length-1);
+    /* گرید ملایم */
+    ctx.strokeStyle='rgba(255,255,255,.06)';ctx.lineWidth=1;
+    for(var gy=1;gy<4;gy++){ctx.beginPath();ctx.moveTo(0,h/4*gy);ctx.lineTo(w,h/4*gy);ctx.stroke()}
+    var pts=data.map(function(x,i){return [pad+i*step,pad+(h-pad*2)*(1-(x.p-min)/(max-min))]});
+    /* ناحیه */
+    var grad=ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0,color+'55');grad.addColorStop(1,color+'00');
+    ctx.beginPath();ctx.moveTo(pts[0][0],h);
+    pts.forEach(function(p2){ctx.lineTo(p2[0],p2[1])});
+    ctx.lineTo(pts[pts.length-1][0],h);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+    /* خط */
+    ctx.beginPath();pts.forEach(function(p2,i){i?ctx.lineTo(p2[0],p2[1]):ctx.moveTo(p2[0],p2[1])});
+    ctx.strokeStyle=color;ctx.lineWidth=3;ctx.lineJoin='round';ctx.stroke();
+    /* نقطه آخر */
+    var lp=pts[pts.length-1];
+    ctx.beginPath();ctx.arc(lp[0],lp[1],4.5,0,7);ctx.fillStyle='#fff';ctx.fill();
+    ctx.beginPath();ctx.arc(lp[0],lp[1],7.5,0,7);ctx.fillStyle=color+'66';ctx.fill();
+  }catch(e){}
+}
+function deltaBadge(hist){
+  if(hist.length<7)return '';
+  var a=hist[hist.length-7].p,b=hist[hist.length-1].p;
+  var d=Math.round((b-a)/a*100);
+  return '<small class="'+(d>=0?'wd28-up':'wd28-dn')+'">'+(d>=0?'▲ +':'▼ ')+fa(d)+'٪ ۲۴س</small>';
+}
+function renderMarket(){
+  var card=$$id('m-market');if(!card)return;
+  var mc=card.querySelector('.modal-card');if(!mc)return;
+  if(!mc.querySelector('.wd28-mkt-tabs')){
+    mc.innerHTML='<div class="modal-title-row"><span>📈 بازار جهانی زنده</span><span class="close-modal" style="cursor:pointer;font-size:18px" id="wd28-mkt-x">✕</span></div><div id="wd28-mkt-body"></div>';
+    $$id('wd28-mkt-x').onclick=function(){closeModal('m-market')};
+  }
+  var b=$$id('wd28-mkt-body');if(!b)return;
+  b.textContent='';
+  /* تب‌ها */
+  var tabs=D.createElement('div');tabs.className='wd28-mkt-tabs';
+  [['live','💹 معاملات'],['limit','🎯 سفارش خودکار'],['p2p','🤝 معامله با بازیکنان'],['hist','📜 تاریخچه من']].forEach(function(x){
+    var bt=D.createElement('button');bt.className='wd28-mkt-tab'+(mktTab===x[0]?' on':'');bt.textContent=x[1];
+    bt.onclick=function(){mktTab=x[0];renderMarket()};tabs.append(bt);
+  });
+  b.append(tabs);
+  /* بنر رویداد */
+  if(M.ev){
+    var ev=D.createElement('div');ev.className='wd28-mkt-ev';
+    var mins=Math.max(1,Math.ceil((M.ev.until-Date.now())/60000));
+    ev.innerHTML='<span>'+esc(M.ev.n)+'</span><span style="margin-right:auto;font-weight:900">⏳ '+fa(mins)+' دقیقه</span>';
+    b.append(ev);
+  }
+  if(mktTab==='live'){
+    /* طلا (شاخص) */
+    var gc=D.createElement('div');gc.className='wd28-res-card';
+    gc.innerHTML='<div class="wd28-res-top"><div class="wd28-res-ico">💰</div><div class="wd28-res-mid"><b>طلا — ارتش پایه</b><small>شاخص قدرت خرید جهانی</small></div><div class="wd28-res-price"><b>'+fa(Math.round(priceGold()*100)/100)+'</b>'+deltaBadge(M.hist.gold)+'</div></div><canvas class="wd28-spark" id="wd28-sp-gold"></canvas><div class="wd28-fee">طلا واحد اندازه‌گیری بازار است؛ قیمت نفت و غذا به طلا سنجیده می‌شود.</div>';
+    b.append(gc);
+    Object.keys(RES).forEach(function(k){
+      var p=priceOf(k),d=D.createElement('div');d.className='wd28-res-card';
+      d.innerHTML='<div class="wd28-res-top"><div class="wd28-res-ico">'+RES[k].ic+'</div><div class="wd28-res-mid"><b>'+RES[k].fa+'</b><small>دارایی تو: '+num(playerRes[k]||0)+' — فشار بازار: '+(M.prs[k]>2?'📈 بالا':M.prs[k]<-2?'📉 پایین':'➖ عادی')+'</small></div><div class="wd28-res-price"><b>'+fa(Math.round(p*100)/100)+' طلا</b>'+deltaBadge(M.hist[k])+'</div></div><canvas class="wd28-spark" id="wd28-sp-'+k+'"></canvas>'+
+        '<div class="wd28-trades"><input id="wd28-q-'+k+'" type="number" min="10" step="50" placeholder="مثلاً ۵۰۰"><button class="wd28-tbtn wd28-buy" id="wd28-b-'+k+'">خرید</button><button class="wd28-tbtn wd28-sell" id="wd28-s-'+k+'">فروش</button></div>'+
+        '<div class="wd28-fee">کارمزد: خرید '+fa(2)+'٪ — فروش '+fa(3)+'٪ (به خزانه سرور می‌رود و جلوی دستکاری قیمت را می‌گیرد)</div>';
+      b.append(d);
+      (function(k){
+        d.querySelector('#wd28-b-'+k).onclick=function(){if(trade28(k,'buy',d.querySelector('#wd28-q-'+k).value))renderMarket()};
+        d.querySelector('#wd28-s-'+k).onclick=function(){if(trade28(k,'sell',d.querySelector('#wd28-q-'+k).value))renderMarket()};
+      })(k);
+    });
+    requestAnimationFrame(function(){
+      spark($$id('wd28-sp-gold'),M.hist.gold,'#ffd84d');
+      spark($$id('wd28-sp-oil'),M.hist.oil,'#39e6d0');
+      spark($$id('wd28-sp-food'),M.hist.food,'#7dff8f');
+    });
+  }
+  else if(mktTab==='limit'){
+    var h=D.createElement('div');h.className='wd28-sec-h';h.innerHTML='🎯 سفارش محدود <small>قیمت رسید، خودکار اجرا شد</small>';b.append(h);
+    var form=D.createElement('div');
+    form.innerHTML='<div class="wd28-form-row"><select id="wd28-lo-res"><option value="oil">'+RES.oil.ic+' نفت</option><option value="food">'+RES.food.ic+' غذا</option></select>'+
+      '<select id="wd28-lo-side"><option value="buy">خرید وقتی ارزان شد</option><option value="sell">فروش وقتی گران شد</option></select></div>'+
+      '<div class="wd28-form-row"><input id="wd28-lo-qty" type="number" placeholder="مقدار (مثلاً ۵۰۰)" min="10"><input id="wd28-lo-target" type="number" placeholder="قیمت هدف" step="0.05"></div>'+
+      '<button class="wd28-mkbtn cy" id="wd28-lo-add">📌 ثبت سفارش خودکار</button>';
+    b.append(form);
+    $$id('wd28-lo-add').onclick=function(){
+      var res=$$id('wd28-lo-res').value,side=$$id('wd28-lo-side').value;
+      var qty=Math.round(Number($$id('wd28-lo-qty').value)||0),target=Number($$id('wd28-lo-target').value);
+      if(qty<10||!target||target<=0){showToast('❌ مقدار و قیمت هدف را درست وارد کن','lose');return}
+      if(st28.orders.length>=8){showToast('❌ حداکثر ۸ سفارش فعال','lose');return}
+      st28.orders.push({id:Date.now(),res:res,side:side,qty:qty,target:target});save28();
+      showToast('📌 سفارش ثبت شد — هر ۳۰ ثانیه بررسی می‌شود','win');renderMarket();
+    };
+    var h2=D.createElement('div');h2.className='wd28-sec-h';h2.textContent='📋 سفارش‌های فعال';b.append(h2);
+    if(!st28.orders.length){var e0=D.createElement('div');e0.style.cssText='font-size:10.5px;color:#8fb0d6;padding:6px';e0.textContent='سفارش فعالی نداری. مثلاً بگذار: «وقتی نفت زیر ۱/۳۰ شد، ۵۰۰ بخر»';b.append(e0)}
+    st28.orders.forEach(function(o){
+      var r=D.createElement('div');r.className='wd28-order';
+      var cur=priceOf(o.res);
+      r.innerHTML='<span>'+(o.side==='buy'?'🛒':'💰')+'</span><span style="flex:1">'+(o.side==='buy'?'خرید':'فروش')+' <b>'+num(o.qty)+'</b> '+RES[o.res].fa+' در قیمت <b>'+fa(o.target)+'</b><br><small style="color:#8fb0d6">قیمت فعلی: '+fa(Math.round(cur*100)/100)+' — '+(o.side==='buy'?(cur<=o.target?'✅ شرایط آماده':'در انتظار افت'):(cur>=o.target?'✅ شرایط آماده':'در انتظار جهش'))+'</small></span>';
+      var x=D.createElement('button');x.className='x';x.textContent='لغو';
+      x.onclick=function(){st28.orders=st28.orders.filter(function(o2){return o2.id!==o.id});save28();renderMarket()};
+      r.append(x);b.append(r);
+    });
+  }
+  else if(mktTab==='p2p'){
+    var hp=D.createElement('div');hp.className='wd28-sec-h';hp.innerHTML='🤝 معامله مستقیم <small>کارمزد '+fa(3)+'٪ از سهم گیرنده</small>';b.append(hp);
+    if(typeof sb==='undefined'||!sb){var e99=D.createElement('div');e99.style.cssText='font-size:10.5px;color:#8fb0d6;padding:6px';e99.textContent='معامله با بازیکنان فقط در حالت آنلاین فعال است.';b.append(e99);return}
+    var form=D.createElement('div');
+    var selOpts=function(sel){return '<option value="gold">💰 طلا</option><option value="oil">🛢️ نفت</option><option value="food">🌾 غذا</option>'};
+    form.innerHTML='<div class="wd28-form-row"><select id="wd28-p-give">'+selOpts()+'</select><input id="wd28-p-giveq" type="number" placeholder="می‌دهم (مثلاً ۱۰۰۰)" min="10"></div>'+
+      '<div class="wd28-form-row"><select id="wd28-p-want">'+selOpts()+'</select><input id="wd28-p-wantq" type="number" placeholder="می‌خواهم (مثلاً ۵۰۰)" min="10"></div>'+
+      '<button class="wd28-mkbtn" id="wd28-p-add">🤝 پیشنهاد معامله بگذار</button>';
+    b.append(form);
+    $$id('wd28-p-add').onclick=async function(){
+      var gr=$$id('wd28-p-give').value,wr=$$id('wd28-p-want').value;
+      var gq=Math.round(Number($$id('wd28-p-giveq').value)||0),wq=Math.round(Number($$id('wd28-p-wantq').value)||0);
+      if(gr===wr){showToast('❌ دو طرف معامله باید متفاوت باشند','lose');return}
+      if((playerRes[gr]||0)<gq){showToast('❌ '+resName28(gr)+' کافی نداری','lose');return}
+      try{
+        var r=await sb.rpc('trade_offer_create',{p_server:SRV,p_give_res:gr,p_give_qty:gq,p_want_res:wr,p_want_qty:wq});
+        if(r.error)throw r.error;
+        if(r.data&&r.data.ok){
+          playerRes[gr]=Math.max(0,(playerRes[gr]||0)-gq); /* اسکرو: همزمان با سرور کم می‌شود */
+          if(typeof updateUI==='function')updateUI();
+          showToast('🤝 پیشنهادت گذاشته شد — '+num(gq)+' '+resName28(gr)+' تا معامله در گرو است','win');
+        }
+        else showToast('❌ '+(r.data&&r.data.reason==='funds'?'منابع کافی نداری':r.data&&r.data.reason==='limit'?'حداکثر ۵ پیشنهاد باز داری':'پیشنهاد نامعتبر'),'lose');
+        loadP2P();
+      }catch(e){console.log(e);showToast('❌ خطا در ثبت پیشنهاد','lose')}
+    };
+    var h3=D.createElement('div');h3.className='wd28-sec-h';h3.innerHTML='🌍 پیشنهادهای باز سرور <small>اعتبار ۲۴ ساعت</small>';b.append(h3);
+    var list=D.createElement('div');list.id='wd28-p2p-list';b.append(list);
+    function resIc(k){return k==='gold'?'💰':k==='oil'?'🛢️':'🌾'}
+    async function loadP2P(){
+      list.textContent='';var ld=D.createElement('div');ld.style.cssText='font-size:10.5px;color:#8fb0d6;padding:6px';ld.textContent='⏳ در حال دریافت…';list.append(ld);
+      try{
+        var r=await sb.rpc('trade_offer_list',{p_server:SRV});
+        if(r.error)throw r.error;
+        list.textContent='';
+        var rows=r.data||[];
+        if(!rows.length){var e9=D.createElement('div');e9.style.cssText='font-size:10.5px;color:#8fb0d6;padding:6px';e9.textContent='هنوز پیشنهادی نیست — اولین معامله‌گر باش!';list.append(e9);return}
+        rows.forEach(function(o){
+          var d2=D.createElement('div');d2.className='wd28-offer';
+          var hue=(function(){var h2=11;for(var i=0;i<o.nick.length;i++)h2=(h2*37+o.nick.charCodeAt(i))%360;return h2})();
+          d2.innerHTML='<div class="row1"><div class="av" style="background:hsl('+hue+',60%,42%)">'+esc(o.nick.charAt(0).toUpperCase())+'</div><span class="nick">'+esc(o.nick)+(o.mine?' <small style="color:#7fd7ff">(پیشنهاد تو)</small>':'')+'</span></div>'+
+            '<div class="swp"><span class="pill">'+resIc(o.give_res)+' <b>'+num(o.give_qty)+'</b> می‌دهد</span><span>⇄</span><span class="pill">'+resIc(o.want_res)+' <b>'+num(o.want_qty)+'</b> می‌خواهد</span></div>';
+          var btn=D.createElement('button');btn.className='wd28-accbtn'+(o.mine?' mine':'');
+          btn.textContent=o.mine?'🗑️ لغو پیشنهاد من':'✅ قبول معامله';
+          btn.onclick=async function(){
+            btn.disabled=true;
+            try{
+              if(o.mine){
+                var rc=await sb.rpc('trade_offer_cancel',{p_id:o.id});
+                if(rc.error)throw rc.error;
+                playerRes[o.give_res]=Math.max(0,(playerRes[o.give_res]||0)+o.give_qty); /* بازگشت گرو */
+                markApplied28(o.id);
+                if(typeof updateUI==='function')updateUI();
+                showToast('🗑️ پیشنهاد لغو شد — منابع برگشت','win');
+              }
+              else{
+                if((playerRes[o.want_res]||0)<o.want_qty){showToast('❌ '+resName28(o.want_res)+' کافی نداری','lose');btn.disabled=false;return}
+                if(!await wdConfirm('این معامله را قبول می‌کنی؟','قبول')){btn.disabled=false;return}
+                var rr=await sb.rpc('trade_offer_accept',{p_id:o.id});
+                if(rr.error)throw rr.error;
+                if(rr.data&&rr.data.ok){
+                  playerRes[o.want_res]=Math.max(0,(playerRes[o.want_res]||0)-o.want_qty);
+                  playerRes[o.give_res]=(playerRes[o.give_res]||0)+(rr.data.got||0);
+                  if(typeof updateUI==='function')updateUI();
+                  showToast('🤝 معامله شد! '+num(rr.data.got)+' '+resName28(o.give_res)+' گرفتی (۳٪ کارمزد)','win');
+                }else showToast('❌ '+(rr.data&&rr.data.reason==='funds'?'منابع کافی نداری':'معامله در دسترس نیست'),'lose');
+              }
+              loadP2P();
+            }catch(e){console.log(e);showToast('❌ خطا در انجام معامله','lose');btn.disabled=false}
+          };
+          d2.append(btn);list.append(d2);
+        });
+      }catch(e){console.log(e);list.textContent='';var e8=D.createElement('div');e8.style.cssText='font-size:10.5px;color:#ff8ba0;padding:6px';e8.textContent='دریافت پیشنهادها ناموفق بود';list.append(e8)}
+    }
+    loadP2P();
+  }
+  else if(mktTab==='hist'){
+    var hh=D.createElement('div');hh.className='wd28-sec-h';hh.innerHTML='📜 تاریخچه معاملات من <small>۸۰ مورد آخر</small>';b.append(hh);
+    var tot=0;
+    st28.hist.slice().reverse().forEach(function(x){
+      tot+=x.side==='buy'?-x.total:x.total;
+      var r=D.createElement('div');r.className='wd28-hist';
+      var dt=new Date(x.t);
+      r.innerHTML='<span>'+(x.side==='buy'?'🛒 خرید':'💰 فروش')+' '+num(x.qty)+' '+(x.res==='oil'?'🛢️ نفت':'🌾 غذا')+'</span><span>@ '+fa(x.price)+' — کارمزد '+fa(x.fee)+'٪</span><span class="'+(x.side==='buy'?'wd28-loss':'wd28-prof')+'">'+(x.side==='buy'?'-':'+')+num(Math.abs(x.total))+' طلا</span>';
+      r.title=dt.toLocaleString('fa-IR');b.append(r);
+    });
+    if(!st28.hist.length){var e7=D.createElement('div');e7.style.cssText='font-size:10.5px;color:#8fb0d6;padding:6px';e7.textContent='هنوز معامله‌ای انجام ندادی.';b.append(e7)}
+    else{var s9=D.createElement('div');s9.className='wd28-hist';s9.style.fontWeight='900';s9.innerHTML='<span>جمع خالص</span><span></span><span class="'+(tot>=0?'wd28-prof':'wd28-loss')+'">'+(tot>=0?'+':'')+num(tot)+' طلا</span>';b.append(s9)}
+  }
+}
+window.renderMarket28=renderMarket;
+/* بازطراحی مودال بازار هر بار باز شد + تازه‌سازی زنده */
+try{
+  var btnMk=$$id('btn-m-market');
+  if(btnMk)btnMk.addEventListener('click',function(){setTimeout(renderMarket,60)},true);
+  var oldOpen=openModal;
+  openModal=function(id){oldOpen(id);if(id==='m-market')setTimeout(renderMarket,60)};
+}catch(e){}
+setInterval(function(){var m=$$id('m-market');if(m&&m.classList.contains('active')&&mktTab==='live')renderMarket()},30000);
+
+/* اعتبار مالک پس از تکمیل پیشنهادش (یک‌بار برای هر شناسه، با محافظ در برابر ریلود) */
+function resName28(k){return k==='gold'?'طلا':k==='oil'?'نفت':'غذا'}
+window.markApplied28=function(id){
+  try{st28.tradeApplied=st28.tradeApplied||[];if(st28.tradeApplied.indexOf(id)<0)st28.tradeApplied.push(id);save28()}catch(e){}
+}
+setInterval(async function(){
+  try{
+    if(typeof sb==='undefined'||!sb||typeof ACC==='undefined'||!ACC||!ACC.uid)return;
+    var r=await sb.rpc('trade_offer_mine',{});
+    if(r.error||!r.data)return;
+    st28.tradeApplied=st28.tradeApplied||[];
+    var changed=false;
+    r.data.forEach(function(o){
+      if(st28.tradeApplied.indexOf(o.id)>-1)return;
+      st28.tradeApplied.push(o.id);changed=true;
+      if(o.status==='done'){
+        playerRes[o.want_res]=(playerRes[o.want_res]||0)+o.want_qty;
+        showToast('🤝 پیشنهادت پذیرفته شد! +'+num(o.want_qty)+' '+resName28(o.want_res),'win');
+      }else if(o.status==='cancelled'){
+        playerRes[o.give_res]=(playerRes[o.give_res]||0)+o.give_qty;
+      }
+    });
+    if(changed){save28();if(typeof updateUI==='function')updateUI()}
+  }catch(e){}
+},30000);
+
+/* ================= خزانه ۲.۰ ================= */
+function taxFactor(){var r=(st28.taxRate||0);return 1+(r-10)*0.04}
+try{
+  var _taxBase=taxAmount;
+  taxAmount=function(){
+    var t=_taxBase();
+    t*=taxFactor();
+    if(st28.policy==='war')t*=1.15;else if(st28.policy==='welfare')t*=0.85;
+    /* کشورهای معاف (تازه‌فتح): سهمشان ۶۰٪ کمتر */
+    try{
+      var now=Date.now(),cut=0,full=0;
+      if(typeof conqueredCountries!=='undefined')full=conqueredCountries.size;
+      for(var cn in st28.exemp){if(st28.exemp[cn]>now)cut++}
+      if(cut>0&&full>0)t*=1-0.6*(cut/full);
+    }catch(e){}
+    return Math.max(0,Math.round(t));
+  };
+}catch(e){}
+try{
+  var _ct=collectTax;
+  collectTax=function(){var amt=taxAmount();_ct();try{ledger28('in',amt,'مالیات')}catch(e){}}; /* برای فراخوانی‌های برنامه‌ای؛ دکمه با listener مخصوص خودش ثبت می‌کند */
+}catch(e){}
+function renderTax(){
+  var card=$$id('m-tax');if(!card)return;
+  var mc=card.querySelector('.modal-card');if(!mc)return;
+  if(!mc.querySelector('.wd28-tax-slider')){
+    mc.innerHTML='<div class="modal-title-row"><span>🏛️ خزانه ملی و مالیات</span><span class="close-modal" style="cursor:pointer;font-size:18px" id="wd28-tax-x">✕</span></div>'+
+      '<div id="tax-cooldown-text" style="font-size:10px;color:#a0c4f7">آماده جمع‌آوری</div>'+
+      '<button class="action-btn btn-gold" id="act-tax">💰 جمع‌آوری مالیات ملت‌ها</button>'+
+      '<div id="wd28-tax-body"></div>';
+    $$id('wd28-tax-x').onclick=function(){closeModal('m-tax')};
+    /* منطق اصلی جمع‌آوری (کول‌داون، محاسبه، ذخیره) را دوباره به دکمه وصل کن */
+    $$id('act-tax').addEventListener('click',function(){try{collectTax()}catch(e){console.log(e)}},false);
+    $$id('act-tax').addEventListener('click',function(){
+      /* ثبت در دفتر خزانه: مقدار قبل از جمع‌آوری، بعد از اجرای جمع‌آوری ثبت می‌شود */
+      try{var amt=taxAmount();setTimeout(function(){ledger28('in',amt,'مالیات');renderTax()},450)}catch(e){}
+    },true);
+  }
+  var b=$$id('wd28-tax-body');if(!b)return;
+  b.textContent='';
+  var r=st28.taxRate||0;
+  var inc=Math.round(taxAmount());
+  var sl=D.createElement('div');sl.className='wd28-tax-slider';
+  sl.innerHTML='<div class="wd28-tax-read"><span class="rate-txt">نرخ مالیات مردم</span><b>'+fa(r)+'٪</b></div>'+
+    '<input type="range" min="0" max="35" step="1" value="'+r+'">'+
+    '<div class="rate-txt" style="margin-top:5px;line-height:1.7">'+(r<=10?'🟢 مردم راضی — رشد آرام':r<=20?'🟡 درآمد خوب، نارضایتی کم‌کم بالا می‌رود':r<=28?'🟠 نارضایتی جدی! شورش نزدیک است':'🔴 استثمار! مردم به‌زودی شورش می‌کنند')+'</div>'+
+    '<div class="wd28-fee">درآمد فعلی هر جمع‌آوری: <b style="color:#ffd84d">'+num(inc)+' طلا</b>'+(r>15?' — نرخ بالای ۱۵٪ هر دقیقه به تنش مردم اضافه می‌کند':'')+'</div>';
+  var rng=sl.querySelector('input');
+  rng.oninput=function(){st28.taxRate=+rng.value;save28();renderTax()};
+  b.append(sl);
+  /* سیاست‌های اقتصادی */
+  var ph=D.createElement('div');ph.className='wd28-sec-h';ph.textContent='📜 سیاست اقتصادی';b.append(ph);
+  var pol=D.createElement('div');pol.className='wd28-pol';
+  [['war','⚔️','اقتصاد جنگی','مالیات +۱۵٪ — تنش +۴۰٪'],['welfare','🕊️','رفاه اجتماعی','مالیات −۱۵٪ — تنش آرام می‌شود'],['free','🚢','تجارت آزاد','کارمزد بازار فقط ۱٪'],['balanced','⚖️','متوازن','بدون ترجیح — حالت عادی']].forEach(function(x){
+    var c=D.createElement('div');c.className='wd28-pol-c'+(st28.policy===x[0]?' on':'');
+    c.innerHTML='<div class="ic">'+x[1]+'</div><b>'+x[2]+'</b><small>'+x[3]+'</small>';
+    c.onclick=function(){st28.policy=x[0];save28();renderTax();showToast('📜 سیاست «'+x[2]+'» اجرا شد','win')};
+    pol.append(c);
+  });
+  b.append(pol);
+  /* گزارش خزانه */
+  var lh=D.createElement('div');lh.className='wd28-sec-h';lh.innerHTML='📊 گزارش خزانه <small>ورودی در برابر خروجی</small>';b.append(lh);
+  var cv=D.createElement('canvas');cv.className='wd28-ledger-c';b.append(cv);
+  var legend=D.createElement('div');legend.style.cssText='font-size:9px;color:#8fb0d6;display:flex;gap:12px;margin-top:4px';
+  legend.innerHTML='<span>🟢 ورودی (مالیات/تجارت)</span><span>🔴 خروجی (ارتش)</span>';
+  b.append(legend);
+  requestAnimationFrame(function(){
+    try{
+      var ctx=cv.getContext('2d'),w2=cv.width=cv.offsetWidth*2,h2=cv.height=220;
+      ctx.clearRect(0,0,w2,h2);
+      var L=st28.ledger.slice(-24);
+      ctx.strokeStyle='rgba(255,255,255,.07)';
+      for(var gy2=1;gy2<4;gy2++){ctx.beginPath();ctx.moveTo(0,h2/4*gy2);ctx.lineTo(w2,h2/4*gy2);ctx.stroke()}
+      if(L.length<2){
+        ctx.fillStyle='#8fb0d6';ctx.font='20px sans-serif';ctx.textAlign='center';
+        ctx.fillText('با جمع‌آوری مالیات و ساخت ارتش، نمودار پر می‌شود',w2/2,h2/2);return;
+      }
+      var maxG=1;L.forEach(function(x){if(x.g>maxG)maxG=x.g});
+      var step2=(w2-20)/Math.max(1,L.length-1);
+      var drawLine=function(io,color){
+        ctx.beginPath();var started=false;
+        L.forEach(function(x,i){
+          if(x.io!==io)return;
+          var x2=10+i*step2,y2=h2-20-(h2-50)*(x.g/maxG);
+          if(!started){ctx.moveTo(x2,y2);started=true}else ctx.lineTo(x2,y2);
+        });
+        if(started){ctx.strokeStyle=color;ctx.lineWidth=4;ctx.lineJoin='round';ctx.stroke()}
+      };
+      drawLine('in','#37e08a');drawLine('out','#ff5c7c');
+    }catch(e){}
+  });
+  /* معافیت‌های فعال */
+  var now=Date.now(),exs=[];
+  for(var cn in st28.exemp){if(st28.exemp[cn]>now)exs.push(cn)}
+  if(exs.length){
+    var eh=D.createElement('div');eh.className='wd28-sec-h';eh.textContent='🕊️ معافیت مالیاتی کشورهای تازه‌فتح';b.append(eh);
+    exs.slice(0,6).forEach(function(cn){
+      var days=Math.max(1,Math.ceil((st28.exemp[cn]-now)/864e5));
+      var nm2=(typeof getCountryData==='function'&&(getCountryData(cn)||{}).fa)||cn;
+      var e3=D.createElement('div');e3.className='wd28-exemp';
+      e3.innerHTML='<span>🏴 '+esc(nm2)+'</span><span>'+fa(days)+' روز باقی‌مانده — نرخ −۶۰٪</span>';
+      b.append(e3);
+    });
+  }
+  /* هشدار شورش */
+  try{
+    if(typeof unrest!=='undefined'&&typeof conqueredCountries!=='undefined'){
+      var risky=[];
+      conqueredCountries.forEach(function(n){if(n===(typeof myCountryName!=='undefined'?myCountryName:null))return;var v=unrest[n]||0;if(v>=55)risky.push([n,v])});
+      risky.sort(function(a,b2){return b2[1]-a[1]});
+      if(risky.length){
+        var rw=D.createElement('div');rw.className='wd28-riot';
+        var nm3=(typeof getCountryData==='function'&&(getCountryData(risky[0][0])||{}).fa)||risky[0][0];
+        rw.innerHTML='<b>🚨 هشدار شورش!</b> '+esc(nm3)+' در آستانه‌ی شورش است ('+fa(Math.round(risky[0][1]))+'٪ تنش). با «کمک مردمی» در کشوی کشور یا کاهش مالیات آزارش را بگیر — وگرنه ممکن است کشور را از دست بدهی!';
+        b.append(rw);
+        risky.slice(1,4).forEach(function(x){
+          var nm4=(typeof getCountryData==='function'&&(getCountryData(x[0])||{}).fa)||x[0];
+          var r4=D.createElement('div');r4.style.cssText='font-size:9.5px;color:#ffb9c6;padding:2px 11px';
+          r4.textContent='⚠️ '+nm4+' — تنش '+fa(Math.round(x[1]))+'٪';b.append(r4);
+        });
+      }
+    }
+  }catch(e){}
+}
+window.renderTax28=renderTax;
+try{
+  var btnTx=$$id('btn-m-tax');
+  if(btnTx)btnTx.addEventListener('click',function(){setTimeout(renderTax,60)},true);
+  var oldOpen2=openModal;
+  openModal=function(id){oldOpen2(id);if(id==='m-tax')setTimeout(renderTax,60)};
+}catch(e){}
+/* خروجی ارتش در دفتر خزانه */
+try{
+  var _bu=window.buyUnit;
+  window.buyUnit=function(k,qty){
+    var g0=playerRes.gold,o0=playerRes.oil;
+    _bu(k,qty);
+    var dg=g0-playerRes.gold;
+    if(dg>0)try{ledger28('out',dg,'ساخت '+k)}catch(e){}
+  };
+}catch(e){}
+})();
+</script>
+<script id="v28-army">
+/* ============ V28: ارتش ۲.۰ — فرماندهان، استحکامات، هم‌افزایی، وضعیت دفاع، صف حمله، آمار، گزارش زنده نبرد ============ */
+(function(){
+'use strict';
+var D=document,W=window.WD28,fa=W.fa,esc=W.esc,num=W.num;
+function $$id(id){return D.getElementById(id)}
+
+/* ---------- محاسبات قدرت ---------- */
+var CMDS=[
+ {k:'aria',ic:'🎖️',n:'سپهبد آریا',d:'حمله +۶٪ — متخصص عملیات تهاجمی',need:'از شروع در خدمت توست',needFn:function(){return true}},
+ {k:'boostani',ic:'🛡️',n:'بوستانه دیوار',d:'تلفات دفاعی −۸٪ — استاد سنگر',need:'۵ قلمرو',needFn:function(){return terrCount()>=5}},
+ {k:'sahi',ic:'💰',n:'ساهک خزانه‌دار',d:'تولید طلا +۶٪ — اقتصاددان جنگ',need:'۱۰ قلمرو',needFn:function(){return terrCount()>=10}},
+ {k:'kourosh',ic:'🚀',n:'کوروش راهوار',d:'هزینه طلای نیروها −۸٪ — لجستیک‌دان',need:'۵ نبرد ثبت‌شده',needFn:function(){return (st28.stats.battles||0)>=5}}];
+function terrCount(){try{return conqueredCountries.size+((typeof myCountryName!=='undefined'&&myCountryName)?1:0)}catch(e){return 0}}
+function defBonus(){
+  var b=(st28.fort||0)*0.04;
+  if(st28.cmdr==='boostani')b+=0.08;
+  if(st28.stance==='balanced')b+=0.04;else if(st28.stance==='fortress')b+=0.08;
+  return Math.min(0.42,b);
+}
+function atkMult(){
+  var m=1;
+  if(st28.cmdr==='aria')m+=0.06;
+  if(st28.stance==='balanced')m-=0.02;else if(st28.stance==='fortress')m-=0.05;
+  if(synergy())m+=0.08;
+  return m;
+}
+function synergy(){
+  try{
+    var keys=Object.keys(ARMY_UNITS),inf=ARMY_UNITS.infantry?ARMY_UNITS.infantry.count:0,heavy=0,tot=0;
+    keys.forEach(function(k){var c=ARMY_UNITS[k].count;tot+=c;if(k!=='infantry'&&k!=='transport')heavy+=c});
+    if(tot<10)return false;
+    return heavy/tot>=0.3&&inf/tot>=0.2;
+  }catch(e){return false}
+}
+/* اعمال بر قدرت حمله */
+setTimeout(function(){
+  try{
+    var _cta=calculateTotalAttack;
+    calculateTotalAttack=function(){return Math.round(_cta()*atkMult())};
+  }catch(e){console.log('wd28cta',e)}
+  try{
+    var _abl=applyBattleLosses;
+    applyBattleLosses=function(f){var b=defBonus();return _abl(f*(1-b))};
+  }catch(e){console.log('wd28abl',e)}
+  try{
+    var _pr=window.prod;
+    if(typeof _pr==='function')window.prod=function(){var p=_pr();if(st28.cmdr==='sahi')p.gold=Math.round(p.gold*1.06);return p};
+  }catch(e){}
+  try{
+    var _bu2=window.buyUnit;
+    window.buyUnit=function(k,qty){
+      if(st28.cmdr==='kourosh'&&typeof playerRes!=='undefined'&&ARMY_UNITS[k]){
+        var before=ARMY_UNITS[k].count;
+        var r=_bu2(k,qty);
+        var gained=ARMY_UNITS[k].count-before;
+        if(gained>0){var back=Math.round(ARMY_UNITS[k].costGold*(typeof armsDiscount==='function'?armsDiscount():0)*gained*0.08);playerRes.gold+=back;showToast('🚀 کوروش: '+num(back)+' طلا صرفه‌جویی شد','win')}
+        return r;
+      }
+      return _bu2(k,qty);
+    };
+  }catch(e){}
+},900);
+
+/* ---------- UI ارتش ---------- */
+function renderArmy28(){
+  var c=$$id('units-container');if(!c)return;
+  var host=$$id('wd28-army-extra');
+  if(!host){host=D.createElement('div');host.id='wd28-army-extra';c.parentNode.insertBefore(host,c)}
+  host.textContent='';
+  /* آمار نظامی */
+  var s1=D.createElement('div');s1.className='wd28-army-sec';
+  var S=st28.stats;
+  var rate=S.battles?Math.round(S.wins/Math.max(1,S.wins+S.losses)*100):0;
+  s1.innerHTML='<div class="h">📊 آمار نظامی من<small>ثبت خودکار نبردها</small></div>'+
+    '<div class="wd28-statmini">'+
+    '<div class="st"><b style="color:#5cff9d">'+fa(S.wins||0)+'</b><small>پیروزی</small></div>'+
+    '<div class="st"><b style="color:#ff8ba0">'+fa(S.losses||0)+'</b><small>شکست</small></div>'+
+    '<div class="st"><b>'+fa(rate)+'٪</b><small>نرخ موفقیت</small></div>'+
+    '<div class="st"><b style="color:#ffd84d">'+fa(S.best||0)+'</b><small>بهترین روز جنگ</small></div></div>';
+  host.append(s1);
+  /* فرماندهان */
+  var s2=D.createElement('div');s2.className='wd28-army-sec';
+  s2.innerHTML='<div class="h">🎖️ فرماندهان<small>رایگان با بازی باز می‌شوند</small></div>';
+  var grid=D.createElement('div');grid.className='wd28-cmds';
+  CMDS.forEach(function(x){
+    var un=x.needFn();
+    var d2=D.createElement('div');d2.className='wd28-cmd'+(st28.cmdr===x.k?' on':'')+(un?'':' lock');
+    d2.innerHTML='<div class="ic">'+x.ic+'</div><div><b>'+x.n+'</b><small>'+x.d+'</small>'+(un?'':'<small class="lk">🔒 '+x.need+'</small>')+'</div>';
+    if(un)d2.onclick=function(){st28.cmdr=x.k;save28();renderArmy28();showToast('🎖️ '+x.n+' فرماندهی را بر عهده گرفت','win')};
+    grid.append(d2);
+  });
+  s2.append(grid);host.append(s2);
+  /* استحکامات مرزی */
+  var s3=D.createElement('div');s3.className='wd28-army-sec';
+  var cost={g:400*(st28.fort+1),o:150*(st28.fort+1)};
+  var can=(st28.fort<5)&&(typeof playerRes!=='undefined'&&playerRes.gold>=cost.g&&playerRes.oil>=cost.o);
+  s3.innerHTML='<div class="h">🧱 استحکامات مرزی<small>هر سطح: تلفات دفاعی −۴٪ (با منابع، نه جم)</small></div>'+
+    '<div class="wd28-fort-row"><div class="wd28-fort-lv">'+Array.from({length:5},function(_,i){return '<i class="'+(i<st28.fort?'on':'')+'"></i>'}).join('')+'</div>'+
+    '<button class="wd28-fbuild" '+(can?'':'disabled')+'>'+(st28.fort>=5?'حداکثر':'🧱 '+num(cost.g)+'💰 + '+num(cost.o)+'🛢️')+'</button></div>'+
+    '<div class="wd28-fee">دفاع مؤثر فعلی: <b style="color:#7dffcf">−'+fa(Math.round(defBonus()*100))+'٪ تلفات</b></div>';
+  var fb=s3.querySelector('.wd28-fbuild');
+  if(fb)fb.onclick=function(){
+    if(st28.fort>=5)return;
+    if(playerRes.gold<cost.g||playerRes.oil<cost.o){showToast('❌ منابع کافی نیست','lose');return}
+    playerRes.gold-=cost.g;playerRes.oil-=cost.o;st28.fort++;save28();
+    try{if(typeof ledger28==='function')ledger28('out',cost.g,'استحکامات مرزی')}catch(e){}
+    if(typeof updateUI==='function')updateUI();
+    showToast('🧱 استحکامات به سطح '+fa(st28.fort)+' رسید — دفاع قوی‌تر شد','win');
+    renderArmy28();
+  };
+  host.append(s3);
+  /* وضعیت دفاعی */
+  var s4=D.createElement('div');s4.className='wd28-army-sec';
+  s4.innerHTML='<div class="h">🛡️ راهبرد دفاع<small>وقتی آفلاینی، این چینش از قلمروت محافظت می‌کند</small></div>';
+  var sr=D.createElement('div');sr.className='wd28-stand-row';
+  [['attack','⚔️ تهاجمی — حمله کامل'],['balanced','⚖️ متعادل — دفاع +۴٪'],['fortress','🏰 سنگر — دفاع +۸٪، حمله −۵٪']].forEach(function(x){
+    var bt=D.createElement('button');bt.className=st28.stance===x[0]?'on':'';
+    bt.textContent=x[1].split(' — ')[0];
+    bt.title=x[1];
+    bt.onclick=function(){st28.stance=x[0];save28();renderArmy28();showToast('🛡️ راهبرد «'+x[1].split(' — ')[0]+'» فعال شد','win')};
+    sr.append(bt);
+  });
+  s4.append(sr);
+  var syn=D.createElement('div');syn.className='wd28-syn';syn.style.marginTop='8px';
+  syn.innerHTML=synergy()?'⚡ <b>هم‌افزایی فعال:</b> ترکیب زرهی/هوایی + پیاده — حمله +۸٪':'📌 برای هم‌افزایی +۸٪: حداقل ۳۰٪ یگان‌های سنگین (زرهی/هوایی) و ۲۰٪ پیاده داشته باش';
+  s4.append(syn);host.append(s4);
+  /* صف حمله */
+  var s5=D.createElement('div');s5.className='wd28-army-sec';
+  s5.innerHTML='<div class="h">🎯 صف حمله چندگانه<small>از کشوی هر کشور «افزودن به صف» بزن</small></div>';
+  if(!st28.queue.length){var qe=D.createElement('div');qe.style.cssText='font-size:10px;color:#8fb0d6';qe.textContent='صف خالی است.';s5.append(qe)}
+  st28.queue.forEach(function(qn,i){
+    var nm=(typeof getCountryData==='function'&&(getCountryData(qn)||{}).fa)||qn;
+    var r=D.createElement('div');r.className='wd28-q';
+    r.innerHTML='<span>'+fa(i+1)+'.</span><span style="flex:1">🏴 '+esc(nm)+'</span>';
+    var x=D.createElement('button');x.className='x';x.textContent='حذف';
+    x.onclick=function(){st28.queue.splice(i,1);save28();renderArmy28()};r.append(x);
+    s5.append(r);
+  });
+  if(st28.queue.length){
+    var run=D.createElement('button');run.className='wd28-mkbtn cy';run.style.marginTop='6px';run.textContent='▶️ اجرای صف — حمله پشت‌سرهم';
+    run.onclick=async function(){
+      if(typeof battleBusy!=='undefined'&&battleBusy){showToast('⏳ نبرد در جریان است','lose');return}
+      var q=st28.queue.slice();
+      if(!q.length)return;
+      showToast('▶️ اجرای صف: '+fa(q.length)+' جبهه — بعد از هر گزارش، موج بعدی خودش باز می‌شود','win');
+      for(var i=0;i<q.length;i++){
+        var n=q[i];
+        try{
+          var g=(typeof getG==='function')?getG(n):null;
+          if(g&&typeof map!=='undefined'&&map)map.flyToBounds([[g.s,g.w],[g.n,g.e]],{maxZoom:4,duration:1,paddingBottomRight:[0,220]});
+          if(typeof onCountryClick==='function')onCountryClick({properties:{name:n}},(typeof layersByName!=='undefined')?layersByName[n]:null);
+          await new Promise(function(rs){setTimeout(rs,2600)});
+          /* اگر حمله شروع نشد (نیرو/منابع تمام) توقف */
+          if(typeof battleBusy==='undefined'||!battleBusy){showToast('⏸️ صف متوقف شد','lose');break}
+          await new Promise(function(rs){var t2=setInterval(function(){if(typeof battleBusy==='undefined'||!battleBusy){clearInterval(t2);rs()}},900);setTimeout(function(){clearInterval(t2);rs()},120000)});
+        }catch(e){console.log(e)}
+      }
+      st28.queue=[];save28();renderArmy28();
+    };
+    s5.append(run);
+  }
+  host.append(s5);
+}
+window.renderArmy28=renderArmy28;
+/* باز شدن مودال ارتش */
+try{
+  var btnAr=$$id('btn-m-army');
+  if(btnAr)btnAr.addEventListener('click',function(){setTimeout(renderArmy28,60)},true);
+  var _open3=openModal;
+  openModal=function(id){_open3(id);if(id==='m-army')setTimeout(renderArmy28,60)};
+}catch(e){}
+
+/* ---------- دکمه «افزودن به صف حمله» در کشوی کشور ---------- */
+setInterval(function(){
+  try{
+    var drawer=$$id('country-drawer');
+    if(!drawer||!drawer.classList.contains('open'))return;
+    var acts=$$id('drawer-actions'),name=$$id('c-name');
+    if(!acts||!name||!name.textContent)return;
+    if(acts.querySelector('.wd28-drawer-add'))return;
+    var cn=null,nm28=(name.textContent||'').trim();
+    try{cn=Object.keys((typeof layersByName!=='undefined')?layersByName:{}).find(function(k){return (getCountryData(k)||{}).fa===nm28||k===nm28})}catch(e){}
+    if(!cn){
+      /* نام نمایشی → انگلیسی از دیتای کشور (فارسی یا انگلیسی) */
+      try{
+        if(typeof countries==='function'){cn=countries().find(function(k){var d=getCountryData(k)||{};return d.fa===nm28||d.en===nm28||k===nm28})||null}
+      }catch(e){}
+    }
+    if(!cn)return;
+    if(typeof statusOf==='function'&&statusOf(cn)!=='neutral')return; /* فقط کشورهای آزاد */
+    var b=D.createElement('button');b.className='action-btn wd28-drawer-add';b.style.cssText='background:linear-gradient(135deg,#39e6d0,#2bb8ff);color:#00231f';
+    b.textContent='🎯 افزودن به صف حمله';
+    b.onclick=function(){
+      if(st28.queue.indexOf(cn)>-1){showToast('⚠️ در صف هست','lose');return}
+      if(st28.queue.length>=6){showToast('❌ حداکثر ۶ هدف در صف','lose');return}
+      st28.queue.push(cn);save28();
+      showToast('🎯 '+name.textContent+' به صف حمله اضافه شد ('+fa(st28.queue.length)+'/۶)','win');
+      b.textContent='✅ در صف حمله است';
+    };
+    acts.appendChild(b);
+  }catch(e){}
+},1200);
+
+/* ---------- گزارش زنده نبرد (تیکر روایت) ---------- */
+var tickTimer=null,tickIv=null;
+var NARR=[
+ '🚚 کاروان لجستیک در حال رسیدن به خط مقدم است…',
+ '🔭 عوامل شناسایی موقعیت توپخانه دشمن را گزارش می‌کنند',
+ '✈️ پشتیبانی هوایی در آسمان صحنه نبرد',
+ '💥 آتش توپخانه روی مواضع دشمن باز شد',
+ '🪖 موج اول پیاده‌نظام وارد عملیات شد',
+ '🚜 تانک‌ها از محور اصلی پیشروی می‌کنند',
+ '📡 کنترل فرماندهی: پیشروی طبق برنامه',
+ '🏥 امدادگران زخمی‌ها را تخلیه می‌کنند',
+ '⛽ سوخت رسانی به یگان‌های زرهی انجام شد',
+ '🎖️ فرمانده جبهه: «فشار را ادامه بدهید!»'];
+function startTicker(){
+  var host=$$id('battle-result-text');
+  if(!host||$$id('wd28-ticker'))return;
+  var t=D.createElement('div');t.id='wd28-ticker';
+  t.style.cssText='font-size:10px;color:#9fdcff;background:rgba(0,120,255,.08);border:1px dashed rgba(0,180,255,.3);border-radius:10px;padding:6px 9px;margin-top:7px;line-height:1.7';
+  t.textContent=NARR[0];
+  host.parentNode.insertBefore(t,host);
+  var i=1;
+  tickIv=setInterval(function(){
+    var el=$$id('wd28-ticker');if(!el){stopTicker();return}
+    var idx=Math.floor(Math.random()*NARR.length);
+    el.textContent=NARR[idx];
+    try{if(navigator.vibrate&&idx%3===0)navigator.vibrate(8)}catch(e){}
+  },2600);
+  tickTimer=true;
+}
+function stopTicker(){if(tickIv){clearInterval(tickIv);tickIv=null}var t=$$id('wd28-ticker');if(t)t.remove()}
+setInterval(function(){
+  try{
+    var m=$$id('m-battle');
+    var open=!!(m&&m.classList.contains('active'));
+    if(open&&typeof battleBusy!=='undefined'&&battleBusy){if(!tickTimer)startTicker()}
+    else if(tickTimer)stopTicker();
+  }catch(e){}
+},800);
 })();
 </script>
 </body>
