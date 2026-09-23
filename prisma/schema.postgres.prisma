@@ -427,3 +427,12 @@ model AllianceMember {
   @@index([allianceId])
   @@map("alliance_members")
 }
+
+/* V36: admin-controlled global switches (KV) — the owner turns events on/off manually */
+model GameSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("game_settings")
+}

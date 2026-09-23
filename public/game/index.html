@@ -2662,8 +2662,44 @@ async function serverAdmin(){try{const r=await sb.rpc('is_admin');return !!r.dat
 async function renderAdmin(){const b=S$('admin-body');if(!b||!sb)return;b.textContent='';
   b.append(el('div','⏳ در حال بارگذاری بازیکنان...','sites-info'));
   if(!await serverAdmin()){b.textContent='';b.append(el('div','❌ حساب تو در سرور به‌عنوان مدیر ثبت نشده است.','sites-info'));return}
+  /* ===== V36: کنترل دستی ایونت‌ها — فعال/غیرفعال توسط مدیر ===== */
+  const evWrap=el('div','','lobby-item');evWrap.style.cssText='flex-direction:column;align-items:stretch;gap:8px;border:1px solid rgba(255,204,0,.35);background:linear-gradient(150deg,rgba(50,38,4,.55),rgba(20,15,2,.7));border-radius:14px;padding:12px';
+  evWrap.append(el('div','🎛️ کنترل ایونت‌ها — روشن/خاموش','sites-h'));
+  evWrap.append(el('div','ایونت خاموش = هیچ بازیکنی به آن دسترسی ندارد (آتش‌بس المپیک هم برداشته می‌شود). تغییر برای همه فوری است.','sites-sub'));
+  let evs=null;
+  try{const er=await sb.rpc('event_switches');if(!er.error&&er.data)evs=er.data}catch(e){}
+  if(!evs)evs={olympic:true,elections:true,duels:true};
+  const EVDEF=[
+    {k:'olympic',ic:'🏅',n:'المپیک جهانی',d:'بازی‌ها، ثبت‌نام و آتش‌بس مقدس'},
+    {k:'elections',ic:'🏛️',n:'انتخابات جهانی',d:'نامزدی، رأی‌گیری و ریاست‌جمهوری'},
+    {k:'duels',ic:'⚔️',n:'دوئل دوطرفه',d:'دعوت‌های رسمی جنگ و شرط‌بندی'}];
+  for(const def of EVDEF){
+    const line=document.createElement('div');line.style.cssText='display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)';
+    const ic=document.createElement('span');ic.style.cssText='font-size:19px';ic.textContent=def.ic;
+    const mid=document.createElement('div');mid.style.cssText='flex:1;min-width:0';
+    mid.append(el('div',def.n,'sites-h'));
+    const dd=el('div',def.d,'sites-sub');dd.style.marginTop='1px';mid.append(dd);
+    const pill=document.createElement('span');pill.style.cssText='font-size:9.5px;font-weight:900;padding:3px 10px;border-radius:99px;white-space:nowrap;cursor:pointer;transition:.2s';
+    const paint=()=>{const on=evs[def.k]!==false;
+      pill.textContent=on?'✅ فعال':'⛔ خاموش';
+      pill.style.background=on?'rgba(60,200,120,.18)':'rgba(255,70,90,.16)';
+      pill.style.color=on?'#7dff9e':'#ff8ba0';
+      pill.style.border='1px solid '+(on?'rgba(60,200,120,.5)':'rgba(255,70,90,.45)')};
+    paint();
+    pill.addEventListener('click',async()=>{
+      const nv=!(evs[def.k]!==false);
+      pill.textContent='⏳ …';pill.style.opacity='.6';
+      try{const tr=await sb.rpc('event_switch_set',{p_key:def.k,p_on:nv});
+        if(tr.error||!tr.data||!tr.data.ok)throw (tr.error||new Error('fail'));
+        evs[def.k]=nv;paint();pill.style.opacity='1';
+        showToast(def.n+(nv?' فعال شد ✅':' خاموش شد ⛔')+(def.k==='olympic'&&!nv?' — آتش‌بس برداشته شد':''),'win');
+        try{window.WD33_EV=evs;window.WD33_EV_APPLY&&window.WD33_EV_APPLY()}catch(e){}}
+      catch(e){console.log(e);paint();pill.style.opacity='1';showToast('❌ تغییر ناموفق بود','lose')}});
+    line.append(ic,mid,pill);evWrap.append(line)}
+  b.append(evWrap);
   const r=await sb.from('scores').select('user_id,nick,conquered,server').order('nick');
   b.textContent='';
+  b.append(evWrap); /* V36: پنل ایونت‌ها بعد از پاک‌سازی بدنه دوباره چسبانده می‌شود */
   if(r.error){b.append(el('div','❌ خطا در دریافت اطلاعات: '+r.error.message,'sites-info'));return}
   b.append(el('div','عدد مثبت = اضافه، منفی = کم. بازیکن تا ۳۰ ثانیه بعد (وقتی آنلاین است) دریافت می‌کند.','sites-sub'));
   (r.data||[]).forEach(row=>{
@@ -8774,6 +8810,58 @@ const _ra30=renderAdmin;renderAdmin=function(){_ra30();const b=H('admin-body');i
       news('🏆 قهرمان فصل: '+champ+' — نقشه ریست شد برای فصل '+faNum(seasonState().no));
       showToast('🏆 فصل بسته شد؛ قهرمان: '+champ,'win')}catch(e){showToast('❌ خطا در اتصال','lose')}});
   wrap.append(btn);b.append(wrap)};
+/* ---------- V36: کنترل ایونت‌ها در پنل ادمین (ضد wipe با MutationObserver) ---------- */
+(function(){
+  function buildEventPanel(){
+    const wrap=document.createElement('div');
+    wrap.id='wd36-evpanel';
+    wrap.style.cssText='margin-top:12px;display:flex;flex-direction:column;align-items:stretch;gap:8px;border:1px solid rgba(255,204,0,.4);background:linear-gradient(150deg,rgba(50,38,4,.6),rgba(20,15,2,.75));border-radius:14px;padding:12px';
+    wrap.innerHTML='<div style="font-weight:900;font-size:12.5px;color:#ffe08a">🎛️ کنترل ایونت‌ها — روشن/خاموش</div>'+
+      '<div style="font-size:9.5px;color:#9fb6d4">ایونت خاموش = برای همه‌ی بازیکنان بسته می‌شود (آتش‌بس المپیک هم برداشته می‌شود). تغییر فوری است.</div>';
+    const EVDEF=[
+      {k:'olympic',ic:'🏅',n:'المپیک جهانی',d:'بازی‌ها، ثبت‌نام و آتش‌بس مقدس'},
+      {k:'elections',ic:'🏛️',n:'انتخابات جهانی',d:'نامزدی، رأی‌گیری و ریاست‌جمهوری'},
+      {k:'duels',ic:'⚔️',n:'دوئل دوطرفه',d:'دعوت‌های رسمی جنگ و شرط‌بندی'}];
+    let evs={olympic:true,elections:true,duels:true};
+    try{window.sb&&sb.rpc('event_switches').then(r=>{if(!r.error&&r.data){evs=r.data;paint()}}).catch(()=>{})}catch(e){}
+    EVDEF.forEach(def=>{
+      const line=document.createElement('div');line.style.cssText='display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)';
+      const ic=document.createElement('span');ic.style.cssText='font-size:19px';ic.textContent=def.ic;
+      const mid=document.createElement('div');mid.style.cssText='flex:1;min-width:0';
+      const t1=document.createElement('div');t1.style.cssText='font-weight:800;font-size:11.5px;color:#fff';t1.textContent=def.n;
+      const t2=document.createElement('div');t2.style.cssText='font-size:9px;color:#8fb8dd';t2.textContent=def.d;
+      mid.append(t1,t2);
+      const pill=document.createElement('span');pill.style.cssText='font-size:9.5px;font-weight:900;padding:3px 10px;border-radius:99px;white-space:nowrap;cursor:pointer;transition:.2s';
+      const paint=()=>{const on=evs[def.k]!==false;
+        pill.textContent=on?'✅ فعال':'⛔ خاموش';
+        pill.style.background=on?'rgba(60,200,120,.18)':'rgba(255,70,90,.16)';
+        pill.style.color=on?'#7dff9e':'#ff8ba0';
+        pill.style.border='1px solid '+(on?'rgba(60,200,120,.5)':'rgba(255,70,90,.45)')};
+      paint();
+      pill.addEventListener('click',async()=>{
+        const nv=!(evs[def.k]!==false);
+        pill.textContent='⏳ …';pill.style.opacity='.6';
+        try{const tr=await sb.rpc('event_switch_set',{p_key:def.k,p_on:nv});
+          if(tr.error||!tr.data||!tr.data.ok)throw (tr.error||new Error('fail'));
+          evs[def.k]=nv;paint();pill.style.opacity='1';
+          showToast(def.n+(nv?' فعال شد ✅':' خاموش شد ⛔')+(def.k==='olympic'&&!nv?' — آتش‌بس برداشته شد':''),'win');
+          try{window.WD33_EV=evs;window.WD33_EV_APPLY&&window.WD33_EV_APPLY()}catch(e){}}
+        catch(e){console.log(e);paint();pill.style.opacity='1';showToast('❌ تغییر ناموفق بود','lose')}});
+      line.append(ic,mid,pill);wrap.append(line)});
+    return wrap}
+  const mo=new MutationObserver(()=>{
+    try{
+      const b=document.getElementById('admin-body');if(!b)return;
+      if(b.querySelector('#wd36-evpanel'))return;
+      /* ACC با const تعریف شده — از طریق lexical scope قابل دسترسی است نه window */
+      let authed=false;try{authed=typeof ACC!=='undefined'&&ACC&&!!ACC.uid}catch(e){authed=false}
+      if(!authed)return;
+      /* فقط وقتی بدنه‌ی ادمین واقعاً پر شده (لیست بازیکن یا پیام خطا) تزریق کن */
+      if(b.children.length<1)return;
+      b.insertBefore(buildEventPanel(),b.firstChild)
+    }catch(e){}});
+  mo.observe(document.getElementById('admin-body')||document.body,{childList:true,subtree:false});
+})();
 })();
 </script>
 <script id="v30-fronts">
@@ -8920,6 +9008,10 @@ window.addEventListener('load',()=>{setInterval(drawFronts,4000)});
 #hud-olympic.wg33-live{border-color:rgba(255,214,80,.95);animation:wg33FabPulse 1.6s infinite}
 #hud-olympic.wg33-live .wdol-fab-dot{display:block}
 #hud-olympic.wg33-live .wdol-fab-label{color:#ff9db6;border-color:rgba(255,51,102,.55);background:rgba(40,4,14,.94)}
+/* V36: admin-disabled state — gray, sleeping, still tappable to show why */
+#hud-olympic.wg33-off{filter:grayscale(.85) brightness(.6);border-color:rgba(140,140,150,.4)}
+#hud-olympic.wg33-off::before{animation:none;opacity:0}
+#hud-olympic.wg33-off .wdol-fab-label{color:#aab4c4;border-color:rgba(140,150,165,.4);background:rgba(16,18,24,.95)}
 @keyframes wg33FabPulse{0%,100%{box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 10px rgba(255,204,0,.4)}50%{box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 26px rgba(255,204,0,.95)}}
 </style>
 <script id="v31-pages">
@@ -9178,6 +9270,14 @@ function wdolFabPlace(){try{
   if(s){const r=s.getBoundingClientRect();if(r.bottom>60)top=Math.min(window.innerHeight-190,Math.max(96,Math.round(r.bottom)+16))}
   fab.style.top=top+'px'}catch(e){}}
 window.WD33_FAB_PLACE=wdolFabPlace;
+/* V36: apply admin event switches to the FAB — gray when the olympics are off */
+window.WD33_EV_APPLY=function(){try{
+  const fab=H('hud-olympic');if(!fab)return;
+  const off=window.WD33_EV&&window.WD33_EV.olympic===false;
+  fab.classList.toggle('wg33-off',!!off);
+  if(off)fab.classList.remove('wg33-live');
+  const strip=H('wd33-strip');if(strip&&off)strip.style.display='none'
+}catch(e){}};
 window.addEventListener('load',()=>{setTimeout(()=>{try{
   let fab=H('hud-olympic');
   if(fab&&fab.classList.contains('hchip'))fab.remove(); /* old squeezed chip from a cached session → rebuild as FAB */
@@ -9186,7 +9286,7 @@ window.addEventListener('load',()=>{setTimeout(()=>{try{
     fab.innerHTML=(window.WD33_ICON?window.WD33_ICON(46):'🏅')+'<span class="wdol-fab-dot"></span><span class="wdol-fab-label">المپیک</span>';
     fab.addEventListener('click',function(){try{window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}});
     D.body.appendChild(fab)}
-  wdolFabPlace();
+  wdolFabPlace();window.WD33_EV_APPLY();
   window.addEventListener('resize',wdolFabPlace);
   const old=H('hud-srv');
   if(old&&!old.__wd31){const neo=old.cloneNode(false);neo.textContent=old.textContent;neo.title='شناسنامه‌ی سینمایی سرور';neo.style.cursor='pointer';
@@ -9275,6 +9375,10 @@ function museumMedal(c){try{
 /* ---------- poll olympic_status (90s) — keeps badges/crown fresh for everyone ---------- */
 function handleStatus(d){try{
   if(!d)return;
+  /* V36: admin event switches — olympic/elections/duels on-off comes from the server */
+  if(d.events){
+    window.WD33_EV={olympic:d.events.olympic!==false,elections:d.events.elections!==false,duels:d.events.duels!==false};
+    if(window.WD33_EV_APPLY)window.WD33_EV_APPLY()}
   const ch=(d.champion&&d.champion.nick)?d.champion:null;
   let prevSeen=-1;try{prevSeen=Number(localStorage.getItem(seenKey())||-1)}catch(e){}
   const changed=!!(ch&&Number(ch.cycle||0)>prevSeen);
@@ -9682,9 +9786,72 @@ function rewardsCard(){return '<div class="wd31-card wd32-prize">'+secTitle('�
   '<div class="wd32-prize-grid"><span class="wd32-pz">💎 ۴ جم قهرمان</span><span class="wd32-pz">🪙 ۱۰۰٬۰۰۰ سکه قهرمان</span><span class="wd32-pz">⚡ بوست ۲۴ ساعته</span>'+
   '<span class="wd32-pz">💎 ۳ جم هر شرکت‌کننده</span><span class="wd32-pz">🗿 مجسمه‌ی طلایی دائمی</span><span class="wd32-pz">📜 آرشیو تاریخ</span></div>'+
   '<div class="wd32-prize-note">قهرمان کلی دوره (بیشترین مدال): بسته‌ی کامل جایزه + سرود + پرچم طلایی ۲۴ ساعته روی نقشه + تاج کنار نام برای همه.<br>هر مدال یک رنگ به پایه‌ی مجسمه‌ات اضافه می‌کند؛ مدال در ۲ دوره‌ی پیاپی = لقب «⭐ اسطوره‌ی المپیک» که هیچ‌جای دیگه‌ی بازی پیدا نمی‌شود.</div></div>'}
+/* ============ V36: رتبه‌بندی هر رشته با پیشرفت شخصی — فیکس «دکمه رنکینگ پیشرفت هر بخش را نشان نمی‌دهد» ============ */
+let wgRankKey=null,wgRankTok=0;
+async function wgLoadRank(k){
+  const panel=D.getElementById('wg33-rankpanel');if(!panel)return;
+  wgRankKey=k;const tok=++wgRankTok;
+  const m=GD33[k]||{ic:'🏅',fa:k};
+  [...D.querySelectorAll('#wg33-rankchips .wg33-disc')].forEach(c=>c.classList.toggle('sel',c.getAttribute('data-k')===k));
+  panel.innerHTML='<div class="wd31-mini" style="padding:10px 0">⏳ رتبه‌بندی '+esc(m.fa)+'…</div>';
+  const r=await rpc33('olympic_rank',{p_discipline:k});
+  if(tok!==wgRankTok)return; /* پاسخ کهنه — کاربر رشته‌ی دیگری را زده */
+  if(!r.ok||!r.d||!r.d.ok){panel.innerHTML='<div class="wd31-mini">رتبه‌بندی این رشته الان در دسترس نیست'+((r.d&&r.d.reason)==='disabled'?' — المپیک خاموش است':'')+'.</div>';return}
+  const rows=r.d.rows||[],my=r.d.my,total=r.d.total||rows.length,leader=(r.d.leader!=null)?r.d.leader:(rows.length?rows[0].best:0);
+  const frozen=r.d.frozen;
+  const maxB=Math.max(1,leader||1);
+  let rh='';
+  rh+='<div style="display:flex;align-items:center;gap:8px;margin:2px 0 8px">'+
+    '<span style="font-size:17px">'+m.ic+'</span><b style="font-size:13px;color:#ffe08a">'+esc(m.fa)+'</b>'+
+    (frozen?'<span class="chip33 wd32-tag" style="font-size:8.5px">نهایی — دوره‌ی '+faN(r.d.edition||0)+'</span>':'<span class="chip33" style="font-size:8.5px;color:#7dff9e">زنده</span>')+
+    '<span class="wd31-mini" style="margin-inline-start:auto">'+faN(total)+' شرکت‌کننده</span></div>';
+  if(!rows.length&&!my)rh+='<div class="wd31-mini">هنوز کسی در این رشته امتیازی نگرفته — اولین نفر باش!</div>';
+  else{
+    rh+=rows.slice(0,10).map(x=>{const mine=(typeof ACC!=='undefined'&&ACC&&my&&my.rank===x.rank&&x.nick===((typeof myNick==='function'&&myNick())||''));
+      const w=Math.max(5,Math.round(x.best/maxB*100));
+      const medal=x.rank<=3?['🥇','🥈','🥉'][x.rank-1]:faN(x.rank);
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 9px;margin-top:5px;border-radius:11px;'+(mine?'border:1px solid rgba(255,214,60,.6);background:rgba(255,214,60,.08)':'background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06)')+'">'+
+        '<span style="min-width:26px;text-align:center;font-weight:900;font-size:11px;color:'+(x.rank<=3?'#ffd75e':'#9fb6d4')+'">'+medal+'</span>'+
+        '<div style="flex:1;min-width:0"><div style="font-size:11.5px;color:#fff;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.nick)+(mine?' <span class="wd35-you">شما</span>':'')+' <span class="wd31-mini">• '+esc(x.countryFa||'')+'</span></div>'+
+        '<div style="height:4px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:3px;overflow:hidden"><i style="display:block;height:100%;width:'+w+'%;border-radius:3px;background:linear-gradient(90deg,#ffd75e,#ff9d3c);transition:width .6s"></i></div></div>'+
+        '<b style="font-size:11px;color:#ffe08a;min-width:34px;text-align:left">'+faN(x.best)+'</b></div>'}).join('');
+    /* MY standing — even outside top-10 */
+    if(my){
+      const inTop10=my.rank&&my.rank<=10;
+      if(!inTop10){
+        rh+='<div style="display:flex;align-items:center;gap:8px;padding:6px 9px;margin-top:5px;border-radius:11px;border:1px solid rgba(255,214,60,.6);background:rgba(255,214,60,.08)">'+
+          '<span style="min-width:26px;text-align:center;font-weight:900;font-size:11px;color:#9fb6d4">'+(my.rank?faN(my.rank):'—')+'</span>'+
+          '<div style="flex:1;min-width:0"><div style="font-size:11.5px;color:#fff;font-weight:800">تو <span class="wd35-you">شما</span></div>'+
+          '<div style="height:4px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:3px;overflow:hidden"><i style="display:block;height:100%;width:'+Math.max(4,Math.round((my.best||0)/maxB*100))+'%;border-radius:3px;background:linear-gradient(90deg,#ffd75e,#ff9d3c)"></i></div></div>'+
+          '<b style="font-size:11px;color:#ffe08a;min-width:34px;text-align:left">'+faN(my.best||0)+'</b></div>'}
+      if(my.best>0&&leader>my.best)rh+='<div class="wd31-mini" style="margin-top:7px;color:#8fb8dd">🎯 فاصله تا صدرنشینی: <b style="color:#ffe08a">'+faN(leader-my.best)+'</b> امتیاز</div>';
+      if(my.rank&&my.rank<=3)rh+='<div class="wd31-mini" style="margin-top:7px;color:#7dff9e">'+['👑 تو صدرنشینی!','🥈 جایگاه دوم — تخت را رها نکن','🥉 روی سکو! یک پله مانده'][my.rank-1]+'</div>';
+      if((!my.best)&&!frozen)rh+='<div class="wd31-mini" style="margin-top:7px">هنوز در این رشته امتیازی نگرفته‌ای — بازی کن!</div>';
+    }
+  }
+  panel.innerHTML=rh;
+}
+function rankSection(){
+  let s='<div class="wd31-card" id="wg33-rankcard">'+secTitle('📊','رتبه‌بندی هر رشته — پیشرفت تو')+
+    '<div class="wd31-mini" style="margin:0 0 8px">یک رشته را بزن تا جدول زنده‌ی آن با نوار پیشرفت و جایگاه شخصی‌ات باز شود</div>'+
+    '<div class="wg33-grid3" id="wg33-rankchips" style="grid-template-columns:repeat(5,1fr);gap:6px">'+
+    GD_KEYS.map(k=>'<div class="wg33-disc" data-k="'+k+'" style="padding:8px 4px"><div class="ic" style="font-size:19px">'+GD33[k].ic+'</div><div class="nm" style="font-size:8.5px">'+esc(GD33[k].fa)+'</div></div>').join('')+'</div>'+
+    '<div id="wg33-rankpanel" style="margin-top:8px"></div></div>';
+  return s}
 function renderHub(){
   const wrap=D.getElementById('wg33-wrap');if(!wrap||!wgOpenFlag)return;
   const g=gPhase33();const d=WG33||{};
+  /* V36: المپیک از پنل ادمین خاموش شده — صفحه‌ی شفاف با آرشیو و رکوردها */
+  if(d.disabled){
+    let hh='<section class="wg33-hero2"><span class="wg33-big">'+(window.WD33_ICON?window.WD33_ICON(64):'🏅')+'</span>'+
+      '<div class="wd31-kicker" style="margin-top:10px">WORLD DOMINION OLYMPIC GAMES</div>'+
+      '<h1 class="wd31-title">المپیک جهانی — دوره‌ی '+faN(d.edition||g.edition)+'</h1>'+
+      '<div class="wg33-ph" style="display:inline-block;margin-top:10px;background:rgba(60,64,74,.75);border-color:rgba(150,155,170,.5);color:#c7cedd">⛔ این ایونت توسط مدیر بازی موقتاً غیرفعال شده است</div>'+
+      '<div class="wd31-mini" style="margin-top:10px">ثبت‌نام، بازی‌ها و آتش‌بس مقدس تا فعال شدن دوباره متوقف است • جنگ آزاد است • برای سؤال از مدیر بپرس</div></section>'+
+      '<div class="wd31-card">'+secTitle('⚡','رکوردهای همه‌ی دوران')+'<div>'+recordsBox(d.records)+'</div></div>'+
+      '<div class="wd31-card">'+secTitle('📜','آرشیو المپیک — میراث دائمی')+archiveBox(d.archive)+'</div>'+
+      '<div class="wd31-note">مدیر می‌تواند از پنل 👑 مدیریت، المپیک را دوباره فعال کند</div>';
+    wrap.innerHTML=hh;rise33(wrap);return}
   const my=(d.my||{reg:[],entries:{}});
   const career=myNick()&&(d.career||{})[myNick()];
   const stHtml=(career?statue33(career.g,career.s,career.b,64):'')+(legend33(career)?' <span class="wg33-legend">⭐ اسطوره‌ی المپیک</span>':'');
@@ -9752,6 +9919,7 @@ function renderHub(){
   h+='<div class="wd31-card">'+secTitle('🏅','جدول مدال‌ها — بر اساس کشور')+
     '<div class="wd31-mini" style="margin:0 0 6px">برای مرتب‌سازی روی ستون‌ها بزن • زنده</div><div id="wg33-tblbox">'+medalTable(d.table)+'</div></div>';
   /* records + my results during live/after */
+  h+=rankSection();
   h+='<div class="wd31-card">'+secTitle('⚡','رکوردهای همه‌ی دوران')+'<div>'+recordsBox(d.records)+'</div></div>';
   /* archive */
   h+='<div class="wd31-card">'+secTitle('📜','آرشیو المپیک — میراث دائمی')+archiveBox(d.archive)+'</div>';
@@ -9781,6 +9949,8 @@ function renderHub(){
     sndK('click')}));
   wrap.querySelectorAll('[data-play]').forEach(b=>b.addEventListener('click',()=>{const k=b.getAttribute('data-play');
     if(window.WD33_PLAY)window.WD33_PLAY(k)}));
+  /* V36: per-discipline ranking chips */
+  wrap.querySelectorAll('#wg33-rankchips .wg33-disc').forEach(c=>c.addEventListener('click',()=>{sndK('click');wgLoadRank(c.getAttribute('data-k'))}));
   const rp=D.getElementById('wg33-replay');
   if(rp)rp.addEventListener('click',()=>{try{localStorage.setItem('wd33open_'+g.edition,'0');if(window.WD33_OPEN_CEREMONY)window.WD33_OPEN_CEREMONY()}catch(e){}});
 }
@@ -9804,6 +9974,8 @@ async function wgRefresh(force){
     if(typeof ACC==='undefined'||!ACC||!ACC.uid){strip33Update(null);return}
     const r=await rpc33('olympic_games',{p_server:srvN()});
     if(!r.ok||!r.d)return;
+    /* V36: admin switch — the hub payload carries {disabled:true} when the olympics are off */
+    if(r.d.disabled){WG33={disabled:true,edition:r.d.edition||0};if(wgOpenFlag)renderHub();return}
     WG33=r.d;
     window.__wg33career=r.d.career||{};
     window.WD33_CAREER=function(n){try{return (window.__wg33career||{})[n]||null}catch(e){return null}};
@@ -10033,6 +10205,8 @@ function on33(el,ev,fn,opt){el.addEventListener(ev,fn,opt);CL.clean.push(()=>{tr
 function ensureStage(){if(!stage){stage=D.createElement('div');stage.id='wd33-stage';stage.classList.add('wg35-stadium');
   stage.innerHTML='<div class="s33hd"><span class="ic" id="wg33-ic">🏅</span><span class="nm" id="wg33-nm"></span><span class="chips"><span class="chip33" id="wg33-att"></span><span class="chip33" id="wg33-bst"></span><button class="x33" id="wg33-x">✕</button></span></div><div class="s33bd" id="wg33-sbd"></div><div class="s33ft" id="wg33-sft"></div>';
   D.body.appendChild(stage);
+  /* V35: تماشاگران سینمایی بالای استادیوم */
+  stage.insertAdjacentHTML('afterbegin','<div class="wg35-crowd" aria-hidden="true"><span>🎉</span><span>🇮🇷</span><span>🎉</span><span>🇧🇷</span><span>🎉</span><span>🇫🇷</span><span>🎉</span><span>🇯🇵</span><span>🎉</span><span>🇩🇪</span><span>🎉</span><span>🇬🇧</span></div>');
   stage.insertAdjacentHTML('beforeend','<div class="wg35-flash" id="wg33-fxflash"></div>');
   stage.querySelector('#wg33-x').addEventListener('click',()=>closeStage(true))}
   FX.ensure();
@@ -10057,7 +10231,12 @@ const FX=(()=>{
       if(ctx)ctx.setTransform(dpr,0,0,dpr,0,0)};
     rs();window.addEventListener('resize',rs);CL.clean.push(()=>{try{window.removeEventListener('resize',rs)}catch(e){}});
     return true}
-  function start(){if(run||!cv)return;run=true;requestAnimationFrame(tick)}
+  /* V35.1: stage وقتی hidden→on می‌شود باید canvas دوباره اندازه بگیرد (وگرنه ۰×۰ می‌ماند) */
+  function sync(){if(!cv||!ctx)return;const r=stage.getBoundingClientRect();
+    if(Math.round(r.width)!==Math.round(vw)||Math.round(r.height)!==Math.round(vh)||vw===0){
+      dpr=Math.min(2,window.devicePixelRatio||1);vw=r.width;vh=r.height;
+      cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);ctx.setTransform(dpr,0,0,dpr,0,0)}}
+  function start(){if(run||!cv)return;sync();run=true;requestAnimationFrame(tick)}
   function tick(){if(!run||!sOpen){run=false;return}
     ctx.clearRect(0,0,vw,vh);
     if(parts.length){
@@ -10091,9 +10270,11 @@ const FX=(()=>{
     setTimeout(()=>{el.style.transform=''},130)}
   function stop(){run=false;parts=[];if(cv&&ctx)ctx.clearRect(0,0,vw,vh)}
   function wipe(){parts=[]}
-  return{ensure,pt,spark,conf,text,ring,shake,flash,punch,stop,wipe};
+  return{ensure,sync,pt,spark,conf,text,ring,shake,flash,punch,stop,wipe};
 })();
+async function openGame33(key){
   if(sOpen)return;
+  if(window.WD33_EV&&window.WD33_EV.olympic===false){showToast2('⛔ المپیک توسط مدیر بازی غیرفعال شده است','lose');return}
   const m=GD33[key];if(!m)return;
   const g=(typeof window.WD33_PHASE==='function')?window.WD33_PHASE():null;
   if(!g||g.phase!=='live'){showToast2('الان زمان بازی‌ها نیست','lose');return}
@@ -10105,6 +10286,7 @@ const FX=(()=>{
   const e=ent[key]||{best:0,attempts:0};
   if(e.attempts>=5){showToast2('۵ تلاش این رشته تمام شد','lose');return}
   ensureStage();sOpen=true;stage.classList.add('on');
+  FX.sync(); /* V35.1: اندازه‌ی canvas بعد از نمایان شدن صحنه */
   D.getElementById('wg33-ic').textContent=m.ic;
   D.getElementById('wg33-nm').textContent=m.fa;
   hud({att:e.attempts,best:e.best});
@@ -10115,19 +10297,31 @@ const FX=(()=>{
     });
   });
 };
+/* V35.1: دکمه‌ی «بازی کن» هاب به این ورودی وصل است — در تدفین قبلی گم شده بود */
+window.WD33_PLAY=openGame33;
 function showToast2(m,k){try{showToast(m,k)}catch(e){}}
 function intro33(bd,m,e,onStart){
-  bd.innerHTML='<div class="wg33-intro"><div class="big">'+m.ic+'</div><h2>'+esc(m.fa)+'</h2><p>'+esc(m.tip)+'</p>'+
+  bd.innerHTML='<div class="wg33-intro"><div class="big" id="wg33-introic">'+m.ic+'</div><h2>'+esc(m.fa)+'</h2><p>'+esc(m.tip)+'</p>'+
     '<p style="font-size:11px;color:#8fb8dd">بهترین امتیاز فعلی: '+faN(e.best||0)+' • تلاش‌های باقی‌مانده: '+faN(5-(e.attempts||0))+'</p>'+
     '<button class="wg33-start" id="wg33-go">شروع رقابت</button></div>';
   foot('برای شروع، دکمه را بزن — حین بازی صفحه را نکش');
+  /* V35: شعله‌ی زنده روی آیکون معرفی + پانچ دکمه شروع */
+  tm33(()=>{const b=bd.querySelector('#wg33-go');if(b){FX.punch(b)}},900);
   bd.querySelector('#wg33-go').addEventListener('click',onStart);
 }
 function countdown33(bd,cb){
-  let n=3;bd.innerHTML='<div class="wg33-count" id="wg33-cd">۳</div>';sndK2('click');
+  /* V35: شمارش معکوس سینمایی با حلقه‌ی SVG که می‌بندد + پاپ عدد */
+  let n=3;
+  bd.innerHTML='<div class="wg33-count-wrap"><svg viewBox="0 0 190 190"><circle cx="95" cy="95" r="84" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="9"/>'+ 
+    '<circle id="wg33-cdr" cx="95" cy="95" r="84" fill="none" stroke="#ffd75e" stroke-width="9" stroke-linecap="round" stroke-dasharray="528" stroke-dashoffset="0" style="transition:stroke-dashoffset .82s linear;filter:drop-shadow(0 0 10px rgba(255,204,0,.7))"/></svg><div class="wg33-count cd" id="wg33-cd">۳</div></div>';
+  sndK2('click');
+  const ring=D.getElementById('wg33-cdr');
   const tick=()=>{const el=D.getElementById('wg33-cd');if(!el)return;
-    if(n>0){el.textContent=faN(n);el.style.animation='none';void el.offsetWidth;el.style.animation='';n--;tm33(tick,850)}
-    else{el.textContent='شروع!';sndK2('stamp');tm33(cb,600)}};
+    if(n>0){el.textContent=faN(n);el.style.animation='none';void el.offsetWidth;el.style.animation='';
+      if(ring){ring.style.strokeDashoffset=(3-n)*(528/3)}
+      FX.ring(FX.pt(el).x,FX.pt(el).y,'rgba(255,215,94,.75)',20,110);
+      n--;tm33(tick,850)}
+    else{el.textContent='شروع!';el.style.color='#7dff9e';sndK2('stamp');FX.flash('#7dff9e',.28);FX.text(FX.pt(el).x,FX.pt(el).y-70,'GO!','#7dff9e',30);tm33(cb,600)}};
   tm33(tick,850);
 }
 function runGame(bd,key,done){
@@ -10139,9 +10333,17 @@ function runGame(bd,key,done){
 }
 async function finish33(bd,key,norm,raw,e0){
   hud({att:e0.attempts+1,best:Math.max(e0.best||0,norm)});
-  bd.innerHTML='<div class="wg33-result"><div class="big" style="font-size:40px">'+GD33[key].ic+'</div>'+
+  /* V35: ستاره‌ها ۱ تا ۳ بر اساس نُرم امتیاز + کنفتی سینمایی */
+  const stars=n=>{const s=norm>=700?3:norm>=400?2:norm>=150?1:0;let h='<div class="stars">';
+    for(let i=0;i<3;i++)h+='<i class="'+(i<s?'on':'')+'" style="animation-delay:'+(0.25+i*0.22)+'s">★</i>';return h+'</div>'};
+  bd.innerHTML='<div class="wg33-result"><div class="big" style="font-size:40px">'+GD33[key].ic+'</div>'+stars()+
     '<div class="sc">'+faN(norm)+'</div><div class="rr" id="wg33-sub">⏳ ثبت امتیاز…</div></div>';
   foot('');
+  const sN=norm>=700?3:norm>=400?2:norm>=150?1:0;
+  if(sN>=2){FX.conf(sN>=3?90:45);FX.flash('#ffd75e',.3)}
+  const cpos=FX.pt(bd.querySelector('.wg33-result')||bd,0.5,0.42);
+  FX.ring(cpos.x,cpos.y,'rgba(255,215,94,.85)',30,150);
+  FX.text(cpos.x,cpos.y-90,sN>=3?'فوق‌العاده!':sN>=2?'آفرین!':sN>=1?'خوب بود!':'دفعه‌ی بعد…','#ffd75e',22);
   const r=await (async()=>{try{const res=await sb.rpc('olympic_submit',{p_discipline:key,p_score:norm});
     if(res&&res.error)return{ok:false,reason:(res.error&&res.error.message)||'err'};return res?res.data:null}catch(e2){return{ok:false,reason:'net'}}})();
   const box=D.getElementById('wg33-sub');
@@ -10170,20 +10372,25 @@ async function finish33(bd,key,norm,raw,e0){
 
 /* ================= 10 GAMES ================= */
 const GAMES={};
-/* 1 — sprint: raw taps in 8s */
+/* 1 — sprint: raw taps in 8s (V35: lane animation + tap sparks + dust trail) */
 GAMES.sprint=(el,done)=>{
-  el.innerHTML='<div class="gm33-track"><span class="gm33-zone" style="left:0">👆</span><span class="gm33-zone" style="right:0">👆</span><span class="gm33-runner" id="g33run">🏃</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div>';
-  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s');
+  el.innerHTML='<div class="gm33-track" style="position:relative"><span class="gm35-lane" id="g33lane"></span><span class="gm33-zone" style="left:0">👆</span><span class="gm33-zone" style="right:0">👆</span><span class="gm33-runner" id="g33run">🏃</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" style="color:#7fd8ff">مثل برق بزن! ⚡</div>';
+  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),lane=el.querySelector('#g33lane');
   let taps=0,t0=0;const DUR=8000;let fin=false;
   on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
-    if(!t0)t0=performance.now();taps++;sndK2('click');
-    run.style.transform='translateX('+Math.min(340,taps*4.4)+'px)';sc.textContent=faN(taps)},{passive:false});
+    if(!t0){t0=performance.now();if(lane)lane.classList.add('run')}
+    taps++;sndK2('click');
+    FX.spark(ev.clientX,ev.clientY,['#ffd75e','#fff','#ff9d3c'],7,90,0.4);
+    run.style.transform='translateX('+Math.min(340,taps*4.4)+'px)';sc.textContent=faN(taps);
+    if(taps%10===0)FX.punch(run)},{passive:false});
   loop33(()=>{const p=Math.min(1,(performance.now()-t0-600)/DUR);tb.style.width=Math.max(0,100-p*100)+'%';
-    if(!fin&&t0&&performance.now()-t0-600>=DUR){fin=true;done(Math.min(1000,taps*12))}});
+    if(!fin&&t0&&performance.now()-t0-600>=DUR){fin=true;if(lane)lane.classList.remove('run');
+      FX.flash('#fff',.35);const c=FX.pt(run);FX.text(c.x,c.y-40,taps>=65?'🔥 اسطوره!':taps>=50?'عالی!':'پایان','#ffd75e',22);
+      done(Math.min(1000,taps*12))}});
 };
-/* 2 — archery: moving target, 5 shots */
+/* 2 — archery: moving target, 5 shots (V35: impact rings + floating points + bullseye burst) */
 GAMES.archery=(el,done)=>{
-  el.innerHTML='<div class="gm33-track" style="height:120px"><div class="gm33-rings" id="g33tg"></div><div class="gm33-flash" id="g33fl"></div></div><div class="gm33-score" id="g33s">۰ / ۵۰</div><div class="gm33-step" id="g33st">تیر ۱ از ۵</div>';
+  el.innerHTML='<div class="gm33-track" style="height:120px;position:relative"><div class="gm33-rings" id="g33tg">🎯</div><div class="gm33-flash" id="g33fl"></div></div><div class="gm33-score" id="g33s">۰ / ۵۰</div><div class="gm33-step" id="g33st">تیر ۱ از ۵</div>';
   const tg=el.querySelector('#g33tg'),fl=el.querySelector('#g33fl'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st');
   const W=el.querySelector('.gm33-track').clientWidth||340;
   let shot=0,pts=0,t0=performance.now();let fin=false;
@@ -10196,13 +10403,19 @@ GAMES.archery=(el,done)=>{
     const rect=tg.getBoundingClientRect(),px=ev.clientX-(rect.left+rect.width/2);
     const d=Math.abs(px);const p=d<10?10:d<20?9:d<32?8:d<46?6:d<64?4:2;
     pts+=p;shot++;sc.textContent=faN(pts)+' / ۵۰';st.textContent='تیر '+faN(Math.min(5,shot+1))+' از ۵';
+    /* V35: حلقه‌ی برخورد + امتیاز شناور + انفجار کمانه */
+    FX.ring(ev.clientX,ev.clientY,p>=9?'rgba(125,255,158,.95)':p>=6?'rgba(255,215,94,.9)':'rgba(255,139,160,.85)',6,p>=9?64:40);
+    FX.spark(ev.clientX,ev.clientY,p>=9?['#7dff9e','#ffd75e','#fff']:['#ffb02e','#ff8ba0'],p>=9?16:8,110,0.6);
+    FX.text(ev.clientX,ev.clientY-14,(p>=9?'🎯 ':'')+faN(p),p>=9?'#7dff9e':p>=6?'#ffd75e':'#ff8ba0',p>=9?22:16);
     fl.innerHTML='<span style="color:'+(p>=9?'#7dff9e':p>=6?'#ffd75e':'#ff8ba0')+'">'+(p>=9?'💥 ':'')+faN(p)+'</span>';
+    if(p>=9){FX.shake()}
     tm33(()=>{fl.innerHTML=''},600);sndK2(p>=8?'coin':'click');
-    if(shot>=5){fin=true;done(Math.min(1000,pts*20))}});
+    if(shot>=5){fin=true;const c=FX.pt(tg);FX.text(c.x,c.y-50,pts>=40?'کمانگیر افسانه‌ای!':pts>=28?'تیرانداز ماهر':'پایان','#ffd75e',20);
+      done(Math.min(1000,pts*20))}});
 };
-/* 3 — swim: alternating taps 10s */
+/* 3 — swim: alternating taps 10s (V35: water + waves + splash on correct side) */
 GAMES.swim=(el,done)=>{
-  el.innerHTML='<div class="gm33-track"><span class="gm33-zone" style="left:0">👈</span><span class="gm33-zone" style="right:0">👉</span><span class="gm33-runner" id="g33run">🏊</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step">یکی‌درمیان! همان سمت پیاپی نمی‌شمارد</div>';
+  el.innerHTML='<div class="gm33-track" style="position:relative;overflow:hidden"><span class="gm35-water"></span><span class="gm35-wave" style="bottom:18px"></span><span class="gm35-wave" style="bottom:44px;opacity:.3"></span><span class="gm33-zone" style="left:0">👈</span><span class="gm33-zone" style="right:0">👉</span><span class="gm33-runner" id="g33run" style="z-index:2">🏊</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step">یکی‌درمیان! همان سمت پیاپی نمی‌شمارد</div>';
   const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s');
   let strokes=0,last=-1,t0=0;const DUR=10000;let fin=false;
   const trk=el.querySelector('.gm33-track');
@@ -10210,20 +10423,24 @@ GAMES.swim=(el,done)=>{
     if(!t0)t0=performance.now();
     const side=ev.clientX<window.innerWidth/2?0:1;
     if(side!==last){strokes++;last=side;sndK2('click');
+      FX.spark(ev.clientX,ev.clientY,['#9adcff','#fff','#39e6d0'],9,95,0.5);
+      FX.ring(ev.clientX,ev.clientY,'rgba(153,220,255,.85)',5,44);
       run.style.transform='translateX('+Math.min(320,strokes*4.6)+'px)';sc.textContent=faN(strokes)}
-    else sc.style.color='#ff8ba0';
+    else{sc.style.color='#ff8ba0';FX.shake()}
     setTimeout(()=>{sc.style.color=''},250)},{passive:false});
   loop33(()=>{if(!t0)return;const p=Math.min(1,(performance.now()-t0)/DUR);tb.style.width=(100-p*100)+'%';
-    if(!fin&&p>=1){fin=true;done(Math.min(1000,strokes*14))}});
+    if(!fin&&p>=1){fin=true;const c=FX.pt(run);FX.text(c.x,c.y-40,strokes>=110?'🐋 موج‌سوار!':strokes>=85?'شناگر طلایی':'پایان','#9adcff',21);
+      if(strokes>=110)FX.conf(60);
+      done(Math.min(1000,strokes*14))}});
 };
-/* 4 — gym: directional sequence (single loop + step generation — no loop accumulation) */
+/* 4 — gym: directional sequence (V35: combo meter + PERFECT pops + shake on miss) */
 GAMES.gym=(el,done)=>{
-  el.innerHTML='<div class="gm33-arrowbig" id="g33ar">⬆️</div><div class="gm33-timer" style="width:min(60vw,240px)"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-pad"><button class="up" data-d="0">⬆️</button><button class="lf" data-d="2">⬅️</button><button class="dn" data-d="1">⬇️</button><button class="rt" data-d="3">➡️</button></div>';
+  el.innerHTML='<div class="gm35-combo" id="g33cmb"></div><div class="gm33-arrowbig" id="g33ar">⬆️</div><div class="gm33-timer" style="width:min(60vw,240px)"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-pad"><button class="up" data-d="0">⬆️</button><button class="lf" data-d="2">⬅️</button><button class="dn" data-d="1">⬇️</button><button class="rt" data-d="3">➡️</button></div>';
   const AR=['⬆️','⬇️','⬅️','➡️'];
-  const ar=el.querySelector('#g33ar'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s');
-  let step=0,pts=0,miss=0,stepT0=performance.now(),cur=0,gen=0,fin=false;
+  const ar=el.querySelector('#g33ar'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),cmb=el.querySelector('#g33cmb');
+  let step=0,pts=0,miss=0,stepT0=performance.now(),cur=0,gen=0,fin=false,combo=0;
   const win=[1600,1600,1450,1450,1300,1300,1150,1150,1000,1000,850,850];
-  const end=()=>{fin=true;done(Math.min(1000,pts))};
+  const end=()=>{fin=true;if(combo>=5)FX.conf(50);done(Math.min(1000,pts))};
   const next=()=>{if(fin)return;
     if(step>=12||miss>=4){end();return}
     cur=Math.floor(Math.random()*4);ar.textContent=AR[cur];
@@ -10231,19 +10448,23 @@ GAMES.gym=(el,done)=>{
   loop33(()=>{if(fin)return;
     const w=win[Math.min(11,step)];const p=(performance.now()-stepT0)/w;
     if(tb)tb.style.width=Math.max(0,100-p*100)+'%';
-    if(p>=1){miss++;step++;sndK2('alert');next()}});
+    if(p>=1){miss++;combo=0;if(cmb)cmb.textContent='';FX.shake();sndK2('alert');next()}});
   el.querySelectorAll('.gm33-pad button').forEach(b=>b.addEventListener('pointerdown',ev=>{ev.preventDefault();
     if(fin)return;
     const w=win[Math.min(11,step)];const el3=performance.now()-stepT0;
     if(Number(b.getAttribute('data-d'))===cur){
-      pts+=70+(el3<w*.4?30:0);step++;sndK2('coin');sc.textContent=faN(pts);
+      const fast=el3<w*.4;const gained=70+(fast?30:0);
+      pts+=gained;step++;combo++;sndK2('coin');sc.textContent=faN(pts);
+      FX.punch(ar);FX.spark(FX.pt(ar).x,FX.pt(ar).y,fast?['#7dff9e','#ffd75e']:['#ffd75e'],fast?14:8,95,0.5);
+      if(fast){const p2=FX.pt(ar);FX.text(p2.x,p2.y-50,'بی‌نقص! +'+faN(gained),'#7dff9e',18)}
+      if(cmb&&combo>=3){cmb.textContent='🔥 کمبو ×'+faN(combo)}
       next()}
-    else{miss++;sndK2('alert');next()}},{passive:false}));
+    else{miss++;combo=0;if(cmb)cmb.textContent='';FX.shake();sndK2('alert');next()}},{passive:false}));
   next();
 };
-/* 5 — weight: timing bar, 5 lifts */
+/* 5 — weight: timing bar, 5 lifts (V35: aura + accuracy sparks + crowd storm at end) */
 GAMES.weight=(el,done)=>{
-  el.innerHTML='<div class="gm33-bar" id="g33bar"><div class="gm33-gold" id="g33z"></div><div class="gm33-marker" id="g33m"></div></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">حرکت ۱ از ۵</div>';
+  el.innerHTML='<div class="gm33-bar" id="g33bar" style="position:relative"><span class="gm35-crowdstat"></span><div class="gm33-gold" id="g33z"></div><div class="gm33-marker" id="g33m">🏋️</div></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">حرکت ۱ از ۵ — دقیق در ناحیه‌ی طلایی بزن</div>';
   const bar=el.querySelector('#g33bar'),z=el.querySelector('#g33z'),m=el.querySelector('#g33m'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st');
   const H=bar.clientHeight||190;
   let lift=0,pts=0,t0=performance.now();let fin=false;
@@ -10262,22 +10483,38 @@ GAMES.weight=(el,done)=>{
     const p=Math.max(0,1-d/(zh*2.2));
     const got=Math.round(200*p);pts+=got;lift++;
     sc.textContent=faN(pts);st.textContent='حرکت '+faN(Math.min(5,lift+1))+' از ۵';
+    /* V35: هاله + جرقه بر اساس دقت */
+    const mc=FX.pt(bar,0.5,my/H);
+    FX.ring(mc.x,mc.y,p>.6?'rgba(125,255,158,.95)':'rgba(255,179,46,.9)',8,p>.6?70:40);
+    FX.spark(mc.x,mc.y,p>.6?['#7dff9e','#ffd75e','#fff']:['#8a8f9e','#5a6070'],p>.6?14:6,120,.7);
+    bar.classList.remove('gm35-aura');void bar.offsetWidth;if(p>.6)bar.classList.add('gm35-aura');
+    if(p>.85)FX.text(mc.x,mc.y-30,'⚡ مهاربند فولادین!','#7dff9e',17);
+    else if(p>.6)FX.text(mc.x,mc.y-30,'💪 برداشتن!','#ffd75e',16);
+    else FX.shake();
     sndK2(p>.6?'coin':'click');
-    if(lift>=5){fin=true;done(Math.min(1000,pts))}else drawZone()},{passive:false});
+    if(lift>=5){fin=true;if(pts>=700){FX.conf(80);FX.flash('#ffd75e',.3)}
+      done(Math.min(1000,pts))}else drawZone()},{passive:false});
 };
-/* 6 — cycling: steady rhythm 20s */
+/* 6 — cycling: steady rhythm 20s (V35: speed lines + cadence meter + streak sparks) */
 GAMES.cycling=(el,done)=>{
-  el.innerHTML='<div class="gm33-track"><span class="gm33-runner" id="g33run" style="left:8%">🚴</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-cad"><i id="g33c"></i></div><div class="gm33-score" id="g33s">—</div><div class="gm33-step">هر ~نیم‌ثانیه یک ضربه — ثبات = امتیاز</div>';
-  const tb=el.querySelector('#g33t'),cd=el.querySelector('#g33c'),sc=el.querySelector('#g33s');
+  el.innerHTML='<div class="gm33-track" style="position:relative;overflow:hidden"><span class="gm35-speedlines" id="g33sl"></span><span class="gm33-runner" id="g33run" style="left:8%;z-index:2">🚴</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-cad"><i id="g33c"></i></div><div class="gm33-score" id="g33s">—</div><div class="gm33-step">هر ~نیم‌ثانیه یک ضربه — ثبات = امتیاز</div>';
+  const tb=el.querySelector('#g33t'),cd=el.querySelector('#g33c'),sc=el.querySelector('#g33s'),sl=el.querySelector('#g33sl'),run=el.querySelector('#g33run');
   let t0=0,last=0,sum=0,n=0;const DUR=20000;let fin=false;
   on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
     const now=performance.now();if(!t0){t0=now;last=now;return}
     const dt=now-last;last=now;
     const q=Math.max(0,1-Math.abs(dt-400)/250);sum+=q;n++;
     const avg=sum/n;sc.textContent=faN(Math.round(avg*1000));
-    cd.style.width=(avg*100)+'%';sndK2('click')},{passive:false});
+    cd.style.width=(avg*100)+'%';sndK2('click');
+    /* V35: خطوط سرعت وقتی ریتم درست است + جرقه‌ی چرخ */
+    if(sl)sl.classList.toggle('on',q>.6);
+    FX.spark(ev.clientX,ev.clientY,q>.6?['#ffd75e','#39e6d0']:['#5a6070'],q>.6?8:4,80,.5);
+    if(n%8===0&&run)FX.punch(run)},{passive:false});
   loop33(()=>{if(!t0)return;const p=Math.min(1,(performance.now()-t0)/DUR);tb.style.width=(100-p*100)+'%';
-    if(!fin&&p>=1){fin=true;const avg=n>=8?sum/n:sum/Math.max(1,n)*0.6;done(Math.min(1000,avg*1000))}});
+    if(!fin&&p>=1){fin=true;const avg=n>=8?sum/n:sum/Math.max(1,n)*0.6;
+      if(sl)sl.classList.remove('on');
+      if(avg>.8){FX.conf(60)}
+      done(Math.min(1000,avg*1000))}});
 };
 /* 7 — chess: 4 mate-in-1 puzzles */
 const CHESS33=[
@@ -10298,24 +10535,31 @@ GAMES.chess=(el,done)=>{
       cells.push('<span style="background:'+((r+c)%2?'rgba(255,255,255,.06)':'rgba(0,0,0,.28)')+'">'+(sq[name]||'')+'</span>')}
     const order=[0,1,2].sort(()=>Math.random()-.5);
     el.innerHTML='<div class="gm33-step" style="color:#ffe08a;font-weight:900">مات در یک حرکت — حرکت شماره‌ی '+faN(pi+1)+' از ۴</div>'+
-      '<div class="gm33-chess">'+cells.join('')+'</div><div class="gm33-opts">'+
+      '<div class="gm33-chess gm35-chess" id="g33bd2">'+cells.join('')+'</div><div class="gm33-opts">'+
       order.map(i=>'<button data-i="'+i+'">'+P.opts[i]+'</button>').join('')+'</div>'+
       '<div class="gm33-timer" style="width:min(88vw,340px)"><i id="g33t" style="width:100%"></i></div>';
     const tb=el.querySelector('#g33t');
     loop33(()=>{if(gen!==myGen||fin)return;const p=Math.min(1,(performance.now()-t0)/15000);if(tb)tb.style.width=(100-p*100)+'%';
-      if(p>=1){sndK2('alert');pi++;show()}});
+      if(p>=1){sndK2('alert');FX.shake();pi++;show()}});
     el.querySelectorAll('.gm33-opts button').forEach(b=>b.addEventListener('pointerdown',ev=>{ev.preventDefault();
       if(fin)return;
       const i=Number(b.getAttribute('data-i'));
-      if(i===P.ans){const dt=performance.now()-t0;pts+=200+(dt<6000?50:dt<10000?25:0);sndK2('coin');pi++;show()}
-      else{fin=true;done(pts)}},{passive:false}));
+      if(i===P.ans){const dt=performance.now()-t0;pts+=200+(dt<6000?50:dt<10000?25:0);sndK2('coin');
+        /* V35: خانه‌ی حرکت برنده هایلایت + مُهر «مات!» */
+        const bd2=el.querySelector('#g33bd2');
+        const mvCell={'Re8#':'e8','Qh7#':'h7','Nf7#':'f7','Qb3#':'b3'}[P.opts[P.ans]];
+        if(bd2&&mvCell){const idx=(8-parseInt(mvCell[1]))*8+'abcdefgh'.indexOf(mvCell[0]);const cellEl=bd2.children[parseInt(idx)];if(cellEl)cellEl.classList.add('mv')}
+        const st2=D.createElement('div');st2.className='gm35-stamp';st2.textContent='مات! ♛';el.appendChild(st2);
+        FX.flash('#ffd75e',.3);FX.conf(30);
+        pi++;tm33(show,700)}
+      else{fin=true;FX.shake();FX.text(FX.pt(el).x,FX.pt(el).y*.4,'اشتباه بود…','#ff8ba0',20);done(pts)}},{passive:false}));
   };
   show();
 };
-/* 8 — volley: spike in the zone, 3 serves */
+/* 8 — volley: spike in the zone, 3 serves (V35: net wiggle + ripple + slam sparks) */
 GAMES.volley=(el,done)=>{
-  el.innerHTML='<div class="gm33-track" style="height:190px"><div class="gm33-net"></div><div class="gm33-hitzone"></div><div class="gm33-ball" id="g33b">🏐</div></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">سرویس ۱ • رالی ۰</div>';
-  const b=el.querySelector('#g33b'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st');
+  el.innerHTML='<div class="gm33-track" style="height:190px;position:relative;overflow:hidden"><div class="gm33-net" id="g33net"></div><div class="gm33-hitzone"></div><div class="gm33-ball" id="g33b">🏐</div></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">سرویس ۱ • رالی ۰ — وقتی تو ناحیه است بزن!</div>';
+  const b=el.querySelector('#g33b'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st'),net=el.querySelector('#g33net');
   const W=el.querySelector('.gm33-track').clientWidth||340,H=el.querySelector('.gm33-track').clientHeight||190;
   let spikes=0,serves=1,t0=performance.now(),per=2.6,fin=false;
   loop33(()=>{const t=(performance.now()-t0)/1000;
@@ -10330,8 +10574,14 @@ GAMES.volley=(el,done)=>{
     const r=b.getBoundingClientRect(),z=el.querySelector('.gm33-hitzone').getBoundingClientRect();
     if(r.right>z.left&&r.left<z.right&&r.top<z.bottom&&r.bottom>z.top){
       spikes++;per=Math.min(4.6,per*1.09);sndK2('coin');
+      /* V35: موج + ترکش واترپولو + پانچ توپ */
+      FX.punch(b);FX.spark(ev.clientX,ev.clientY,['#ffd75e','#fff','#ff9d3c'],14,130,.6);
+      FX.ring(ev.clientX,ev.clientY,'rgba(255,215,94,.9)',8,66);
+      FX.text(ev.clientX,ev.clientY-20,'💥 اسپیک!','#ffd75e',18);
+      if(net){net.classList.remove('gm35-netwig');void net.offsetWidth;net.classList.add('gm35-netwig')}
       sc.textContent=faN(spikes);st.textContent='سرویس '+faN(serves)+' • رالی '+faN(spikes)}
-    else{serves++;per=Math.max(1.8,per*0.85);sndK2('alert');
+    else{serves++;per=Math.max(1.8,per*0.85);sndK2('alert');FX.shake();
+      FX.text(ev.clientX,ev.clientY-20,'💔 خطا!','#ff8ba0',17);
       st.textContent='سرویس '+faN(Math.min(3,serves))+' • رالی '+faN(spikes);
       if(serves>3){fin=true;done(Math.min(1000,spikes*22))}}},{passive:false});
 };
@@ -10350,14 +10600,19 @@ GAMES.football=(el,done)=>{
       const kd=Math.random()<KP[Math.min(2,round)]?zi:(zi+1+Math.floor(Math.random()*2))%3;
       k.style.left=(16.5+kd*33.3)+'%';k.style.marginLeft='-15px';
       b.style.left=(16.5+zi*33.3)+'%';b.style.bottom='55%';
+      /* V35: گلاید سینمایی توپ + جرقه‌ی شوت */
+      b.style.transition='left .3s cubic-bezier(.2,.9,.3,1),bottom .3s cubic-bezier(.2,.9,.3,1)';
+      FX.spark(FX.pt(b).x,FX.pt(b).y,['#fff','#ffd75e'],6,60,.4);
       tm33(()=>{
-        if(kd===zi){sndK2('alert');st.innerHTML='🧤 گرفت! '+RN[round]+' — ضربه‌ی '+faN(Math.min(3,shot+1+1))+' از ۳'}
+        if(kd===zi){sndK2('alert');FX.shake();FX.text(FX.pt(k).x,FX.pt(k).y-24,'🧤 گرفت!','#ff8ba0',18);st.innerHTML='🧤 گرفت! '+RN[round]+' — ضربه‌ی '+faN(Math.min(3,shot+1+1))+' از ۳'}
         else{goals++;pts+=90;sndK2('cheer');sc.textContent=faN(pts);
+          FX.conf(26);FX.flash('#7dff9e',.25);
+          const gc=FX.pt(b);FX.ring(gc.x,gc.y,'rgba(125,255,158,.95)',10,90);FX.text(gc.x,gc.y-30,'⚽ گُل!','#7dff9e',22);
           st.innerHTML='⚽ گُل! '+RN[round]+' — ضربه‌ی '+faN(Math.min(3,shot+1+1))+' از ۳'}
         b.style.bottom='8%';
         shot++;
         if(shot>=3){
-          if(goals>=2){pts+=[100,150,200][Math.min(2,round)];sc.textContent=faN(pts);sndK2('cheer')}
+          if(goals>=2){pts+=[100,150,200][Math.min(2,round)];sc.textContent=faN(pts);sndK2('cheer');FX.conf(45);FX.text(FX.pt(el).x,FX.pt(el).y*.3,'✅ '+RN[round]+' گذر شد!','#7dff9e',20)}
           round++;shot=0;goals=0;
           if(round>=3){fin=true;done(Math.min(1000,pts))}
           else tm33(show,900);
@@ -10386,13 +10641,21 @@ GAMES.wrestle=(el,done)=>{
       m.style.left=(pr/100)*(W-32)+'px';
       const el2=D.getElementById('g33t');if(el2)el2.style.width=Math.max(0,100-(dt/DUR)*100)+'%';
       if(pr>=100){bfin=true;const left=Math.max(0,12-dt);const got=250+Math.round(left/DUR*1000*0.15);
-        pts+=got;sndK2('cheer');sc.textContent=faN(pts);nextBout(got)}
-      else if(pr<=0||dt>=DUR){bfin=true;sndK2('alert');nextBout(0)}});
+        pts+=got;sndK2('cheer');sc.textContent=faN(pts);
+        /* V35: پرچم پیروزی روی نشان + لرزش و جرقه */
+        const mc=FX.pt(m);FX.spark(mc.x,mc.y,['#7dff9e','#ffd75e','#fff'],20,150,.8);FX.ring(mc.x,mc.y,'rgba(125,255,158,.9)',10,80);
+        FX.text(mc.x,mc.y-40,'🏆 برنده! +'+faN(got),'#7dff9e',20);FX.shake();
+        nextBout(got)}
+      else if(pr<=0||dt>=DUR){bfin=true;sndK2('alert');FX.shake();
+        const mc2=FX.pt(m);FX.text(mc2.x,mc2.y-40,'😮 باخت این دیدار','#ff8ba0',18);
+        nextBout(0)}});
     on33(el.querySelector('.gm33-rope'),'pointerdown',ev=>{ev.preventDefault();
-      if(bfin)return;p+=2.2;sndK2('click')},{passive:false});
+      if(bfin)return;p+=2.2;sndK2('click');
+      /* V35: جرقه‌ی کشمکش روی طناب */
+      FX.spark(ev.clientX,ev.clientY,['#ffd75e','#ff9d3c'],5,60,.3)},{passive:false});
   };
   const nextBout=(got)=>{bout++;
-    if(bout>=3){fin=true;done(Math.min(1000,pts))}
+    if(bout>=3){fin=true;if(pts>=500){FX.conf(80);FX.flash('#ffd75e',.3)}done(Math.min(1000,pts))}
     else tm33(()=>{showToast2(got?'💪 بردی! +'+faN(got):'😮 باختی — دیدار بعدی','win');show()},700)};
   show();
 };

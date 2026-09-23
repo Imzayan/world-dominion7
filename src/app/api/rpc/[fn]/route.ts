@@ -268,6 +268,30 @@ function gamesPhase(now = olNow()) {
   return { edition, phase, gameDay, regAt, openAt, closeAt, nextReg, host: hostOf(edition), today }
 }
 
+/* ============ V36 — admin event switches ============
+   The game owner (isAdmin) turns global events on/off from the admin panel.
+   Keys: olympic | elections | duels. Cached 15s so the hot PvP path stays cheap;
+   every toggle invalidates the cache instantly. */
+const EV_KEYS = ['olympic', 'elections', 'duels'] as const
+type EvMap = Record<string, boolean>
+let EV_CACHE: { at: number; map: EvMap } = { at: 0, map: {} }
+async function eventSwitches(): Promise<EvMap> {
+  if (Object.keys(EV_CACHE.map).length && Date.now() - EV_CACHE.at < 15000) return EV_CACHE.map
+  const map: EvMap = { olympic: true, elections: true, duels: true }
+  try {
+    const rows = await db.gameSetting.findMany({ where: { key: { in: EV_KEYS.map((k) => 'event_' + k) } } })
+    for (const r of rows) {
+      const k = r.key.replace('event_', '')
+      if ((EV_KEYS as readonly string[]).indexOf(k) > -1) map[k] = r.value === '1'
+    }
+  } catch (e) { console.log('evsw', e) }
+  EV_CACHE = { at: Date.now(), map }
+  return map
+}
+async function evOn(key: 'olympic' | 'elections' | 'duels'): Promise<boolean> {
+  return (await eventSwitches())[key] !== false
+}
+
 /* per-discipline podium freeze (race-safe via unique (edition,discipline,rank)) */
 async function freezeDiscipline(edition: number, key: string) {
   const done = await db.olympicResult.findFirst({ where: { edition, discipline: key } })
@@ -709,7 +733,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             OR: [{ fromUid: user.id, toUid: t.userId }, { fromUid: t.userId, toUid: user.id }],
           },
         })
-        if (gamesPhase().phase === 'live' && !duel) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
+        if (gamesPhase().phase === 'live' && (await evOn('olympic')) && !duel) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک — با خاموشی المپیک توسط ادمین لغو می‌شود */
         const defScore = await db.score.findUnique({ where: { userId: t.userId } })
         const myScore = await db.score.findUnique({ where: { userId: user.id } })
         let a = Math.max(1, myScore?.score || 100)
@@ -743,7 +767,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used })
       }
       case 'pvp_capture_territory': {
-        if (gamesPhase().phase === 'live') return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
+        if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
         const server = Math.max(1, Number(args.p_server) || 1)
         const country = String(args.p_country || '')
         /* V33.1: free capture is for NEUTRAL land only — owned territories must be
@@ -763,7 +787,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
          coup  : 100 gems, 1 per 24h per player  — artificial unrest on a foreign country
          meteor:  80 gems, 1 per 72h per player AND max 3 per rolling 7 days server-wide */
       case 'use_special': {
-        if (gamesPhase().phase === 'live') return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
+        if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
         const item = String(args.p_item || '')
         const country = String(args.p_country || '')
         const server = Math.max(1, Number(args.p_server) || 1)
@@ -949,13 +973,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         try { await ensureGamesClosed() } catch (e) { console.log('olstatus', e) }
         const latest = await refreshChampCountry(server, await latestChampion(server))
         const g = gamesPhase()
+        const evs = await eventSwitches()
         return R({
           champion: olPublic(latest),
           cycle: { cur: olCycle(), next_at: new Date((olCycle() + 1) * CYCLE_MS).toISOString() },
           rewards: OL_REWARDS,
+          events: evs,
           games: {
             phase: g.phase, edition: g.edition, game_day: g.gameDay, today: g.today,
-            host: g.host, truce: g.phase === 'live',
+            host: g.host, truce: g.phase === 'live' && evs.olympic !== false,
             reg_at: new Date(g.regAt).toISOString(), open_at: new Date(g.openAt).toISOString(),
             close_at: new Date(g.closeAt).toISOString(), next_reg: new Date(g.nextReg).toISOString(),
           },
@@ -965,6 +991,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       /* ---------------- V33 olympic_games: full hub payload (state, schedule, table, records, archive) ---------------- */
       case 'olympic_games': {
         try { await ensureGamesClosed() } catch (e) { console.log('olgames', e) }
+        if (!(await evOn('olympic'))) return R({ disabled: true, edition: gamesPhase().edition })
         const g = gamesPhase()
         const edition = g.edition
         if (g.phase === 'after') for (const k of Object.keys(GD_DAY)) { try { await freezeDiscipline(edition, k) } catch (e) {} }
@@ -1025,6 +1052,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           })),
           reigning: champRow ? { nick: champRow.nick, medals: champRow.medals, cycle: champRow.cycle } : null,
           rewards: OL_REWARDS,
+          events: await eventSwitches(),
         })
       }
 
@@ -1032,6 +1060,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
          Late registration during live keeps existing rows (best/attempts preserved)
          so editing your pick mid-games never wipes scores. */
       case 'olympic_register': {
+        if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
         const g = gamesPhase()
         if (g.phase !== 'reg' && g.phase !== 'live') return R({ ok: false, reason: 'window' })
         const list = Array.isArray(args.p_disciplines) ? args.p_disciplines.map((x) => String(x)) : []
@@ -1053,6 +1082,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
 
       /* ---------------- V33 olympic_submit: mini-game score (registered + live + attempts + rate) ---------------- */
       case 'olympic_submit': {
+        if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
         const g = gamesPhase()
         const key = String(args.p_discipline || '')
         if (GD_DAY[key] === undefined) return R({ ok: false, reason: 'discipline' })
@@ -1089,6 +1119,55 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({ ok: true, best, attempts: ent.attempts + 1, rank: better + 1, record_broken: recordBroken })
       }
 
+      /* ============ V36 — admin event switches (owner-controlled on/off) ============ */
+      case 'event_switches':
+        return R(await eventSwitches())
+      case 'event_switch_set': {
+        if (!user.isAdmin) return R({ ok: false, reason: 'admin' })
+        const k = String(args.p_key || '')
+        if ((EV_KEYS as readonly string[]).indexOf(k) < 0) return R({ ok: false, reason: 'key' })
+        const on = !!args.p_on
+        await db.gameSetting.upsert({
+          where: { key: 'event_' + k },
+          create: { key: 'event_' + k, value: on ? '1' : '0' },
+          update: { value: on ? '1' : '0' },
+        })
+        EV_CACHE = { at: 0, map: {} }
+        return R({ ok: true, key: k, on })
+      }
+
+      /* ============ V36 — per-discipline leaderboard with MY progress ============
+        (the hub ranking button used to show only the country medal table — no per-section
+         standings, no personal progress; this RPC powers the new per-discipline panel) */
+      case 'olympic_rank': {
+        if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
+        const key = String(args.p_discipline || '')
+        if (GD_DAY[key] === undefined) return R({ ok: false, reason: 'discipline' })
+        const g = gamesPhase()
+        if (g.phase === 'after') {
+          /* final standings from the frozen podium rows of this edition */
+          const res = await db.olympicResult.findMany({ where: { edition: g.edition, discipline: key }, orderBy: [{ rank: 'asc' }], take: 20 })
+          const total = await db.olympicResult.count({ where: { edition: g.edition, discipline: key } })
+          const mine = await db.olympicResult.findFirst({ where: { edition: g.edition, discipline: key, userId: user.id } })
+          return R({ ok: true, edition: g.edition, frozen: true, total,
+            rows: res.map((r) => ({ rank: r.rank, nick: r.nick, countryFa: r.countryFa || r.country, best: r.score, attempts: 0 })),
+            my: mine ? { rank: mine.rank, best: mine.score, attempts: 0, in_podium: true } : null })
+        }
+        const ents = await db.olympicEntry.findMany({ where: { edition: g.edition, discipline: key, best: { gt: 0 } }, orderBy: [{ best: 'desc' }, { lastAt: 'asc' }], take: 20 })
+        const total = await db.olympicEntry.count({ where: { edition: g.edition, discipline: key, best: { gt: 0 } } })
+        const mineRow = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
+        let myRank: number | null = null
+        if (mineRow && mineRow.best > 0) {
+          myRank = 1 + await db.olympicEntry.count({ where: { edition: g.edition, discipline: key, best: { gt: mineRow.best } } })
+        }
+        const leader = ents.length ? ents[0].best : 0
+        return R({ ok: true, edition: g.edition, frozen: false, total, leader,
+          rows: ents.map((e, i) => ({ rank: i + 1, nick: e.nick, countryFa: e.countryFa || e.country, best: e.best, attempts: e.attempts })),
+          my: (mineRow && mineRow.best > 0)
+            ? { rank: myRank, best: mineRow.best, attempts: mineRow.attempts, in_podium: myRank !== null && myRank <= 20 }
+            : (mineRow ? { rank: null, best: 0, attempts: mineRow.attempts, in_podium: false } : null) })
+      }
+
       /* ============ V34 — social & competitive layer ============ */
 
       /* daily streak status (the reward itself auto-grants on get_wallet) */
@@ -1108,6 +1187,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
 
       /* ---------- duels: two-way challenge → 2h sanctioned war window (bypasses truce) ---------- */
       case 'duel_send': {
+        if (!(await evOn('duels'))) return R({ ok: false, error: 'disabled' })
         const server = Math.max(1, Number(args.p_server) || 1)
         const toNick = String(args.p_to_nick || '').trim()
         if (!toNick) return R({ ok: false, error: 'nick' })
@@ -1148,6 +1228,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({ mine: mine.map(fmt), live: live.map(fmt), recent: recent.map(fmt) })
       }
       case 'duel_accept': {
+        if (!(await evOn('duels'))) return R({ ok: false, error: 'disabled' })
         const id = String(args.p_id || '')
         const d = await db.duel.findUnique({ where: { id } })
         if (!d || d.toUid !== user.id || d.status !== 'open') return R({ ok: false, error: 'gone' })
@@ -1166,6 +1247,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({ ok: cl.count > 0 })
       }
       case 'duel_bet': {
+        if (!(await evOn('duels'))) return R({ ok: false, error: 'disabled' })
         const id = String(args.p_id || '')
         const amount = Math.round(Number(args.p_amount) || 0)
         const d = await db.duel.findUnique({ where: { id } })
@@ -1228,6 +1310,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         })
       }
       case 'election_candidacy': {
+        if (!(await evOn('elections'))) return R({ ok: false, error: 'disabled' })
         const server = Math.max(1, Number(args.p_server) || 1)
         const cycle = elecCycle()
         const dayIn = (Date.now() - cycle * ELEC_MS) / DAY_MS
@@ -1243,6 +1326,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({ ok: true })
       }
       case 'election_vote': {
+        if (!(await evOn('elections'))) return R({ ok: false, error: 'disabled' })
         const server = Math.max(1, Number(args.p_server) || 1)
         const cycle = elecCycle()
         const dayIn = (Date.now() - cycle * ELEC_MS) / DAY_MS
