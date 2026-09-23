@@ -595,3 +595,22 @@ Work Log:
 - 届次: 'after'后wd33toff测试偏移不清理→下次打开"从中间继续"；闭幕礼flag无冠军记录时永不置位
 - "پخش زنده": wd33-strip过薄+wg33-replay需验证
 开始实施。
+
+Work Log (V40 完成记录):
+- 经济修复: ①econ()油耗 pw/400→min(25,pw/2500)，logistics研究每级-12% ②补上从未发放的"每领地石油产量"(terr×oilPerTick，UI承诺但代码从未实现——真正的bug) +基础油2/食物4+3×terr每4秒 ③实际生效的capStore(2813)改用window.oilStorageCap(与UI显示一致——此前升级仓库是假的) ④oilStorageCap 2500→6000基础/领地500→1200/仓库级2500→6000，食物9000+2500×terr
+- 性能: ①body.wg-ov-fs(全屏overlay时)地图paint归零+body.wg-ov暂停HUD无限动画+去掉top-bar backdrop-blur ②document.hidden→body.idle暂停所有动画 ③V11 MutationObserver rAF防抖 ④奥运FAB box-shadow脉冲→opacity合成器动画 ⑤修复radar39隐藏canvas负半径IndexSizeError
+- 奥运6项: GD33裁至sprint/archery/swim/weight/volley/football，SCHED33五天重排，注册配额3→6(客户端4处+服务端route.ts quota)，全部文案10→6
+- 届次彻底结束: 'after'后24h自动清除wd33toff测试偏移(防"从中间继续")，闭幕flag无论有无冠军都置位
+- 真پخش زنده: 服务端olympic_games新增live_feed(最近10条真实成绩)，主屏strip改为轮播LIVE ticker(4.2s旋转:最新成绩/奖牌榜/今日主赛/世界纪录)，hub新增"📡 پخش زنده"卡(带时间ago)
+- 沙滩排球重制(用户6点方案): ①rotateX(57deg)+perspective透视沙地球场+收敛白线 ②抛物线+旋转(spin=x×1.35°)+深度投影椭圆阴影(随高度缩放/淡出) ③4帧SVG玩家(idle/ready/jump/hit)+移动+影子 ④动态相机(球近网scale1.055+命中shake+slow-mo) ⑤双层旗子观众视差 ⑥体育馆灯光渐变+网/柱软阴影；击球窗口校准(top33%/27%宽,per 2.2)；score公式spikes*22不变
+- 修复自引入bug: sc变量冲突(场景元素vs分数元素)——首次得分把整个场景innerHTML覆盖成数字！改scene/score分离
+- 全游戏氛围: ensureStage注入第二排观众+wg35-light灯光层(所有游戏共享)；gkey识别新场景(.w40-vb-arena)隐藏volley的wg37旧网格
+- HUD RGB: res-card/hchip conic-gradient彩虹流转边环(@property --ha)+尺寸提升(56px/13.5px字体)，FAB 72→78px；桌面/390移动端重叠检查=0
+- 排名面板: modal 760px+金色发光框+渐变流动标题+chart40"竞争图表"(top5发光条形图，金银铜配色)——修复自引入valOf(x)缺cat参数bug
+- hub RGB: wd31-title彩虹渐变流动+live/reg徽章辉光
+- 测试: 67块0错误；E2E 18/18；浏览器实测: 排球19次得分/帧切换/评论触发，sprint/archery/swim/weight/football全部通过，排名图表2行比例条，移动390px 12元素0重叠，直播条真实数据滚动(840分用户成绩)
+- 部署: 73eab50 push → Render自动部署
+
+Stage Summary:
+- 用户全部需求交付: 油耗1/5+仓储2.5x、全局卡顿根治(覆盖层时地图paint=0)、排球按6点方案电影化重制、奥运6项+全可选、届次真结束、直播从"啥都不显示"变成真实数据轮播、HUD RGB电影化、排名面板升级
+- 关键教训: (1)游戏内变量命名冲突sc会静默摧毁DOM (2)两次valOf参数错误都是即时测试抓到的 (3)WD33 old代码与V37/V39装饰层的层叠冲突需在数据源(gkey)层解决
