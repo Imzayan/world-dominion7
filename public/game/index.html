@@ -11310,6 +11310,270 @@ window.rankOnline=async function(box){
   await renderRank35(box,'score')};
 })();
 </script>
+<style id="v37-css">
+/* ============ V37 — HUD de-overlap + cinematic server chip + 3D olympic minigames ============ */
+/* 1) acc-chip (logout) must never cover the gem chip: on narrow screens it moves below the left info stack */
+@media (max-width:640px){
+  /* the right strip is 2 rows tall on phones and spans the full width — push the left info stack + logout chip below it */
+  #hud-info{top:140px!important}
+  #acc-chip{top:186px!important}
+}
+/* 2) cinematic server chip (replaces the plain 🖥️ text chip) */
+#hud-srv2{display:flex;align-items:center;gap:6px;padding:3px 9px;border-radius:14px;cursor:pointer;white-space:nowrap;direction:rtl;
+  background:linear-gradient(160deg,rgba(10,44,84,.95),rgba(4,16,34,.95));border:1px solid rgba(0,220,255,.45);
+  box-shadow:0 3px 12px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.12);transition:transform .15s}
+#hud-srv2:active{transform:scale(.93)}
+#hud-srv2 .wd-srv-ic{width:17px;height:17px;flex:0 0 auto;filter:drop-shadow(0 0 5px rgba(0,220,255,.5))}
+#hud-srv2 .wd-srv-t{display:flex;flex-direction:column;line-height:1.3;align-items:flex-start}
+#hud-srv2 .wd-srv-t b{font-size:10px;font-weight:900;color:#eaf8ff}
+#hud-srv2 .wd-srv-t small{font-size:8px;font-weight:700;color:#8fd8ff;font-variant-numeric:tabular-nums}
+#hud-srv2 .wd-srv-bar{width:36px;height:5px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden;flex:0 0 auto}
+#hud-srv2 .wd-srv-bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#39e6d0,#22d3ee);transition:width .5s}
+#hud-srv2 .wd-srv-dot{width:7px;height:7px;border-radius:50%;background:#39e6d0;box-shadow:0 0 8px #39e6d0;flex:0 0 auto}
+#hud-srv2.wd-wait{opacity:.6}
+#hud-srv2.wd-full .wd-srv-dot{background:#ffb02e;box-shadow:0 0 8px #ffb02e}
+#hud-srv2.wd-full .wd-srv-bar i{background:linear-gradient(90deg,#ffd75e,#ff6a3c)}
+#m-srv .lobby-item{background:linear-gradient(160deg,rgba(10,42,76,.9),rgba(4,14,30,.92));border:1px solid rgba(0,220,255,.28);border-radius:16px;padding:12px 14px;margin-top:8px}
+#m-srv .lobby-item.me{border-color:rgba(255,204,0,.6);box-shadow:0 0 18px rgba(255,204,0,.16)}
+/* 3) olympic stage: perspective scene + 3D grid floor + horizon glow + spotlight */
+#wd33-stage .s33bd{perspective:1050px;perspective-origin:50% 22%}
+.wg37-floor{position:absolute;left:-34%;right:-34%;bottom:-8%;height:54%;z-index:0;pointer-events:none;
+  transform:perspective(470px) rotateX(62deg);transform-origin:50% 0;
+  background:
+    repeating-linear-gradient(90deg,rgba(110,180,255,.14) 0 2px,transparent 2px 58px),
+    repeating-linear-gradient(0deg,rgba(110,180,255,.10) 0 2px,transparent 2px 36px),
+    linear-gradient(180deg,rgba(16,40,70,.25),rgba(4,10,22,.72));
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 30%);mask-image:linear-gradient(180deg,transparent 0,#000 30%)}
+.wg37-horizon{position:absolute;left:4%;right:4%;bottom:44%;height:96px;z-index:0;pointer-events:none;
+  background:radial-gradient(58% 100% at 50% 100%,rgba(90,190,255,.17),rgba(255,180,60,.05) 55%,transparent 78%)}
+.wg37-spot{position:absolute;left:50%;top:4%;width:76%;height:66%;transform:translateX(-50%);z-index:0;pointer-events:none;
+  background:radial-gradient(50% 58% at 50% 28%,rgba(255,226,140,.10),transparent 72%)}
+#wd33-stage .s33hd{background:linear-gradient(180deg,rgba(12,20,38,.94),rgba(5,10,20,.86));backdrop-filter:blur(7px);
+  border-bottom:1px solid rgba(255,204,0,.45);box-shadow:0 10px 26px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.08)}
+#wd33-stage .chip33{box-shadow:0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.15);text-shadow:0 1px 0 rgba(0,0,0,.5)}
+#wd33-stage .gm33-score{text-shadow:0 2px 0 rgba(122,84,0,.55),0 8px 18px rgba(0,0,0,.5);font-variant-numeric:tabular-nums}
+#wd33-stage .wg35-crowd{padding:8px 0 10px;background:linear-gradient(180deg,rgba(6,12,26,.8),rgba(6,12,26,0));
+  border-bottom:1px solid rgba(255,255,255,.07);transform:perspective(640px) rotateX(26deg);transform-origin:50% 0}
+.wg33-start{border:0;border-radius:18px;padding:14px 42px;font-family:inherit;font-weight:900;font-size:15px;color:#3a2600;cursor:pointer;
+  background:linear-gradient(180deg,#ffe08a,#ffb02e 55%,#e08a00);box-shadow:0 6px 0 #8a5a00,0 14px 26px rgba(0,0,0,.5),inset 0 1px 0 #fff8dc;
+  text-shadow:0 1px 0 rgba(255,255,255,.45);transition:transform .12s,box-shadow .12s}
+.wg33-start:active{transform:translateY(5px);box-shadow:0 1px 0 #8a5a00,0 6px 14px rgba(0,0,0,.5),inset 0 1px 0 #fff8dc}
+.gm33-runner,.gm33-ball{filter:drop-shadow(0 4px 4px rgba(0,0,0,.45))}
+.gm33-runner::after,.gm33-ball::after{content:'';position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);
+  width:32px;height:9px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.48),transparent 70%)}
+/* sprint: rubber track with depth */
+#wd33-stage[data-g37="sprint"] .gm33-track{height:88px;border-radius:12px;border:1px solid rgba(255,255,255,.22);
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 20%),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.10) 0 2px,transparent 2px 62px),
+    linear-gradient(180deg,#b84c2c,#8a2f1c 55%,#571b0e);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.3),inset 0 -16px 24px rgba(0,0,0,.5),0 16px 32px rgba(0,0,0,.45)}
+#wd33-stage[data-g37="sprint"] .gm33-track::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(3,9,20,.5),transparent 46%)}
+/* swim: deep pool + lane ropes */
+#wd33-stage[data-g37="swim"] .gm33-track{height:88px;border-radius:14px;border:1px solid rgba(140,220,255,.4);
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.30),rgba(255,255,255,.06) 24%,transparent 42%),
+    linear-gradient(180deg,#1f86c9,#0e4f86 58%,#062c52);
+  box-shadow:inset 0 -18px 28px rgba(0,10,30,.55),inset 0 2px 0 rgba(255,255,255,.4),0 16px 32px rgba(0,0,0,.45)}
+#wd33-stage[data-g37="swim"] .gm33-zone{font-size:20px;color:rgba(255,255,255,.4);
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.14) 0 4px,transparent 4px 11px)}
+/* archery: 3D range + grounded target */
+#wd33-stage[data-g37="archery"] .gm33-track{height:150px;border-radius:16px;
+  background:
+    radial-gradient(130% 95% at 50% 110%,rgba(120,220,140,.24),transparent 56%),
+    linear-gradient(180deg,#0b2b46 0%,#0d3a2b 52%,#12502f 100%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.2),inset 0 -20px 32px rgba(0,0,0,.5),0 16px 34px rgba(0,0,0,.45)}
+#wd33-stage[data-g37="archery"] .gm33-track::before{content:'';position:absolute;left:0;right:0;bottom:0;height:34%;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(14,52,30,.6));border-top:2px solid rgba(255,255,255,.14)}
+#wd33-stage[data-g37="archery"] .gm33-rings{filter:drop-shadow(0 12px 10px rgba(0,0,0,.55))}
+/* gym: 3D keycaps + floating arrow */
+#wd33-stage[data-g37="gym"] .gm33-pad button{border:0;border-radius:16px;color:#fff;cursor:pointer;font-family:inherit;
+  background:linear-gradient(180deg,rgba(70,110,160,.95),rgba(24,44,74,.95));
+  box-shadow:0 5px 0 rgba(6,14,26,.9),0 10px 18px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.25);
+  transition:transform .1s,box-shadow .1s}
+#wd33-stage[data-g37="gym"] .gm33-pad button:active{transform:translateY(4px);
+  box-shadow:0 1px 0 rgba(6,14,26,.9),0 4px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.25);
+  background:linear-gradient(180deg,rgba(255,204,0,.5),rgba(160,110,0,.5))}
+#wd33-stage[data-g37="gym"] .gm33-arrowbig{text-shadow:0 3px 0 #b98514,0 6px 0 #7a5408,0 12px 22px rgba(0,0,0,.55);animation:wg37Float 1.7s ease-in-out infinite}
+@keyframes wg37Float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-7px) scale(1.04)}}
+/* weight: metallic 3D barbell */
+#wd33-stage[data-g37="weight"] .gm33-bar{border-radius:18px;border:1px solid rgba(160,190,230,.3);
+  background:linear-gradient(180deg,#243448,#101b2a 60%,#0a121e);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.18),inset 0 -18px 28px rgba(0,0,0,.55),0 16px 34px rgba(0,0,0,.45)}
+#wd33-stage .gm33-marker{height:18px;border-radius:9px;background:linear-gradient(180deg,#f4f9ff,#9db2c8);
+  box-shadow:0 4px 12px rgba(0,0,0,.55),inset 0 1px 0 #fff}
+#wd33-stage .gm33-marker::before,#wd33-stage .gm33-marker::after{content:'';position:absolute;top:-8px;width:15px;height:32px;border-radius:5px;
+  background:repeating-linear-gradient(180deg,#33435a 0 3px,#151d29 3px 6px);border:2px solid rgba(255,255,255,.3);box-shadow:0 4px 8px rgba(0,0,0,.5)}
+#wd33-stage .gm33-marker::before{left:-17px}
+#wd33-stage .gm33-marker::after{right:-17px}
+/* cycling: velodrome depth */
+#wd33-stage[data-g37="cycling"] .gm33-track{height:94px;border-radius:14px;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.08) 0 3px,transparent 3px 54px),
+    linear-gradient(180deg,#26405f,#132c47 58%,#0a1c30);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.22),inset 0 -18px 28px rgba(0,0,0,.5),0 16px 32px rgba(0,0,0,.45)}
+/* chess: real 3D tilted board with standing pieces */
+#wd33-stage[data-g37="chess"] .gm33-chess{overflow:visible;transform-style:preserve-3d;
+  transform:perspective(760px) rotateX(46deg) scale(.96);border:3px solid rgba(255,204,0,.55);border-radius:12px;
+  margin:34px auto 40px;
+  box-shadow:0 26px 0 -8px #241708,0 30px 0 -6px rgba(0,0,0,.35),0 40px 44px rgba(0,0,0,.55)}
+#wd33-stage[data-g37="chess"] .gm33-chess span{transform-style:preserve-3d}
+#wd33-stage[data-g37="chess"] .gm33-chess span i{display:block;font-style:normal;transform:rotateX(-46deg) translateZ(8px);
+  color:#f6faff;text-shadow:0 1px 0 #273244,0 4px 5px rgba(0,0,0,.65)}
+#wd33-stage[data-g37="chess"] .gm33-chess span:first-child{border-top-left-radius:9px}
+#wd33-stage[data-g37="chess"] .gm33-chess span:nth-child(8){border-top-right-radius:9px}
+#wd33-stage[data-g37="chess"] .gm33-chess span:nth-child(57){border-bottom-left-radius:9px}
+#wd33-stage[data-g37="chess"] .gm33-chess span:nth-child(64){border-bottom-right-radius:9px}
+/* volley: sand court + 3D net with posts */
+#wd33-stage[data-g37="volley"] .gm33-track{height:200px;border-radius:16px;
+  background:
+    radial-gradient(140% 85% at 50% -18%,rgba(255,236,190,.30),transparent 52%),
+    repeating-linear-gradient(0deg,rgba(150,115,55,.10) 0 12px,rgba(150,115,55,.03) 12px 24px),
+    linear-gradient(180deg,#cfa763,#a97f3f 46%,#74541f);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.3),inset 0 -22px 32px rgba(50,30,5,.5),0 16px 34px rgba(0,0,0,.45)}
+#wd33-stage[data-g37="volley"] .gm33-net{width:6px;top:4%;bottom:4%;margin-left:-3px;
+  background:repeating-linear-gradient(180deg,rgba(255,255,255,.8) 0 5px,rgba(255,255,255,.2) 5px 10px);
+  box-shadow:0 0 0 2px rgba(255,255,255,.35),0 10px 20px rgba(0,0,0,.4)}
+#wd33-stage[data-g37="volley"] .gm33-net::before,#wd33-stage[data-g37="volley"] .gm33-net::after{content:'';position:absolute;top:-7%;bottom:-7%;width:8px;border-radius:4px;
+  background:linear-gradient(90deg,#8a5a2b,#d19a55 45%,#5e3c1c);box-shadow:0 12px 18px rgba(0,0,0,.45)}
+#wd33-stage[data-g37="volley"] .gm33-net::before{left:-56px}
+#wd33-stage[data-g37="volley"] .gm33-net::after{right:-56px}
+/* football: 3D goal with white posts + net mesh */
+#wd33-stage[data-g37="football"] .gm33-goal{transform:perspective(720px) rotateX(15deg);transform-origin:50% 100%;
+  border-radius:8px;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.11) 0 1.5px,transparent 1.5px 16px),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.11) 0 1.5px,transparent 1.5px 16px),
+    linear-gradient(180deg,rgba(9,24,44,.92),rgba(5,12,24,.96));
+  box-shadow:inset 0 0 26px rgba(0,0,0,.6),0 20px 32px rgba(0,0,0,.5)}
+#wd33-stage[data-g37="football"] .gm33-goal::before{content:'';position:absolute;inset:0;pointer-events:none;border-radius:6px;
+  border-left:7px solid #f2f7ff;border-right:7px solid #f2f7ff;border-top:7px solid #f2f7ff;
+  box-shadow:inset 0 0 14px rgba(0,0,0,.4)}
+#wd33-stage[data-g37="football"] .gm33-goal .gball,#wd33-stage[data-g37="football"] .gm33-goal .gkeep{filter:drop-shadow(0 5px 5px rgba(0,0,0,.55))}
+/* wrestle: 3D rope */
+#wd33-stage[data-g37="wrestle"] .gm33-rope{height:30px;border-radius:99px;
+  background:linear-gradient(180deg,#7a5423 0%,#4a3113 40%,#2b1c08 62%,#120c03 100%);
+  border:1px solid rgba(255,255,255,.2);
+  box-shadow:inset 0 2px 0 rgba(255,220,150,.4),inset 0 -7px 12px rgba(0,0,0,.6),0 12px 24px rgba(0,0,0,.5)}
+#wd33-stage[data-g37="wrestle"] .gm33-rope::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(48deg,rgba(255,230,170,.08) 0 7px,transparent 7px 14px)}
+#wd33-stage .rmark{box-shadow:0 0 0 3px rgba(255,215,94,.85),0 5px 12px rgba(0,0,0,.6)}
+</style>
+<script id="v37-js">
+/* ============ V37 — cinematic server chip + 3D stage dresser ============ */
+(function(){
+'use strict';
+var D=document;
+function faN(n){try{return Number(n||0).toLocaleString('fa-IR')}catch(e){return String(n==null?0:n)}}
+
+/* ---------- 1) cinematic server chip (replaces the plain 🖥️ text chip; the legacy chip stays in the DOM but hidden so all old writers remain harmless) ---------- */
+var SRV_SVG='<svg class="wd-srv-ic" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="wsvA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9be8ff"/><stop offset="1" stop-color="#1e9ad6"/></linearGradient></defs><rect x="3" y="3.5" width="18" height="7" rx="2.4" fill="url(#wsvA)"/><rect x="3" y="13.5" width="18" height="7" rx="2.4" fill="url(#wsvA)" opacity=".72"/><circle cx="7" cy="7" r="1.5" fill="#04222b"/><circle cx="7" cy="17" r="1.5" fill="#04222b"/><rect x="11" y="6" width="7" height="2" rx="1" fill="#04222b" opacity=".55"/><rect x="11" y="16" width="7" height="2" rx="1" fill="#04222b" opacity=".55"/></svg>';
+var srvChip=null,srvB=null,srvS=null,srvBar=null;
+function srvVals(){
+  var ok=false,srv=1,cap=80,tk=0;
+  try{ok=(typeof MP_OK!=='undefined'&&MP_OK===true)}catch(e){}
+  try{srv=Number((typeof SRV!=='undefined'&&SRV)||1)||1}catch(e){}
+  try{cap=Number((typeof SRV_CAP!=='undefined'&&SRV_CAP)||80)||80}catch(e){}
+  try{if(typeof taken==='function')tk=Number(taken(srv)||0)}catch(e){}
+  return{ok:ok,srv:srv,cap:cap,tk:tk};
+}
+function srvUpd(){
+  if(!srvChip)return;
+  var v=srvVals();
+  srvChip.classList.toggle('wd-wait',!v.ok);
+  srvChip.classList.toggle('wd-full',!!(v.ok&&v.tk>=v.cap));
+  if(srvB)srvB.textContent='سرور '+faN(v.srv);
+  if(srvS)srvS.textContent=v.ok?(faN(v.tk)+' / '+faN(v.cap)+' کشور'):'… در حال اتصال';
+  if(srvBar)srvBar.style.width=Math.min(100,Math.round(v.tk/v.cap*100))+'%';
+  try{var old=D.getElementById('hud-srv');if(old&&old.style.display!=='none')old.style.display='none'}catch(e){}
+}
+function srvBoot(){
+  var strip=D.getElementById('hud-strip');
+  if(!strip)return false;
+  if(!srvChip){
+    srvChip=D.createElement('div');srvChip.id='hud-srv2';srvChip.title='شناسنامه‌ی سرور — لیست سرورها و بازیکنان';
+    srvChip.innerHTML=SRV_SVG+'<span class="wd-srv-t"><b id="wd-srv-b">سرور …</b><small id="wd-srv-s">…</small></span><span class="wd-srv-bar"><i></i></span><span class="wd-srv-dot"></span>';
+    srvB=srvChip.querySelector('#wd-srv-b');srvS=srvChip.querySelector('#wd-srv-s');
+    srvBar=srvChip.querySelector('.wd-srv-bar i');
+    srvChip.addEventListener('click',function(){try{
+      if(typeof window.WD31_SERVER==='function'){window.WD31_SERVER();return}
+      if(typeof renderSrv==='function')renderSrv();
+      if(typeof openModal==='function')openModal('m-srv');
+    }catch(e){}});
+  }
+  var old=D.getElementById('hud-srv');
+  if(old&&old.parentNode===strip&&srvChip.parentNode!==strip){strip.insertBefore(srvChip,old)}
+  else if(!srvChip.parentNode){strip.appendChild(srvChip)}
+  if(old&&old.style.display!=='none')old.style.display='none';
+  srvUpd();
+  return true;
+}
+function srvStart(){
+  if(srvBoot())return;
+  var n=0,iv=setInterval(function(){if(srvBoot()||++n>40)clearInterval(iv)},500);
+}
+if(D.readyState==='complete')srvStart();else window.addEventListener('load',srvStart);
+setInterval(srvUpd,2000);
+/* keep the chip positioned right before the (hidden) legacy chip even if late scripts reorder the strip */
+setInterval(function(){try{
+  if(srvChip&&srvChip.parentNode){
+    var old=D.getElementById('hud-srv');
+    if(old&&old.parentNode===srvChip.parentNode&&old.nextSibling!==srvChip)srvChip.parentNode.insertBefore(srvChip,old);
+  }
+}catch(e){}},4000);
+
+/* ---------- 2) 3D stage dresser: floor + horizon + spotlight layers, per-game tag, chess billboard pieces ---------- */
+function gkey(bd){
+  if(bd.querySelector('.gm33-chess'))return 'chess';
+  if(bd.querySelector('.gm33-goal'))return 'football';
+  if(bd.querySelector('.gm33-net'))return 'volley';
+  if(bd.querySelector('.gm33-rope'))return 'wrestle';
+  if(bd.querySelector('.gm33-bar'))return 'weight';
+  if(bd.querySelector('.gm35-combo')||bd.querySelector('.gm33-pad'))return 'gym';
+  if(bd.querySelector('.gm35-water'))return 'swim';
+  if(bd.querySelector('.gm35-lane'))return 'sprint';
+  if(bd.querySelector('.gm33-rings'))return 'archery';
+  if(bd.querySelector('.gm35-speedlines'))return 'cycling';
+  return '';
+}
+function dress(bd){
+  try{
+    if(!bd)return;
+    var st=bd.closest?bd.closest('#wd33-stage'):null;if(!st)return;
+    var k=gkey(bd);
+    if(k)st.setAttribute('data-g37',k);
+    if(!bd.querySelector('.wg37-floor')){
+      var s=D.createElement('div');s.className='wg37-spot';
+      var f=D.createElement('div');f.className='wg37-floor';
+      var h=D.createElement('div');h.className='wg37-horizon';
+      bd.insertBefore(s,bd.firstChild);bd.insertBefore(f,s);bd.insertBefore(h,f);
+    }
+    if(k==='chess'){
+      var sp=bd.querySelectorAll('.gm33-chess span');
+      for(var i=0;i<sp.length;i++){
+        var el=sp[i],fc=el.firstChild;
+        if(fc&&fc.nodeType===3&&fc.nodeValue&&fc.nodeValue.trim()){
+          var it=D.createElement('i');it.textContent=fc.nodeValue;el.replaceChild(it,fc);
+        }
+      }
+    }
+  }catch(e){}
+}
+function startMo(){
+  /* the stage body is created lazily on the first game — keep a cheap permanent watch (never give up) */
+  var bd=D.getElementById('wg33-sbd');
+  if(!bd)return;
+  if(bd.__g37)return;
+  bd.__g37=1;
+  dress(bd);
+  var mo=new MutationObserver(function(){var b=D.getElementById('wg33-sbd');if(b)dress(b)});
+  mo.observe(bd,{childList:true});
+}
+startMo();
+setInterval(startMo,1500);
+})();
+</script>
 </body>
 </html>
 
