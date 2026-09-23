@@ -3904,6 +3904,15 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
     if(a==='trade')return who+' با '+(whom||'بازیکن دیگر')+' معامله‌ی امن انجام داد.';
     if(a==='capture'||a==='conquer')return who+' کشور '+(fa||'نامعلوم')+' را فتح کرد.';
     if(a==='pvp_attack')return who+' به '+(fa||'نامعلوم')+' حمله کرد.';
+    /* V34 — social layer news */
+    if(a==='streak_day')return '🔥 '+who+' استریک روز '+(String(Number(whom)||1).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]))+' ورود روزانه را گرفت.';
+    if(a==='duel_open')return '⚔️ '+who+' به '+whom+' دعوت دوئر داد — شرط‌بندی روی برد در میدان دوئل باز است.';
+    if(a==='duel_live')return '🔴 دوئر رسماً شروع شد: '+who+' در برابر '+whom+' — ۲ ساعت فرصت! (حتی در آتش‌بس المپیک برگزار می‌شود)';
+    if(a==='duel_done')return '🥇 '+who+' دوئر را برد'+(whom?(' و '+whom+' را شکست داد'):'')+' — جایزه: ۱۵٬۰۰۰ طلا + ۲ جم.';
+    if(a==='election_win')return '🏛️ انتخابات جهانی: '+who+' با '+(String(Number(whom)||0).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]))+' رأی رئیس‌جمهور جهان شد!';
+    if(a==='alliance_new')return '🤝 اتحاد «'+who+'» توسط '+whom+' تاسیس شد — عضویت از مرکز اجتماعی باز است.';
+    if(a==='alliance_join')return '🤝 '+who+' به اتحاد ['+whom+'] پیوست.';
+    if(a==='alliance_gone')return '💨 اتحاد «'+who+'» منحل شد.';
     return who+(fa?(' در '+fa):'')+' اقدامی انجام داد.';
   };
   try{ /* V30fix: purge legacy «در null» ticker rows cached from older versions */
@@ -4072,6 +4081,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
           delete OTH[country];try{applyCountryColor(country)}catch(e){}
           addNews((ACC.nick||'بازیکن')+' به '+(o.nick||'بازیکن دیگر')+' حمله کرد و '+target.fa+' را تصرف کرد.');
           showToast('🏆 حمله موفق بود؛ '+target.fa+' به قلمرو تو پیوست!','win');
+          if(r.duel_won)showToast('🥇 دوئر را بردی — ۱۵٬۰۰۰ طلا + ۲ جم واریز شد','win');
           await syncTerr();await saveNow();closeModal('wd-pvp');
         }else{
           addNews((ACC.nick||'بازیکن')+' به '+(o.nick||'بازیکن دیگر')+' برای تصرف '+target.fa+' حمله کرد اما موفق نشد.');
@@ -4254,7 +4264,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
       if(x.error==='truce'){ /* V33.1: explicit truce report instead of a generic failure */
         battleBusy=false;
         if(pvpLine){pvpLine.remove();pvpLine=null}
-        if(log)log.innerHTML='🕊️ <b>آتش‌بس المپیک برقرار است</b><br>در طول بازی‌ها جنگ ممنوع است — امروز میدان، ورزشگاه است.';
+        if(log)log.innerHTML='🕊️ <b>آتش‌بس المپیک برقرار است</b><br>در طول بازی‌ها جنگ ممنوع است — اما دوئر رسمی استثناست: از مرکز اجتماعی یا کشوی کشور، حریف را به دوئر دعوت کن.';
         document.getElementById("battle-close-btn").textContent="باشه";
         document.getElementById("battle-close-btn").style.display="block";
         document.getElementById("battle-close-btn").onclick=()=>{battleBusy=false;closeModal("m-battle")};
@@ -4317,10 +4327,13 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
           await syncTerr();
           await saveNow();
           if(log)log.innerHTML=
+            (x.duel_won?'🥇 <b style="color:#ffd75e">دوئر رسمی را بردی!</b> جایزه: ۱۵٬۰۰۰ طلا + ۲ جم واریز شد.<br>':'')+
+            (x.revenge_used?'🎯 حق انتقام مصرف شد — این حمله با قدرت +۲۵٪ زده شد.<br>':'')+
             `🏆 <b style="color:var(--green-glow)">خط دفاعی ${String(o.nick||'دشمن').replace(/[<>&]/g,'')} شکست!</b><br>
              🗺️ خاک <b>${String(target.fa).replace(/[<>&]/g,'')}</b> به‌طور کامل تصرف شد.<br>
              ⚔️ پیشروی این موج: ${animatedGain.toFixed(1)}٪<br>
              🪖 تلفات خودی: ${Math.round(lossFraction*100)}٪`;
+          if(x.duel_won)showToast('🥇 دوئر را بردی — ۱۵٬۰۰۰ طلا + ۲ جم واریز شد','win');
           showToast(`🏆 ${target.fa} به قلمرو تو پیوست!`,'win');
           if(typeof news==='function')news('🏆 '+target.fa+' در نبرد PvP سقوط کرد');
         }else{
@@ -5462,6 +5475,14 @@ setTimeout(function(){
             try{
               if(res&&!res.error&&res.data&&res.data.ok){
                 var g=Number(res.data.gems)||0;
+                /* V34: جایزه‌ی استریک روزانه — اتوماتیک سمت سرور، اینجا فقط اعلام */
+                try{var sk=res.data.streak;if(sk&&sk.claimed&&sk.reward){var p34=[];
+                  if(sk.reward.gold)p34.push('🪙 '+Number(sk.reward.gold).toLocaleString('fa-IR')+' طلا');
+                  if(sk.reward.oil)p34.push('🛢️ '+Number(sk.reward.oil).toLocaleString('fa-IR')+' نفت');
+                  if(sk.reward.food)p34.push('🌾 '+Number(sk.reward.food).toLocaleString('fa-IR')+' غذا');
+                  if(sk.reward.gems)p34.push('💎 '+sk.reward.gems+' جم');
+                  if(sk.reward.boost_h)p34.push('⚡ بوست '+sk.reward.boost_h+' ساعته');
+                  showToast('🔥 استریک روز '+sk.streak+' پیوسته! '+p34.join(' + ')+' دریافت شد','win');}}catch(e){}
                 if(res.data.daily_granted>0){showToast('🎁 پاداش ورود روزانه: ۲۰ جم دریافت شد!','win');}
                 else if(g>=40&&!localStorage.getItem('wd_welcome40')){
                   localStorage.setItem('wd_welcome40','1');
@@ -7239,6 +7260,9 @@ function bubble(x,me,pend){
       if(window.WD33_LEGEND&&window.WD33_LEGEND(c33)){s33.className='wg33-legend';s33.textContent='⭐ اسطوره‌ی المپیک'}
       else{s33.className='wd32-tag';s33.textContent='🗿 '+fa(c33.total)+' مدال'}
       nick.append(s33)}}catch(e){}
+  /* V34: نشان رئیس‌جمهور جهان + تگ اتحاد کنار نام در چت — همه می‌بینند */
+  try{if(window.WD34_PRES&&window.WD34_PRES()===x.nick){var p34=document.createElement('span');p34.className='wd34-prestag';p34.textContent='🏛️ رئیس‌جمهور';nick.append(p34)}
+    var tg34=window.WD34_TAG&&window.WD34_TAG(x.user_id);if(tg34){var a34=document.createElement('span');a34.className='wd34-allytag';a34.textContent='['+tg34+']';nick.append(a34)}}catch(e){}
   nick.append(document.createTextNode(x.nick||'بازیکن'));
   var txt=D.createElement('div');txt.className='wd28-txt';txt.textContent=x.message;
   var t=D.createElement('div');t.className='wd28-t';t.textContent=relTime(new Date(x.created_at).getTime());
@@ -7472,6 +7496,9 @@ function richRow(x,i,maxVal){
     if(c33&&c33.total>0){if(window.WD33_STATUE)mid.insertAdjacentHTML('beforebegin',window.WD33_STATUE(c33.g,c33.s,c33.b,42));
       if(window.WD33_LEGEND&&window.WD33_LEGEND(c33)){var lg33=D.createElement('span');lg33.className='wg33-legend';lg33.textContent='⭐ اسطوره';nick.append(lg33)}
       else{var st33=D.createElement('span');st33.className='wd32-tag';st33.textContent='🗿 '+fa(c33.total)+' مدال';nick.append(st33)}}}catch(e){}
+  /* V34: نشان رئیس‌جمهور + تگ اتحاد در رتبه‌بندی */
+  try{if(window.WD34_PRES&&window.WD34_PRES()===x.nick){var pr34=D.createElement('span');pr34.className='wd34-prestag';pr34.textContent='🏛️ رئیس‌جمهور';nick.append(pr34)}
+    var tg34=window.WD34_TAG&&window.WD34_TAG(x.user_id);if(tg34){var at34=D.createElement('span');at34.className='wd34-allytag';at34.textContent='['+tg34+']';nick.append(at34)}}catch(e){}
   var tt=D.createElement('span');tt.className='rk-title';tt.textContent=titleOf(x.conquered||0);
   nick.append(tt);mid.append(nick);
   var bar=D.createElement('div');bar.className='rk-bar';
@@ -8872,7 +8899,24 @@ window.addEventListener('load',()=>{setInterval(drawFronts,4000)});
 .wd31-disc .hd small{margin-inline-start:auto;font-weight:700;font-size:10px;color:#8fb8dd}
 .wd31-btnbig{width:100%;padding:13px;border-radius:16px;border:1px solid rgba(255,204,0,.5);cursor:pointer;font-family:inherit;font-weight:900;font-size:13.5px;color:#ffe08a;background:linear-gradient(160deg,rgba(66,50,6,.7),rgba(30,22,4,.8));transition:.2s}
 .wd31-btnbig:active{transform:scale(.98)}
-#hud-olympic{cursor:pointer;font-size:13px}
+/* V34: dedicated Olympic FAB — its own spot on the right edge, below the HUD strip.
+   No longer squeezed among the small chips: bigger icon, own golden button, zero overlap. */
+#hud-olympic{position:fixed;right:10px;top:142px;width:54px;height:54px;z-index:9997;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;border-radius:50%;
+  background:linear-gradient(150deg,rgba(74,56,6,.96),rgba(30,22,2,.96));
+  border:1.5px solid rgba(255,204,0,.65);
+  box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 16px rgba(255,204,0,.28),inset 0 1px 0 rgba(255,232,130,.35);
+  transition:transform .15s,box-shadow .3s}
+#hud-olympic:active{transform:scale(.92)}
+#hud-olympic .wdol-fab-label{position:absolute;bottom:-13px;left:50%;transform:translateX(-50%);white-space:nowrap;
+  font-size:7.5px;font-weight:900;color:#ffe08a;background:rgba(24,17,1,.92);border:1px solid rgba(255,204,0,.45);
+  padding:1px 6px;border-radius:99px;letter-spacing:.3px;pointer-events:none}
+#hud-olympic .wdol-fab-dot{display:none;position:absolute;top:-2px;right:-2px;width:12px;height:12px;border-radius:50%;
+  background:#ff3366;border:2px solid #16020a;box-shadow:0 0 10px #ff3366;animation:wd31Pulse 1.2s infinite}
+#hud-olympic.wg33-live{border-color:rgba(255,214,80,.95);animation:wg33FabPulse 1.6s infinite}
+#hud-olympic.wg33-live .wdol-fab-dot{display:block}
+#hud-olympic.wg33-live .wdol-fab-label{color:#ff9db6;border-color:rgba(255,51,102,.55);background:rgba(40,4,14,.94)}
+@keyframes wg33FabPulse{0%,100%{box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 10px rgba(255,204,0,.4)}50%{box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 26px rgba(255,204,0,.95)}}
 </style>
 <script id="v31-pages">
 /* ============ V31: cinematic server profile page + world olympics ============ */
@@ -9121,14 +9165,30 @@ window.WD31_OLYMPICS=function(){openPage('wd-olympics','horn');
   refreshOly();
   if(olT)clearInterval(olT);olT=setInterval(refreshOly,30000)};
 
-/* ---------- entry points: HUD chip 🏅 + سرور chip → صفحه سینمایی + دکمه در لابی ---------- */
+/* ---------- entry points: Olympic FAB (own spot, no chip-crowding) + سرور chip → صفحه سینمایی + دکمه در لابی ---------- */
+function wdolFabPlace(){try{
+  /* park the FAB just below the HUD strip's real bottom so it can never overlap any chip,
+     whatever the screen width / wrap count — re-checked on resize */
+  const fab=H('hud-olympic');if(!fab)return;
+  const s=H('hud-strip');let top=142;
+  if(s){const r=s.getBoundingClientRect();if(r.bottom>60)top=Math.min(window.innerHeight-160,Math.max(96,Math.round(r.bottom)+14))}
+  fab.style.top=top+'px'}catch(e){}}
+window.WD33_FAB_PLACE=wdolFabPlace;
 window.addEventListener('load',()=>{setTimeout(()=>{try{
-  const s=H('hud-strip');
-  if(s&&!H('hud-olympic')){const o=(typeof el==='function')?el('div','','hchip',function(){try{window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}}):null;
-    if(o){o.id='hud-olympic';o.title='المپیک جهانی';o.innerHTML=(window.WD33_ICON?window.WD33_ICON(20):'🏅');s.appendChild(o)}}
+  let fab=H('hud-olympic');
+  if(fab&&fab.classList.contains('hchip'))fab.remove(); /* old squeezed chip from a cached session → rebuild as FAB */
+  if(!fab){
+    fab=D.createElement('div');fab.id='hud-olympic';fab.title='المپیک جهانی — صفحه‌ی کامل رقابت‌ها';
+    fab.innerHTML=(window.WD33_ICON?window.WD33_ICON(34):'🏅')+'<span class="wdol-fab-dot"></span><span class="wdol-fab-label">المپیک</span>';
+    fab.addEventListener('click',function(){try{window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}});
+    D.body.appendChild(fab)}
+  wdolFabPlace();
+  window.addEventListener('resize',wdolFabPlace);
   const old=H('hud-srv');
   if(old&&!old.__wd31){const neo=old.cloneNode(false);neo.textContent=old.textContent;neo.title='شناسنامه‌ی سینمایی سرور';neo.style.cursor='pointer';
     neo.addEventListener('click',window.WD31_SERVER);old.replaceWith(neo);neo.__wd31=1}
+  wdolFabPlace();
+  setInterval(wdolFabPlace,4000) /* strip wrap-count can change after fonts/late chips load */
 }catch(e){}},400)});
 (function(){try{
   const mo=new MutationObserver(()=>{try{const p=H('lobby-panel-sp');
@@ -9257,7 +9317,7 @@ setTimeout(placeCrown,12000);setInterval(()=>{if(!document.hidden)placeCrown()},
 #wd33-strip .s33 b{color:#fff}
 #wd33-strip .live33{display:inline-flex;align-items:center;gap:4px;color:#ff6b8f;font-size:9px;font-weight:900}
 #wd33-strip .live33 i{width:6px;height:6px;border-radius:50%;background:#ff3366;box-shadow:0 0 8px #ff3366;animation:wd31Pulse 1.2s infinite}
-#hud-olympic.wg33-live{box-shadow:0 0 12px rgba(255,204,0,.75);border-radius:50%;animation:wg33Pulse 1.6s infinite}
+/* wg33Pulse kept for other consumers */
 @keyframes wg33Pulse{0%,100%{box-shadow:0 0 6px rgba(255,204,0,.5)}50%{box-shadow:0 0 16px rgba(255,204,0,.95)}}
 .wg33-hero2{position:relative;text-align:center;padding:22px 12px 18px;border-radius:24px;overflow:hidden;
   background:linear-gradient(165deg,rgba(46,32,4,.9),rgba(4,12,26,.95));border:1px solid rgba(255,204,0,.4);
@@ -9486,8 +9546,12 @@ function wdolIcon(sz,live){
     body+'</svg>';
 }
 window.WD33_ICON=wdolIcon;
-/* upgrade an already-created 🏅 HUD chip to the signature icon */
-try{const _chip=document.getElementById('hud-olympic');if(_chip&&!_chip.querySelector('.wdol-ico'))_chip.innerHTML=wdolIcon(20)}catch(e){}
+/* upgrade an already-created entry point to the signature icon (FAB keeps label+dot) */
+try{const _chip=document.getElementById('hud-olympic');
+  if(_chip&&!_chip.querySelector('.wdol-ico')){
+    const dot=_chip.querySelector('.wdol-fab-dot'),lbl=_chip.querySelector('.wdol-fab-label');
+    _chip.innerHTML=wdolIcon(_chip.classList&&_chip.classList.contains('hchip')?20:34);
+    if(dot)_chip.appendChild(dot);if(lbl)_chip.appendChild(lbl)}}catch(e){}
 
 /* ---------- state ---------- */
 let WG33=null,wgPollT=null,wgOpenFlag=false,wgSort='total',wgSel=[];
@@ -10233,6 +10297,466 @@ function placeGoldenFlag(){try{
 }catch(e){}}
 setTimeout(placeGoldenFlag,16000);setInterval(()=>{if(!document.hidden)placeGoldenFlag()},120000);
 window.WD33_GFLAG=placeGoldenFlag; /* test/manual hook */
+})();
+</script>
+<style id="v34-css">
+/* ============ V34 — social & competitive layer (duels/alliance/elections/mentor/heatmap/streak/poster) ============ */
+#wd34-wrap{max-width:860px;margin:0 auto;padding:64px 14px 40px;position:relative;z-index:2}
+.wd34-hero{text-align:center;padding:18px 12px 14px;border-radius:22px;background:linear-gradient(165deg,rgba(10,32,58,.92),rgba(4,12,26,.95));border:1px solid rgba(0,220,255,.35);box-shadow:0 14px 44px rgba(0,0,0,.4);margin-bottom:12px}
+.wd34-hero h1{font-size:21px;font-weight:900;color:#7fd8ff;margin:4px 0 2px}
+.wd34-hero .sub{font-size:11px;color:#8fb8dd;font-weight:700}
+.wd34-presline{display:inline-flex;align-items:center;gap:7px;margin-top:9px;padding:6px 14px;border-radius:99px;background:linear-gradient(135deg,rgba(59,130,246,.18),rgba(139,92,246,.18));border:1px solid rgba(139,92,246,.5);font-size:11.5px;font-weight:900;color:#c4b5fd}
+.wd34-tabs{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:none}
+.wd34-tabs::-webkit-scrollbar{display:none}
+.wd34-tab{flex:1;min-width:74px;padding:10px 6px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(8,20,38,.85);color:#cfe6ff;font-family:inherit;font-weight:900;font-size:11.5px;cursor:pointer;white-space:nowrap;transition:.15s}
+.wd34-tab.on{border-color:rgba(0,220,255,.65);color:#7fd8ff;background:linear-gradient(160deg,rgba(10,42,72,.95),rgba(4,16,32,.95));box-shadow:0 0 14px rgba(0,220,255,.2)}
+.wd34-card{border-radius:18px;padding:13px 14px;background:linear-gradient(170deg,rgba(9,24,44,.9),rgba(4,12,26,.94));border:1px solid rgba(255,255,255,.09);margin-top:10px}
+.wd34-h{display:flex;align-items:center;gap:8px;font-weight:900;font-size:13px;color:#ffe3b0;margin-bottom:8px}
+.wd34-h small{margin-inline-start:auto;font-weight:700;font-size:9.5px;color:#8fb8dd}
+.wd34-mini{font-size:10.5px;color:#8fb8dd;line-height:1.9}
+.wd34-row{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);margin-top:7px;font-size:11.5px;color:#dff6ff;flex-wrap:wrap}
+.wd34-row b{color:#fff}
+.wd34-row .grow{flex:1;min-width:90px}
+.wd34-btn{padding:8px 14px;border:0;border-radius:11px;font-family:inherit;font-weight:900;font-size:11px;cursor:pointer;color:#04222b;background:linear-gradient(135deg,#67e8f9,#22d3ee);transition:.15s;white-space:nowrap}
+.wd34-btn:active{transform:scale(.96)}
+.wd34-btn.gold{background:linear-gradient(135deg,#ffd75e,#ffb02e);color:#3a2600}
+.wd34-btn.red{background:linear-gradient(135deg,#ff8a9d,#ff4d6d);color:#3d0410}
+.wd34-btn.ghost{background:rgba(255,255,255,.08);color:#cdd7e8;border:1px solid rgba(255,255,255,.15)}
+.wd34-btn:disabled{filter:grayscale(.7);opacity:.55;cursor:default}
+.wd34-in{width:100%;padding:11px 13px;border-radius:13px;border:1px solid rgba(0,220,255,.3);background:rgba(4,14,28,.9);color:#eaf6ff;font-family:inherit;font-size:12.5px;outline:none}
+.wd34-in:focus{border-color:rgba(0,220,255,.7)}
+.wd34-live{display:inline-flex;align-items:center;gap:4px;color:#ff6b8f;font-size:9px;font-weight:900}
+.wd34-live i{width:6px;height:6px;border-radius:50%;background:#ff3366;box-shadow:0 0 8px #ff3366;animation:wd31Pulse 1.2s infinite}
+.wd34-pot{font-weight:900;color:#ffd75e;white-space:nowrap}
+.wd34-cd{font-size:9.5px;color:#8fb8dd;white-space:nowrap;direction:ltr}
+.wd34-betchips{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.wd34-betchips button{padding:5px 10px;border-radius:9px;border:1px solid rgba(255,204,0,.4);background:rgba(255,204,0,.08);color:#ffe08a;font-family:inherit;font-weight:900;font-size:10px;cursor:pointer}
+.wd34-betchips button:active{background:rgba(255,204,0,.28)}
+.wd34-vs{font-weight:900;font-size:12.5px;color:#fff}
+.wd34-vs .v{color:#ff6b8f;font-size:10px;margin:0 5px}
+.wd34-win{color:#7dff9e;font-weight:900}
+.wd34-revchip{width:100%;margin-top:7px;padding:8px 11px;border-radius:11px;background:linear-gradient(135deg,rgba(255,61,61,.16),rgba(120,20,40,.2));border:1px dashed rgba(255,100,110,.55);color:#ffb3bc;font-size:10.5px;font-weight:800;text-align:right}
+.wd34-prestag{display:inline-flex;align-items:center;gap:3px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;font-size:8.5px;font-weight:900;padding:1.5px 7px;border-radius:99px;box-shadow:0 0 8px rgba(99,102,241,.55);white-space:nowrap;flex:none;vertical-align:middle}
+.wd34-allytag{display:inline-flex;align-items:center;background:rgba(0,220,255,.12);border:1px solid rgba(0,220,255,.4);color:#7fd8ff;font-size:8.5px;font-weight:900;padding:0 6px;border-radius:7px;white-space:nowrap;flex:none;vertical-align:middle;direction:ltr}
+/* heatmap button + legend */
+#wd34-heat-btn{position:fixed;right:10px;top:216px;width:44px;height:44px;z-index:9997;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:19px;
+  background:linear-gradient(150deg,rgba(60,14,4,.95),rgba(24,6,2,.95));border:1.5px solid rgba(255,110,60,.55);
+  box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 12px rgba(255,90,40,.2)}
+#wd34-heat-btn.on{border-color:#ff6a3c;box-shadow:0 0 20px rgba(255,90,40,.75);animation:wd31Pulse 1.6s infinite}
+#wd34-heat-lg{position:fixed;left:10px;bottom:88px;z-index:9997;max-width:74vw;padding:7px 12px;border-radius:12px;background:rgba(20,6,2,.92);border:1px solid rgba(255,110,60,.5);color:#ffc9a8;font-size:10px;font-weight:800;display:none}
+#wd34-heat-lg.on{display:block}
+/* streak card (in tax modal) */
+.wd34-streak{margin-top:10px;padding:11px 13px;border-radius:14px;background:linear-gradient(160deg,rgba(66,32,4,.5),rgba(10,10,26,.85));border:1px solid rgba(255,150,40,.4)}
+.wd34-streak .t{display:flex;align-items:center;gap:8px;font-weight:900;font-size:12.5px;color:#ffc46b}
+.wd34-streak .t small{margin-inline-start:auto;font-size:9.5px;color:#8fb8dd;font-weight:700}
+.wd34-dots{display:flex;gap:5px;margin:9px 0 7px;direction:ltr;justify-content:center}
+.wd34-dot{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#7c8ea8}
+.wd34-dot.on{background:linear-gradient(135deg,#ffd75e,#ff9d3c);color:#3a2600;border-color:rgba(255,204,0,.7);box-shadow:0 0 8px rgba(255,157,60,.45)}
+.wd34-dot.next{border-color:rgba(0,220,255,.6);color:#7fd8ff}
+.wd34-streak .rw{font-size:10.5px;color:#cfe6ff;line-height:1.9;text-align:center}
+.wd34-streak .rw b{color:#ffd75e}
+/* poster */
+.wd34-poster{width:min(100%,420px);border-radius:14px;border:1px solid rgba(255,204,0,.4);box-shadow:0 14px 44px rgba(0,0,0,.5);display:block;margin:6px auto}
+.wd34-slogan{font-size:10.5px;color:#bfe9ff;font-style:italic}
+.wd34-empty{text-align:center;padding:16px 10px;color:#8fb8dd;font-size:11.5px;line-height:2}
+</style>
+<script id="v34-social">
+/* ============ V34: مرکز اجتماعی — دوئل+شرط‌بندی، اتحاد، انتخابات، منتور، انتقام، heatmap، استریک، پوستر ============ */
+(function(){
+'use strict';
+const D=document,H=id=>D.getElementById(id);
+const faN=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=n=>{try{return Number(n||0).toLocaleString('fa-IR')}catch(e){return String(n||0)}};
+const SRV=()=>{try{return Math.max(1,Number(window.SRV)||1)}catch(e){return 1}};
+const toast=(t,k)=>{try{if(typeof showToast==='function')showToast(t,k||'win')}catch(e){}};
+const sndK=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
+async function wx(fn,args){try{const r=await sb.rpc(fn,args||{});if(r&&r.error)return{ok:false,e:r.error};return{ok:true,d:r?r.data:null}}catch(e){return{ok:false,e}}}
+const ERRS={truce:'🕊️ آتش‌بس المپیک فعال است — فقط دوئر رسمی آزاد است',owned:'این خاک مال بازیکن دیگری است',funds:'💰 طلا کافی نداری',limit:'سقف دعوت‌های باز (۵ تا) پر است',exists:'بین شما یک دعوت یا دوئر فعال هست',player:'بازیکنی با این نام پیدا نشد',server:'این بازیکن در سرور تو نیست',gone:'دیگر موجود نیست',expired:'فرصتش تمام شد',fighter:'مبارز نمی‌تواند روی دوئر خودش شرط ببندد',side:'طرف دوئر را انتخاب کن',amount:'مبلغ باید بین ۱۰۰ تا ۵۰٬۰۰۰ طلا باشد',already:'قبلاً روی این دوئر شرط بستی',phase:'الان وقتش نیست',capital:'اول باید پایتخت داشته باشی',candidate:'این نامزد وجود ندارد',vet:'هنوز کهنه‌سرباز نیستی (امتیاز ۶۰۰+ یا ۳ خاک)',member:'قبلاً عضو یک اتحاد هستی',tag:'این تگ قبلاً گرفته شده',bad:'نام (۳+ حرف) و تگ (۲ تا ۴ حرف لاتین) معتبر وارد کن',full:'اتحاد پر است (۱۰ عضو)',nosave:'اول بازی را ذخیره کن'};
+const errFa=r=>{const e=r&&r.e?(String(r.e.message||r.e.code||'')):((r&&r.d&&r.d.error)||'');return '❌ '+(ERRS[e]||'انجام نشد')};
+function cdTxt(ms){if(!(ms>0))return '—';const m=Math.max(0,Math.round(ms/60000));if(m<60)return faN(m)+' دقیقه';const h=Math.floor(m/60),mm=m%60;if(h<48)return faN(h)+' ساعت و '+faN(mm)+' دقیقه';return faN(Math.floor(h/24))+' روز'}
+
+/* ---------- shared state + badge exports (chat / leaderboard consume these) ---------- */
+const S={open:false,tab:'duel',duels:null,elect:null,allyList:null,allyInfo:null,mentor:null,revenge:[],tags:{},pres:null,streakSt:null,heat:false,heatL:null,heatData:null,poster:null,pollT:null};
+window.WD34_PRES=()=>S.pres?S.pres.nick:null;
+window.WD34_TAG=uid=>{try{return S.tags[uid]||null}catch(e){return null}};
+window.WD34_STREAK=()=>S.streakSt;
+window.WD34_S=S; /* debug/E2E hook */
+
+/* ---------- page shell (same cinematic family as V31) ---------- */
+function pageOn(){let p=H('wd34-page');
+  if(!p){p=D.createElement('div');p.id='wd34-page';p.className='wd31-page';
+    p.innerHTML='<div class="wd31-aurora a1"></div><div class="wd31-aurora a2"></div><div class="wd31-stars"></div>'+
+      '<button class="wd31-close" aria-label="بستن">✕</button><div id="wd34-wrap"></div>';
+    D.body.appendChild(p);
+    p.querySelector('.wd31-close').addEventListener('click',close34)}
+  return p}
+function open34(tab){try{if(window.WD30_CANCEL_TARGET)window.WD30_CANCEL_TARGET()}catch(e){}
+  S.open=true;if(tab)S.tab=tab;pageOn().classList.add('on');sndK('click');render34();refresh34();
+  if(S.pollT)clearInterval(S.pollT);S.pollT=setInterval(()=>{if(!D.hidden)refresh34()},12000)}
+function close34(){const p=H('wd34-page');if(p)p.classList.remove('on');S.open=false;
+  if(S.pollT){clearInterval(S.pollT);S.pollT=null}}
+window.WD34_OPEN=open34;
+D.addEventListener('keydown',ev=>{if(ev&&ev.key==='Escape'&&S.open){
+  const st=D.getElementById('wd33-stage'),cr=D.getElementById('wd33-cer');
+  if(st&&st.classList.contains('on'))return;if(cr&&cr.classList.contains('on'))return;
+  close34()}});
+
+/* ---------- data refresh ---------- */
+async function refresh34(){
+  const srv=SRV();
+  if(S.tab==='duel'){const r=await wx('duel_list',{p_server:srv});if(r.ok)S.duels=r.d}
+  else if(S.tab==='ally'){const a=await wx('alliance_list',{p_server:srv});if(a.ok)S.allyList=a.d;
+    const i=await wx('alliance_info',{p_server:srv});S.allyInfo=i.ok?i.d:null}
+  else if(S.tab==='elect'){const e=await wx('election_status',{p_server:srv});if(e.ok){S.elect=e.d;S.pres=e.d?e.d.president||null:null}}
+  else if(S.tab==='mentor'){const m=await wx('mentor_status',{p_server:srv});if(m.ok)S.mentor=m.d}
+  else if(S.tab==='poster'){if(!S.poster)await makePoster()}
+  const rv=await wx('revenge_list',{});if(rv.ok)S.revenge=rv.d||[];
+  render34()}
+
+/* background tick: badges + streak (powers chat/leaderboard tags even when page closed) */
+async function badgeTick(){if(D.hidden)return;const srv=SRV();
+  const e=await wx('election_status',{p_server:srv});if(e.ok&&e.d){S.elect=e.d;S.pres=e.d.president||null}
+  const a=await wx('alliance_list',{p_server:srv});if(a.ok&&a.d){S.tags=a.d.tags||{};S.allyList=a.d}
+  const st=await wx('streak_status',{});if(st.ok)S.streakSt=st.d;
+  if(S.open)render34()}
+
+/* ---------- render ---------- */
+const TABS=[['duel','⚔️ دوئل'],['ally','🤝 اتحاد'],['elect','🏛️ انتخابات'],['mentor','🎓 منتور'],['poster','🖼️ پوستر']];
+function render34(){
+  const w=H('wd34-wrap');if(!w||!S.open)return;
+  let h='<div class="wd34-hero"><div style="font-size:34px;line-height:1">🌐</div><h1>مرکز اجتماعی جهان</h1>'+
+    '<div class="sub">دوئر رسمی • اتحادها • انتخابات • منتورگری • پوستر امپراتوری</div>';
+  if(S.pres)h+='<div class="wd34-presline">🏛️ رئیس‌جمهور جهان: <b>'+esc(S.pres.nick)+'</b> ('+faN(S.pres.votes||0)+' رأی — تا '+cdTxt(new Date(S.pres.until).getTime()-Date.now())+' دیگر)</div>';
+  if(S.revenge.length)h+='<div class="wd34-presline" style="border-color:rgba(255,100,110,.5);color:#ffb3bc">🎯 '+faN(S.revenge.length)+' حق انتقام فعال — حمله‌ی بعدی به مهاجم +۲۵٪</div>';
+  h+='</div><div class="wd34-tabs">'+TABS.map(t=>'<button class="wd34-tab'+(S.tab===t[0]?' on':'')+'" data-t="'+t[0]+'">'+t[1]+'</button>').join('')+'</div><div id="wd34-body"></div>';
+  w.innerHTML=h;
+  w.querySelectorAll('.wd34-tab').forEach(b=>b.addEventListener('click',()=>{S.tab=b.dataset.t;render34();refresh34()}));
+  const b=H('wd34-body');if(!b)return;
+  if(S.tab==='duel')renderDuel(b);else if(S.tab==='ally')renderAlly(b);else if(S.tab==='elect')renderElect(b);
+  else if(S.tab==='mentor')renderMentor(b);else if(S.tab==='poster')renderPoster(b)}
+
+/* ---------- ⚔️ duels + betting + spectate ---------- */
+function duelRow(d,opt){
+  const myUid=(typeof ACC!=='undefined'&&ACC&&ACC.uid)||'';
+  const isFighter=d.from_uid===myUid||d.to_uid===myUid;
+  let h='';
+  if(d.status==='open'){
+    h='<b>'+esc(d.from)+'</b><span class="wd34-vs"><span class="v">در چالشِ</span></span><b>'+esc(d.to)+'</b>'+
+      '<span class="grow"></span><span class="wd34-cd">'+cdTxt(new Date(d.ends).getTime()-Date.now())+'</span>';
+    if(d.incoming)h+='<button class="wd34-btn" data-acc="'+d.id+'">قبول دوئر</button><button class="wd34-btn ghost" data-dec="'+d.id+'">رد</button>';
+    else if(d.mine)h+='<button class="wd34-btn ghost" data-dec="'+d.id+'">لغو دعوت</button><span class="wd34-mini">در انتظار پاسخ…</span>';
+    else h+='<span class="wd34-mini">دعوت باز</span>';
+  }else if(d.status==='live'){
+    h='<span class="wd34-live"><i></i>LIVE</span><span class="wd34-vs">'+esc(d.from)+'<span class="v">در برابر</span>'+esc(d.to)+'</span>'+
+      '<span class="grow"></span><span class="wd34-pot">🪙 '+num(d.pot)+'</span><span class="wd34-cd">'+cdTxt(new Date(d.ends).getTime()-Date.now())+'</span>';
+    if(isFighter)h+='<span class="wd34-btn gold" style="cursor:default">نبرد تو — حمله کن!</span>';
+    else if(d.my_bet)h+='<span class="wd34-mini">شرط تو: 🪙 '+num(d.my_bet.amount)+' روی <b>'+(d.my_bet.on===d.from_uid?esc(d.from):esc(d.to))+'</b></span>';
+    else h+='<span class="wd34-betchips" style="margin-top:0">'+[1000,5000,20000].map(a=>'<button data-bet="'+d.id+'" data-on="'+(d.from_uid||'')+'" data-amt="'+a+'">🪙 '+faN(a/1000)+'k روی '+esc(d.from)+'</button>').join('')+
+      [1000,5000,20000].map(a=>'<button data-bet="'+d.id+'" data-on="'+(d.to_uid||'')+'" data-amt="'+a+'">🪙 '+faN(a/1000)+'k روی '+esc(d.to)+'</button>').join('')+'</span>';
+  }else{
+    h='<span class="wd34-vs">'+esc(d.from)+'<span class="v">در برابر</span>'+esc(d.to)+'</span><span class="grow"></span>'+
+      (d.status==='done'?('<span class="wd34-win">🏆 برنده: '+esc(d.winner||'—')+'</span>'):(d.status==='expired'?'<span class="wd34-mini">⏳ بدون نتیجه — شرط‌ها برگشت</span>':'<span class="wd34-mini">رد شد</span>'))+
+      (d.my_bet&&d.my_bet.settled?('<span class="wd34-mini">تسویه: '+(d.my_bet.paid>0?('🪙 +'+num(d.my_bet.paid)):'باخت '+num(d.my_bet.amount))+'</span>'):'');
+  }
+  return '<div class="wd34-row">'+h+'</div>'}
+function renderDuel(b){
+  const d=S.duels||{mine:[],live:[],recent:[]};
+  let h='<div class="wd34-card"><div class="wd34-h">⚔️ دعوت به دوئر<small>دوئر رسمی حتی در آتش‌بس المپیک هم برگزار می‌شود</small></div>'+
+    '<div class="wd34-mini" style="margin-bottom:8px">پذیرش دوئر = پنجره‌ی جنگ ۲ ساعته بین دو نفر. برنده: <b style="color:#ffd75e">۱۵٬۰۰۰ طلا + ۲ جم</b>. بازنده: حق انتقام ۷۲ ساعته (+۲۵٪ یک‌بارمصرف).</div>'+
+    '<input class="wd34-in" id="wd34-duelnick" placeholder="نام دقیق بازیکن (مثلاً v33t104657)" dir="auto">'+
+    '<button class="wd34-btn gold" id="wd34-duelsend" style="margin-top:8px;width:100%">📨 ارسال دعوت دوئر</button></div>';
+  h+='<div class="wd34-card"><div class="wd34-h">📩 چالش‌های من<small>'+faN(d.mine.length)+'</small></div>'+
+    (d.mine.length?d.mine.map(x=>duelRow(x)).join(''):'<div class="wd34-empty">دعوتی نداری — از کشوی کشور حریف یا با نامش دعوت کن</div>')+'</div>';
+  h+='<div class="wd34-card"><div class="wd34-h">🔴 میدان زنده — تماشا و شرط‌بندی<small>جایزه‌ی شرط‌ها: ۹۵٪ استخر به برندگان</small></div>'+
+    (d.live.length?d.live.map(x=>duelRow(x)).join(''):'<div class="wd34-empty">الان دوئر زنده‌ای نیست — یکی را شعله‌ور کن!</div>')+'</div>';
+  h+='<div class="wd34-card"><div class="wd34-h">📜 نتایج آخرین دوئل‌ها</div>'+
+    (d.recent.length?d.recent.map(x=>duelRow(x)).join(''):'<div class="wd34-empty">هنوز تاریخچه‌ای نیست</div>')+'</div>';
+  if(S.revenge.length)h+='<div class="wd34-card"><div class="wd34-h">🎯 حق‌های انتقام من<small>+۲۵٪ قدرت — یک‌بارمصرف</small></div>'+
+    S.revenge.map(r=>'<div class="wd34-row"><b>'+esc(r.target)+'</b><span class="grow"></span><span class="wd34-mini">تا '+cdTxt(new Date(r.expires).getTime()-Date.now())+' دیگر</span></div>').join('')+'</div>';
+  b.innerHTML=h;
+  const si=H('wd34-duelsend');
+  if(si)si.addEventListener('click',async()=>{const inp=H('wd34-duelnick');const nick=(inp&&inp.value||'').trim();
+    if(!nick){toast('❌ نام بازیکن را وارد کن','lose');return}
+    const r=await wx('duel_send',{p_server:SRV(),p_to_nick:nick});
+    if(r.ok&&r.d&&r.d.ok){toast('⚔️ دعوت دوئر برای '+nick+' ارسال شد — ۳۰ دقیقه فرصت پذیرش','win');refresh34()}
+    else toast(errFa(r),'lose')});
+  b.querySelectorAll('[data-acc]').forEach(x=>x.addEventListener('click',async()=>{
+    const r=await wx('duel_accept',{p_id:x.dataset.acc});
+    if(r.ok&&r.d&&r.d.ok){toast('🔴 دوئر شروع شد! ۲ ساعت فرصت داری حریفت را شکست بدهی','win');sndK('cheer');refresh34()}
+    else toast(errFa(r),'lose')}));
+  b.querySelectorAll('[data-dec]').forEach(x=>x.addEventListener('click',async()=>{
+    const r=await wx('duel_decline',{p_id:x.dataset.dec});refresh34();
+    if(r.ok&&r.d&&r.d.ok)toast('دعوت بسته شد','win')}));
+  b.querySelectorAll('[data-bet]').forEach(x=>x.addEventListener('click',async()=>{
+    const r=await wx('duel_bet',{p_id:x.dataset.bet,p_on_uid:x.dataset.on,p_amount:Number(x.dataset.amt)});
+    if(r.ok&&r.d&&r.d.ok){toast('🪙 شرط ثبت شد — اگر طرفت ببرد سهمت از استخر را می‌گیری','win');sndK('coin');refresh34()}
+    else toast(errFa(r),'lose')}))}
+/* ---------- 🤝 alliances ---------- */
+function renderAlly(b){
+  const L=S.allyList||{list:[],mine_tag:null,mine_id:null},I=S.allyInfo;
+  let h='';
+  if(I){h+='<div class="wd34-card"><div class="wd34-h">🤝 ['+esc(I.tag)+'] '+esc(I.name)+'<small>قدرت جمعی: '+num(I.power)+'</small></div>'+
+    '<div class="wd34-mini">رهبر: <b>'+esc(I.owner)+'</b> — '+faN(I.members.length)+' از ۱۰ عضو</div>'+
+    I.members.map(m=>'<div class="wd34-row"><b>'+esc(m.nick)+'</b>'+(m.role==='owner'?'<span class="wd34-mini">👑</span>':'')+'<span class="grow"></span><span class="wd34-mini">⭐ '+num(m.score)+' • 🏴 '+faN(m.terr)+'</span></div>').join('')+
+    '<button class="wd34-btn red" id="wd34-al leave" style="margin-top:9px">🚪 خروج از اتحاد'+(I.i_am_owner?' (رهبر = انحلال در صورت تنها ماندن)':'')+'</button></div>'}
+  else{h+='<div class="wd34-card"><div class="wd34-h">🏗️ تأسیس اتحاد<small>هزینه: ۱۰٬۰۰۰ طلا</small></div>'+
+    '<input class="wd34-in" id="wd34-alname" placeholder="نام اتحاد (مثلاً طوفان صحرا)" dir="auto" style="margin-bottom:7px">'+
+    '<input class="wd34-in" id="wd34-altag" placeholder="تگ ۲ تا ۴ حرف لاتین (مثلاً TOF)" dir="ltr" style="margin-bottom:8px">'+
+    '<button class="wd34-btn gold" id="wd34-alcreate" style="width:100%">🏗️ تأسیس کن — تگ کنار نام همه‌ی اعضا می‌نشیند</button></div>'}
+  h+='<div class="wd34-card"><div class="wd34-h">🌍 اتحادهای سرور '+faN(SRV())+'<small>مرتب بر اساس قدرت</small></div>'+
+    (L.list.length?L.list.map(a=>'<div class="wd34-row"><span class="wd34-allytag">['+esc(a.tag)+']</span><b>'+esc(a.name)+'</b><span class="grow"></span><span class="wd34-mini">👥 '+faN(a.members)+'/۱۰ • ⭐ '+num(a.power)+'</span>'+
+      (I&&I.id===a.id?'<span class="wd34-mini">اتحاد تو</span>':(I?'':'<button class="wd34-btn" data-join="'+a.id+'">پیوستن</button>'))+'</div>').join(''):'<div class="wd34-empty">هنوز اتحادی نیست — اولین باش و نامتان را تاریخ کنید</div>')+'</div>';
+  b.innerHTML=h;
+  const cr=H('wd34-alcreate');
+  if(cr)cr.addEventListener('click',async()=>{
+    const n=H('wd34-alname'),t=H('wd34-altag');
+    const r=await wx('alliance_create',{p_server:SRV(),p_name:n?n.value:'',p_tag:t?t.value:''});
+    if(r.ok&&r.d&&r.d.ok){toast('🤝 اتحاد تاسیس شد! تگ ['+r.d.tag+'] از این به بعد کنار نامت است','win');sndK('cheer');refresh34();badgeTick()}
+    else toast(errFa(r),'lose')});
+  b.querySelectorAll('[data-join]').forEach(x=>x.addEventListener('click',async()=>{
+    const r=await wx('alliance_join',{p_server:SRV(),p_id:x.dataset.join});
+    if(r.ok&&r.d&&r.d.ok){toast('🤝 به اتحاد پیوستید','win');refresh34();badgeTick()}
+    else toast(errFa(r),'lose')}));
+  const lv=H('wd34-al leave');
+  if(lv)lv.addEventListener('click',async()=>{
+    if(!confirm('از اتحاد خارج می‌شوی؟'))return;
+    const r=await wx('alliance_leave',{});
+    if(r.ok&&r.d&&r.d.ok){toast('از اتحاد خارج شدی','win');refresh34();badgeTick()}})}
+
+/* ---------- 🏛️ world elections ---------- */
+function renderElect(b){
+  const e=S.elect;
+  if(!e){b.innerHTML='<div class="wd34-card"><div class="wd34-empty">در حال دریافت وضعیت انتخابات…</div></div>';return}
+  const myUid=(typeof ACC!=='undefined'&&ACC&&ACC.uid)||'';
+  let h='<div class="wd34-card"><div class="wd34-h">🏛️ انتخابات جهانی<small>چرخه‌ی ۱۰ روزه</small></div>'+
+    '<div class="wd34-mini">فاز: <b style="color:'+(e.phase==='cand'?'#7dff9e':'#ffd75e')+'">'+(e.phase==='cand'?'ثبت نامزدی':'رأی‌گیری')+'</b> — '+
+    (e.phase==='cand'?'ثبت نامزدی تا ':'رأی‌گیری تا ')+cdTxt(new Date(e.ends_at).getTime()-Date.now())+' دیگر</div>'+
+    '<div class="wd34-mini" style="margin-top:4px">هر چرخه: ۴ روز نامزدی (نیاز به پایتخت) → ۶ روز رأی‌گیری (هر بازیکن ۱ رأی، قابل تغییر) → برنده <b style="color:#ffd75e">رئیس‌جمهور جهان</b>: ۳۰ جم + نشان بنفش کنار نامش همه‌جا برای یک دوره‌ی کامل.</div></div>';
+  if(e.phase==='cand'){
+    const mine=e.candidates.find(c=>c.uid===myUid);
+    h+='<div class="wd34-card"><div class="wd34-h">📝 نامزدی</div>'+
+      (mine?'<div class="wd34-row">✔️ تو نامزدی — شعار: <span class="wd34-slogan">'+esc(mine.slogan||'—')+'</span></div>':
+      '<input class="wd34-in" id="wd34-slogan" placeholder="شعار انتخاباتی‌ات (مثلاً: صلح با قدرت)" dir="auto" style="margin-bottom:8px">'+
+      '<button class="wd34-btn gold" id="wd34-cand" style="width:100%">🎤 نامزد شو (پایتخت لازم است)</button>')+'</div>';
+  }else{
+    h+='<div class="wd34-card"><div class="wd34-h">🗳️ صندوق رأی<small>رأی‌ات قابل تغییر است</small></div>'+
+      (e.candidates.length?e.candidates.map(c=>'<div class="wd34-row"><b>'+esc(c.nick)+'</b><span class="wd34-slogan grow">'+esc(c.slogan||'')+'</span><span class="wd34-mini">'+faN(c.votes)+' رأی</span>'+
+        (e.my_vote===c.uid?'<span class="wd34-btn" style="cursor:default">✔️ رأی تو</span>':'<button class="wd34-btn" data-vote="'+c.uid+'">رأی</button>')+'</div>').join(''):
+      '<div class="wd34-empty">هنوز نامزدی ثبت نشده — دوره‌ی بعد صبحت کن!</div>')+'</div>';
+  }
+  if(!S.pres)h+='<div class="wd34-card"><div class="wd34-empty">هنوز رئیس‌جمهوری انتخاب نشده — برنده‌ی اولین چرخه، اولین رئیس‌جمهور تاریخ این جهان می‌شود 🏛️</div></div>';
+  b.innerHTML=h;
+  const cd=H('wd34-cand');
+  if(cd)cd.addEventListener('click',async()=>{const s=H('wd34-slogan');
+    const r=await wx('election_candidacy',{p_server:SRV(),p_slogan:s?s.value:''});
+    if(r.ok&&r.d&&r.d.ok){toast('🎤 نامزدی ثبت شد — حالا رأی جمع کن!','win');sndK('cheer');refresh34()}
+    else toast(errFa(r),'lose')});
+  b.querySelectorAll('[data-vote]').forEach(x=>x.addEventListener('click',async()=>{
+    const r=await wx('election_vote',{p_server:SRV(),p_to_uid:x.dataset.vote});
+    if(r.ok&&r.d&&r.d.ok){toast('🗳️ رأی‌ات ثبت شد','win');sndK('coin');refresh34()}
+    else toast(errFa(r),'lose')}))}
+
+/* ---------- 🎓 mentorship ---------- */
+function renderMentor(b){
+  const m=S.mentor;
+  if(!m){b.innerHTML='<div class="wd34-card"><div class="wd34-empty">در حال دریافت…</div></div>';return}
+  let h='<div class="wd34-card"><div class="wd34-h">🎓 سیستم منتور<small>پیوند کهنه‌سرباز + تازه‌کار</small></div>'+
+    '<div class="wd34-mini">منتور هر روز که شاگردش بازی کند <b style="color:#ffd75e">۳ جم</b> می‌گیرد؛ شاگرد <b style="color:#ffd75e">۸٬۰۰۰ طلا</b>. کهنه‌سرباز = امتیاز ۶۰۰+ یا ۳ خاک.</div></div>';
+  /* as mentee */
+  h+='<div class="wd34-card"><div class="wd34-h">🧭 منتور من</div>';
+  if(m.as_mentee){
+    const a=m.as_mentee;
+    h+='<div class="wd34-row"><b>'+esc(a.mentor)+'</b><span class="grow"></span><span class="wd34-mini">'+(a.status==='active'?'فعال — '+faN(a.days)+' روز':'در انتظار تأیید')+'</span>'+
+      (a.claimable?'<button class="wd34-btn gold" id="wd34-mclaim">🪙 دریافت ۸٬۰۰۰ طلا امروز</button>':'')+'</div>';
+  }else{
+    h+='<div class="wd34-mini" style="margin-bottom:4px">منتورهای داوطلب سرور:</div>'+
+      (m.offers.length?m.offers.map(o=>'<div class="wd34-row"><b>'+esc(o.nick)+'</b><span class="wd34-slogan grow">'+esc(o.bio||'—')+'</span><button class="wd34-btn" data-mreq="'+o.uid+'">درخواست منتورگری</button></div>').join(''):
+      '<div class="wd34-empty">فعلاً منتوری ثبت‌نام نکرده — بازیکنان با امتیاز ۶۰۰+ می‌توانند از پایین داوطلب شوند</div>');
+  }
+  h+='</div>';
+  /* as mentor */
+  h+='<div class="wd34-card"><div class="wd34-h">🎖️ شاگردهای من'+(m.is_vet?'':'<small>برای داوطلبی کهنه‌سرباز شو</small>')+'</div>';
+  if(m.as_mentor.length){
+    h+=m.as_mentor.map(l=>'<div class="wd34-row"><b>'+esc(l.mentee)+'</b><span class="grow"></span><span class="wd34-mini">'+(l.status==='active'?('فعال — '+faN(l.days)+' روز'):'درخواست باز')+'</span>'+
+      (l.status==='pending'?'<button class="wd34-btn" data-mok="'+l.id+'" data-v="1">پذیرش</button><button class="wd34-btn ghost" data-mok="'+l.id+'" data-v="0">رد</button>':
+      (l.claimable?'<button class="wd34-btn gold" data-mgym="'+l.id+'">💎 +۳ جم امروز</button>':''))+'</div>').join('');
+  }else h+='<div class="wd34-empty">هنوز شاگردی نداری</div>';
+  h+='<div style="margin-top:9px">'+(m.my_offer?
+    '<button class="wd34-btn ghost" id="wd34-moff">🙈 برداشتن پیشنهاد منتورگری من</button>':
+    '<button class="wd34-btn'+(m.is_vet?' gold':' ghost')+'" id="wd34-moff" '+(m.is_vet?'':'disabled')+'>'+(m.is_vet?'📢 من منتور می‌شوم (داوطلب نمایش داده می‌شوم)':'🔒 نیازمند امتیاز ۶۰۰+ یا ۳ خاک')+'</button>')+'</div></div>';
+  b.innerHTML=h;
+  b.querySelectorAll('[data-mreq]').forEach(x=>x.addEventListener('click',async()=>{
+    const r=await wx('mentor_request',{p_server:SRV(),p_to_uid:x.dataset.mreq});
+    if(r.ok&&r.d&&r.d.ok){toast('🎓 درخواست منتورگری ارسال شد','win');refresh34()}else toast(errFa(r),'lose')}));
+  b.querySelectorAll('[data-mok]').forEach(x=>x.addEventListener('click',async()=>{
+    const r=await wx('mentor_accept',{p_id:x.dataset.mok,p_ok:x.dataset.v==='1'});
+    if(r.ok&&r.d&&r.d.ok){toast(x.dataset.v==='1'?'🎓 شاگرد جدید فعال شد':'درخواست رد شد','win');refresh34()}else toast(errFa(r),'lose')}));
+  b.querySelectorAll('[data-mgym]').forEach(x=>x.addEventListener('click',async()=>{
+    const r=await wx('mentor_daily',{});badgeTick();
+    if(r.ok&&r.d&&r.d.ok){toast('💎 '+faN(r.d.gems)+' جم از منتورگری گرفتی ('+faN(r.d.links)+' شاگرد فعال)','win');sndK('coin');refresh34()}else toast(errFa(r),'lose')}));
+  const mc=H('wd34-mclaim');
+  if(mc)mc.addEventListener('click',async()=>{
+    const r=await wx('mentor_daily',{});badgeTick();
+    if(r.ok&&r.d&&r.d.ok){toast('🪙 '+num(r.d.gold)+' طلای پشتیبانی منتور واریز شد','win');sndK('coin');refresh34()}else toast(errFa(r),'lose')});
+  const mo=H('wd34-moff');
+  if(mo)mo.addEventListener('click',async()=>{
+    if(!m.my_offer){const bio=prompt('معرفی کوتاه خودت به تازه‌کارها (یک خط):','راهنمای فتح سریع — تجربه‌ی ۳ فصل')||'';
+      const r=await wx('mentor_offer_set',{p_server:SRV(),p_on:true,p_bio:bio});
+      if(r.ok&&r.d&&r.d.ok){toast('📢 اسمت در لیست منتورها رفت','win');refresh34()}else toast(errFa(r),'lose')}
+    else{const r=await wx('mentor_offer_set',{p_server:SRV(),p_on:false});
+      if(r.ok){toast('پیشنهادت برداشته شد','win');refresh34()}}})}
+
+/* ---------- 🖼️ empire poster (canvas, RTL) ---------- */
+function rr(x,px,py,w,h2,r){x.beginPath();x.moveTo(px+r,py);x.arcTo(px+w,py,px+w,py+h2,r);x.arcTo(px+w,py+h2,px,py+h2,r);x.arcTo(px,py+h2,px,py,r);x.arcTo(px,py,px+w,py,r);x.closePath()}
+async function makePoster(){
+  try{
+    const nick=(typeof ACC!=='undefined'&&ACC&&ACC.nick)?ACC.nick:'فرمانده';
+    const terrN=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;
+    const tot=(typeof layersByName!=='undefined')?Math.max(1,Object.keys(layersByName).length||177):177;
+    const res=(typeof playerRes!=='undefined'&&playerRes)?playerRes:{gold:0,oil:0,food:0};
+    const atk=(typeof calculateTotalAttack==='function')?calculateTotalAttack():0;
+    const st=S.streakSt||{};
+    const myUid=(typeof ACC!=='undefined'&&ACC&&ACC.uid)||'';
+    const tag=window.WD34_TAG?window.WD34_TAG(myUid):null;
+    const pres=window.WD34_PRES&&window.WD34_PRES()===nick;
+    const champ=window.WD32_isChamp&&window.WD32_isChamp(nick);
+    const W2=1080,H2=1350;const cv=D.createElement('canvas');cv.width=W2;cv.height=H2;const x=cv.getContext('2d');
+    const g=x.createLinearGradient(0,0,0,H2);g.addColorStop(0,'#0b1c33');g.addColorStop(.55,'#071224');g.addColorStop(1,'#03080f');x.fillStyle=g;x.fillRect(0,0,W2,H2);
+    const rg=x.createRadialGradient(W2/2,200,60,W2/2,200,430);rg.addColorStop(0,'rgba(255,204,0,.22)');rg.addColorStop(1,'rgba(255,204,0,0)');x.fillStyle=rg;x.fillRect(0,0,W2,720);
+    x.strokeStyle='rgba(255,204,0,.75)';x.lineWidth=6;x.strokeRect(28,28,W2-56,H2-56);
+    x.strokeStyle='rgba(255,204,0,.25)';x.lineWidth=2;x.strokeRect(46,46,W2-92,H2-92);
+    x.textAlign='center';x.direction='rtl';
+    x.fillStyle='#ffd75e';x.font='900 56px Vazirmatn, system-ui, sans-serif';x.fillText('🌍 امپراتوری '+nick,W2/2,190);
+    x.fillStyle='#8fb8dd';x.font='700 30px Vazirmatn, system-ui, sans-serif';x.fillText('WORLD DOMINION — سرور '+faN(SRV()),W2/2,244);
+    const svg=window.WD33_ICON?window.WD33_ICON(120):null;
+    if(svg){const img=new Image();const blob=new Blob([svg],{type:'image/svg+xml'});const url=URL.createObjectURL(blob);
+      await new Promise(r2=>{img.onload=r2;img.onerror=r2;img.src=url});try{x.drawImage(img,W2/2-60,270,120,120)}catch(e){}URL.revokeObjectURL(url)}
+    x.fillStyle='#fff';x.font='900 128px Vazirmatn, system-ui, sans-serif';x.fillText(faN(terrN),W2/2,540);
+    x.fillStyle='#8fb8dd';x.font='700 34px Vazirmatn, system-ui, sans-serif';x.fillText('کشور — '+(Math.round(terrN/tot*1000)/10)+'٪ جهان',W2/2,596);
+    const rows=[['🪙 خزانه',num(res.gold)],['🛢️ نفت',num(res.oil)],['🌾 غذا',num(res.food)],['⚔️ قدرت ارتش',num(atk)],['🔥 استریک روزانه',faN(st.streak||0)+' روز (بهترین: '+faN(st.best||0)+')']];
+    if(tag)rows.push(['🤝 اتحاد','['+tag+']']);
+    if(pres)rows.push(['🏛️ مقام','رئیس‌جمهور جهان']);
+    if(champ)rows.push(['🏆 مقام','قهرمان المپیک']);
+    let y=660;
+    rows.forEach(rw=>{
+      x.fillStyle='rgba(255,255,255,.05)';rr(x,120,y,W2-240,84,20);x.fill();
+      x.strokeStyle='rgba(255,255,255,.08)';x.lineWidth=1;rr(x,120,y,W2-240,84,20);x.stroke();
+      x.textAlign='right';x.fillStyle='#cfe6ff';x.font='800 34px Vazirmatn, system-ui, sans-serif';x.fillText(rw[0],W2-160,y+56);
+      x.textAlign='left';x.fillStyle='#ffd75e';x.font='900 36px Vazirmatn, system-ui, sans-serif';x.fillText(rw[1],160,y+56);
+      y+=100});
+    x.textAlign='center';x.fillStyle='#5f7ea6';x.font='700 24px Vazirmatn, system-ui, sans-serif';
+    x.fillText(new Date().toLocaleDateString('fa-IR')+' — امضای سلطنت تو روی تاریخ',W2/2,H2-88);
+    S.poster=cv.toDataURL('image/png');
+  }catch(e){console.log('poster',e);toast('❌ ساخت پوستر ناموفق بود','lose')}}
+function renderPoster(b){
+  let h='<div class="wd34-card"><div class="wd34-h">🖼️ پوستر امپراتوری<small>۱۰۸۰×۱۳۵۰ — آماده‌ی استوری</small></div>';
+  h+=S.poster?'<img class="wd34-poster" src="'+S.poster+'" alt="poster">':'<div class="wd34-empty">در حال ساخت پوستر…</div>';
+  h+='<div style="display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap">'+
+    '<button class="wd34-btn gold" id="wd34-pdl">📥 دانلود PNG</button>'+
+    '<button class="wd34-btn" id="wd34-pshare">📤 اشتراک‌گذاری</button>'+
+    '<button class="wd34-btn ghost" id="wd34-pnew">🔄 بازسازی با آمار امروز</button></div>'+
+    '<div class="wd34-mini" style="text-align:center;margin-top:8px">آمارِ همین لحظه: خزانه، ارتش، استریک، اتحاد و نشان‌هایت همه در یک کارت.</div></div>';
+  b.innerHTML=h;
+  const dl=H('wd34-pdl');
+  if(dl)dl.addEventListener('click',()=>{if(!S.poster)return;const a=D.createElement('a');a.href=S.poster;a.download='world-dominion-empire.png';a.click()});
+  const sh=H('wd34-pshare');
+  if(sh)sh.addEventListener('click',async()=>{
+    if(!S.poster)return;
+    try{
+      const blob=await (await fetch(S.poster)).blob();
+      const file=new File([blob],'world-dominion-empire.png',{type:'image/png'});
+      if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:'امپراتوری من در World Dominion'});
+      else{const a=D.createElement('a');a.href=S.poster;a.download='world-dominion-empire.png';a.click();toast('📥 پوستر دانلود شد — از گالری بفرست','win')}
+    }catch(e){}});
+  const nw=H('wd34-pnew');
+  if(nw)nw.addEventListener('click',async()=>{S.poster=null;renderPoster(b);await badgeTick();await makePoster();renderPoster(b)})}
+
+/* ---------- 🔥 war heatmap ---------- */
+function heatBtn(){let b=H('wd34-heat-btn');if(b)return b;
+  b=D.createElement('div');b.id='wd34-heat-btn';b.title='نقشه‌ی حرارت نبردها (۴۸ ساعت)';
+  b.innerHTML='🔥';b.addEventListener('click',toggleHeat);D.body.appendChild(b);return b}
+function syncHeatPos(){try{const f=H('hud-olympic'),b=H('wd34-heat-btn');if(f&&b){const t=parseFloat(getComputedStyle(f).top)||142;b.style.top=(t+66)+'px'}}catch(e){}}
+async function toggleHeat(){
+  S.heat=!S.heat;const b=H('wd34-heat-btn'),lg=H('wd34-heat-lg');
+  if(b)b.classList.toggle('on',S.heat);
+  if(!S.heat){if(S.heatL){try{S.heatL.remove()}catch(e){}S.heatL=null}if(lg)lg.classList.remove('on');return}
+  if(typeof L==='undefined'||typeof map==='undefined'||!map){toast('نقشه هنوز آماده نیست','lose');S.heat=false;if(b)b.classList.remove('on');return}
+  if(!S.heatData){const r=await wx('heatmap_data',{p_server:SRV()});if(r.ok)S.heatData=r.d}
+  drawHeat();toast('🔥 نقشه‌ی حرارت فعال شد — قرمز پررنگ یعنی کانون جنگ','win')}
+async function drawHeat(){
+  if(S.heatL){try{S.heatL.remove()}catch(e){}S.heatL=null}
+  const lg=H('wd34-heat-lg');if(lg)lg.classList.toggle('on',S.heat);
+  if(!S.heat||!S.heatData)return;
+  const d=S.heatData,mx=Math.max(1,d.max||1);const cells={};(d.cells||[]).forEach(c=>cells[c.country]=c.n);
+  let geo=null;try{const r=await fetch('/cdn/geo/countries.geo.json');geo=await r.json()}catch(e){return}
+  try{S.heatL=L.geoJSON(geo,{interactive:false,style:f=>{const n=cells[f.properties.name]||0;if(!n)return{fillOpacity:0,opacity:0,weight:0};
+    const t=n/mx;return{color:'#ff4d4d',weight:1,opacity:.4,fillColor:t>.66?'#ff1a1a':t>.33?'#ff6a00':'#ffb300',fillOpacity:.12+.38*t}}}).addTo(map)}catch(e){console.log(e)}}
+
+/* ---------- 🔥 daily streak card (in the tax/government modal) ---------- */
+function streakCard(){
+  const mc=(H('m-tax')||{}).querySelector?H('m-tax').querySelector('.modal-card'):null;if(!mc)return;
+  const st=S.streakSt;let c=H('wd34-streak');
+  if(!st){ /* lazy: first open may precede the 60s badge tick */
+    wx('streak_status',{}).then(r=>{if(r.ok&&S.streakSt!==r.d){S.streakSt=r.d;streakCard()}}).catch(()=>{})}
+  if(!c){c=D.createElement('div');c.id='wd34-streak';c.className='wd34-streak';
+    const t=mc.querySelector('.modal-title-row');if(t&&t.nextSibling)mc.insertBefore(c,t.nextSibling);else mc.appendChild(c)}
+  if(!st){c.innerHTML='<div class="t">🔥 استریک روزانه<small>در حال دریافت…</small></div>';return}
+  const fill=st.claimed_today?st.day_in_cycle:Math.max(0,st.day_in_cycle-1);
+  let dots='';const ics=['🪙','🪙','🪙','🪙','🪙','🪙','💎'];
+  for(let i=1;i<=7;i++)dots+='<span class="wd34-dot'+(i<=fill?' on':(i===fill+1&&!st.claimed_today?' next':''))+'">'+ics[i-1]+'</span>';
+  const rw=st.next||{gold:0,oil:0,food:0,gems:0,boost_h:0};
+  const parts=[];if(rw.gold)parts.push('🪙 '+num(rw.gold)+' طلا');if(rw.oil)parts.push('🛢️ '+num(rw.oil)+' نفت');if(rw.food)parts.push('🌾 '+num(rw.food)+' غذا');if(rw.gems)parts.push('💎 '+faN(rw.gems)+' جم');if(rw.boost_h)parts.push('⚡ بوست '+faN(rw.boost_h)+' ساعته');
+  c.innerHTML='<div class="t">🔥 استریک روزانه<small>بهترین: '+faN(st.best||0)+' • کل: '+faN(st.total||0)+'</small></div>'+
+    '<div class="wd34-dots">'+dots+'</div>'+
+    '<div class="rw">'+(st.claimed_today?'✔️ جایزه‌ی امروز گرفتید — فردا روز '+faN(((st.day_in_cycle)%7)+1)+' چرخه: <b>جایزه‌ی روز بعد</b>':
+    'جایزه‌ی امروز (روز '+faN(st.if_claim_now)+' پیوسته) — فقط اولین ورود روز کافی است: <b>'+(parts.join(' + ')||'—')+'</b>')+'</div>'}
+(function(){try{
+  const mo=new MutationObserver(()=>{try{const m=H('m-tax');if(m&&m.classList.contains('active'))setTimeout(streakCard,150)}catch(e){}});
+  mo.observe(D.body,{attributes:true,subtree:true,attributeFilter:['class']})}catch(e){}})();
+
+/* ---------- lobby panel buttons + boot ---------- */
+(function(){try{
+  const mo=new MutationObserver(()=>{try{const p=H('lobby-panel-sp');
+    if(p&&p.classList.contains('active')&&!H('wd34-lobby-btn')){
+      const b=D.createElement('button');b.id='wd34-lobby-btn';b.className='wd31-btnbig';b.style.marginTop='8px';
+      b.innerHTML='🌐 مرکز اجتماعی — دوئل • اتحاد • انتخابات • منتور';
+      b.addEventListener('click',()=>open34('duel'));p.prepend(b);
+      const hp=D.createElement('button');hp.id='wd34-lobby-btn2';hp.className='wd31-btnbig';hp.style.marginTop='8px';
+      hp.innerHTML='🖼️ پوستر امپراتوری — افتخارت را به تصویر بکش';
+      hp.addEventListener('click',()=>{S.poster=null;open34('poster')});p.prepend(hp);
+    }}catch(e){}});
+  mo.observe(D.body,{attributes:true,subtree:true,attributeFilter:['class']})}catch(e){}})();
+heatBtn();syncHeatPos();
+window.addEventListener('resize',syncHeatPos);
+setInterval(()=>{if(!D.hidden){syncHeatPos();
+  if(S.heat){wx('heatmap_data',{p_server:SRV()}).then(r=>{if(r.ok){S.heatData=r.d;drawHeat()}})}
+}},90000);
+setInterval(()=>{if(!D.hidden)badgeTick()},60000);
+setTimeout(()=>{badgeTick();heatBtn()},6000);
+setTimeout(()=>{try{if(typeof wx==='function')wx('streak_status',{}).then(r=>{if(r.ok)S.streakSt=r.d})}catch(e){}},9000);
+/* drawer hooks run after login (OTH/ACC exist by then) */
+let drHooked=false;
+setInterval(()=>{if(drHooked||D.hidden)return;
+  if(typeof window.onCountryClick==='function'&&typeof window.OTH!=='undefined'){drHooked=true;hookDrawer()}},2500);
+function hookDrawer(){
+  try{const prev=window.onCountryClick;
+    window.onCountryClick=function(f,l){prev(f,l);
+      try{const n=f.properties.name,o=window.OTH&&window.OTH[n];if(!o)return;
+        const d=H('drawer-actions');if(!d)return;
+        const myNick=(typeof ACC!=='undefined'&&ACC&&ACC.nick)||'';
+        const rv=(S.revenge||[]).find(r=>r.target===o.nick);
+        if(rv){const c=D.createElement('div');c.className='wd34-revchip';
+          c.innerHTML='🎯 حق انتقام فعال — حمله‌ی بعدی به '+esc(o.nick)+' <b>+۲۵٪ قدرت</b> می‌گیرد (تا '+cdTxt(new Date(rv.expires).getTime()-Date.now())+' دیگر)';d.appendChild(c)}
+        if(o.nick&&o.nick!==myNick){
+          const b=D.createElement('button');b.className='action-btn btn-cyan';b.style.marginTop='6px';
+          b.textContent='⚔️ دعوت '+o.nick+' به دوئر (برنده: ۱۵هزار طلا + ۲ جم)';
+          b.addEventListener('click',async()=>{
+            const r=await wx('duel_send',{p_server:SRV(),p_to_nick:o.nick});
+            if(r.ok&&r.d&&r.d.ok){toast('⚔️ دعوت دوئر برای '+o.nick+' ارسال شد — ۳۰ دقیقه فرصت پذیرش','win');open34('duel')}
+            else toast(errFa(r),'lose')});
+          d.appendChild(b)}
+      }catch(e){console.log(e)}}}catch(e){console.log(e)}}
 })();
 </script>
 </body>

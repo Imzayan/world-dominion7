@@ -263,3 +263,167 @@ model OlympicArchive {
 
   @@map("olympic_archives")
 }
+
+/* ============ V34 — social & competitive layer ============ */
+
+/* استریک روزانه — consecutive daily login rewards (server-authoritative) */
+model DailyStreak {
+  userId      String   @id @map("user_id")
+  server      Int      @default(1)
+  streak      Int      @default(0)
+  best        Int      @default(0)
+  lastDay     String   @map("last_day")
+  totalClaims Int      @default(0) @map("total_claims")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  @@map("daily_streaks")
+}
+
+/* دعوت دوطرفه — mutual PvP challenge with a 2h war window */
+model Duel {
+  id         String   @id @default(cuid())
+  server     Int
+  fromUid    String   @map("from_uid")
+  fromNick   String   @map("from_nick")
+  toUid      String   @map("to_uid")
+  toNick     String   @map("to_nick")
+  status     String   @default("open") /* open|live|done|expired|declined */
+  winnerUid  String?  @map("winner_uid")
+  winnerNick String?  @map("winner_nick")
+  pot        Int      @default(0)
+  prizeGold  Int      @default(0) @map("prize_gold")
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  @@index([server, status, createdAt])
+  @@map("duels")
+}
+
+/* شرط‌بندی روی دوئل‌ها — gold escrowed into the duel pot, proportional payout */
+model DuelBet {
+  id      String  @id @default(cuid())
+  duelId  String  @map("duel_id")
+  userId  String  @map("user_id")
+  nick    String
+  onUid   String  @map("on_uid")
+  amount  Int
+  paid    Int     @default(0)
+  settled Boolean @default(false)
+  @@unique([duelId, userId])
+  @@index([duelId])
+  @@map("duel_bets")
+}
+
+/* انتقام — one-shot +25% strike right against the player who took your land (72h) */
+model RevengeMark {
+  id         String   @id @default(cuid())
+  server     Int
+  userId     String   @map("user_id")
+  targetUid  String   @map("target_uid")
+  targetNick String   @map("target_nick")
+  used       Boolean  @default(false)
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  @@index([userId, used, expiresAt])
+  @@map("revenge_marks")
+}
+
+/* Heatmap — battle activity per country for the 48h war-intensity map layer */
+model BattleLog {
+  id        String   @id @default(cuid())
+  server    Int
+  kind      String   @default("attack") /* attack|coup|meteor|capture */
+  country   String
+  attacker  String
+  defender  String?
+  win       Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([server, createdAt])
+  @@map("battle_logs")
+}
+
+/* انتخابات جهانی — 10-day cycles: candidacy+voting, winner = world president */
+model ElectionCandidate {
+  id     String @id @default(cuid())
+  server Int
+  cycle  Int
+  userId String @map("user_id")
+  nick   String
+  slogan String @default("")
+  @@unique([server, cycle, userId])
+  @@map("election_candidates")
+}
+model ElectionVote {
+  id     String @id @default(cuid())
+  server Int
+  cycle  Int
+  userId String @map("user_id")
+  toUid  String @map("to_uid")
+  @@unique([server, cycle, userId])
+  @@map("election_votes")
+}
+model ElectionWinner {
+  id     String @id @default(cuid())
+  server Int
+  cycle  Int
+  userId String @map("user_id")
+  nick   String
+  votes  Int    @default(0)
+  @@unique([server, cycle])
+  @@map("election_winners")
+}
+
+/* منتور — veterans guide newcomers, both earn daily while bonded */
+model MentorLink {
+  id         String   @id @default(cuid())
+  server     Int
+  mentorUid  String   @map("mentor_uid")
+  mentorNick String   @map("mentor_nick")
+  menteeUid  String   @map("mentee_uid")
+  menteeNick String   @map("mentee_nick")
+  status     String   @default("pending") /* pending|active|ended */
+  days       Int      @default(0)
+  lastDay    String?  @map("last_day")
+  createdAt  DateTime @default(now()) @map("created_at")
+  @@index([mentorUid, status])
+  @@index([menteeUid, status])
+  @@map("mentor_links")
+}
+/* open mentor offers by veterans */
+model MentorOffer {
+  userId    String   @id @map("user_id")
+  server    Int
+  nick      String
+  bio       String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("mentor_offers")
+}
+
+/* اتحادها — real multiplayer alliances with tag, member cap and collective power */
+model Alliance {
+  id        String   @id @default(cuid())
+  server    Int
+  name      String
+  tag       String
+  ownerUid  String   @map("owner_uid")
+  ownerNick String   @map("owner_nick")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members AllianceMember[]
+
+  @@unique([server, tag])
+  @@map("alliances")
+}
+model AllianceMember {
+  id         String   @id @default(cuid())
+  allianceId String   @map("alliance_id")
+  userId     String   @map("user_id")
+  nick       String
+  role       String   @default("member") /* owner|member */
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  alliance Alliance @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+
+  @@unique([allianceId, userId])
+  @@unique([userId])
+  @@index([allianceId])
+  @@map("alliance_members")
+}

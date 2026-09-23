@@ -397,6 +397,157 @@ async function refreshChampCountry(server: number, latest: Awaited<ReturnType<ty
 const olPublic = (r: { nick: string; country: string | null; medals: number; golds: number; cycle: number; createdAt: Date } | null) =>
   r ? { nick: r.nick, country: r.country || null, medals: r.medals, golds: r.golds, cycle: r.cycle, at: r.createdAt.toISOString() } : null
 
+/* ============================================================
+   V34 — social & competitive layer
+   daily streak · duels (+bets/spectate) · revenge · battle heatmap
+   world elections · mentorship · alliances
+   ============================================================ */
+const DAY_MS = 86400000
+const dayKey = (ms = Date.now()) => new Date(ms).toISOString().slice(0, 10)
+
+/* 7-day escalating streak cycle (auto-claimed on first wallet fetch of the day) */
+const STREAK_CYCLE = [
+  { gold: 5000, oil: 0, food: 0, gems: 0, boost_h: 0 },
+  { gold: 9000, oil: 0, food: 0, gems: 0, boost_h: 0 },
+  { gold: 12000, oil: 3000, food: 0, gems: 0, boost_h: 0 },
+  { gold: 15000, oil: 0, food: 3000, gems: 0, boost_h: 0 },
+  { gold: 20000, oil: 4000, food: 0, gems: 0, boost_h: 0 },
+  { gold: 25000, oil: 0, food: 4000, gems: 0, boost_h: 0 },
+  { gold: 40000, oil: 0, food: 0, gems: 5, boost_h: 12 },
+]
+
+async function streakTick(userId: string, server: number, nick: string) {
+  const today = dayKey()
+  const row = await db.dailyStreak.findUnique({ where: { userId } })
+  if (row && row.lastDay === today) {
+    return { streak: row.streak, best: row.best, total: row.totalClaims, claimed: false, day_in_cycle: ((row.streak - 1) % 7) + 1, reward: null as null | typeof STREAK_CYCLE[number] }
+  }
+  const yest = dayKey(Date.now() - DAY_MS)
+  const streak = row && row.lastDay === yest ? row.streak + 1 : 1
+  const best = Math.max(streak, row ? row.best : 0)
+  const rw = STREAK_CYCLE[(streak - 1) % 7]
+  if (!row) {
+    try { await db.dailyStreak.create({ data: { userId, server, streak, best, lastDay: today, totalClaims: 1 } }) } catch (e) {
+      /* concurrent first-claim: re-read and bail — the winner already granted today */
+      const cur = await db.dailyStreak.findUnique({ where: { userId } })
+      if (cur && cur.lastDay === today) return { streak: cur.streak, best: cur.best, total: cur.totalClaims, claimed: false, day_in_cycle: ((cur.streak - 1) % 7) + 1, reward: null }
+      throw e
+    }
+  } else {
+    await db.dailyStreak.update({ where: { userId }, data: { streak, best, lastDay: today, totalClaims: { increment: 1 } } })
+  }
+  /* deliver the reward: resources into the save (server-authoritative), gems/boost into wallet */
+  if (rw.gold || rw.oil || rw.food) {
+    await tradeApply(userId, (r) => {
+      r.gold = resNum(r.gold) + rw.gold
+      if (rw.oil) r.oil = resNum(r.oil) + rw.oil
+      if (rw.food) r.food = resNum(r.food) + rw.food
+    }).catch(() => {})
+  }
+  if (rw.gems) await db.wallet.updateMany({ where: { userId }, data: { gems: { increment: rw.gems } } }).catch(() => {})
+  if (rw.boost_h) {
+    try {
+      const w = await ensureWallet(userId)
+      const until = new Date(Math.max(Date.now(), w.boostUntil ? w.boostUntil.getTime() : 0) + rw.boost_h * 3600_000)
+      await db.wallet.update({ where: { userId }, data: { boostUntil: until } })
+    } catch (e) { console.log('streakboost', e) }
+  }
+  await addNews(server, 'streak_day', null, nick, String(streak))
+  return { streak, best, total: (row ? row.totalClaims : 0) + 1, claimed: true, day_in_cycle: ((streak - 1) % 7) + 1, reward: rw }
+}
+
+/* ---------- duels: 30-min invite window → 2h live war window (works DURING the olympic truce) ---------- */
+const DUEL_INVITE_MS = 30 * 60_000
+const DUEL_LIVE_MS = 2 * 3600_000
+const DUEL_PRIZE_GOLD = 15000
+const DUEL_PRIZE_GEMS = 2
+const BET_RAKE = 0.05
+
+async function sweepDuels(server: number) {
+  const now = new Date()
+  const dead = await db.duel.findMany({ where: { server, status: { in: ['open', 'live'] }, expiresAt: { lt: now } }, select: { id: true, status: true } })
+  for (const d of dead) {
+    const cl = await db.duel.updateMany({ where: { id: d.id, status: d.status }, data: { status: 'expired' } })
+    if (cl.count) await settleDuelBets(d.id, null)
+  }
+}
+
+async function settleDuelBets(duelId: string, winnerUid: string | null) {
+  const bets = await db.duelBet.findMany({ where: { duelId, settled: false } })
+  if (!bets.length) return
+  const pool = bets.reduce((s, b) => s + b.amount, 0)
+  const winBets = winnerUid ? bets.filter((b) => b.onUid === winnerUid) : []
+  const winPool = winBets.reduce((s, b) => s + b.amount, 0)
+  for (const b of bets) {
+    let paid = 0
+    if (!winnerUid) paid = b.amount /* nobody won → full refund */
+    else if (winPool > 0 && b.onUid === winnerUid) paid = Math.floor(b.amount * (1 - BET_RAKE) * pool / winPool)
+    if (paid > 0) await tradeApply(b.userId, (r) => { r.gold = resNum(r.gold) + paid }).catch(() => {})
+    await db.duelBet.update({ where: { id: b.id }, data: { settled: true, paid } }).catch(() => {})
+  }
+}
+
+async function resolveDuel(server: number, aUid: string, bUid: string, winnerUid: string, winnerNick: string, loserNick: string) {
+  const duel = await db.duel.findFirst({
+    where: { server, status: 'live', OR: [{ fromUid: aUid, toUid: bUid }, { fromUid: bUid, toUid: aUid }] },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (!duel) return null
+  const cl = await db.duel.updateMany({ where: { id: duel.id, status: 'live' }, data: { status: 'done', winnerUid, winnerNick } })
+  if (cl.count === 0) return null
+  /* winner prize */
+  await tradeApply(winnerUid, (r) => { r.gold = resNum(r.gold) + DUEL_PRIZE_GOLD }).catch(() => {})
+  await db.wallet.updateMany({ where: { userId: winnerUid }, data: { gems: { increment: DUEL_PRIZE_GEMS } } }).catch(() => {})
+  await settleDuelBets(duel.id, winnerUid)
+  await addNews(server, 'duel_done', null, winnerNick, loserNick)
+  return { duel_id: duel.id, prize_gold: DUEL_PRIZE_GOLD, prize_gems: DUEL_PRIZE_GEMS }
+}
+
+/* ---------- world elections: 10-day cycles (anchored to epoch, all clients agree) ---------- */
+const ELEC_MS = 10 * DAY_MS
+const elecCycle = (ms = Date.now()) => Math.floor(ms / ELEC_MS)
+const ELEC_PRIZE_GEMS = 30
+
+async function electionFinalize(server: number, cycle: number) {
+  const done = await db.electionWinner.findUnique({ where: { server_cycle: { server, cycle } } })
+  if (done) return done
+  const votes = await db.electionVote.groupBy({ by: ['toUid'], where: { server, cycle }, _count: { toUid: true } })
+  if (!votes.length) return null
+  votes.sort((a, b) => b._count.toUid - a._count.toUid)
+  const top = votes[0]
+  const cand = await db.electionCandidate.findFirst({ where: { server, cycle, userId: top.toUid } })
+  try {
+    const w = await db.electionWinner.create({ data: { server, cycle, userId: top.toUid, nick: cand ? cand.nick : '—', votes: top._count.toUid } })
+    await db.wallet.updateMany({ where: { userId: top.toUid }, data: { gems: { increment: ELEC_PRIZE_GEMS } } }).catch(() => {})
+    await addNews(server, 'election_win', null, w.nick, String(top._count.toUid))
+    return w
+  } catch (e) {
+    const c = (e as { code?: string })?.code
+    if (c !== 'P2002') console.log('elec', e)
+    return db.electionWinner.findUnique({ where: { server_cycle: { server, cycle } } })
+  }
+}
+
+/* every status call lazily finalizes the previous cycle before reporting the current one */
+async function electionSweep(server: number) {
+  const cur = elecCycle()
+  for (const c of [cur - 2, cur - 1]) { try { await electionFinalize(server, c) } catch (e) { console.log('elecsweep', e) } }
+}
+
+const elecPublic = (w: { nick: string; cycle: number; votes: number } | null) => w ? { nick: w.nick, cycle: w.cycle, votes: w.votes } : null
+
+/* ---------- alliance badge map (chat/leaderboard tags) ---------- */
+async function allianceTagMap(server: number): Promise<Record<string, string>> {
+  const mem = await db.allianceMember.findMany({
+    where: { alliance: { server } },
+    select: { userId: true, alliance: { select: { tag: true } } },
+    take: 400,
+  })
+  const out: Record<string, string> = {}
+  for (const m of mem) out[m.userId] = m.alliance.tag
+  return out
+}
+
 export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string }> }) {
   const { fn } = await ctx.params
   const user = await getSessionUser()
@@ -409,8 +560,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
     switch (fn) {
       /* ---------------- wallet / shop ---------------- */
       case 'get_wallet': {
+        const serverW = Math.max(1, Number(args.p_server) || 1)
         const { w, granted } = await dailyBonus(user.id)
-        return R({ ok: true, gems: w.gems, boost_until: w.boostUntil ? w.boostUntil.toISOString() : null, daily_granted: granted })
+        /* V34: the daily streak ticks on the first wallet fetch of the day (atomic, race-safe) */
+        let streak: Awaited<ReturnType<typeof streakTick>> | null = null
+        try { streak = await streakTick(user.id, serverW, user.nick) } catch (e) { console.log('streak', e) }
+        return R({ ok: true, gems: w.gems, boost_until: w.boostUntil ? w.boostUntil.toISOString() : null, daily_granted: granted,
+          streak: streak ? { streak: streak.streak, best: streak.best, claimed: streak.claimed, day_in_cycle: streak.day_in_cycle, reward: streak.reward } : null })
       }
       case 'spend_gems': {
         const item = String(args.p_item || '')
@@ -539,29 +695,52 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
 
       /* ---------------- PvP ---------------- */
       case 'pvp_attack': {
-        if (gamesPhase().phase === 'live') return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
         const server = Math.max(1, Number(args.p_server) || 1)
         const country = String(args.p_country || '')
         /* V33.1: attacker strength comes from the SERVER-side score only — the client's
            p_attack is no longer trusted (it could be spoofed to pin the 0.85 win cap) */
         const t = await db.territory.findUnique({ where: { server_country: { server, country } } })
         if (!t || t.userId === user.id) return R({ ok: false })
+        /* V34: a formal duel between the two players is a SANCTIONED match — it may be
+           fought even during the sacred Olympic truce (unsanctioned wars stay blocked) */
+        const duel = await db.duel.findFirst({
+          where: {
+            server, status: 'live', expiresAt: { gt: new Date() },
+            OR: [{ fromUid: user.id, toUid: t.userId }, { fromUid: t.userId, toUid: user.id }],
+          },
+        })
+        if (gamesPhase().phase === 'live' && !duel) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
         const defScore = await db.score.findUnique({ where: { userId: t.userId } })
         const myScore = await db.score.findUnique({ where: { userId: user.id } })
-        const a = Math.max(1, myScore?.score || 100)
+        let a = Math.max(1, myScore?.score || 100)
         const d = Math.max(1, (defScore?.score || 200))
+        /* V34: revenge strike — the attacker's one-shot +25% right against the player
+           who took their land (72h window, consumed on use, win or lose) */
+        let revenge_used = false
+        const rev = await db.revengeMark.findFirst({
+          where: { userId: user.id, targetUid: t.userId, used: false, expiresAt: { gt: new Date() } },
+          orderBy: { createdAt: 'asc' },
+        })
+        if (rev) { a = Math.round(a * 1.25); revenge_used = true }
         const chance = Math.min(0.85, Math.max(0.2, 0.5 + (a - d) / (2 * (a + d + 500))))
         const win = Math.random() < chance
+        if (rev) await db.revengeMark.update({ where: { id: rev.id }, data: { used: true } })
+        let duelWon: { duel_id: string; prize_gold: number; prize_gems: number } | null = null
         if (win) {
           const r = await transferTerritory(server, country, user.id, user.nick)
           if (!r.ok) return R({ ok: false })
+          /* V34: the defender who just lost land earns a 72h revenge right (+25%, once) */
+          try { await db.revengeMark.create({ data: { server, userId: t.userId, targetUid: user.id, targetNick: user.nick, expiresAt: new Date(Date.now() + 72 * 3600_000) } }) } catch (e) { console.log('revmk', e) }
+          if (duel) { try { duelWon = await resolveDuel(server, user.id, t.userId, user.id, user.nick, t.nick) } catch (e) { console.log('duelres', e) } }
         } else {
           await addNews(server, 'pvp_failed', country, user.nick, t.nick)
         }
+        /* V34: battle log feeds the 48h war-heatmap layer */
+        try { await db.battleLog.create({ data: { server, kind: 'attack', country, attacker: user.nick, defender: t.nick, win } }) } catch (e) { console.log('blog', e) }
         /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
            defense/captured — before this it always computed 0% and 60% losses and
            syncTerr deleted the just-won territory */
-        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d })
+        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used })
       }
       case 'pvp_capture_territory': {
         if (gamesPhase().phase === 'live') return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
@@ -622,6 +801,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         const nw = await ensureWallet(user.id)
         await addNews(server, item, country, user.nick, terr.nick ? terr.nick : null)
+        /* V34: special strikes also feed the war-heatmap */
+        try { await db.battleLog.create({ data: { server, kind: item, country, attacker: user.nick, defender: terr.nick || null, win: true } }) } catch (e) { console.log('blog', e) }
         return R({ ok: true, gems: nw.gems, owner_nick: terr.nick ? terr.nick : null, next_ok: new Date(Date.now() + cooldownMs[item]).toISOString() })
       }
 
@@ -906,6 +1087,330 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         await db.olympicEntry.update({ where: { id: ent.id }, data: { best } })
         const better = await db.olympicEntry.count({ where: { edition: g.edition, discipline: key, best: { gt: best } } })
         return R({ ok: true, best, attempts: ent.attempts + 1, rank: better + 1, record_broken: recordBroken })
+      }
+
+      /* ============ V34 — social & competitive layer ============ */
+
+      /* daily streak status (the reward itself auto-grants on get_wallet) */
+      case 'streak_status': {
+        const row = await db.dailyStreak.findUnique({ where: { userId: user.id } })
+        const today = dayKey(), yest = dayKey(Date.now() - DAY_MS)
+        const claimedToday = !!row && row.lastDay === today
+        const nextStreak = row ? (row.lastDay === today ? row.streak : (row.lastDay === yest ? row.streak + 1 : 1)) : 1
+        const rw = STREAK_CYCLE[(nextStreak - 1) % 7]
+        return R({
+          streak: claimedToday ? row!.streak : 0, /* current banked streak (shown as 🔥) */
+          if_claim_now: nextStreak, best: row ? row.best : 0, total: row ? row.totalClaims : 0,
+          claimed_today: claimedToday, day_in_cycle: ((nextStreak - 1) % 7) + 1,
+          next: rw, cycle_len: STREAK_CYCLE.length,
+        })
+      }
+
+      /* ---------- duels: two-way challenge → 2h sanctioned war window (bypasses truce) ---------- */
+      case 'duel_send': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const toNick = String(args.p_to_nick || '').trim()
+        if (!toNick) return R({ ok: false, error: 'nick' })
+        const target = await db.user.findFirst({ where: { nickLower: toNick.toLowerCase() } })
+        if (!target || target.id === user.id) return R({ ok: false, error: 'player' })
+        const tsc = await db.score.findUnique({ where: { userId: target.id } })
+        if (!tsc || tsc.server !== server) return R({ ok: false, error: 'server' })
+        const openCnt = await db.duel.count({ where: { fromUid: user.id, status: 'open' } })
+        if (openCnt >= 5) return R({ ok: false, error: 'limit' })
+        const exists = await db.duel.findFirst({
+          where: { server, status: { in: ['open', 'live'] }, OR: [{ fromUid: user.id, toUid: target.id }, { fromUid: target.id, toUid: user.id }] },
+        })
+        if (exists) return R({ ok: false, error: 'exists' })
+        const d = await db.duel.create({ data: { server, fromUid: user.id, fromNick: user.nick, toUid: target.id, toNick: target.nick, expiresAt: new Date(Date.now() + DUEL_INVITE_MS) } })
+        await addNews(server, 'duel_open', null, user.nick, target.nick)
+        return R({ ok: true, id: d.id })
+      }
+      case 'duel_list': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        await sweepDuels(server)
+        const now = new Date()
+        const mine = await db.duel.findMany({ where: { server, status: { in: ['open', 'live'] }, OR: [{ fromUid: user.id }, { toUid: user.id }] }, orderBy: { createdAt: 'desc' }, take: 20 })
+        const live = await db.duel.findMany({ where: { server, status: 'live', expiresAt: { gt: now } }, orderBy: { createdAt: 'desc' }, take: 15 })
+        const recent = await db.duel.findMany({ where: { server, status: { in: ['done', 'expired', 'declined'] } }, orderBy: { createdAt: 'desc' }, take: 12 })
+        const ids = [...new Set([...mine, ...live, ...recent].map((d) => d.id))]
+        const bets = ids.length ? await db.duelBet.findMany({ where: { duelId: { in: ids } } }) : []
+        const potOf = (id: string) => bets.filter((b) => b.duelId === id).reduce((s, b) => s + b.amount, 0)
+        const myBet = (id: string) => bets.find((b) => b.duelId === id && b.userId === user.id) || null
+        const fmt = (d: typeof mine[number]) => {
+          const mb = myBet(d.id)
+          return {
+            id: d.id, from: d.fromNick, to: d.toNick, from_uid: d.fromUid, to_uid: d.toUid, status: d.status, winner: d.winnerNick || null,
+            pot: potOf(d.id), ends: d.expiresAt.toISOString(), mine: d.fromUid === user.id,
+            incoming: d.toUid === user.id && d.status === 'open',
+            my_bet: mb ? { on: mb.onUid, amount: mb.amount, paid: mb.paid, settled: mb.settled } : null,
+          }
+        }
+        return R({ mine: mine.map(fmt), live: live.map(fmt), recent: recent.map(fmt) })
+      }
+      case 'duel_accept': {
+        const id = String(args.p_id || '')
+        const d = await db.duel.findUnique({ where: { id } })
+        if (!d || d.toUid !== user.id || d.status !== 'open') return R({ ok: false, error: 'gone' })
+        if (d.expiresAt.getTime() < Date.now()) return R({ ok: false, error: 'expired' })
+        const cl = await db.duel.updateMany({ where: { id, status: 'open' }, data: { status: 'live', expiresAt: new Date(Date.now() + DUEL_LIVE_MS) } })
+        if (cl.count === 0) return R({ ok: false, error: 'gone' })
+        await addNews(d.server, 'duel_live', null, d.fromNick, d.toNick)
+        return R({ ok: true })
+      }
+      case 'duel_decline': {
+        const id = String(args.p_id || '')
+        const d = await db.duel.findUnique({ where: { id } })
+        if (!d || d.status !== 'open' || (d.fromUid !== user.id && d.toUid !== user.id)) return R({ ok: false })
+        const cl = await db.duel.updateMany({ where: { id, status: 'open' }, data: { status: 'declined' } })
+        if (cl.count) await settleDuelBets(id, null) /* refund any early bets */
+        return R({ ok: cl.count > 0 })
+      }
+      case 'duel_bet': {
+        const id = String(args.p_id || '')
+        const amount = Math.round(Number(args.p_amount) || 0)
+        const d = await db.duel.findUnique({ where: { id } })
+        if (!d || !['open', 'live'].includes(d.status) || d.expiresAt.getTime() < Date.now()) return R({ ok: false, error: 'gone' })
+        if (d.fromUid === user.id || d.toUid === user.id) return R({ ok: false, error: 'fighter' })
+        const onUid = String(args.p_on_uid || '')
+        if (onUid !== d.fromUid && onUid !== d.toUid) return R({ ok: false, error: 'side' })
+        if (amount < 100 || amount > 50000) return R({ ok: false, error: 'amount' })
+        const already = await db.duelBet.findUnique({ where: { duelId_userId: { duelId: id, userId: user.id } } })
+        if (already) return R({ ok: false, error: 'already' })
+        const okPay = await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) - amount })
+        if (!okPay) return R({ ok: false, error: 'funds' })
+        try {
+          await db.duelBet.create({ data: { duelId: id, userId: user.id, nick: user.nick, onUid, amount } })
+        } catch (e) {
+          await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) + amount }).catch(() => {})
+          return R({ ok: false, error: 'already' })
+        }
+        await db.duel.update({ where: { id }, data: { pot: { increment: amount } } })
+        return R({ ok: true })
+      }
+
+      /* ---------- revenge rights ---------- */
+      case 'revenge_list': {
+        const rows = await db.revengeMark.findMany({ where: { userId: user.id, used: false, expiresAt: { gt: new Date() } }, orderBy: { createdAt: 'desc' }, take: 20 })
+        return R(rows.map((r) => ({ id: r.id, target: r.targetNick, target_uid: r.targetUid, expires: r.expiresAt.toISOString() })))
+      }
+
+      /* ---------- war heatmap (48h battle intensity per country) ---------- */
+      case 'heatmap_data': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const since = new Date(Date.now() - 48 * 3600_000)
+        const rows = await db.battleLog.groupBy({ by: ['country'], where: { server, createdAt: { gte: since } }, _count: { country: true } })
+        const max = rows.reduce((m, r) => Math.max(m, r._count.country), 0)
+        return R({ since: since.toISOString(), max, cells: rows.filter((r) => r.country).map((r) => ({ country: r.country as string, n: r._count.country })).sort((a, b) => b.n - a.n).slice(0, 120) })
+      }
+
+      /* ---------- world elections: 10-day cycle (4d candidacy + 6d voting) ---------- */
+      case 'election_status': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        await electionSweep(server)
+        const now = Date.now()
+        const cycle = elecCycle()
+        const dayIn = (now - cycle * ELEC_MS) / DAY_MS
+        const phase = dayIn < 4 ? 'cand' : 'vote'
+        const endsAt = new Date(cycle * ELEC_MS + (phase === 'cand' ? 4 * DAY_MS : ELEC_MS))
+        const cands = await db.electionCandidate.findMany({ where: { server, cycle } })
+        const votes = await db.electionVote.findMany({ where: { server, cycle } })
+        const myVote = votes.find((v) => v.userId === user.id) || null
+        const tally: Record<string, number> = {}
+        for (const v of votes) tally[v.toUid] = (tally[v.toUid] || 0) + 1
+        /* the serving president is the winner of the previous cycle (or an instant-finalized current one) */
+        const curWinner = await db.electionWinner.findUnique({ where: { server_cycle: { server, cycle } } })
+        const prevWinner = curWinner || await db.electionWinner.findFirst({ where: { server, cycle: cycle - 1 } })
+        return R({
+          cycle, phase, ends_at: endsAt.toISOString(),
+          candidates: cands.map((c) => ({ uid: c.userId, nick: c.nick, slogan: c.slogan, votes: tally[c.userId] || 0 })).sort((a, b) => b.votes - a.votes),
+          my_vote: myVote ? myVote.toUid : null,
+          president: prevWinner ? { nick: prevWinner.nick, cycle: prevWinner.cycle, votes: prevWinner.votes, until: new Date((prevWinner.cycle + 2) * ELEC_MS).toISOString() } : null,
+        })
+      }
+      case 'election_candidacy': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const cycle = elecCycle()
+        const dayIn = (Date.now() - cycle * ELEC_MS) / DAY_MS
+        if (dayIn >= 4) return R({ ok: false, error: 'phase' })
+        const cap = await db.territory.findFirst({ where: { userId: user.id, server, isCapital: true } })
+        if (!cap) return R({ ok: false, error: 'capital' })
+        const slogan = String(args.p_slogan || '').slice(0, 80)
+        await db.electionCandidate.upsert({
+          where: { server_cycle_userId: { server, cycle, userId: user.id } },
+          create: { server, cycle, userId: user.id, nick: user.nick, slogan },
+          update: { slogan, nick: user.nick },
+        })
+        return R({ ok: true })
+      }
+      case 'election_vote': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const cycle = elecCycle()
+        const dayIn = (Date.now() - cycle * ELEC_MS) / DAY_MS
+        if (dayIn < 4) return R({ ok: false, error: 'phase' })
+        const toUid = String(args.p_to_uid || '')
+        const cand = await db.electionCandidate.findUnique({ where: { server_cycle_userId: { server, cycle, userId: toUid } } })
+        if (!cand) return R({ ok: false, error: 'candidate' })
+        await db.electionVote.upsert({
+          where: { server_cycle_userId: { server, cycle, userId: user.id } },
+          create: { server, cycle, userId: user.id, toUid },
+          update: { toUid },
+        })
+        return R({ ok: true })
+      }
+
+      /* ---------- mentorship: veterans (score>=600 or 3+ lands) bond with newcomers ---------- */
+      case 'mentor_status': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const today = dayKey()
+        const myScore = await db.score.findUnique({ where: { userId: user.id } })
+        const myTerr = await db.territory.count({ where: { userId: user.id, server } })
+        const isVet = (myScore?.score || 0) >= 600 || myTerr >= 3
+        const offers = await db.mentorOffer.findMany({ where: { server }, take: 30, orderBy: { createdAt: 'desc' } })
+        const myLinks = await db.mentorLink.findMany({ where: { OR: [{ mentorUid: user.id }, { menteeUid: user.id }], status: { in: ['pending', 'active'] } } })
+        const myOffer = await db.mentorOffer.findUnique({ where: { userId: user.id } })
+        const asMentee = myLinks.find((l) => l.menteeUid === user.id) || null
+        return R({
+          is_vet: isVet, today,
+          my_offer: myOffer ? { bio: myOffer.bio } : null,
+          offers: offers.filter((o) => o.userId !== user.id).map((o) => ({ uid: o.userId, nick: o.nick, bio: o.bio })),
+          as_mentor: myLinks.filter((l) => l.mentorUid === user.id).map((l) => ({ id: l.id, mentee: l.menteeNick, status: l.status, days: l.days, claimable: l.status === 'active' && l.lastDay !== today })),
+          as_mentee: asMentee ? { id: asMentee.id, mentor: asMentee.mentorNick, status: asMentee.status, days: asMentee.days, claimable: asMentee.status === 'active' && asMentee.lastDay !== today } : null,
+        })
+      }
+      case 'mentor_offer_set': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const on = !!args.p_on
+        if (!on) { await db.mentorOffer.deleteMany({ where: { userId: user.id } }); return R({ ok: true, on: false }) }
+        const myScore = await db.score.findUnique({ where: { userId: user.id } })
+        const myTerr = await db.territory.count({ where: { userId: user.id, server } })
+        if ((myScore?.score || 0) < 600 && myTerr < 3) return R({ ok: false, error: 'vet' })
+        const bio = String(args.p_bio || '').slice(0, 100)
+        await db.mentorOffer.upsert({ where: { userId: user.id }, create: { userId: user.id, server, nick: user.nick, bio }, update: { bio, nick: user.nick } })
+        return R({ ok: true, on: true })
+      }
+      case 'mentor_request': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const toUid = String(args.p_to_uid || '')
+        const offer = await db.mentorOffer.findUnique({ where: { userId: toUid } })
+        if (!offer || offer.server !== server) return R({ ok: false, error: 'offer' })
+        if (toUid === user.id) return R({ ok: false, error: 'self' })
+        const exist = await db.mentorLink.findFirst({ where: { menteeUid: user.id, status: { in: ['pending', 'active'] } } })
+        if (exist) return R({ ok: false, error: 'exists' })
+        await db.mentorLink.create({ data: { server, mentorUid: toUid, mentorNick: offer.nick, menteeUid: user.id, menteeNick: user.nick } })
+        return R({ ok: true })
+      }
+      case 'mentor_accept': {
+        const id = String(args.p_id || '')
+        const ok = args.p_ok !== false
+        const link = await db.mentorLink.findUnique({ where: { id } })
+        if (!link || link.mentorUid !== user.id || link.status !== 'pending') return R({ ok: false })
+        if (ok) { await db.mentorLink.update({ where: { id }, data: { status: 'active' } }); return R({ ok: true, status: 'active' }) }
+        await db.mentorLink.delete({ where: { id } })
+        return R({ ok: true, status: 'rejected' })
+      }
+      case 'mentor_daily': {
+        const today = dayKey()
+        let gems = 0, gold = 0, links = 0
+        const active = await db.mentorLink.findMany({ where: { OR: [{ mentorUid: user.id }, { menteeUid: user.id }], status: 'active' } })
+        for (const l of active) {
+          if (l.lastDay === today) continue
+          /* the bond only pays when the MENTEE actually played today (a save touch) */
+          const sv = await db.save.findUnique({ where: { userId: l.menteeUid }, select: { updatedAt: true } })
+          if (!sv || dayKey(sv.updatedAt.getTime()) !== today) continue
+          const cl = await db.mentorLink.updateMany({ where: { id: l.id, lastDay: l.lastDay ?? null }, data: { days: { increment: 1 }, lastDay: today } })
+          if (!cl.count) continue
+          links++
+          /* ONE atomic tick pays BOTH sides — mentor +3💎, mentee +8k gold —
+             so either side's claim covers the day and the other side is credited too */
+          await db.wallet.updateMany({ where: { userId: l.mentorUid }, data: { gems: { increment: 3 } } }).catch(() => {})
+          await tradeApply(l.menteeUid, (r) => { r.gold = resNum(r.gold) + 8000 }).catch(() => {})
+          if (l.mentorUid === user.id) gems += 3
+          else gold += 8000
+        }
+        return R({ ok: true, gems, gold, links })
+      }
+
+      /* ---------- alliances: tag, member cap 10, collective power ---------- */
+      case 'alliance_create': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const name = String(args.p_name || '').trim().slice(0, 20)
+        const tag = String(args.p_tag || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
+        if (name.length < 3 || tag.length < 2) return R({ ok: false, error: 'bad' })
+        const mine = await db.allianceMember.findUnique({ where: { userId: user.id } })
+        if (mine) return R({ ok: false, error: 'member' })
+        const cost = 10000
+        const okPay = await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) - cost })
+        if (!okPay) return R({ ok: false, error: 'funds' })
+        try {
+          const a = await db.alliance.create({ data: { server, name, tag, ownerUid: user.id, ownerNick: user.nick } })
+          await db.allianceMember.create({ data: { allianceId: a.id, userId: user.id, nick: user.nick, role: 'owner' } })
+          await addNews(server, 'alliance_new', null, name + ' [' + tag + ']', user.nick)
+          return R({ ok: true, id: a.id, tag })
+        } catch (e) {
+          const c = (e as { code?: string })?.code
+          if (c === 'P2002') { await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) + cost }).catch(() => {}); return R({ ok: false, error: 'tag' }) }
+          throw e
+        }
+      }
+      case 'alliance_list': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const rows = await db.alliance.findMany({ where: { server }, take: 50, orderBy: { createdAt: 'asc' } })
+        const mem = await db.allianceMember.findMany({ where: { alliance: { server } } })
+        const scores = await db.score.findMany({ where: { server }, select: { userId: true, score: true } })
+        const scOf: Record<string, number> = {}
+        for (const s of scores) scOf[s.userId] = s.score
+        const myMem = mem.find((m) => m.userId === user.id) || null
+        const list = rows.map((a) => {
+          const ms = mem.filter((m) => m.allianceId === a.id)
+          return { id: a.id, name: a.name, tag: a.tag, owner: a.ownerNick, members: ms.length, power: ms.reduce((s, m) => s + (scOf[m.userId] || 0), 0) }
+        }).sort((x, y) => y.power - x.power)
+        return R({ list, tags: await allianceTagMap(server), mine_tag: myMem ? (rows.find((a) => a.id === myMem.allianceId)?.tag || null) : null, mine_id: myMem ? myMem.allianceId : null })
+      }
+      case 'alliance_info': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const me = await db.allianceMember.findUnique({ where: { userId: user.id }, include: { alliance: true } })
+        if (!me || me.alliance.server !== server) return R(null)
+        const ms = await db.allianceMember.findMany({ where: { allianceId: me.allianceId }, orderBy: { id: 'asc' } })
+        const scores = await db.score.findMany({ where: { server }, select: { userId: true, score: true, conquered: true } })
+        const scOf: Record<string, { score: number; conquered: number }> = {}
+        for (const s of scores) scOf[s.userId] = { score: s.score, conquered: s.conquered }
+        return R({
+          id: me.alliance.id, name: me.alliance.name, tag: me.alliance.tag, owner: me.alliance.ownerNick,
+          i_am_owner: me.alliance.ownerUid === user.id,
+          members: ms.map((m) => ({ uid: m.userId, nick: m.nick, role: m.role, score: scOf[m.userId]?.score || 0, terr: scOf[m.userId]?.conquered || 0 })).sort((a, b) => b.score - a.score),
+          power: ms.reduce((s, m) => s + (scOf[m.userId]?.score || 0), 0),
+        })
+      }
+      case 'alliance_join': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const id = String(args.p_id || '')
+        const a = await db.alliance.findUnique({ where: { id } })
+        if (!a || a.server !== server) return R({ ok: false, error: 'gone' })
+        const mine = await db.allianceMember.findUnique({ where: { userId: user.id } })
+        if (mine) return R({ ok: false, error: 'member' })
+        const cnt = await db.allianceMember.count({ where: { allianceId: id } })
+        if (cnt >= 10) return R({ ok: false, error: 'full' })
+        try { await db.allianceMember.create({ data: { allianceId: id, userId: user.id, nick: user.nick } }) } catch (e) {
+          const c = (e as { code?: string })?.code
+          if (c === 'P2002') return R({ ok: false, error: 'member' })
+          throw e
+        }
+        await addNews(server, 'alliance_join', null, user.nick, a.tag)
+        return R({ ok: true, tag: a.tag })
+      }
+      case 'alliance_leave': {
+        const me = await db.allianceMember.findUnique({ where: { userId: user.id }, include: { alliance: true } })
+        if (!me) return R({ ok: false })
+        const others = await db.allianceMember.findMany({ where: { allianceId: me.allianceId, userId: { not: user.id } }, orderBy: { id: 'asc' } })
+        await db.allianceMember.delete({ where: { id: me.id } })
+        if (me.alliance.ownerUid === user.id) {
+          if (others.length) await db.alliance.update({ where: { id: me.allianceId }, data: { ownerUid: others[0].userId, ownerNick: others[0].nick } })
+          else {
+            await db.alliance.delete({ where: { id: me.allianceId } })
+            await addNews(me.alliance.server, 'alliance_gone', null, me.alliance.name, null)
+          }
+        }
+        return R({ ok: true })
       }
 
       /* ---------------- news / chat ---------------- */
