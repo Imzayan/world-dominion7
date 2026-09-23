@@ -3895,8 +3895,8 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
     if(a==='meteor')return 'رگبار شهاب‌سنگ به فرمان '+who+' بر '+(fa||'نامعلوم')+' بارید'+(whom?' (خاک '+whom+')':'')+'.';
     if(a==='season_champion')return 'فصل به پایان رسید؛ قهرمان: '+(x.actor_nick||'—')+(whom?' (نایب‌قهرمان: '+whom+')':'');
     if(a==='olympic_champion')return '🏅 تاج‌گذاری المپیک: '+(x.actor_nick||'—')+' قهرمان جهان شد و جایزه‌ی بزرگ (۴ جم + ۱۰۰٬۰۰۰ سکه) گرفت. افتخارش برای همیشه کنار نامش می‌ماند.';
-    if(a==='olympic_podium')return '🥇 پایگاه رشته‌ی '+((typeof getCountryData==='function'&&x.country)?(getCountryData(x.country)||{}).fa||x.country:x.country||'')+' مشخص شد — طلا: '+(x.actor_nick||'—');
-    if(a==='olympic_record')return '⚡ رکورد تازه‌ی المپیک در '+((typeof getCountryData==='function'&&x.country)?(getCountryData(x.country)||{}).fa||x.country:x.country||'')+' — '+(x.actor_nick||'—')+' تاریخ را نوشت!';
+    if(a==='olympic_podium')return '🥇 پایگاه رشته‌ی '+(window.WD33_DN?window.WD33_DN(x.country):(x.country||''))+' مشخص شد — طلا: '+(x.actor_nick||'—');
+    if(a==='olympic_record')return '⚡ رکورد تازه‌ی المپیک در '+(window.WD33_DN?window.WD33_DN(x.country):(x.country||''))+' — '+(x.actor_nick||'—')+' تاریخ را نوشت!';
     if(a==='olympic_close')return '🏁 اختتامیه‌ی المپیک — قهرمان جهان: '+(x.target_nick||'—')+(x.actor_nick?' (نفر برتر: '+x.actor_nick+')':'');
     if(a==='season_start')return 'فصل جدید آغاز شد؛ نقشه دوباره صحنه‌ی نبرد است.';
     if(a==='trade')return who+' با '+(whom||'بازیکن دیگر')+' معامله‌ی امن انجام داد.';
@@ -4993,8 +4993,8 @@ body.wd-low-power *{scroll-behavior:auto!important}
         if(a==='meteor') return `☄️ رگبار شهاب‌سنگ بر ${x.country||'نامعلوم'} بارید`;
         if(a==='season_champion') return `🏆 قهرمان فصل: ${x.actor_nick||'—'}`;
         if(a==='olympic_champion') return `🏅 ${x.actor_nick||'—'} قهرمان المپیک شد — ۴ جم + ۱۰۰٬۰۰۰ سکه جایزه گرفت`;
-        if(a==='olympic_podium') return `🥇 پایگاه رشته‌ی ${x.country||''} — طلا: ${x.actor_nick||'—'}`;
-        if(a==='olympic_record') return `⚡ ${x.actor_nick||'—'} رکورد ${x.country||''} را شکست!`;
+        if(a==='olympic_podium') return `🥇 پایگاه رشته‌ی ${window.WD33_DN?WD33_DN(x.country):(x.country||'')} — طلا: ${x.actor_nick||'—'}`;
+        if(a==='olympic_record') return `⚡ ${x.actor_nick||'—'} رکورد ${window.WD33_DN?WD33_DN(x.country):(x.country||'')} را شکست!`;
         if(a==='olympic_close') return `🏁 اختتامیه‌ی المپیک — قهرمان جهان: ${x.target_nick||'—'}`;
         if(a==='trade') return `🤝 ${x.actor_nick||'بازیکن'} با ${x.target_nick||'بازیکن دیگر'} معامله کرد`;
         if(x.country) return `🌐 ${x.actor_nick||'بازیکن'} در ${x.country} یک رویداد ثبت کرد`;
@@ -7189,6 +7189,12 @@ function bubble(x,me,pend){
   var nick=D.createElement('div');nick.className='wd28-nick';
   /* V32: تاج قهرمان المپیک کنار نام در چت — همه می‌بینند */
   if(window.WD32_isChamp&&window.WD32_isChamp(x.nick)){var cr32=D.createElement('span');cr32.className='wd32-tag';cr32.textContent='🏆 قهرمان';nick.append(cr32)}
+  /* V33: نشان میراث المپیک (اسطوره/مدال‌آور) کنار نام در چت */
+  try{var c33=window.WD33_CAREER&&window.WD33_CAREER(x.nick);
+    if(c33&&c33.total>0){var s33=document.createElement('span');
+      if(window.WD33_LEGEND&&window.WD33_LEGEND(c33)){s33.className='wg33-legend';s33.textContent='⭐ اسطوره‌ی المپیک'}
+      else{s33.className='wd32-tag';s33.textContent='🗿 '+fa(c33.total)+' مدال'}
+      nick.append(s33)}}catch(e){}
   nick.append(document.createTextNode(x.nick||'بازیکن'));
   var txt=D.createElement('div');txt.className='wd28-txt';txt.textContent=x.message;
   var t=D.createElement('div');t.className='wd28-t';t.textContent=relTime(new Date(x.created_at).getTime());
@@ -7417,6 +7423,11 @@ function richRow(x,i,maxVal){
   nick.append(nb);
   /* V32: تاج قهرمان المپیک در رتبه‌بندی — المان جدا تا با نشان cosmetics تداخل نکند */
   if(window.WD32_isChamp&&window.WD32_isChamp(x.nick)){var cg32=D.createElement('span');cg32.className='wd32-tag';cg32.textContent='🏆 قهرمان المپیک';nick.append(cg32)}
+  /* V33: مجسمه‌ی طلایی + لقب اسطوره‌ی المپیک در رتبه‌بندی */
+  try{var c33=window.WD33_CAREER&&window.WD33_CAREER(x.nick);
+    if(c33&&c33.total>0){if(window.WD33_STATUE)mid.insertAdjacentHTML('beforebegin',window.WD33_STATUE(c33.g,c33.s,c33.b,42));
+      if(window.WD33_LEGEND&&window.WD33_LEGEND(c33)){var lg33=D.createElement('span');lg33.className='wg33-legend';lg33.textContent='⭐ اسطوره';nick.append(lg33)}
+      else{var st33=D.createElement('span');st33.className='wd32-tag';st33.textContent='🗿 '+fa(c33.total)+' مدال';nick.append(st33)}}}catch(e){}
   var tt=D.createElement('span');tt.className='rk-title';tt.textContent=titleOf(x.conquered||0);
   nick.append(tt);mid.append(nick);
   var bar=D.createElement('div');bar.className='rk-bar';
@@ -9068,7 +9079,7 @@ window.WD31_OLYMPICS=function(){openPage('wd-olympics','horn');
 /* ---------- entry points: HUD chip 🏅 + سرور chip → صفحه سینمایی + دکمه در لابی ---------- */
 window.addEventListener('load',()=>{setTimeout(()=>{try{
   const s=H('hud-strip');
-  if(s&&!H('hud-olympic')){const o=(typeof el==='function')?el('div','🏅','hchip',window.WD31_OLYMPICS):null;
+  if(s&&!H('hud-olympic')){const o=(typeof el==='function')?el('div','🏅','hchip',function(){try{window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}}):null;
     if(o){o.id='hud-olympic';o.title='المپیک جهانی';s.appendChild(o)}}
   const old=H('hud-srv');
   if(old&&!old.__wd31){const neo=old.cloneNode(false);neo.textContent=old.textContent;neo.title='شناسنامه‌ی سینمایی سرور';neo.style.cursor='pointer';
@@ -9079,7 +9090,7 @@ window.addEventListener('load',()=>{setTimeout(()=>{try{
     if(p&&p.classList.contains('active')&&!H('wdol-lobby-btn')){
       const b=D.createElement('button');b.id='wdol-lobby-btn';b.className='wd31-btnbig';b.style.marginTop='10px';
       b.textContent='🏅 المپیک جهانی — صفحه‌ی کامل رقابت‌ها';
-      b.addEventListener('click',window.WD31_OLYMPICS);p.prepend(b)}}catch(e){}});
+      b.addEventListener('click',function(){try{window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}});p.prepend(b)}}catch(e){}});
   mo.observe(D.body,{attributes:true,subtree:true,attributeFilter:['class']})
 }catch(e){}})();
 })();
@@ -9388,6 +9399,8 @@ function statue33(g,s,b,sz){
 function legend33(c){try{if(!c||!Array.isArray(c.eds)||c.eds.length<2)return false;const e=c.eds.slice().sort((a,b)=>a-b);
   for(let i=1;i<e.length;i++)if(e[i]===e[i-1]+1)return true;return false}catch(e){return false}}
 window.WD33_STATUE=statue33;window.WD33_LEGEND=legend33;
+const DN33={sprint:'دو ۱۰۰ متر',archery:'تیراندازی با کمان',swim:'شنا',gym:'ژیمناستیک',weight:'وزنه‌برداری',cycling:'دوچرخه‌سواری',chess:'شطرنج',volley:'والیبال ساحلی',football:'فوتبال',wrestle:'کشتی'};
+window.WD33_DN=k=>{try{return DN33[k]||k||''}catch(e){return k||''}};
 
 /* ---------- state ---------- */
 let WG33=null,wgPollT=null,wgOpenFlag=false,wgSort='total',wgSel=[];
@@ -9553,6 +9566,8 @@ async function wgRefresh(force){
     const r=await rpc33('olympic_games',{p_server:srvN()});
     if(!r.ok||!r.d)return;
     WG33=r.d;
+    window.__wg33career=r.d.career||{};
+    window.WD33_CAREER=function(n){try{return (window.__wg33career||{})[n]||null}catch(e){return null}};
     window.__wg33data=r.d;
     strip33Update(r.d);
     if(wgOpenFlag)renderHub();
@@ -9765,6 +9780,7 @@ const GD33={sprint:{ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه ه
  football:{ic:'⚽',fa:'فوتبال',tip:'۳ دور پنالتی — گوشه را انتخاب کن، دروازه‌بان می‌پرد'},
  wrestle:{ic:'🥋',fa:'کشتی',tip:'۳ دیدار طناب‌کشی — تند و پیوسته بزن'}};
 const sndK2=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rpcG=async fn=>{try{const r=await sb.rpc(fn);if(r&&r.error)return null;return r?r.data:null}catch(e){return null}};
 
 /* stage */
@@ -10110,6 +10126,7 @@ function placeGoldenFlag(){try{
     icon:L.divIcon({className:'wd33-gflag-wrap',iconSize:[0,0],html:'<div class="wd33-gflag"><img src="/cdn/flags/w80/'+cc+'.png" alt=""><small>🏆 قهرمان جهان — '+esc(c.nick)+'</small></div>'})}).addTo(map);
 }catch(e){}}
 setTimeout(placeGoldenFlag,16000);setInterval(placeGoldenFlag,120000);
+window.WD33_GFLAG=placeGoldenFlag; /* test/manual hook */
 })();
 </script>
 </body>

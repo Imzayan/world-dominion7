@@ -833,7 +833,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       case 'get_world_news': {
         const server = Number(args.p_server || 1)
         const limit = Math.min(200, Math.max(1, Number(args.p_limit || 60)))
-        const rows = await db.worldNews.findMany({ where: { server }, orderBy: { createdAt: 'desc' }, take: limit })
+        /* server 0 = global channel (V33 olympic games) — visible on every server's ticker */
+        const rows = await db.worldNews.findMany({ where: { server: { in: [server, 0] } }, orderBy: { createdAt: 'desc' }, take: limit })
         return R(rows.map((r) => ({
           action: r.action,
           country: r.country,
