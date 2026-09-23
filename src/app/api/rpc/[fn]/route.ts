@@ -991,7 +991,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       /* ---------------- V33 olympic_games: full hub payload (state, schedule, table, records, archive) ---------------- */
       case 'olympic_games': {
         try { await ensureGamesClosed() } catch (e) { console.log('olgames', e) }
-        if (!(await evOn('olympic'))) return R({ disabled: true, edition: gamesPhase().edition })
+        if (!(await evOn('olympic'))) {
+          /* V38: disabled payload carries records+archive so the "disabled" hub page still shows history */
+          const records = await db.olympicRecord.findMany({ take: 12 })
+          const archives = await db.olympicArchive.findMany({ orderBy: [{ edition: 'desc' }], take: 8 })
+          return R({
+            disabled: true, edition: gamesPhase().edition, records,
+            archive: archives.map((a) => ({
+              edition: a.edition, host_city: a.hostCity, host_country: a.hostCountry, host_cc: a.hostCc,
+              champion_country: a.championCountry, champion_nick: a.championNick, participants: a.participants,
+              podiums: JSON.parse(a.medalsJson || '{}'), table: JSON.parse(a.tableJson || '[]'),
+            })),
+          })
+        }
         const g = gamesPhase()
         const edition = g.edition
         if (g.phase === 'after') for (const k of Object.keys(GD_DAY)) { try { await freezeDiscipline(edition, k) } catch (e) {} }

@@ -2664,6 +2664,7 @@ async function renderAdmin(){const b=S$('admin-body');if(!b||!sb)return;b.textCo
   if(!await serverAdmin()){b.textContent='';b.append(el('div','❌ حساب تو در سرور به‌عنوان مدیر ثبت نشده است.','sites-info'));return}
   /* ===== V36: کنترل دستی ایونت‌ها — فعال/غیرفعال توسط مدیر ===== */
   const evWrap=el('div','','lobby-item');evWrap.style.cssText='flex-direction:column;align-items:stretch;gap:8px;border:1px solid rgba(255,204,0,.35);background:linear-gradient(150deg,rgba(50,38,4,.55),rgba(20,15,2,.7));border-radius:14px;padding:12px';
+  evWrap.id='wd36-evpanel'; /* V38: شناسه‌ی یکتا — تزریق دوباره‌ی پنل موازی را بی‌اثر می‌کند */
   evWrap.append(el('div','🎛️ کنترل ایونت‌ها — روشن/خاموش','sites-h'));
   evWrap.append(el('div','ایونت خاموش = هیچ بازیکنی به آن دسترسی ندارد (آتش‌بس المپیک هم برداشته می‌شود). تغییر برای همه فوری است.','sites-sub'));
   let evs=null;
@@ -2679,7 +2680,7 @@ async function renderAdmin(){const b=S$('admin-body');if(!b||!sb)return;b.textCo
     const mid=document.createElement('div');mid.style.cssText='flex:1;min-width:0';
     mid.append(el('div',def.n,'sites-h'));
     const dd=el('div',def.d,'sites-sub');dd.style.marginTop='1px';mid.append(dd);
-    const pill=document.createElement('span');pill.style.cssText='font-size:9.5px;font-weight:900;padding:3px 10px;border-radius:99px;white-space:nowrap;cursor:pointer;transition:.2s';
+    const pill=document.createElement('span');pill.style.cssText='font-size:9.5px;font-weight:900;padding:3px 10px;border-radius:99px;white-space:nowrap;cursor:pointer;transition:.2s';pill.dataset.evkey=def.k; /* V38 */
     const paint=()=>{const on=evs[def.k]!==false;
       pill.textContent=on?'✅ فعال':'⛔ خاموش';
       pill.style.background=on?'rgba(60,200,120,.18)':'rgba(255,70,90,.16)';
@@ -2693,7 +2694,7 @@ async function renderAdmin(){const b=S$('admin-body');if(!b||!sb)return;b.textCo
         if(tr.error||!tr.data||!tr.data.ok)throw (tr.error||new Error('fail'));
         evs[def.k]=nv;paint();pill.style.opacity='1';
         showToast(def.n+(nv?' فعال شد ✅':' خاموش شد ⛔')+(def.k==='olympic'&&!nv?' — آتش‌بس برداشته شد':''),'win');
-        try{window.WD33_EV=evs;window.WD33_EV_APPLY&&window.WD33_EV_APPLY()}catch(e){}}
+        try{window.WD33_EV=evs;window.WD33_EV_APPLY&&window.WD33_EV_APPLY();window.WD33_REFRESH&&window.WD33_REFRESH(true)}catch(e){}}
       catch(e){console.log(e);paint();pill.style.opacity='1';showToast('❌ تغییر ناموفق بود','lose')}});
     line.append(ic,mid,pill);evWrap.append(line)}
   b.append(evWrap);
@@ -8831,7 +8832,7 @@ const _ra30=renderAdmin;renderAdmin=function(){_ra30();const b=H('admin-body');i
       const t1=document.createElement('div');t1.style.cssText='font-weight:800;font-size:11.5px;color:#fff';t1.textContent=def.n;
       const t2=document.createElement('div');t2.style.cssText='font-size:9px;color:#8fb8dd';t2.textContent=def.d;
       mid.append(t1,t2);
-      const pill=document.createElement('span');pill.style.cssText='font-size:9.5px;font-weight:900;padding:3px 10px;border-radius:99px;white-space:nowrap;cursor:pointer;transition:.2s';
+      const pill=document.createElement('span');pill.style.cssText='font-size:9.5px;font-weight:900;padding:3px 10px;border-radius:99px;white-space:nowrap;cursor:pointer;transition:.2s';pill.dataset.evkey=def.k; /* V38 */
       const paint=()=>{const on=evs[def.k]!==false;
         pill.textContent=on?'✅ فعال':'⛔ خاموش';
         pill.style.background=on?'rgba(60,200,120,.18)':'rgba(255,70,90,.16)';
@@ -8845,7 +8846,7 @@ const _ra30=renderAdmin;renderAdmin=function(){_ra30();const b=H('admin-body');i
           if(tr.error||!tr.data||!tr.data.ok)throw (tr.error||new Error('fail'));
           evs[def.k]=nv;paint();pill.style.opacity='1';
           showToast(def.n+(nv?' فعال شد ✅':' خاموش شد ⛔')+(def.k==='olympic'&&!nv?' — آتش‌بس برداشته شد':''),'win');
-          try{window.WD33_EV=evs;window.WD33_EV_APPLY&&window.WD33_EV_APPLY()}catch(e){}}
+          try{window.WD33_EV=evs;window.WD33_EV_APPLY&&window.WD33_EV_APPLY();window.WD33_REFRESH&&window.WD33_REFRESH(true)}catch(e){}}
         catch(e){console.log(e);paint();pill.style.opacity='1';showToast('❌ تغییر ناموفق بود','lose')}});
       line.append(ic,mid,pill);wrap.append(line)});
     return wrap}
@@ -9276,7 +9277,9 @@ window.WD33_EV_APPLY=function(){try{
   const off=window.WD33_EV&&window.WD33_EV.olympic===false;
   fab.classList.toggle('wg33-off',!!off);
   if(off)fab.classList.remove('wg33-live');
-  const strip=H('wd33-strip');if(strip&&off)strip.style.display='none'
+  const strip=H('wd33-strip');
+  if(strip){strip.style.display=off?'none':'';
+    if(off)strip.classList.remove('on')}
 }catch(e){}};
 window.addEventListener('load',()=>{setTimeout(()=>{try{
   let fab=H('hud-olympic');
@@ -9284,7 +9287,10 @@ window.addEventListener('load',()=>{setTimeout(()=>{try{
   if(!fab){
     fab=D.createElement('div');fab.id='hud-olympic';fab.title='المپیک جهانی — صفحه‌ی کامل رقابت‌ها';
     fab.innerHTML=(window.WD33_ICON?window.WD33_ICON(46):'🏅')+'<span class="wdol-fab-dot"></span><span class="wdol-fab-label">المپیک</span>';
-    fab.addEventListener('click',function(){try{window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}});
+    fab.addEventListener('click',function(){try{
+      /* V38: وقتی خاموش است، وضعیت را شفاف اعلام کن — هاب صفحه‌ی «غیرفعال» را نشان می‌دهد */
+      if(window.WD33_EV&&window.WD33_EV.olympic===false){try{showToast('⛔ المپیک توسط مدیر بازی غیرفعال شده است','lose')}catch(e){}}
+      window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}});
     D.body.appendChild(fab)}
   wdolFabPlace();window.WD33_EV_APPLY();
   window.addEventListener('resize',wdolFabPlace);
@@ -9377,8 +9383,19 @@ function handleStatus(d){try{
   if(!d)return;
   /* V36: admin event switches — olympic/elections/duels on-off comes from the server */
   if(d.events){
+    /* V38: تشخیص تغییر وضعیت سوئیچ — اعمال فوری برای همه (بدون انتظار تا رفرش دستی) */
+    const prevOff=!!(window.WD33_EV&&window.WD33_EV.olympic===false);
     window.WD33_EV={olympic:d.events.olympic!==false,elections:d.events.elections!==false,duels:d.events.duels!==false};
-    if(window.WD33_EV_APPLY)window.WD33_EV_APPLY()}
+    const nowOff=window.WD33_EV.olympic===false;
+    if(window.WD33_EV_APPLY)window.WD33_EV_APPLY();
+    if(prevOff!==nowOff){
+      if(nowOff){ /* بازی در حال اجرا را فوراً ببند */
+        try{const st=D.getElementById('wd33-stage');const x=st&&st.querySelector('#wg33-x');
+          if(x&&st.classList.contains('on'))x.click();
+          showToast('⛔ المپیک توسط مدیر بازی غیرفعال شد — آتش‌بس برداشته شد','lose')}catch(e){}
+      }else{try{showToast('🏅 المپیک توسط مدیر بازی فعال شد!','win')}catch(e){}}
+      if(window.WD33_REFRESH)window.WD33_REFRESH(true);
+    }}
   const ch=(d.champion&&d.champion.nick)?d.champion:null;
   let prevSeen=-1;try{prevSeen=Number(localStorage.getItem(seenKey())||-1)}catch(e){}
   const changed=!!(ch&&Number(ch.cycle||0)>prevSeen);
@@ -10031,7 +10048,10 @@ setInterval(function(){try{
   if(gPhase33().phase!=='live')return;
   if(typeof attackTarget!=='function'||attackTarget.__wd33truce)return;
   const prev=attackTarget;
-  const wrapped=function(n){if(gPhase33().phase==='live'){truceBlock();return Promise.resolve()}
+  const wrapped=function(n){
+    /* V38: ادمین المپیک را خاموش کرده → آتش‌بس فوراً برداشته می‌شود (حتی وسط فاز live) */
+    if(window.WD33_EV&&window.WD33_EV.olympic===false)return prev.apply(this,arguments);
+    if(gPhase33().phase==='live'){truceBlock();return Promise.resolve()}
     return prev.apply(this,arguments)};
   wrapped.__wd33truce=1;attackTarget=wrapped;
 }catch(e){}},2000);
@@ -10174,6 +10194,137 @@ window.WD33_CEREMONY_DONE=function(fn){cerDone=fn};
 .gm33-vs{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:11px;color:#9cc3e8}
 .gm33-vs b{color:#ffe08a}
 </style>
+<style id="v38-css">
+/* ============ V38: story & course layer — realistic courses, rivals, narrative ============ */
+.w38-story{margin:10px auto 2px;width:min(92vw,420px);text-align:right;background:linear-gradient(165deg,rgba(18,30,54,.85),rgba(8,14,30,.9));
+  border:1px solid rgba(120,170,230,.28);border-radius:16px;padding:11px 13px;position:relative;overflow:hidden}
+.w38-story::before{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.05) 45%,transparent 60%);animation:w38Sheen 5.5s ease-in-out infinite;pointer-events:none}
+@keyframes w38Sheen{0%,100%{transform:translateX(-40%)}50%{transform:translateX(40%)}}
+.w38-sline{font-size:11px;color:#cfe3ff;line-height:2}
+.w38-sline b{color:#ffe08a}
+.w38-sline img{width:17px;height:12px;object-fit:cover;border-radius:2px;outline:1px solid rgba(255,255,255,.4);vertical-align:-1px;margin:0 3px}
+.w38-snarr{font-size:11.5px;color:#eef6ff;font-weight:700;line-height:2.1;margin-top:6px;padding-top:6px;border-top:1px dashed rgba(140,184,221,.25)}
+.w38-snarr::first-letter{color:#ffd75e;font-size:15px}
+/* course ruler (sprint/swim/cycling) */
+.w38-course{position:absolute;inset:0;pointer-events:none;z-index:1}
+.w38-mark{position:absolute;bottom:4px;font-size:8px;font-weight:900;color:rgba(255,255,255,.5);transform:translateX(-50%);direction:ltr}
+.w38-mark::before{content:'';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:1.5px;height:9px;background:rgba(255,255,255,.4)}
+.w38-finish{position:absolute;right:6px;top:0;bottom:0;width:7px;z-index:3;
+  background:repeating-linear-gradient(45deg,#fff 0 5px,#15181e 5px 10px);border-radius:3px;box-shadow:0 0 12px rgba(255,255,255,.5)}
+.w38-tape{position:absolute;right:13px;top:50%;height:3px;width:64px;background:linear-gradient(90deg,#ff5d7e,#ffd75e);transform-origin:right center;transition:all .25s ease-out;z-index:3;box-shadow:0 0 8px rgba(255,93,126,.7)}
+.w38-tape.broken{width:0!important;opacity:0}
+.w38-meter{display:inline-block;margin-top:9px;padding:3px 13px;border-radius:99px;font-size:11.5px;font-weight:900;color:#7fd8ff;
+  background:rgba(20,40,70,.6);border:1px solid rgba(120,190,255,.35);font-variant-numeric:tabular-nums}
+/* archery */
+.w38-wind{display:inline-flex;align-items:center;gap:5px;margin-top:9px;padding:3px 12px;border-radius:99px;font-size:11px;font-weight:900;color:#aef0d4;
+  background:rgba(8,40,28,.55);border:1px solid rgba(90,230,160,.35)}
+.w38-wind .fl{display:inline-block;animation:w38Wind 1.6s ease-in-out infinite}
+@keyframes w38Wind{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(12deg)}}
+.gm33-stuck{position:absolute;width:16px;height:3px;border-radius:2px;background:linear-gradient(90deg,#ffe9b0,#c9932e);z-index:6;transform-origin:left center}
+/* weight */
+.w38-lights{display:flex;gap:9px;justify-content:center;margin-top:9px}
+.w38-light{width:19px;height:19px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);transition:.25s}
+.w38-light.g{background:radial-gradient(circle at 35% 30%,#b8ffd4,#19d16f);border-color:rgba(60,255,150,.8);box-shadow:0 0 12px rgba(40,255,140,.7)}
+.w38-light.r{background:radial-gradient(circle at 35% 30%,#ffc2ce,#e4284f);border-color:rgba(255,80,110,.8);box-shadow:0 0 12px rgba(255,60,90,.7)}
+.w38-load{display:inline-block;margin-top:8px;padding:3px 13px;border-radius:99px;font-size:11.5px;font-weight:900;color:#ffe08a;
+  background:rgba(46,34,4,.7);border:1px solid rgba(255,204,0,.4);font-variant-numeric:tabular-nums}
+/* cycling race position */
+.w38-pos{display:inline-block;margin-top:8px;padding:3px 13px;border-radius:99px;font-size:11.5px;font-weight:900;color:#ffe08a;
+  background:rgba(40,24,4,.65);border:1px solid rgba(255,179,46,.45)}
+.w38-rival{position:absolute;font-size:26px;bottom:10px;will-change:transform;z-index:2}
+.w38-rival small{position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size:7.5px;font-weight:900;color:#ff8ba0;white-space:nowrap}
+/* football shootout dots */
+.w38-dots{display:flex;gap:7px;justify-content:center;margin-top:9px;direction:ltr}
+.w38-dot{width:15px;height:15px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(255,255,255,.06);
+  display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#7dff9e;transition:.3s}
+.w38-dot.ok{background:radial-gradient(circle at 35% 30%,#b8ffd4,#19d16f);border-color:rgba(60,255,150,.8)}
+.w38-dot.no{background:radial-gradient(circle at 35% 30%,#ffc2ce,#e4284f);border-color:rgba(255,80,110,.8)}
+.w38-dot.now{border-color:#ffd75e;box-shadow:0 0 10px rgba(255,204,0,.7);animation:wg33Pulse 1.1s infinite}
+/* wrestle match board */
+.w38-board{display:inline-flex;align-items:center;gap:9px;margin-top:8px;padding:4px 15px;border-radius:99px;font-size:12px;font-weight:900;color:#fff;
+  background:rgba(30,12,4,.7);border:1px solid rgba(255,140,60,.45)}
+.w38-board b{color:#ffe08a;font-size:15px}
+.w38-ref{position:absolute;bottom:36px;font-size:15px;z-index:4;transition:left .5s ease;filter:drop-shadow(0 3px 3px rgba(0,0,0,.5))}
+/* volleyball ball shadow */
+.w38-shadow{position:absolute;bottom:6px;width:22px;height:6px;border-radius:50%;background:rgba(0,0,0,.4);filter:blur(2px);z-index:1;pointer-events:none}
+/* chess grandmaster clock */
+.w38-clock{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:3px 12px;border-radius:99px;font-size:11px;font-weight:900;color:#cfe3ff;
+  background:rgba(10,18,36,.75);border:1px solid rgba(120,170,230,.35);font-variant-numeric:tabular-nums}
+.w38-piece-fly{position:absolute;font-size:26px;z-index:60;pointer-events:none;text-shadow:0 4px 8px rgba(0,0,0,.6);transition:all .55s cubic-bezier(.3,1,.4,1)}
+.w38-say{animation:w38Say .3s ease both}
+@keyframes w38Say{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+</style>
+<script id="v38-story">
+/* ============ V38: story engine — every discipline gets a venue, a rival and a three-act story ============ */
+window.ST38=(function(){
+'use strict';
+const faN=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* same host cycle as the hub (deterministic) */
+const HOSTS=[['توکیو','ژاپن','jp'],['پاریس','فرانسه','fr'],['لس‌آنجلس','آمریکا','us'],['لندن','بریتانیا','gb'],['ریودوژانیرو','برزیل','br'],['پکن','چین','cn'],['آتن','یونان','gr'],['سیدنی','استرالیا','au'],['بارسلونا','اسپانیا','es'],['سئول','کره‌ی جنوبی','kr'],['مسکو','روسیه','ru'],['مونترال','کانادا','ca'],['مونیخ','آلمان','de'],['مکزیکوسیتی','مکزیک','mx'],['رم','ایتالیا','it'],['هلزینکی','فنلاند','fi'],['آمستردام','هلند','nl'],['استکهلم','سوئد','se'],['استانبول','ترکیه','tr'],['قاهره','مصر','eg'],['دهلی‌نو','هند','in'],['بوئنوس‌آیرس','آرژانتین','ar'],['نایروبی','کنیا','ke'],['دبی','امارات','ae'],['سنگاپور','سنگاپور','sg'],['کیپ‌تاون','آفریقای جنوبی','za'],['لیما','پرو','pe'],['ورشو','لهستان','pl'],['لیسبون','پرتغال','pt'],['لاگوس','نیجریه','ng'],['کوالالامپور','مالزی','my'],['دوحه','قطر','qa']];
+/* rival pool: name / flag / country-fa / taunt */
+const RIVALS=[
+ {n:'کوواچ',c:'hu',f:'مجارستان',t:'قدیمی‌ها می‌گویند سرعتی مثل من ندیده‌اند.'},
+ {n:'دیاگو',c:'br',f:'برزیل',t:'سامبا از تمرین قوی‌تر است!'},
+ {n:'یاماگوتو',c:'jp',f:'ژاپن',t:'دقت، هنرِ ماست.'},
+ {n:'لومباردی',c:'it',f:'ایتالیا',t:'استعداد را نمی‌شود خرید — ولی من فروشنده نیستم.'},
+ {n:'آندرسون',c:'se',f:'سوئد',t:'من برای طلا آمده‌ام، نه برای شرکت.'},
+ {n:'پترسون',c:'us',f:'آمریکا',t:'این استادیوم را با خودم آورده‌ام!'},
+ {n:'ویگرت',c:'de',f:'آلمان',t:'پیروزی هم مهندسی دارد.'},
+ {n:'مورنو',c:'es',f:'اسپانیا',t:'شورِ من، موتور من است.'},
+ {n:'کوزلوف',c:'ru',f:'روسیه',t:'سرد فکر کن، داغ بزن.'},
+ {n:'کیپتوگ',c:'ke',f:'کنیا',t:'تپه‌ها خانه‌ی من‌اند، جاده مال من.'},
+ {n:'یلماز',c:'tr',f:'ترکیه',t:'آناتولی کارخانه‌ی قهرمان است.'},
+ {n:'وویچ',c:'pl',f:'لهستان',t:'سنگ‌ها را من نرم می‌کنم.'}];
+/* venue + narrative per discipline */
+const META={
+ sprint:{v:'استادیوم ملی',u:'متر',narr:'۸ ثانیه تا جاودانگی. بلوک‌های شروع پشتت است و استادیوم نفسش را حبس کرده؛ صد متر باندِ تارتان، و یک خط پایان که تاریخ را جدا می‌کند.'},
+ archery:{v:'میدان کمان‌گیری',u:'امتیاز',narr:'هفتاد متر بین تو و دهِ طلایی. باد از سمت پرچم می‌وزد، کمان در دست‌هایت زنده است — پنج تیر، و هر تیر یک قصه.'},
+ swim:{v:'آب‌نگار المپیک',u:'متر',narr:'آب سرد است و صدای تماشاگر روی سطحش موج می‌زند. دو طولِ استخر، دیوارهای چرخش، و ریتمی که فقط شناگرهای بزرگ می‌شنوند.'},
+ gym:{v:'سالن ژیمناستیک آرنا',u:'امتیاز',narr:'تشک زیر پاهایت مثل قلب می‌تپد. هیئت داوران آماده‌اند؛ روتینت را مثل امضایت روی هوا بنویس.'},
+ weight:{v:'سالن آهنین',u:'امتیاز',narr:'میله روی شانه‌هایت تاریخ را وزن می‌کند. سه داور، سه چراغ، و یک ناحیه‌ی طلایی که فقط چند سانتی‌متر است — اما دنیا را جابه‌جا می‌کند.'},
+ cycling:{v:'جاده‌ی کوهستانی',u:'امتیاز',narr:'جاده از مهِ پاس کوهستانی می‌گذرد؛ رقیب‌ها پشت چرخ‌هایت قایم شده‌اند. پدالِ ثابت، سلاح پنهان توست.'},
+ chess:{v:'تالار ذهن',u:'امتیاز',narr:'تالار آن‌قدر ساکت است که عقربه‌ی ساعت صدا دارد. صفحه شطرنج وسطش می‌درخشد — یک حرکت، و نامت وارد کتاب تاریخ می‌شود.'},
+ volley:{v:'ساحل طلایی',u:'امتیاز',narr:'ماسه‌ی داغ زیر پای برهنه و تورِ میان تو و افتخار. آفتاب در آب دریا می‌سوزد؛ هر اسپایک، طنین‌دارتر از قبلی.'},
+ football:{v:'استادیوم مرکزی',u:'امتیاز',narr:'دوازده قدم تا دروازه‌ی تاریخ. دروازه‌بان حریف چشمانش را در تو دوخته — گوشه را انتخاب کن و سرنوشت را شوت کن.'},
+ wrestle:{v:'سالن پهلوان',u:'امتیاز',narr:'طناب در مشت‌هایت می‌سوزد و خطِ سرخ وسط، مرزِ افتخار است. دو دیدار از سه مال تو — پاهایت را مثل ریشه در زمین فرو کن.'}};
+const EPI=[
+ 'حریفت {r} با سر پایین از کنارت گذشت — حافظه‌ی ورزشگاه کوتاه است، تمرین کن و برگرد.',
+ 'حریفت {r} گفت: «امروز شانست بود.» اما چراغ‌های سالن هنوز نام تو را می‌خوانند.',
+ 'حریفت {r} دستت را فشرد: «دوره‌ی بعد انتقام می‌گیرم!» — قصه تازه شروع شده.',
+ 'حریفت {r} در حالی که اشک می‌ریخت کف زد — استادیوم نام تو را فریاد زد و پرچمت بالا رفت.'];
+function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h}
+function ctx(){
+  let edn=1;try{const p=window.WD33_PHASE&&window.WD33_PHASE();if(p&&p.edition)edn=p.edition}catch(e){}
+  let h=(edn*2654435761)>>>0;h^=h>>>13;h=Math.imul(h,1274126177)>>>0;const host=HOSTS[h%HOSTS.length];
+  return{edn,city:host[0],country:host[1],cc:host[2]}
+}
+function rivalFor(key,edn){return RIVALS[(edn*217+hash(key))%RIVALS.length]}
+function venueFor(key){const m=META[key];return m?m.v:''}
+/* act-1 story card for the intro screen */
+function storyCard(key){
+  const c=ctx(),r=rivalFor(key,c.edn),m=META[key]||{v:'',narr:''};
+  return '<div class="w38-story">'+
+    '<div class="w38-sline">🏟️ <b>'+esc(m.v)+' '+esc(c.city)+'</b> — دوره‌ی '+faN(c.edn)+' • '+esc(c.country)+'</div>'+
+    '<div class="w38-sline">🆚 رقیب اصلی: <b>'+esc(r.n)+'</b><img src="/cdn/flags/w80/'+r.c+'.png" alt="">('+esc(r.f)+') — «'+esc(r.t)+'»</div>'+
+    '<div class="w38-snarr">'+esc(m.narr)+'</div></div>'
+}
+/* act-3 epilogue by stars 0..3 */
+function epilogue(key,stars){
+  const c=ctx(),r=rivalFor(key,c.edn);
+  const line=(EPI[Math.max(0,Math.min(3,stars))]||'').replace(/\{r\}/g,esc(r.n));
+  return '<div class="w38-story" style="border-color:rgba(255,204,0,.35)"><div class="w38-sline" style="color:#ffe9b3">🎬 '+line+'</div></div>'
+}
+/* live commentator — writes into the stage foot bar */
+let sayTm=0;
+function say(txt){
+  try{const f=document.getElementById('wg33-sft');if(!f)return;
+    f.innerHTML='<span class="w38-say">🎙️ '+esc(txt)+'</span>';
+    clearTimeout(sayTm)}catch(e){}
+}
+return{ctx,rivalFor,venueFor,storyCard,epilogue,say,META}
+})();
+</script>
 <script id="v33-minigames">
 /* ============ V33: 10 Olympic mini-games (mobile-first, DOM+rAF, zero deps) ============ */
 (function(){
@@ -10275,7 +10426,7 @@ const FX=(()=>{
 async function openGame33(key){
   if(sOpen)return;
   if(window.WD33_EV&&window.WD33_EV.olympic===false){showToast2('⛔ المپیک توسط مدیر بازی غیرفعال شده است','lose');return}
-  const m=GD33[key];if(!m)return;
+  const m=GD33[key];if(!m)return;m.key=key; /* V38: story engine needs the discipline key */
   const g=(typeof window.WD33_PHASE==='function')?window.WD33_PHASE():null;
   if(!g||g.phase!=='live'){showToast2('الان زمان بازی‌ها نیست','lose');return}
   showToast2('⏳ در حال آماده‌سازی…');
@@ -10301,7 +10452,10 @@ async function openGame33(key){
 window.WD33_PLAY=openGame33;
 function showToast2(m,k){try{showToast(m,k)}catch(e){}}
 function intro33(bd,m,e,onStart){
+  /* V38: پرده‌ی اول داستان — استادیوم، رقیب و روایت این رشته */
+  const story=(window.ST38&&window.ST38.storyCard)?window.ST38.storyCard(m.key||''):'';
   bd.innerHTML='<div class="wg33-intro"><div class="big" id="wg33-introic">'+m.ic+'</div><h2>'+esc(m.fa)+'</h2><p>'+esc(m.tip)+'</p>'+
+    story+
     '<p style="font-size:11px;color:#8fb8dd">بهترین امتیاز فعلی: '+faN(e.best||0)+' • تلاش‌های باقی‌مانده: '+faN(5-(e.attempts||0))+'</p>'+
     '<button class="wg33-start" id="wg33-go">شروع رقابت</button></div>';
   foot('برای شروع، دکمه را بزن — حین بازی صفحه را نکش');
@@ -10334,12 +10488,12 @@ function runGame(bd,key,done){
 async function finish33(bd,key,norm,raw,e0){
   hud({att:e0.attempts+1,best:Math.max(e0.best||0,norm)});
   /* V35: ستاره‌ها ۱ تا ۳ بر اساس نُرم امتیاز + کنفتی سینمایی */
-  const stars=n=>{const s=norm>=700?3:norm>=400?2:norm>=150?1:0;let h='<div class="stars">';
+  const sN=norm>=700?3:norm>=400?2:norm>=150?1:0;
+  const stars=n=>{const s=sN;let h='<div class="stars">';
     for(let i=0;i<3;i++)h+='<i class="'+(i<s?'on':'')+'" style="animation-delay:'+(0.25+i*0.22)+'s">★</i>';return h+'</div>'};
   bd.innerHTML='<div class="wg33-result"><div class="big" style="font-size:40px">'+GD33[key].ic+'</div>'+stars()+
-    '<div class="sc">'+faN(norm)+'</div><div class="rr" id="wg33-sub">⏳ ثبت امتیاز…</div></div>';
+    '<div class="sc">'+faN(norm)+'</div><div class="rr" id="wg33-sub">⏳ ثبت امتیاز…</div></div>'+(window.ST38&&window.ST38.epilogue?window.ST38.epilogue(key,sN):'');
   foot('');
-  const sN=norm>=700?3:norm>=400?2:norm>=150?1:0;
   if(sN>=2){FX.conf(sN>=3?90:45);FX.flash('#ffd75e',.3)}
   const cpos=FX.pt(bd.querySelector('.wg33-result')||bd,0.5,0.42);
   FX.ring(cpos.x,cpos.y,'rgba(255,215,94,.85)',30,150);
@@ -10372,83 +10526,146 @@ async function finish33(bd,key,norm,raw,e0){
 
 /* ================= 10 GAMES ================= */
 const GAMES={};
-/* 1 — sprint: raw taps in 8s (V35: lane animation + tap sparks + dust trail) */
+/* 1 — sprint: real 100m course — runner travels the lane past 10m..90m marks to the finish tape (score formula unchanged: taps*12) */
 GAMES.sprint=(el,done)=>{
-  el.innerHTML='<div class="gm33-track" style="position:relative"><span class="gm35-lane" id="g33lane"></span><span class="gm33-zone" style="left:0">👆</span><span class="gm33-zone" style="right:0">👆</span><span class="gm33-runner" id="g33run">🏃</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" style="color:#7fd8ff">مثل برق بزن! ⚡</div>';
-  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),lane=el.querySelector('#g33lane');
-  let taps=0,t0=0;const DUR=8000;let fin=false;
+  const S=window.ST38;
+  el.innerHTML='<div class="gm33-track" style="position:relative"><div class="w38-course">'+
+      [10,20,30,40,50,60,70,80,90].map(m=>'<span class="w38-mark" style="left:'+(m)+'%">'+faN(m)+'</span>').join('')+
+      '<div class="w38-finish"></div><div class="w38-tape" id="g33tape" style="right:13px;width:0"></div></div>'+
+    '<span class="gm35-lane" id="g33lane"></span><span class="gm33-zone" style="left:0">👆</span><span class="gm33-zone" style="right:0">👆</span><span class="gm33-runner" id="g33run">🏃</span></div>'+
+    '<div><span class="w38-meter" id="g33mtr">۰ متر از ۱۰۰</span></div>'+
+    '<div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" style="color:#7fd8ff">مثل برق بزن! ⚡</div>';
+  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),lane=el.querySelector('#g33lane'),
+    mtr=el.querySelector('#g33mtr'),tape=el.querySelector('#g33tape');
+  let taps=0,t0=0,met=0,broke=false;const DUR=8000;let fin=false;
+  const MS=[25,50,75];let mi=0;
   on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
-    if(!t0){t0=performance.now();if(lane)lane.classList.add('run')}
+    if(!t0){t0=performance.now();if(lane)lane.classList.add('run');if(S)S.say('تفنگ شلیک شد — شروع!')}
     taps++;sndK2('click');
     FX.spark(ev.clientX,ev.clientY,['#ffd75e','#fff','#ff9d3c'],7,90,0.4);
-    run.style.transform='translateX('+Math.min(340,taps*4.4)+'px)';sc.textContent=faN(taps);
+    const W=el.querySelector('.gm33-track').clientWidth||340;
+    const x=Math.min(W-36,taps*4.4);
+    run.style.transform='translateX('+x+'px)';
+    met=Math.round(taps*1.6);
+    if(mtr)mtr.textContent=faN(Math.min(100,met))+' متر از ۱۰۰';
+    if(!broke&&met>=100&&tape){broke=true;tape.classList.add('broken');FX.flash('#fff',.4);
+      const c=FX.pt(run);FX.text(c.x,c.y-40,'🏁 گوش تا گوش!','#7dff9e',22);if(S)S.say('خط پایان پاره شد — تماشاگران دیوانه شدند!')}
+    else if(mi<MS.length&&met>=MS[mi]){mi++;if(S)S.say(faN(MS[mi-1])+' متر! '+(mi===1?'قدم‌ها گرم شد':'ریتم عالی است'))}
+    sc.textContent=faN(taps);
     if(taps%10===0)FX.punch(run)},{passive:false});
   loop33(()=>{const p=Math.min(1,(performance.now()-t0-600)/DUR);tb.style.width=Math.max(0,100-p*100)+'%';
     if(!fin&&t0&&performance.now()-t0-600>=DUR){fin=true;if(lane)lane.classList.remove('run');
-      FX.flash('#fff',.35);const c=FX.pt(run);FX.text(c.x,c.y-40,taps>=65?'🔥 اسطوره!':taps>=50?'عالی!':'پایان','#ffd75e',22);
+      FX.flash('#fff',.35);const c=FX.pt(run);
+      FX.text(c.x,c.y-40,taps>=65?'🔥 اسطوره!':taps>=50?'عالی!':'پایان','#ffd75e',22);
+      if(S&&!broke)S.say('پایان زمان — '+(taps>=50?'رکورد قابل احترام':'استادیوم انتظار بازگشتت را دارد'));
       done(Math.min(1000,taps*12))}});
 };
-/* 2 — archery: moving target, 5 shots (V35: impact rings + floating points + bullseye burst) */
+/* 2 — archery: 70m range — gusting wind changes target sway, arrows stick where they land (score formula unchanged: pts*20) */
 GAMES.archery=(el,done)=>{
-  el.innerHTML='<div class="gm33-track" style="height:120px;position:relative"><div class="gm33-rings" id="g33tg">🎯</div><div class="gm33-flash" id="g33fl"></div></div><div class="gm33-score" id="g33s">۰ / ۵۰</div><div class="gm33-step" id="g33st">تیر ۱ از ۵</div>';
-  const tg=el.querySelector('#g33tg'),fl=el.querySelector('#g33fl'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st');
+  const S=window.ST38;
+  el.innerHTML='<div><span class="w38-wind" id="g33wind"><span class="fl">🚩</span> باد: آرام</span><span class="w38-meter" style="margin-inline-start:7px">فاصله: ۷۰ متر</span></div>'+
+    '<div class="gm33-track" style="height:130px;position:relative"><div class="gm33-rings" id="g33tg">🎯</div><div class="gm33-flash" id="g33fl"></div></div>'+
+    '<div class="gm33-score" id="g33s">۰ / ۵۰</div><div class="gm33-step" id="g33st">تیر ۱ از ۵ — باد را بخوان، بعد شلیک کن</div>';
+  const tg=el.querySelector('#g33tg'),fl=el.querySelector('#g33fl'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st'),
+    windEl=el.querySelector('#g33wind');
   const W=el.querySelector('.gm33-track').clientWidth||340;
   let shot=0,pts=0,t0=performance.now();let fin=false;
-  const SPD=[1,1.35,1.7,2.1,2.5];
+  const BASE=[1,1.35,1.7,2.1,2.5];
+  const WNAMES=['آرام','تند','طوفانی'];
+  let wind=0;
+  const gust=()=>{wind=Math.floor(Math.random()*3);
+    if(windEl)windEl.innerHTML='<span class="fl">🚩</span> باد: '+WNAMES[wind];
+    if(S&&shot<5)S.say(['باد آرام شد — لحظه‌ی طلایی شلیک','هشدار: باد تندید! هدف ناپایدار شد','طوفان! مرکز هدف را بگیر یا صبر کن'][wind]||'')};
+  gust();tm33(function gustLoop(){if(fin)return;gust();tm33(gustLoop,4200+Math.random()*2600)},4200);
   loop33(()=>{const t=(performance.now()-t0)/1000;
-    const x=(W/2-42)+Math.sin(t*SPD[Math.min(4,shot)])*(W/2-60);
+    const spd=BASE[Math.min(4,shot)]*(1+wind*.55);
+    const x=(W/2-42)+Math.sin(t*spd)*(W/2-60);
     tg.style.transform='translateX('+x+'px)'});
   on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
     if(shot>=5||fin)return;
     const rect=tg.getBoundingClientRect(),px=ev.clientX-(rect.left+rect.width/2);
     const d=Math.abs(px);const p=d<10?10:d<20?9:d<32?8:d<46?6:d<64?4:2;
     pts+=p;shot++;sc.textContent=faN(pts)+' / ۵۰';st.textContent='تیر '+faN(Math.min(5,shot+1))+' از ۵';
+    /* V38: تیر در هدف فرو می‌رود و می‌ماند — زاویه‌ی تصادفی مثل هدف واقعی */
+    try{const tr=tg.getBoundingClientRect();
+      const stick=D.createElement('div');stick.className='gm33-stuck';
+      stick.style.left=(rect.left-tr.left)+(tr.width/2)+(px-2)+'px';
+      stick.style.top=(tr.height/2)+(Math.random()*14-7)+'px';
+      stick.style.transform='rotate('+(Math.random()*24-12)+'deg)';
+      tg.appendChild(stick)}catch(e){}
     /* V35: حلقه‌ی برخورد + امتیاز شناور + انفجار کمانه */
     FX.ring(ev.clientX,ev.clientY,p>=9?'rgba(125,255,158,.95)':p>=6?'rgba(255,215,94,.9)':'rgba(255,139,160,.85)',6,p>=9?64:40);
     FX.spark(ev.clientX,ev.clientY,p>=9?['#7dff9e','#ffd75e','#fff']:['#ffb02e','#ff8ba0'],p>=9?16:8,110,0.6);
     FX.text(ev.clientX,ev.clientY-14,(p>=9?'🎯 ':'')+faN(p),p>=9?'#7dff9e':p>=6?'#ffd75e':'#ff8ba0',p>=9?22:16);
     fl.innerHTML='<span style="color:'+(p>=9?'#7dff9e':p>=6?'#ffd75e':'#ff8ba0')+'">'+(p>=9?'💥 ':'')+faN(p)+'</span>';
-    if(p>=9){FX.shake()}
+    if(p>=9){FX.shake();if(S)S.say('دهِ طلایی! سالن از فریاد لرزید')}
+    else if(S&&p>=6)S.say('تیر خوب — داورها سر تکان دادند');
     tm33(()=>{fl.innerHTML=''},600);sndK2(p>=8?'coin':'click');
     if(shot>=5){fin=true;const c=FX.pt(tg);FX.text(c.x,c.y-50,pts>=40?'کمانگیر افسانه‌ای!':pts>=28?'تیرانداز ماهر':'پایان','#ffd75e',20);
+      if(S)S.say(pts>=40?'پنج تیر، پنج قصه — ایستو در تاریخ ثبت شد':'پنج تیر تمام — پرچم باد هنوز سرفه‌جاست');
       done(Math.min(1000,pts*20))}});
 };
-/* 3 — swim: alternating taps 10s (V35: water + waves + splash on correct side) */
+/* 3 — swim: 100m freestyle — two pool lengths, wall turns every 25m with flip animation (score formula unchanged: strokes*14) */
 GAMES.swim=(el,done)=>{
-  el.innerHTML='<div class="gm33-track" style="position:relative;overflow:hidden"><span class="gm35-water"></span><span class="gm35-wave" style="bottom:18px"></span><span class="gm35-wave" style="bottom:44px;opacity:.3"></span><span class="gm33-zone" style="left:0">👈</span><span class="gm33-zone" style="right:0">👉</span><span class="gm33-runner" id="g33run" style="z-index:2">🏊</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step">یکی‌درمیان! همان سمت پیاپی نمی‌شمارد</div>';
-  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s');
-  let strokes=0,last=-1,t0=0;const DUR=10000;let fin=false;
+  const S=window.ST38;
+  el.innerHTML='<div class="gm33-track" style="position:relative;overflow:hidden"><span class="gm35-water"></span><span class="gm35-wave" style="bottom:18px"></span><span class="gm35-wave" style="bottom:44px;opacity:.3"></span><span class="gm33-zone" style="left:0">👈</span><span class="gm33-zone" style="right:0">👉</span><span class="gm33-runner" id="g33run" style="z-index:2">🏊</span></div>'+
+    '<div><span class="w38-meter" id="g33mtr">۰ متر از ۱۰۰</span></div>'+
+    '<div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step">یکی‌درمیان! هر ۲۵ متر دیوارِ چرخش است</div>';
+  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),mtr=el.querySelector('#g33mtr');
+  let strokes=0,last=-1,t0=0,met=0,turn=0;const DUR=10000;let fin=false;
   const trk=el.querySelector('.gm33-track');
   on33(trk,'pointerdown',ev=>{ev.preventDefault();
-    if(!t0)t0=performance.now();
+    if(!t0){t0=performance.now();if(S)S.say('بوق استارت — آب را بشکاف!')}
     const side=ev.clientX<window.innerWidth/2?0:1;
     if(side!==last){strokes++;last=side;sndK2('click');
       FX.spark(ev.clientX,ev.clientY,['#9adcff','#fff','#39e6d0'],9,95,0.5);
       FX.ring(ev.clientX,ev.clientY,'rgba(153,220,255,.85)',5,44);
-      run.style.transform='translateX('+Math.min(320,strokes*4.6)+'px)';sc.textContent=faN(strokes)}
+      const W=trk.clientWidth||340;
+      run.style.transform='translateX('+Math.min(W-34,strokes*4.6)+'px)';
+      met=Math.round(strokes*1.15);
+      if(mtr)mtr.textContent=faN(Math.min(100,met))+' متر از ۱۰۰';
+      if(met>=25*(turn+1)&&turn<4){turn++;sndK2('stamp');
+        run.style.transition='transform .3s';run.style.transform+=' rotateY(180deg)';
+        tm33(()=>{run.style.transition='';run.style.transform='translateX('+Math.min(trk.clientWidth||340,Math.min(W-34,strokes*4.6))+'px)'},320);
+        FX.flash('#9adcff',.22);
+        if(S)S.say(['چرخش در دیوار ۲۵ متری — بی‌درنگ!','دیوار ۵۰ متری! نیمه‌ی راه','چرخش ۷۵ متری — آب زیر پا می‌سوزد','دیوار آخر — سیرت را تمام کن!'][turn-1]||'')}
+      sc.textContent=faN(strokes)}
     else{sc.style.color='#ff8ba0';FX.shake()}
     setTimeout(()=>{sc.style.color=''},250)},{passive:false});
   loop33(()=>{if(!t0)return;const p=Math.min(1,(performance.now()-t0)/DUR);tb.style.width=(100-p*100)+'%';
     if(!fin&&p>=1){fin=true;const c=FX.pt(run);FX.text(c.x,c.y-40,strokes>=110?'🐋 موج‌سوار!':strokes>=85?'شناگر طلایی':'پایان','#9adcff',21);
       if(strokes>=110)FX.conf(60);
+      if(S)S.say(strokes>=110?'موج‌سوار تالار!':'پایان مسافت — کرونومتر حرف آخر را زد');
       done(Math.min(1000,strokes*14))}});
 };
-/* 4 — gym: directional sequence (V35: combo meter + PERFECT pops + shake on miss) */
+/* 4 — gym: floor routine before a judges panel — E-score flashes after each move (score formula unchanged) */
 GAMES.gym=(el,done)=>{
-  el.innerHTML='<div class="gm35-combo" id="g33cmb"></div><div class="gm33-arrowbig" id="g33ar">⬆️</div><div class="gm33-timer" style="width:min(60vw,240px)"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-pad"><button class="up" data-d="0">⬆️</button><button class="lf" data-d="2">⬅️</button><button class="dn" data-d="1">⬇️</button><button class="rt" data-d="3">➡️</button></div>';
+  const S=window.ST38;
+  el.innerHTML='<div class="gm35-combo" id="g33cmb"></div>'+
+    '<div style="display:flex;gap:8px;justify-content:center;direction:ltr"><span class="w38-load" style="margin:0">داور ۱: —</span><span class="w38-load" style="margin:0">داور ۲: —</span><span class="w38-load" style="margin:0">داور ۳: —</span></div>'+
+    '<div class="gm33-arrowbig" id="g33ar">⬆️</div><div class="gm33-timer" style="width:min(60vw,240px)"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-pad"><button class="up" data-d="0">⬆️</button><button class="lf" data-d="2">⬅️</button><button class="dn" data-d="1">⬇️</button><button class="rt" data-d="3">➡️</button></div>';
   const AR=['⬆️','⬇️','⬅️','➡️'];
   const ar=el.querySelector('#g33ar'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),cmb=el.querySelector('#g33cmb');
+  const judges=[...el.querySelectorAll('.w38-load')];
   let step=0,pts=0,miss=0,stepT0=performance.now(),cur=0,gen=0,fin=false,combo=0;
   const win=[1600,1600,1450,1450,1300,1300,1150,1150,1000,1000,850,850];
-  const end=()=>{fin=true;if(combo>=5)FX.conf(50);done(Math.min(1000,pts))};
+  const MOVES=['پرش پشت','چرخش هوایی','تعادل تک‌پا','پشتک','سالتوی دوتایی'];
+  const end=()=>{fin=true;if(combo>=5)FX.conf(50);
+    if(S)S.say(miss>=4?'روتین نیمه‌کاره ماند — داورها امتیاز سخت گرفتند':'روتین تمام شد! داورها یادداشت‌هایشان را بستند');
+    done(Math.min(1000,pts))};
+  const judgeFlash=(fast)=>{
+    judges.forEach((j,i)=>{const e=(8.4+Math.random()*(fast?1.5:0.9)).toFixed(1);
+      j.textContent='داور '+faN(i+1)+': '+faN(e).replace('.','٫');j.style.color=fast?'#7dff9e':'#ffe08a';
+      j.style.transform='scale(1.12)';tm33(()=>{j.style.transform=''},180)})};
   const next=()=>{if(fin)return;
     if(step>=12||miss>=4){end();return}
     cur=Math.floor(Math.random()*4);ar.textContent=AR[cur];
+    if(step===4&&S)S.say('نیمه‌ی روتین — سخت‌ترین حرکت‌ها از اینجا شروع می‌شود');
     stepT0=performance.now();gen++};
   loop33(()=>{if(fin)return;
     const w=win[Math.min(11,step)];const p=(performance.now()-stepT0)/w;
     if(tb)tb.style.width=Math.max(0,100-p*100)+'%';
-    if(p>=1){miss++;combo=0;if(cmb)cmb.textContent='';FX.shake();sndK2('alert');next()}});
+    if(p>=1){miss++;combo=0;if(cmb)cmb.textContent='';FX.shake();sndK2('alert');if(S&&miss===1)S.say('حرکت جا افتاد! تمرکز کن');next()}});
   el.querySelectorAll('.gm33-pad button').forEach(b=>b.addEventListener('pointerdown',ev=>{ev.preventDefault();
     if(fin)return;
     const w=win[Math.min(11,step)];const el3=performance.now()-stepT0;
@@ -10457,15 +10674,23 @@ GAMES.gym=(el,done)=>{
       pts+=gained;step++;combo++;sndK2('coin');sc.textContent=faN(pts);
       FX.punch(ar);FX.spark(FX.pt(ar).x,FX.pt(ar).y,fast?['#7dff9e','#ffd75e']:['#ffd75e'],fast?14:8,95,0.5);
       if(fast){const p2=FX.pt(ar);FX.text(p2.x,p2.y-50,'بی‌نقص! +'+faN(gained),'#7dff9e',18)}
+      if(combo===3)judgeFlash(fast);
       if(cmb&&combo>=3){cmb.textContent='🔥 کمبو ×'+faN(combo)}
+      if(S&&step===8)S.say('هشت حرکت تمام — تماشاگران روی پا هستند!');
       next()}
-    else{miss++;combo=0;if(cmb)cmb.textContent='';FX.shake();sndK2('alert');next()}},{passive:false}));
+    else{miss++;combo=0;if(cmb)cmb.textContent='';FX.shake();sndK2('alert');if(S)S.say('کج‌فرود آمدی — داور خطا یادداشت کرد');next()}},{passive:false}));
   next();
 };
-/* 5 — weight: timing bar, 5 lifts (V35: aura + accuracy sparks + crowd storm at end) */
+/* 5 — weight: barbell ladder ۱۲۰→۲۴۰kg — three referee lights judge each lift (score formula unchanged) */
 GAMES.weight=(el,done)=>{
-  el.innerHTML='<div class="gm33-bar" id="g33bar" style="position:relative"><span class="gm35-crowdstat"></span><div class="gm33-gold" id="g33z"></div><div class="gm33-marker" id="g33m">🏋️</div></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">حرکت ۱ از ۵ — دقیق در ناحیه‌ی طلایی بزن</div>';
-  const bar=el.querySelector('#g33bar'),z=el.querySelector('#g33z'),m=el.querySelector('#g33m'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st');
+  const S=window.ST38;
+  const KG=['۱۲۰','۱۵۰','۱۸۰','۲۱۰','۲۴۰'];
+  el.innerHTML='<div><span class="w38-load" id="g33kg">وزنه: ۱۲۰ کیلو</span></div>'+
+    '<div class="gm33-bar" id="g33bar" style="position:relative"><span class="gm35-crowdstat"></span><div class="gm33-gold" id="g33z"></div><div class="gm33-marker" id="g33m">🏋️</div></div>'+
+    '<div class="w38-lights" id="g33lights"><span class="w38-light"></span><span class="w38-light"></span><span class="w38-light"></span></div>'+
+    '<div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">حرکت ۱ از ۵ — دقیق در ناحیه‌ی طلایی بزن</div>';
+  const bar=el.querySelector('#g33bar'),z=el.querySelector('#g33z'),m=el.querySelector('#g33m'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st'),
+    lights=[...el.querySelectorAll('.w38-light')],kg=el.querySelector('#g33kg');
   const H=bar.clientHeight||190;
   let lift=0,pts=0,t0=performance.now();let fin=false;
   const ZC=[.30,.34,.30,.38,.34],ZH=[46,40,36,32,28],SPD=[2.1,2.4,2.7,3.0,3.4];
@@ -10483,25 +10708,39 @@ GAMES.weight=(el,done)=>{
     const p=Math.max(0,1-d/(zh*2.2));
     const got=Math.round(200*p);pts+=got;lift++;
     sc.textContent=faN(pts);st.textContent='حرکت '+faN(Math.min(5,lift+1))+' از ۵';
+    /* V38: سه داور — چراغ سفید/سرخ */
+    const ok=p>.6;
+    lights.forEach((L2,i)=>{const good=ok||(p>.45&&i===0); /* نزدیک بود = یک چراغ سفید خوانده شد */
+      L2.className='w38-light '+(good?'g':'r')});
+    if(kg&&lift<5)kg.textContent='وزنه: '+KG[Math.min(4,lift)]+' کیلو';
     /* V35: هاله + جرقه بر اساس دقت */
     const mc=FX.pt(bar,0.5,my/H);
-    FX.ring(mc.x,mc.y,p>.6?'rgba(125,255,158,.95)':'rgba(255,179,46,.9)',8,p>.6?70:40);
-    FX.spark(mc.x,mc.y,p>.6?['#7dff9e','#ffd75e','#fff']:['#8a8f9e','#5a6070'],p>.6?14:6,120,.7);
-    bar.classList.remove('gm35-aura');void bar.offsetWidth;if(p>.6)bar.classList.add('gm35-aura');
-    if(p>.85)FX.text(mc.x,mc.y-30,'⚡ مهاربند فولادین!','#7dff9e',17);
-    else if(p>.6)FX.text(mc.x,mc.y-30,'💪 برداشتن!','#ffd75e',16);
-    else FX.shake();
-    sndK2(p>.6?'coin':'click');
+    FX.ring(mc.x,mc.y,ok?'rgba(125,255,158,.95)':'rgba(255,179,46,.9)',8,ok?70:40);
+    FX.spark(mc.x,mc.y,ok?['#7dff9e','#ffd75e','#fff']:['#8a8f9e','#5a6070'],ok?14:6,120,.7);
+    bar.classList.remove('gm35-aura');void bar.offsetWidth;if(ok)bar.classList.add('gm35-aura');
+    if(p>.85){FX.text(mc.x,mc.y-30,'⚡ مهاربند فولادین!','#7dff9e',17);if(S)S.say(KG[Math.min(4,lift-1)]+' کیلو بالا آمد — سه چراغ سفید!')}
+    else if(ok){FX.text(mc.x,mc.y-30,'💪 برداشتن!','#ffd75e',16);if(S)S.say('حرکت ثبت شد — داورها اجازه دادند')}
+    else{FX.shake();if(S)S.say('چراغ‌های سرخ! وزنه سنگین‌تر از امروز بود')}
+    sndK2(ok?'coin':'click');
     if(lift>=5){fin=true;if(pts>=700){FX.conf(80);FX.flash('#ffd75e',.3)}
+      if(S)S.say(pts>=700?'تمام وزن‌ها فتح شد — سالن آهنین کف زد':'پنج حرکت تمام — میله روی زمین افتاد');
       done(Math.min(1000,pts))}else drawZone()},{passive:false});
 };
-/* 6 — cycling: steady rhythm 20s (V35: speed lines + cadence meter + streak sparks) */
+/* 6 — cycling: mountain road race — your rhythm moves you up a live field of two rivals (score formula unchanged: avg*1000) */
 GAMES.cycling=(el,done)=>{
-  el.innerHTML='<div class="gm33-track" style="position:relative;overflow:hidden"><span class="gm35-speedlines" id="g33sl"></span><span class="gm33-runner" id="g33run" style="left:8%;z-index:2">🚴</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-cad"><i id="g33c"></i></div><div class="gm33-score" id="g33s">—</div><div class="gm33-step">هر ~نیم‌ثانیه یک ضربه — ثبات = امتیاز</div>';
-  const tb=el.querySelector('#g33t'),cd=el.querySelector('#g33c'),sc=el.querySelector('#g33s'),sl=el.querySelector('#g33sl'),run=el.querySelector('#g33run');
+  const S=window.ST38;
+  el.innerHTML='<div><span class="w38-pos" id="g33pos">🚴 جایگاه: ۳ از ۳</span><span class="w38-meter" style="margin-inline-start:7px" id="g33km">۰٫۰ کیلومتر</span></div>'+
+    '<div class="gm33-track" style="position:relative;overflow:hidden"><span class="gm35-speedlines" id="g33sl"></span>'+
+    '<span class="w38-rival" id="g33r1" style="left:30%;bottom:22px">🚴<small>رقیب A</small></span><span class="w38-rival" id="g33r2" style="left:60%;bottom:2px">🚴<small>رقیب B</small></span>'+
+    '<span class="gm33-runner" id="g33run" style="left:8%;z-index:3;bottom:12px">🚴</span></div>'+
+    '<div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-cad"><i id="g33c"></i></div><div class="gm33-score" id="g33s">—</div><div class="gm33-step">هر ~نیم‌ثانیه یک ضربه — ثبات یعنی سبقت</div>';
+  const tb=el.querySelector('#g33t'),cd=el.querySelector('#g33c'),sc=el.querySelector('#g33s'),sl=el.querySelector('#g33sl'),run=el.querySelector('#g33run'),
+    pos=el.querySelector('#g33pos'),km=el.querySelector('#g33km'),r1=el.querySelector('#g33r1'),r2=el.querySelector('#g33r2');
   let t0=0,last=0,sum=0,n=0;const DUR=20000;let fin=false;
+  /* رقبا با ضرب‌آهنگ ثابت جلو می‌روند؛ ضرب‌آهنگ تو تعیین می‌کند سبقت بگیری یا جا بمانی */
+  let myDist=0,rvA=0,rvB=0,passedA=false,passedB=false,started=false,tPrev=0;
   on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
-    const now=performance.now();if(!t0){t0=now;last=now;return}
+    const now=performance.now();if(!t0){t0=now;last=now;tPrev=now;started=true;if(S)S.say('پرچم شروع! پاس کوهستانی پیش روست');return}
     const dt=now-last;last=now;
     const q=Math.max(0,1-Math.abs(dt-400)/250);sum+=q;n++;
     const avg=sum/n;sc.textContent=faN(Math.round(avg*1000));
@@ -10510,20 +10749,32 @@ GAMES.cycling=(el,done)=>{
     if(sl)sl.classList.toggle('on',q>.6);
     FX.spark(ev.clientX,ev.clientY,q>.6?['#ffd75e','#39e6d0']:['#5a6070'],q>.6?8:4,80,.5);
     if(n%8===0&&run)FX.punch(run)},{passive:false});
-  loop33(()=>{if(!t0)return;const p=Math.min(1,(performance.now()-t0)/DUR);tb.style.width=(100-p*100)+'%';
-    if(!fin&&p>=1){fin=true;const avg=n>=8?sum/n:sum/Math.max(1,n)*0.6;
+  loop33(()=>{if(!t0)return;const now=performance.now();
+    const dts=(now-tPrev)/1000;tPrev=now;
+    const p=Math.min(1,(now-t0)/DUR);tb.style.width=(100-p*100)+'%';
+    /* مسافت‌ها فقط وقتی بازیکن پدال زده جلو می‌رود */
+    const avg=n>=1?sum/n:0;
+    myDist+=avg*9.5*dts; rvA+=7.2*dts; rvB+=5.4*dts;
+    if(km)km.textContent=faN((myDist/1000).toFixed(1)).replace('.','٫')+' کیلومتر';
+    /* سبقت‌ها */
+    if(!passedA&&myDist>rvA&&r1){passedA=true;r1.style.opacity='.55';FX.conf(22);if(S)S.say('سبقت از رقیب A! جاده مال توست')}
+    if(!passedB&&myDist>rvB&&r2){passedB=true;r2.style.opacity='.55';FX.conf(22);if(S)S.say('رقیب B هم عقب ماند — پیشتاز جاده!')}
+    if(pos)pos.textContent='🚴 جایگاه: '+faN(1+((rvA>myDist)?1:0)+((rvB>myDist)?1:0))+' از ۳';
+    if(!fin&&p>=1){fin=true;const avg2=n>=8?sum/n:sum/Math.max(1,n)*0.6;
       if(sl)sl.classList.remove('on');
-      if(avg>.8){FX.conf(60)}
-      done(Math.min(1000,avg*1000))}});
+      if(avg2>.8){FX.conf(60)}
+      if(S)S.say(avg2>.8?'خط پایان با آغوش باز از تو استقبال کرد':'پایان مسابقه — پیست انتظار تمرین بیشتری دارد');
+      done(Math.min(1000,avg2*1000))}});
 };
-/* 7 — chess: 4 mate-in-1 puzzles */
+/* 7 — chess: 4 mate-in-1 puzzles vs a grandmaster — winning piece glides across the board (score formula unchanged) */
 const CHESS33=[
- {pc:{wK:'g1',wR:'e1',bK:'g8',bP1:'f7',bP2:'g7',bP3:'h7'},opts:['Re8#','Re7+','Rb1'],ans:0},
- {pc:{wK:'g1',wQ:'h5',wB:'c2',bK:'h8',bP1:'g7'},opts:['Qh7#','Qe8+','Qg5'],ans:0},
- {pc:{wK:'a1',wN:'d6',wR:'g1',bK:'h8',bP1:'h7'},opts:['Nf7#','Ne8','Rxg7'],ans:0},
- {pc:{wK:'c2',wQ:'d1',wR:'a1',bK:'a4'},opts:['Qb3#','Qd4+','Ra3+'],ans:0}];
+ {pc:{wK:'g1',wR:'e1',bK:'g8',bP1:'f7',bP2:'g7',bP3:'h7'},opts:['Re8#','Re7+','Rb1'],ans:0,mv:{f:'e1',t:'e8',pc:'♖'}},
+ {pc:{wK:'g1',wQ:'h5',wB:'c2',bK:'h8',bP1:'g7'},opts:['Qh7#','Qe8+','Qg5'],ans:0,mv:{f:'h5',t:'h7',pc:'♕'}},
+ {pc:{wK:'a1',wN:'d6',wR:'g1',bK:'h8',bP1:'h7'},opts:['Nf7#','Ne8','Rxg7'],ans:0,mv:{f:'d6',t:'f7',pc:'♘'}},
+ {pc:{wK:'c2',wQ:'d1',wR:'a1',bK:'a4'},opts:['Qb3#','Qd4+','Ra3+'],ans:0,mv:{f:'d1',t:'b3',pc:'♕'}}];
 const GL33={wK:'♔',wQ:'♕',wR:'♖',wN:'♘',wB:'♗',bK:'♚',bP1:'♟',bP2:'♟',bP3:'♟'};
 GAMES.chess=(el,done)=>{
+  const S=window.ST38;
   let pi=0,pts=0,fin=false,t0=performance.now(),gen=0;
   const show=()=>{
     gen++;
@@ -10532,12 +10783,13 @@ GAMES.chess=(el,done)=>{
     const cells=[];const sq={};Object.keys(P.pc).forEach(k=>{sq[P.pc[k]]=GL33[k]||'♟'});
     for(let r=8;r>=1;r--)for(let c=0;c<8;c++){
       const name='abcdefgh'[c]+r;
-      cells.push('<span style="background:'+((r+c)%2?'rgba(255,255,255,.06)':'rgba(0,0,0,.28)')+'">'+(sq[name]||'')+'</span>')}
+      cells.push('<span data-sq="'+name+'" style="background:'+((r+c)%2?'rgba(255,255,255,.06)':'rgba(0,0,0,.28)')+'">'+(sq[name]||'')+'</span>')}
     const order=[0,1,2].sort(()=>Math.random()-.5);
     el.innerHTML='<div class="gm33-step" style="color:#ffe08a;font-weight:900">مات در یک حرکت — حرکت شماره‌ی '+faN(pi+1)+' از ۴</div>'+
       '<div class="gm33-chess gm35-chess" id="g33bd2">'+cells.join('')+'</div><div class="gm33-opts">'+
       order.map(i=>'<button data-i="'+i+'">'+P.opts[i]+'</button>').join('')+'</div>'+
-      '<div class="gm33-timer" style="width:min(88vw,340px)"><i id="g33t" style="width:100%"></i></div>';
+      '<div class="gm33-timer" style="width:min(88vw,340px)"><i id="g33t" style="width:100%"></i></div>'+
+      '<div><span class="w38-clock" id="g33clk">⏱️ صبر می‌کند…</span></div>';
     const tb=el.querySelector('#g33t');
     loop33(()=>{if(gen!==myGen||fin)return;const p=Math.min(1,(performance.now()-t0)/15000);if(tb)tb.style.width=(100-p*100)+'%';
       if(p>=1){sndK2('alert');FX.shake();pi++;show()}});
@@ -10545,30 +10797,51 @@ GAMES.chess=(el,done)=>{
       if(fin)return;
       const i=Number(b.getAttribute('data-i'));
       if(i===P.ans){const dt=performance.now()-t0;pts+=200+(dt<6000?50:dt<10000?25:0);sndK2('coin');
-        /* V35: خانه‌ی حرکت برنده هایلایت + مُهر «مات!» */
+        /* V38: مهره‌ی برنده از خانه‌ی مبدا به مقصد پرواز می‌کند */
         const bd2=el.querySelector('#g33bd2');
-        const mvCell={'Re8#':'e8','Qh7#':'h7','Nf7#':'f7','Qb3#':'b3'}[P.opts[P.ans]];
-        if(bd2&&mvCell){const idx=(8-parseInt(mvCell[1]))*8+'abcdefgh'.indexOf(mvCell[0]);const cellEl=bd2.children[parseInt(idx)];if(cellEl)cellEl.classList.add('mv')}
+        const fromCell=bd2&&bd2.querySelector('[data-sq="'+P.mv.f+'"]');
+        const toCell=bd2&&bd2.querySelector('[data-sq="'+P.mv.t+'"]');
+        if(fromCell&&toCell){
+          const fr=fromCell.getBoundingClientRect(),tr2=toCell.getBoundingClientRect(),br=bd2.getBoundingClientRect();
+          const fly=D.createElement('span');fly.className='w38-piece-fly';fly.textContent=P.mv.pc;
+          fly.style.left=(fr.left-br.left+fr.width/2-13)+'px';fly.style.top=(fr.top-br.top+fr.height/2-16)+'px';
+          bd2.appendChild(fly);
+          requestAnimationFrame(()=>requestAnimationFrame(()=>{
+            fly.style.left=(tr2.left-br.left+tr2.width/2-13)+'px';fly.style.top=(tr2.top-br.top+tr2.height/2-16)+'px';
+            fly.style.transform='scale(1.25)'}));
+          tm33(()=>{toCell.classList.add('mv');if(fly)fly.remove()},560)}
+        else if(bd2&&P.mv){const idx=(8-parseInt(P.mv.t[1]))*8+'abcdefgh'.indexOf(P.mv.t[0]);const cellEl=bd2.children[parseInt(idx)];if(cellEl)cellEl.classList.add('mv')}
         const st2=D.createElement('div');st2.className='gm35-stamp';st2.textContent='مات! ♛';el.appendChild(st2);
         FX.flash('#ffd75e',.3);FX.conf(30);
+        if(S)S.say(['مات! استاد بزرگ گیج شد','شاه در دام افتاد — تالار منفجر شد','حرکت منتخب — این را کتاب‌ها ثبت می‌کنند','مات در یک حرکت — امضای تو'][pi]||'مات!');
         pi++;tm33(show,700)}
-      else{fin=true;FX.shake();FX.text(FX.pt(el).x,FX.pt(el).y*.4,'اشتباه بود…','#ff8ba0',20);done(pts)}},{passive:false}));
+      else{fin=true;FX.shake();FX.text(FX.pt(el).x,FX.pt(el).y*.4,'اشتباه بود…','#ff8ba0',20);
+        if(S)S.say('حرکت اشتباه — استاد بزرگ با آرامش دستت را فشرد');done(pts)}},{passive:false}));
   };
   show();
 };
-/* 8 — volley: spike in the zone, 3 serves (V35: net wiggle + ripple + slam sparks) */
+/* 8 — volley: beach rally — ball flies a real parabola over the net with a ground shadow; rival receives on the far side (score formula unchanged: spikes*22) */
 GAMES.volley=(el,done)=>{
-  el.innerHTML='<div class="gm33-track" style="height:190px;position:relative;overflow:hidden"><div class="gm33-net" id="g33net"></div><div class="gm33-hitzone"></div><div class="gm33-ball" id="g33b">🏐</div></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">سرویس ۱ • رالی ۰ — وقتی تو ناحیه است بزن!</div>';
-  const b=el.querySelector('#g33b'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st'),net=el.querySelector('#g33net');
-  const W=el.querySelector('.gm33-track').clientWidth||340,H=el.querySelector('.gm33-track').clientHeight||190;
+  const S=window.ST38;
+  el.innerHTML='<div class="gm33-track" style="height:200px;position:relative;overflow:hidden"><div class="gm33-net" id="g33net"></div><div class="gm33-hitzone"></div>'+
+    '<span style="position:absolute;left:4%;bottom:8px;font-size:24px;opacity:.85">🧍</span>'+
+    '<div class="w38-shadow" id="g33sh"></div><div class="gm33-ball" id="g33b">🏐</div></div>'+
+    '<div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">سرویس ۱ • رالی ۰ — وقتی تو ناحیه است بزن!</div>';
+  const b=el.querySelector('#g33b'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st'),net=el.querySelector('#g33net'),sh=el.querySelector('#g33sh');
+  const W=el.querySelector('.gm33-track').clientWidth||340,H=el.querySelector('.gm33-track').clientHeight||200;
   let spikes=0,serves=1,t0=performance.now(),per=2.6,fin=false;
   loop33(()=>{const t=(performance.now()-t0)/1000;
+    /* پرواز واقعی: سیر پارابولیک کامل بین دو سمت — اوج روی تور */
     const ph=(t*per)%1; /* 0..1: left→right, then back */
     const k=ph<.5?ph*2:(1-ph)*2; /* 0..1..0 — right edge when k=1 */
-    const x=14+(W-46)*k;
-    const y=H*.45+Math.sin(t*3.1)*H*.22;
-    b.style.transform='translate('+(W-x-30)+'px,'+y+'px)';
-    b.style.left='0px';b.style.top='0px'});
+    const x=(W-44)*k;
+    const arc=Math.sin(k*Math.PI); /* اوج وسط زمین */
+    const y=Math.max(-6,H*.66-arc*H*.44+Math.sin(t*2.3)*3);
+    b.style.transform='translate('+x+'px,'+y+'px)';
+    b.style.left='0px';b.style.top='0px';
+    /* سایه روی ماسه */
+    if(sh){sh.style.left=(x+5)+'px';sh.style.top=(H*.66+8)+'px';
+      sh.style.opacity=String(Math.max(.12,.45-arc*.3));sh.style.transform='scale('+(1-arc*.4)+')'}});
   on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
     if(fin)return;
     const r=b.getBoundingClientRect(),z=el.querySelector('.gm33-hitzone').getBoundingClientRect();
@@ -10579,40 +10852,61 @@ GAMES.volley=(el,done)=>{
       FX.ring(ev.clientX,ev.clientY,'rgba(255,215,94,.9)',8,66);
       FX.text(ev.clientX,ev.clientY-20,'💥 اسپیک!','#ffd75e',18);
       if(net){net.classList.remove('gm35-netwig');void net.offsetWidth;net.classList.add('gm35-netwig')}
-      sc.textContent=faN(spikes);st.textContent='سرویس '+faN(serves)+' • رالی '+faN(spikes)}
+      sc.textContent=faN(spikes);st.textContent='سرویس '+faN(serves)+' • رالی '+faN(spikes);
+      if(spikes===5&&S)S.say('رالی پنج تایی! تماشاگران روی ماسه می‌رقصند');
+      if(spikes===9&&S)S.say('رقیب خسته شد — دریافتش کوتاه می‌شود');
+      if(spikes===13&&S)S.say('افسانه‌ای! ساحل طلایی نامت را فریاد می‌زند')}
     else{serves++;per=Math.max(1.8,per*0.85);sndK2('alert');FX.shake();
       FX.text(ev.clientX,ev.clientY-20,'💔 خطا!','#ff8ba0',17);
+      if(S)S.say(['توپ بیرون رفت — داور پرچم زد','دست‌ها زیر توپ رفت — خطا','سخت زدی، بلند رفت — تمرکز کن'][serves%3]||'خطا!');
       st.textContent='سرویس '+faN(Math.min(3,serves))+' • رالی '+faN(spikes);
-      if(serves>3){fin=true;done(Math.min(1000,spikes*22))}}},{passive:false});
+      if(serves>3){fin=true;
+        if(S)S.say('سه خطا — بازی ساحلی تمام شد؛ ماسه هنوز گرم است');
+        done(Math.min(1000,spikes*22))}}},{passive:false});
 };
-/* 9 — football: 3 rounds × 3 penalties */
+/* 9 — football: knockout shootout across 3 rounds — keeper dives, every kick is marked on the shootout board (score formula unchanged) */
 GAMES.football=(el,done)=>{
+  const S=window.ST38;
   let round=0,shot=0,goals=0,pts=0,fin=false;
   const RN=['یک‌هشتم','نیمه‌نهایی','فینال'],KP=[.33,.5,.65];
+  const HIST=[[],[],[]]; /* نتیجه‌ی هر ضربه برای برد شوت‌اوت */
+  const drawDots=()=>{let h='<div class="w38-dots">';
+    for(let r=0;r<3;r++)for(let s2=0;s2<3;s2++){
+      const v=HIST[r][s2];
+      h+='<span class="w38-dot'+(v===1?' ok':v===0?' no':'')+(r===round&&s2===shot&&!fin?' now':'')+'">'+(v===1?'⚽':v===0?'✕':'')+'</span>'}
+    return h+'</div>'};
   const show=()=>{
     el.innerHTML='<div class="gm33-brk">'+RN.map((n,i)=>'<span class="'+(i===round?'on':'')+'">'+n+'</span>').join('')+'</div>'+
+      drawDots()+
       '<div class="gm33-goal" id="g33g"><div class="gzone" data-z="0" style="left:0">چپ</div><div class="gzone" data-z="1" style="left:33.3%">وسط</div><div class="gzone" data-z="2" style="right:0">راست</div><div class="gkeep" id="g33k" style="left:50%;margin-left:-15px">🧤</div><div class="gball" id="g33b">⚽</div></div>'+
       '<div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">'+RN[round]+' — ضربه‌ی '+faN(shot+1)+' از ۳ — گوشه را انتخاب کن</div>';
     const k=el.querySelector('#g33k'),b=el.querySelector('#g33b'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st');
+    if(S&&round===0&&shot===0)S.say('مردم استادیوم صدای هم را کور می‌کنند — دور اول شوت‌اوت');
     el.querySelectorAll('.gzone').forEach(z=>z.addEventListener('pointerdown',ev=>{ev.preventDefault();
       if(fin)return;
       const zi=Number(z.getAttribute('data-z'));
       const kd=Math.random()<KP[Math.min(2,round)]?zi:(zi+1+Math.floor(Math.random()*2))%3;
       k.style.left=(16.5+kd*33.3)+'%';k.style.marginLeft='-15px';
+      k.style.transform='rotate('+(kd===zi?'18deg':'-14deg')+') scale(1.15)'; /* شیرجه‌ی دروازه‌بان */
       b.style.left=(16.5+zi*33.3)+'%';b.style.bottom='55%';
       /* V35: گلاید سینمایی توپ + جرقه‌ی شوت */
       b.style.transition='left .3s cubic-bezier(.2,.9,.3,1),bottom .3s cubic-bezier(.2,.9,.3,1)';
       FX.spark(FX.pt(b).x,FX.pt(b).y,['#fff','#ffd75e'],6,60,.4);
       tm33(()=>{
-        if(kd===zi){sndK2('alert');FX.shake();FX.text(FX.pt(k).x,FX.pt(k).y-24,'🧤 گرفت!','#ff8ba0',18);st.innerHTML='🧤 گرفت! '+RN[round]+' — ضربه‌ی '+faN(Math.min(3,shot+1+1))+' از ۳'}
-        else{goals++;pts+=90;sndK2('cheer');sc.textContent=faN(pts);
+        if(kd===zi){HIST[round][shot]=0;sndK2('alert');FX.shake();FX.text(FX.pt(k).x,FX.pt(k).y-24,'🧤 گرفت!','#ff8ba0',18);
+          st.innerHTML='🧤 گرفت! '+RN[round]+' — ضربه‌ی '+faN(Math.min(3,shot+1+1))+' از ۳';
+          if(S)S.say(['دروازه‌بان خواند! شیرجه‌ی مرگ','گرفته شد — ضربه‌ی بعدی حیاتی است','چنگ طلایی دروازه‌بان!'][shot%3]||'دروازه‌بان برد')}
+        else{HIST[round][shot]=1;goals++;pts+=90;sndK2('cheer');sc.textContent=faN(pts);
           FX.conf(26);FX.flash('#7dff9e',.25);
           const gc=FX.pt(b);FX.ring(gc.x,gc.y,'rgba(125,255,158,.95)',10,90);FX.text(gc.x,gc.y-30,'⚽ گُل!','#7dff9e',22);
-          st.innerHTML='⚽ گُل! '+RN[round]+' — ضربه‌ی '+faN(Math.min(3,shot+1+1))+' از ۳'}
+          st.innerHTML='⚽ گُل! '+RN[round]+' — ضربه‌ی '+faN(Math.min(3,shot+1+1))+' از ۳';
+          if(S)S.say(['گُل! تور مثل طبل صدا داد','تور لرزید — دروازه‌بان روی زمین','گوشه‌ی مرگ! امضای تو بر تور'][shot%3]||'گل!')}
         b.style.bottom='8%';
         shot++;
         if(shot>=3){
-          if(goals>=2){pts+=[100,150,200][Math.min(2,round)];sc.textContent=faN(pts);sndK2('cheer');FX.conf(45);FX.text(FX.pt(el).x,FX.pt(el).y*.3,'✅ '+RN[round]+' گذر شد!','#7dff9e',20)}
+          if(goals>=2){pts+=[100,150,200][Math.min(2,round)];sc.textContent=faN(pts);sndK2('cheer');FX.conf(45);FX.text(FX.pt(el).x,FX.pt(el).y*.3,'✅ '+RN[round]+' گذر شد!','#7dff9e',20);
+            if(S)S.say(RN[round]+' گذر شد! '+(round===2?'قهرمان ضربات پنالتی — سرود طنین‌انداز شد':'حریف بعدی قوی‌تر است'))}
+          else if(S)S.say('در '+RN[round]+' حذف شدی — اما ناکاوت ادامه دارد');
           round++;shot=0;goals=0;
           if(round>=3){fin=true;done(Math.min(1000,pts))}
           else tm33(show,900);
@@ -10620,34 +10914,40 @@ GAMES.football=(el,done)=>{
   };
   show();
 };
-/* 10 — wrestle: tug of war, 3 bouts (dt-based AI — frame-rate independent) */
+/* 10 — wrestle: tug-of-war MATCH (2 of 3 bouts) — center line, walking referee, live match board (score formula unchanged) */
 GAMES.wrestle=(el,done)=>{
-  let bout=0,pts=0,fin=false;
+  const S=window.ST38;
+  let bout=0,pts=0,fin=false,winsMe=0,winsRiv=0;
   const RIV=(window.__wg33data&&window.__wg33data.rivals&&window.__wg33data.rivals.length)?window.__wg33data.rivals.map(r=>({nick:r.nick})):null;
   const NAMES=RIV?RIV.map(r=>r.nick):['رستم','سهراب','گردآفرید'];
   const RATE=[8,11,14];
   const show=()=>{
     const opp=NAMES[Math.min(bout,NAMES.length-1)]||'حریف';
-    el.innerHTML='<div class="gm33-rope"><span class="rl"></span><span class="rr2"></span><div class="rmark" id="g33m"></div></div>'+
-      '<div class="gm33-vs">🥋 تو <b>در برابر</b> '+esc(opp)+' — دیدار '+faN(bout+1)+' از ۳</div>'+
-      '<div class="gm33-timer" style="width:min(92vw,480px)"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step">تند و پیوسته روی طناب بزن!</div>';
-    const m=el.querySelector('#g33m'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s');
+    el.innerHTML='<div><span class="w38-board">🥋 تو <b>'+faN(winsMe)+'</b> — <b>'+faN(winsRiv)+'</b> '+esc(opp)+'</span></div>'+
+      '<div class="gm33-rope"><span class="rl"></span><span class="rr2"></span><div class="w38-ref" id="g33ref" style="left:46%">👨‍⚖️</div><div class="rmark" id="g33m"></div></div>'+
+      '<div class="gm33-vs">دیدار '+faN(bout+1)+' از ۳ — دو برد، برنده‌ی میدان</div>'+
+      '<div class="gm33-timer" style="width:min(92vw,480px)"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step">تند و پیوسته روی طناب بزن — نشان را از خط سرخ عبور بده!</div>';
+    const m=el.querySelector('#g33m'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),ref=el.querySelector('#g33ref');
     let p=50,t0=performance.now(),lastT=t0;const DUR=12000;let bfin=false;
     const W=el.querySelector('.gm33-rope').clientWidth||340;
+    if(S&&bout===0)S.say('طناب کشیده شد — داور عقب رفت؛ همه چیز به مشت‌های تو بسته است');
     loop33(()=>{if(bfin)return;
       const now=performance.now();const dt=(now-t0)/1000;const dts=(now-lastT)/1000;lastT=now;
       p-=RATE[Math.min(2,bout)]*dts;
       const pr=Math.max(0,Math.min(100,p));
       m.style.left=(pr/100)*(W-32)+'px';
+      if(ref)ref.style.left=Math.max(2,Math.min(92,(pr/100)*(W-32)-14))+'px'; /* داور کنار کشمکش راه می‌رود */
       const el2=D.getElementById('g33t');if(el2)el2.style.width=Math.max(0,100-(dt/DUR)*100)+'%';
       if(pr>=100){bfin=true;const left=Math.max(0,12-dt);const got=250+Math.round(left/DUR*1000*0.15);
-        pts+=got;sndK2('cheer');sc.textContent=faN(pts);
+        pts+=got;winsMe++;sndK2('cheer');sc.textContent=faN(pts);
         /* V35: پرچم پیروزی روی نشان + لرزش و جرقه */
         const mc=FX.pt(m);FX.spark(mc.x,mc.y,['#7dff9e','#ffd75e','#fff'],20,150,.8);FX.ring(mc.x,mc.y,'rgba(125,255,158,.9)',10,80);
         FX.text(mc.x,mc.y-40,'🏆 برنده! +'+faN(got),'#7dff9e',20);FX.shake();
+        if(S)S.say(winsMe>=2?'دو برد از سه — میدان مال توست! داور دستت را بالا برد':'دیدار بعدی حیاتی است — نفس بگیر');
         nextBout(got)}
-      else if(pr<=0||dt>=DUR){bfin=true;sndK2('alert');FX.shake();
+      else if(pr<=0||dt>=DUR){bfin=true;winsRiv++;sndK2('alert');FX.shake();
         const mc2=FX.pt(m);FX.text(mc2.x,mc2.y-40,'😮 باخت این دیدار','#ff8ba0',18);
+        if(S)S.say(winsRiv>=2?'دو باخت — حریف امشب قوی‌تر بود':'طناب کج رفت — بازگرد و بکش!');
         nextBout(0)}});
     on33(el.querySelector('.gm33-rope'),'pointerdown',ev=>{ev.preventDefault();
       if(bfin)return;p+=2.2;sndK2('click');
@@ -10655,6 +10955,7 @@ GAMES.wrestle=(el,done)=>{
       FX.spark(ev.clientX,ev.clientY,['#ffd75e','#ff9d3c'],5,60,.3)},{passive:false});
   };
   const nextBout=(got)=>{bout++;
+    /* سه دیدار کامل برگزار می‌شود تا سقف امتیاز مثل قبل حفظ شود — برد ۲-۰ هم بازی سوم دارد (نمایشی) */
     if(bout>=3){fin=true;if(pts>=500){FX.conf(80);FX.flash('#ffd75e',.3)}done(Math.min(1000,pts))}
     else tm33(()=>{showToast2(got?'💪 بردی! +'+faN(got):'😮 باختی — دیدار بعدی','win');show()},700)};
   show();
