@@ -254,6 +254,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ table: str
       const row = await model[spec.model].create({ data: p })
       created.push(row)
     }
+    if (table === 'world_chat' && created.length) chatMark(user.id)
     await afterWrite(table, created, user)
     const data = created.map((r) => serialize(r, spec, body.query?.select))
     if (body.query?.single) return NextResponse.json({ data: data[0] || null, error: null })
@@ -273,6 +274,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ table: st
   if (spec.readOnly) return NextResponse.json({ data: null, error: err('permission denied') })
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ data: null, error: err('not authenticated', '401') })
+  /* V33.1: adminWrite tables (admin_grants) were PATCHable by ANY user → free resource minting */
+  if (spec.adminWrite && !user.isAdmin) return NextResponse.json({ data: null, error: err('permission denied') })
   let body: { payload?: Record<string, unknown>; query?: Query } = {}
   try { body = await req.json() } catch {}
   const model = db as unknown as {
@@ -284,11 +287,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ table: st
     const existing = await model[spec.model].findMany({ where })
     if (!existing.length) return NextResponse.json({ data: [], error: null, count: 0, status: 200 })
     const p = await preparePayload(table, spec, body.payload || {}, user, true)
-    const keyName = Object.entries(spec.cols).find(([s, c]) => c === 'id' || (table === 'saves' && c === 'userId'))
-    const keyPrisma = keyName ? keyName[1] : 'id'
-    const keyVals = existing.map((r) => r[keyPrisma])
-    await model[spec.model].updateMany({ where: { [keyPrisma]: { in: keyVals } } as object, data: p })
-    const updated = await model[spec.model].findMany({ where: { [keyPrisma]: { in: keyVals } } as object })
+    /* V33.1: update by the SAME ownership-scoped where — the old key-by-id fallback
+       produced {id:{in:[undefined]}} for id-less tables (scores/territories) and the
+       client's server-change sync silently failed forever */
+    await model[spec.model].updateMany({ where, data: p })
+    const updated = await model[spec.model].findMany({ where })
     await afterWrite(table, updated, user)
     const data = updated.map((r) => serialize(r, spec, body.query?.select))
     return NextResponse.json({ data, error: null, count: data.length, status: 200 })
@@ -305,6 +308,8 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ table: s
   if (spec.readOnly) return NextResponse.json({ data: null, error: err('permission denied') })
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ data: null, error: err('not authenticated', '401') })
+  /* V33.1: adminWrite tables (admin_grants) were DELETEable by ANY user → could wipe everyone's grants */
+  if (spec.adminWrite && !user.isAdmin) return NextResponse.json({ data: null, error: err('permission denied') })
   let q: Query = {}
   const rawQ = req.nextUrl.searchParams.get('q')
   if (rawQ) { try { q = JSON.parse(Buffer.from(rawQ, 'base64url').toString('utf8')) } catch {} }
@@ -356,9 +361,15 @@ async function preparePayload(table: string, spec: TableSpec, raw: Record<string
     const now = Date.now()
     const last = chatLast.get(user.id) || 0
     if (now - last < 1200) throw new Error('rate limited')
-    chatLast.set(user.id, now)
+    /* note: the timestamp is stamped AFTER a successful insert (see POST) so a
+       failed write no longer burns the 1.2s window; map is pruned below */
+    if (chatLast.size > 5000) chatLast.clear()
   }
   return data
+}
+
+function chatMark(userId: string) {
+  chatLast.set(userId, Date.now())
 }
 
 async function afterWrite(table: string, rows: Record<string, unknown>[], user: SessionUser) {

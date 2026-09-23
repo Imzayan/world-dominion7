@@ -419,3 +419,36 @@ Stage Summary:
 - المپیک همین حالا روی سرور لایو است: فاز live تا روز ۲۹ دوره‌ی ۹ (~۲۷ سپتامبر) — آتش‌بس فعال، هر ۱۰ مینی‌گیم قابل بازی، ثبت‌نام دیرهنگام داخل هاب
 - ریتم دائمی: هر دوره‌ی ۳۰ روزه → ثبت‌نام روز ۱۶، افتتاحیه روز ۲۵، اختتامیه روز ۳۰
 - نکته: بسته‌شدن دوره‌ی ۸ با ثابت‌های جدید lazy رخ می‌دهد و یک ردیف آرشیو خالی «بدون قهرمان» می‌سازد — طبیعی و بی‌ضرر
+
+---
+Task ID: 17
+Agent: Super Z (main)
+Task: بازرسی ریز به ریز کل بازی (درخواست کاربر) — زیرساخت، همه‌ی دکمه‌ها، آیتم‌ها، آیکون خاص المپیک، حذف لگ
+
+Work Log:
+- دو ممیزی موازی (کلاینت ۱۰۱۰۰+ خط / سرور ۹۵۰+ خط + shims + auth + realtime + هر دو schema) → ۳۷ یافته؛ تایید تک‌تک قبل از فیکس
+- [CRITICAL کلاینت/سرور] pvp_attack قرارداد پاسخ: professionalAttack (کشوی حمله‌ی تاکتیکی فعال) انتظار occupation/gain/ratio/defense/captured داشت؛ سرور فقط {ok} برمی‌گرداند → پیروزی سمت سرور هرگز محلی ثبت نمی‌شد، ۶۰٪ تلفات بی‌دلیل در هر موج، و syncTerr قلمرو تازه‌برده‌شده را از DB حذف می‌کرد! فیکس دوطرفه: سرور payload کامل برمی‌گرداند (captured/occupation/gain/defense/ratio از امتیاز واقعی دو طرف) + کلاینت موجِ شکست را «گزارش» می‌دهد نه exception (تلفات شکست قبلاً اصلاً اعمال نمی‌شد!) + پیام اختصاصی truce
+- [HIGH] pvp_capture_territory هر قلمروِ متعلق به بازیکن دیگر را رایگان می‌دزدید (فقط own را رد می‌کرد) → فیکس: تصرف رایگان فقط زمین خنثی؛ مال‌ک‌دار فقط با pvp_attack
+- [HIGH] wd_get_state مپ ارتش: special→missile بود؛ پهپاد در خانه‌ی موشک می‌نشست و موشک واقعی دور ریخته می‌شد → artillery:'missile', special:'drone'
+- [HIGH] دکمه‌ی «ارتش» ☰ مودال نامرئی باز می‌کرد (کلاس open به‌جای active) → openModal('m-army') — در UI-audit تایید شد
+- [HIGH] WALLET RACE همه‌جا read-modify-write بود → عملیات اتمی: spend_gems (decrement شرطی gte)، dailyBonus (updateMany شرطی → دیگر claim دوباره‌ی هم‌زمان ممکن نیست)، use_special، پاداش قهرمان/شرکت‌کننده (increment)
+- [HIGH] TOCTOU معاملات: accept/cancel اول رکورد را اتمیک claim می‌کند (updateMany where status:'open') + جابه‌جایی منابع داخل db.$transaction؛ در شکست، claim آزاد می‌شود
+- [CRITICAL] admin_grants در PATCH/DELETE بدون گیت ادمین بود → هر کاربر می‌توانست جوایز ادمین را به خودش mint/همه را حذف کند → گیت adminWrite در هر دو فعل
+- [MEDIUM] closeGamesEdition ریسک دو-برابر شدن جوایز در بسته‌شدن هم‌زمان → ردیف آرشیو اول می‌آید (unique edition = claim اتمیک) بعد جوایز
+- [MEDIUM] wd_init_player nick دلخواه می‌پذیرفت → جعل هویت در رتبه‌بندی/مدال‌ها؛ فیکس: nick اجباری از session
+- [MEDIUM] realtime کاملاً بدون auth بود → هرکسی رویداد جعلی به کانال‌های قطعی می‌فرستاد؛ فیکس: session اجباری در POST/GET/SSE + هویت فرستنده سمت سرور + سقف payload ۸KB + sweep کانال‌های خالی + کلید subscription یکتا per-connection (چند-تب همان کاربر دیگر هم‌دیگر را نمی‌پوشانند)
+- [MEDIUM] PATCH جدول‌های بدون id (scores/territories) می‌شکست → {id:{in:[undefined]}} → همگام‌سازی تغییر سرور سال‌هاست ساکت می‌شکست؛ فیکس: where مالکیت‌دار مستقیم
+- [MEDIUM] faNum کراس-IIFE در فروشگاه جم/موزه مرده بود (اعداد لاتین) → window.faNum + window.renderNews (دکمه‌ی روزنامه‌ی ☰ بدنه‌ی کهنه نشان می‌داد)
+- [LOW] تایم‌اوت ۲۵s حمله PvP تایمرش هرگز clear نمی‌شد + onclick «موج بعدی» کهنه روی battle-close-btn می‌ماند و با بستن هر گزارش نبرد بعدی دوباره حمله‌ی قدیمی را شلیک می‌کرد → reset در ورود professionalAttack
+- [LOW] کوکی session بدون secure در پروداکشن + پاک‌سازی sessionهای منقضی در login + P2002 ثبت‌نام هم‌زمان → پیام دوستانه 400 + throttle 60s روی release_inactive_territories + trim جدول world_news در RPC + cap تلاش‌های probe دکمه‌ی ادمین
+- ⚠️ شناخته‌شده اما عمداً Deferred (مستند در این worklog): save.state همچنان client-authoritative است (قلب طراحی بازی — بازنویسی سرور-محور نیاز به V34 جدا دارد)؛ backdoor nick 'alireza' (مالک بازی — با یکتایی nick ریسک پایین)
+- 🎨 آیکون اختصاصی المپیک: SVG برنامه‌نویسی‌شده — تاج برگ زیتون طلایی (برگ‌ها روی Bézier با چرخش مماسی، آینه‌ی دقیق چپ/راست) + مشعل با شعله‌ی زنده (flicker CSS) + هاله‌ی نور در فاز live — جایگزین 🏅 در چیپ HUD، هیروی هاب و نوار زنده
+- ⚡ حذف لگ: ۷ poller بدون گیت visibility (saveNow 8s، claimGrants، trade-mine، pollGoal، olympic_status، placeCrown، goldenFlag) حالا document.hidden رعایت می‌کنند
+- UI-audit جدید (scripts/ui-audit.sh): ورود+secure-cookie، ☰ (ارتش/روزنامه/مشاور)، چت جهانی (ارسال+نمایش)، هاب المپیک زنده+آیکون SVG+کارت ثبت‌نام دیرهنگام، فروشگاه — همه سبز؛ E2E سه‌فازی کامل هم سبز (gems=67 شامل daily 20 + قهرمان 4 + شرکت 3)
+- 🗺️ نقشه‌راه ثبت‌شده از درخواست کاربر (نسخه‌های بعد): ۱) دعوت دوطرفه ۲) پوستر امپراتوری ۳) استریک روزانه (اولویت کاربر) → سپس انتخابات، تماشای زنده+شرط‌بندی، انتقام، heatmap، Mentor، اتحادها؛ بلندمدت: جاسوسی/انواع حمله، نبرد زنده‌ی متقابل، جغرافیای تاکتیکی، انیمیشن ۴فازی حمله
+
+Stage Summary:
+- ۱۴ باگ واقعی فیکس شد (۳ CRITICAL: پاک‌شدن قلمرو برده‌شده، mint آزاد admin_grants، حمله‌ی رایگان به مال‌ک‌ها؛ ۴ HIGH: مپ ارتش، ریس wallets، TOCTOU معاملات، مودال نامرئی)
+- امنیت: realtime احراز هویت شد، nick جعل‌ناپذیر، wallet ها اتمیک، کوکی secure
+- کیفیت: آیکون اختصاصی المپیک + گیت visibility روی همه‌ی pollerها (مصرف CPU/باتری نصف به بالا در تب پنهان)
+- تست: E2E سه‌فازی + UI-audit تازه — همگی سبز

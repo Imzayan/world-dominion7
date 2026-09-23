@@ -18,6 +18,8 @@ export async function POST(req: NextRequest) {
       })
     }
     const token = newToken()
+    /* V33.1: prune expired sessions on login — the table used to grow unbounded */
+    await db.session.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => {})
     await db.session.create({
       data: { token, userId: user.id, expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000) },
     })

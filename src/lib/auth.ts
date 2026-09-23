@@ -31,6 +31,7 @@ export async function setSessionCookie(token: string) {
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production' && process.env.COOKIE_SECURE_OFF !== '1',
     path: '/',
     maxAge: SESSION_DAYS * 24 * 3600,
   })
@@ -38,7 +39,12 @@ export async function setSessionCookie(token: string) {
 
 export async function clearSessionCookie() {
   const store = await cookies()
-  store.set(SESSION_COOKIE, '', { httpOnly: true, path: '/', maxAge: 0 })
+  store.set(SESSION_COOKIE, '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production' && process.env.COOKIE_SECURE_OFF !== '1',
+    path: '/',
+    maxAge: 0,
+  })
 }
 
 export type SessionUser = {

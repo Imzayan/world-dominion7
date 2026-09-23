@@ -1,13 +1,17 @@
 import { NextRequest } from 'next/server'
-import { getChannel, type RtEvent } from '@/lib/realtime'
+import { getChannel, sweep, type RtEvent } from '@/lib/realtime'
+import { getSessionUser } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
-/** SSE stream of a channel's broadcast events (excludes the sender's own events). */
+/** SSE stream of a channel's broadcast events (excludes the sender's own events).
+    V33.1: requires a session; subscription key = server-side user id. */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ ch: string }> }) {
+  const user = await getSessionUser()
+  if (!user) return new Response('not authenticated', { status: 401 })
   const { ch } = await ctx.params
-  const from = String(req.nextUrl.searchParams.get('from') || '')
+  const from = user.id
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
@@ -22,7 +26,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ ch: string 
         }
       }
       const c = getChannel(ch)
-      c.subs.set(from, send)
+      /* unique key per connection — same user in two tabs must not overwrite each other */
+      const subKey = from + '#' + Math.random().toString(36).slice(2, 8)
+      c.subs.set(subKey, { uid: from, send })
       // initial keepalive so EventSource fires onopen immediately
       try { controller.enqueue(encoder.encode(`: ok\n\n`)) } catch {}
       const ka = setInterval(() => {
@@ -33,7 +39,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ ch: string 
         if (closed) return
         closed = true
         clearInterval(ka)
-        c.subs.delete(from)
+        c.subs.delete(subKey)
         try { controller.close() } catch {}
       }
       req.signal.addEventListener('abort', cleanup)

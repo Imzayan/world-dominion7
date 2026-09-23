@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 
@@ -35,6 +36,12 @@ function weekKey(d = new Date()): string {
 async function addNews(server: number, action: string, country: string | null, actorNick: string | null, targetNick: string | null) {
   try {
     await db.worldNews.create({ data: { server, action, country, actorNick, targetNick } })
+    /* keep the table small (V33.1): the olympic/aggregation scans read it every cycle */
+    const cnt = await db.worldNews.count()
+    if (cnt > 500) {
+      const old = await db.worldNews.findMany({ orderBy: { createdAt: 'asc' }, take: cnt - 300, select: { id: true } })
+      if (old.length) await db.worldNews.deleteMany({ where: { id: { in: old.map((r) => r.id) } } })
+    }
   } catch (e) { console.log('addNews', e) }
 }
 
@@ -44,20 +51,22 @@ async function ensureWallet(userId: string) {
   return w
 }
 
-/** daily login bonus: +20 gems per calendar day */
+/** daily login bonus: +20 gems per calendar day (atomic — no double-claim race) */
 async function dailyBonus(userId: string) {
-  const w = await ensureWallet(userId)
+  await ensureWallet(userId)
   const today = new Date().toISOString().slice(0, 10)
-  const last = w.lastDaily ? new Date(w.lastDaily.toISOString().slice(0, 10)).toISOString().slice(0, 10) : null
-  if (last !== today) {
-    const updated = await db.wallet.update({ where: { userId }, data: { gems: w.gems + 20, lastDaily: new Date() } })
-    return { w: updated, granted: 20 }
-  }
-  return { w, granted: 0 }
+  const dayStart = new Date(today + 'T00:00:00.000Z')
+  const upd = await db.wallet.updateMany({
+    where: { userId, OR: [{ lastDaily: null }, { lastDaily: { lt: dayStart } }] },
+    data: { gems: { increment: 20 }, lastDaily: new Date() },
+  })
+  const w = await ensureWallet(userId)
+  return { w, granted: upd.count > 0 ? 20 : 0 }
 }
 
 /* ---------- capture transfer shared by pvp_attack success & pvp_capture_territory ---------- */
 const lastCapture = new Map<string, number>()
+let lastReleaseRun = 0
 
 async function transferTerritory(server: number, country: string, uid: string, nick: string): Promise<{ ok: boolean; error?: string; prevOwner?: string }> {
   const t = await db.territory.findUnique({ where: { server_country: { server, country } } })
@@ -97,8 +106,9 @@ function tradeRes(stateJson: string): { obj: Record<string, unknown>; res: Recor
   return { obj, res }
 }
 
-async function tradeApply(uid: string, mut: (res: Record<string, number>) => void): Promise<boolean> {
-  const save = await db.save.findUnique({ where: { userId: uid } })
+async function tradeApply(uid: string, mut: (res: Record<string, number>) => void, tx?: Prisma.TransactionClient): Promise<boolean> {
+  const conn = tx || db
+  const save = await conn.save.findUnique({ where: { userId: uid } })
   if (!save) return false
   const { obj, res } = tradeRes(save.state)
   mut(res)
@@ -107,7 +117,7 @@ async function tradeApply(uid: string, mut: (res: Record<string, number>) => voi
     if (!Number.isFinite(res[k]) || res[k] < 0) return false
   }
   obj.res = res
-  await db.save.update({ where: { userId: uid }, data: { state: JSON.stringify(obj) } })
+  await conn.save.update({ where: { userId: uid }, data: { state: JSON.stringify(obj) } })
   return true
 }
 
@@ -188,7 +198,7 @@ async function applyOlympicRewards(uid: string) {
   const base = w.boostUntil && w.boostUntil.getTime() > Date.now() ? w.boostUntil.getTime() : Date.now()
   await db.wallet.update({
     where: { userId: uid },
-    data: { gems: w.gems + OL_REWARDS.gems, boostUntil: new Date(base + OL_REWARDS.boost_hours * 3600000) },
+    data: { gems: { increment: OL_REWARDS.gems }, boostUntil: new Date(base + OL_REWARDS.boost_hours * 3600000) },
   })
   const save = await db.save.findUnique({ where: { userId: uid } })
   if (save) {
@@ -275,7 +285,9 @@ async function freezeDiscipline(edition: number, key: string) {
 }
 
 /* closing ceremony: freeze all, medal table by country, crown champion player,
-   rewards (4 gems + 100k gold + resources + boost), participant gems, archive row */
+   rewards (4 gems + 100k gold + resources + boost), participant gems, archive row.
+   V33.1: the archive row is written BEFORE any reward is paid — its unique(edition)
+   constraint makes concurrent lazy closes safe (only the claim winner pays out). */
 async function closeGamesEdition(edition: number) {
   const exists = await db.olympicArchive.findUnique({ where: { edition } })
   if (exists) return exists
@@ -297,6 +309,30 @@ async function closeGamesEdition(edition: number) {
   const players = Object.values(byP).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
   const champ = players[0] || null
   const champCountry = table[0] || null
+  const parts = await db.olympicEntry.findMany({ where: { edition, attempts: { gt: 0 } }, select: { userId: true } })
+  const uids = [...new Set(parts.map((p) => p.userId))]
+  const recs = await db.olympicRecord.findMany({ take: 10, orderBy: [{ discipline: 'asc' }] })
+  const podiums: Record<string, { rank: number; nick: string; country: string; countryFa: string; score: number }[]> = {}
+  for (const r of results) {
+    const arr = podiums[r.discipline] || (podiums[r.discipline] = [])
+    arr.push({ rank: r.rank, nick: r.nick, country: r.country || '?', countryFa: r.countryFa || r.country || '?', score: r.score })
+  }
+  /* CLAIM the close atomically — a second concurrent closer exits here */
+  try {
+    await db.olympicArchive.create({
+      data: {
+        edition, hostCity: host.c, hostCountry: host.n, hostCc: host.f,
+        championCountry: champCountry ? champCountry.countryFa : null, championNick: champ ? champ.nick : null,
+        medalsJson: JSON.stringify(podiums), tableJson: JSON.stringify(table.slice(0, 12)),
+        recordsJson: JSON.stringify(recs), participants: uids.length,
+      },
+    })
+  } catch (e) {
+    const c = (e as { code?: string })?.code
+    if (c === 'P2002') return await db.olympicArchive.findUnique({ where: { edition } })
+    console.log('arch', e)
+  }
+  /* ---- rewards: only the close-winner reaches this line ---- */
   if (champ) {
     const u = await db.user.findFirst({ where: { nickLower: champ.nick.toLowerCase() } })
     if (u) {
@@ -314,33 +350,11 @@ async function closeGamesEdition(edition: number) {
       await addNews(0, 'olympic_champion', null, champ.nick, null)
     }
   }
-  /* participation reward: +3 gems for everyone who actually played */
-  const parts = await db.olympicEntry.findMany({ where: { edition, attempts: { gt: 0 } }, select: { userId: true } })
-  const uids = [...new Set(parts.map((p) => p.userId))]
+  /* participation reward: +3 gems for everyone who actually played (atomic increment) */
   for (const uid of uids) {
     try {
-      const w = await ensureWallet(uid)
-      await db.wallet.update({ where: { userId: uid }, data: { gems: w.gems + 3 } })
+      await db.wallet.update({ where: { userId: uid }, data: { gems: { increment: 3 } } })
     } catch (e) { console.log('partgem', e) }
-  }
-  const recs = await db.olympicRecord.findMany({ take: 10, orderBy: [{ discipline: 'asc' }] })
-  const podiums: Record<string, { rank: number; nick: string; country: string; countryFa: string; score: number }[]> = {}
-  for (const r of results) {
-    const arr = podiums[r.discipline] || (podiums[r.discipline] = [])
-    arr.push({ rank: r.rank, nick: r.nick, country: r.country || '?', countryFa: r.countryFa || r.country || '?', score: r.score })
-  }
-  try {
-    await db.olympicArchive.create({
-      data: {
-        edition, hostCity: host.c, hostCountry: host.n, hostCc: host.f,
-        championCountry: champCountry ? champCountry.countryFa : null, championNick: champ ? champ.nick : null,
-        medalsJson: JSON.stringify(podiums), tableJson: JSON.stringify(table.slice(0, 12)),
-        recordsJson: JSON.stringify(recs), participants: uids.length,
-      },
-    })
-  } catch (e) {
-    const c = (e as { code?: string })?.code
-    if (c !== 'P2002') console.log('arch', e)
   }
   await addNews(0, 'olympic_close', null, champ ? champ.nick : null, champCountry ? champCountry.countryFa : null)
   return { edition, table, champ }
@@ -402,16 +416,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const item = String(args.p_item || '')
         const cost = GEM_COSTS[item]
         if (!cost) return R({ ok: false, error: 'item' })
-        const w = await ensureWallet(user.id)
-        if (w.gems < cost) return R({ ok: false, error: 'funds' })
-        const data: { gems: number; boostUntil?: Date } = { gems: w.gems - cost }
-        const upd: { gems: number; boostUntil?: Date } = { gems: w.gems - cost }
+        /* atomic conditional decrement — no read-modify-write race, no double-spend */
+        const dec = await db.wallet.updateMany({ where: { userId: user.id, gems: { gte: cost } }, data: { gems: { decrement: cost } } })
+        if (dec.count === 0) return R({ ok: false, error: 'funds' })
         let boostUntil: Date | null = null
         if (item === 'boost') {
-          boostUntil = new Date(Math.max(Date.now(), w.boostUntil ? w.boostUntil.getTime() : 0) + 3600_000)
-          upd.boostUntil = boostUntil
+          const w2 = await ensureWallet(user.id)
+          boostUntil = new Date(Math.max(Date.now(), w2.boostUntil ? w2.boostUntil.getTime() : 0) + 3600_000)
+          await db.wallet.update({ where: { userId: user.id }, data: { boostUntil } })
         }
-        const nw = await db.wallet.update({ where: { userId: user.id }, data: upd })
+        const nw = await ensureWallet(user.id)
         return R({ ok: true, gems: nw.gems, boost_until: nw.boostUntil ? nw.boostUntil.toISOString() : null })
       }
 
@@ -496,8 +510,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R(out)
       }
 
-      /* ---------------- multiplayer housekeeping ---------------- */
+      /* ---------------- multiplayer housekeeping (V33.1: 60s throttle regardless of callers) ---------------- */
       case 'release_inactive_territories': {
+        const nowR = Date.now()
+        if (nowR - lastReleaseRun < 60_000) return R(null)
+        lastReleaseRun = nowR
         const cutoff = new Date(Date.now() - 3 * 24 * 3600 * 1000)
         const stale = await db.user.findMany({
           where: {
@@ -523,14 +540,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       /* ---------------- PvP ---------------- */
       case 'pvp_attack': {
         if (gamesPhase().phase === 'live') return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
-        const server = Number(args.p_server || 1)
+        const server = Math.max(1, Number(args.p_server) || 1)
         const country = String(args.p_country || '')
-        const attack = Math.max(0, Number(args.p_attack || 0))
+        /* V33.1: attacker strength comes from the SERVER-side score only — the client's
+           p_attack is no longer trusted (it could be spoofed to pin the 0.85 win cap) */
         const t = await db.territory.findUnique({ where: { server_country: { server, country } } })
         if (!t || t.userId === user.id) return R({ ok: false })
         const defScore = await db.score.findUnique({ where: { userId: t.userId } })
         const myScore = await db.score.findUnique({ where: { userId: user.id } })
-        const a = Math.max(attack, myScore?.score || 100)
+        const a = Math.max(1, myScore?.score || 100)
         const d = Math.max(1, (defScore?.score || 200))
         const chance = Math.min(0.85, Math.max(0.2, 0.5 + (a - d) / (2 * (a + d + 500))))
         const win = Math.random() < chance
@@ -540,12 +558,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         } else {
           await addNews(server, 'pvp_failed', country, user.nick, t.nick)
         }
-        return R({ ok: win })
+        /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
+           defense/captured — before this it always computed 0% and 60% losses and
+           syncTerr deleted the just-won territory */
+        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d })
       }
       case 'pvp_capture_territory': {
         if (gamesPhase().phase === 'live') return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
-        const server = Number(args.p_server || 1)
+        const server = Math.max(1, Number(args.p_server) || 1)
         const country = String(args.p_country || '')
+        /* V33.1: free capture is for NEUTRAL land only — owned territories must be
+           fought for via pvp_attack (this was a free-steal of any player's land) */
+        const t0 = await db.territory.findUnique({ where: { server_country: { server, country } } })
+        if (!t0) return R(false)
+        if (t0.userId && t0.userId !== user.id) return R({ ok: false, error: 'owned' })
         const now = Date.now()
         const last = lastCapture.get(user.id) || 0
         if (now - last < 15_000) return R(false)
@@ -561,12 +587,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (gamesPhase().phase === 'live') return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
         const item = String(args.p_item || '')
         const country = String(args.p_country || '')
-        const server = Math.max(1, Number(args.p_server || 1))
+        const server = Math.max(1, Number(args.p_server) || 1)
         if (!['coup', 'meteor'].includes(item)) return R({ ok: false, error: 'item' })
         if (!country) return R({ ok: false, error: 'country' })
         const costs: Record<string, number> = { coup: 100, meteor: 80 }
         const cooldownMs: Record<string, number> = { coup: 24 * 3600_000, meteor: 72 * 3600_000 }
         const cost = costs[item]
+        /* V33.1: validate the TARGET before any charge — gems were burning on no-op strikes */
+        const terr = await db.territory.findUnique({ where: { server_country: { server, country } } })
+        if (!terr) return R({ ok: false, error: 'country' })
+        if (terr.userId === user.id) return R({ ok: false, error: 'own' })
         const w = await ensureWallet(user.id)
         if (w.gems < cost) return R({ ok: false, error: 'funds' })
         const last = await db.specialUse.findFirst({ where: { userId: user.id, item }, orderBy: { usedAt: 'desc' } })
@@ -582,12 +612,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             return R({ ok: false, error: 'weekly_cap', next_ok: oldest ? new Date(oldest.usedAt.getTime() + 7 * 24 * 3600_000).toISOString() : null })
           }
         }
-        const terr = await db.territory.findUnique({ where: { server_country: { server, country } } })
-        if (terr && terr.userId === user.id) return R({ ok: false, error: 'own' })
-        const nw = await db.wallet.update({ where: { userId: user.id }, data: { gems: w.gems - cost } })
-        await db.specialUse.create({ data: { userId: user.id, item } })
-        await addNews(server, item, country, user.nick, terr && terr.nick ? terr.nick : null)
-        return R({ ok: true, gems: nw.gems, owner_nick: terr && terr.nick ? terr.nick : null, next_ok: new Date(Date.now() + cooldownMs[item]).toISOString() })
+        const dec = await db.wallet.updateMany({ where: { userId: user.id, gems: { gte: cost } }, data: { gems: { decrement: cost } } })
+        if (dec.count === 0) return R({ ok: false, error: 'funds' })
+        try {
+          await db.specialUse.create({ data: { userId: user.id, item } })
+        } catch (e) {
+          await db.wallet.update({ where: { userId: user.id }, data: { gems: { increment: cost } } }).catch(() => {})
+          throw e
+        }
+        const nw = await ensureWallet(user.id)
+        await addNews(server, item, country, user.nick, terr.nick ? terr.nick : null)
+        return R({ ok: true, gems: nw.gems, owner_nick: terr.nick ? terr.nick : null, next_ok: new Date(Date.now() + cooldownMs[item]).toISOString() })
       }
 
       /* ---------------- V30 season reset (admin only) ----------------
@@ -595,7 +630,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
          then wipes the map so a new season starts fair for everyone. */
       case 'season_reset': {
         if (!user.isAdmin) return R(null)
-        const server = Math.max(1, Number(args.p_server || 1))
+        const server = Math.max(1, Number(args.p_server) || 1)
         /* V33: close pending Games editions BEFORE the wipe so medals still count */
         try { await ensureGamesClosed() } catch (e) { console.log('olclose-reset', e) }
         const top = await db.score.findMany({ where: { server }, orderBy: { score: 'desc' }, take: 3 })
@@ -618,7 +653,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
          accept: escrowed goods move to the acceptor; the owner receives want_qty.
          cancel: escrow refunded to the owner's saved state. */
       case 'trade_offer_create': {
-        const server = Math.max(1, Number(args.p_server || 1))
+        const server = Math.max(1, Number(args.p_server) || 1)
         const giveRes = String(args.p_give_res || ''), wantRes = String(args.p_want_res || '')
         const giveQty = Math.round(Number(args.p_give_qty) || 0), wantQty = Math.round(Number(args.p_want_qty) || 0)
         if (!TRADE_RES.has(giveRes) || !TRADE_RES.has(wantRes) || giveRes === wantRes || giveQty < 10 || wantQty < 10)
@@ -638,7 +673,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({ ok: true })
       }
       case 'trade_offer_list': {
-        const server = Math.max(1, Number(args.p_server || 1))
+        const server = Math.max(1, Number(args.p_server) || 1)
         const rows = await db.tradeOffer.findMany({
           where: { server, status: 'open', createdAt: { gt: new Date(Date.now() - 24 * 3600 * 1000) } },
           orderBy: { createdAt: 'desc' },
@@ -653,8 +688,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       case 'trade_offer_cancel': {
         const id = String(args.p_id || '')
         const off = await db.tradeOffer.findUnique({ where: { id } })
-        if (!off || off.ownerUid !== user.id || off.status !== 'open') return R({ ok: false })
-        await db.tradeOffer.update({ where: { id }, data: { status: 'cancelled' } })
+        if (!off || off.ownerUid !== user.id) return R({ ok: false })
+        /* atomic claim: cancel only wins if the offer is still open (no accept/cancel race) */
+        const cl = await db.tradeOffer.updateMany({ where: { id, status: 'open' }, data: { status: 'cancelled' } })
+        if (cl.count === 0) return R({ ok: false })
         await tradeApply(user.id, (r) => { r[off.giveRes] = resNum(r[off.giveRes]) + off.giveQty }) /* refund escrow */
         return R({ ok: true })
       }
@@ -668,15 +705,29 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (resNum(aRes[off.wantRes]) < off.wantQty) return R({ ok: false, reason: 'funds' })
         const fee = Math.max(1, Math.round(off.giveQty * TRADE_FEE))
         const acceptorGot = Math.max(0, off.giveQty - fee)
-        const okA = await tradeApply(user.id, (r) => {
-          r[off.wantRes] = resNum(r[off.wantRes]) - off.wantQty
-          r[off.giveRes] = resNum(r[off.giveRes]) + acceptorGot
-        })
-        const okO = await tradeApply(off.ownerUid, (r) => {
-          r[off.wantRes] = resNum(r[off.wantRes]) + off.wantQty /* escrowed give already left the owner at create */
-        })
-        if (!okA || !okO) return R({ ok: false, reason: 'apply' })
-        await db.tradeOffer.update({ where: { id }, data: { status: 'done' } })
+        /* V33.1: claim the offer ATOMICALLY first (two concurrent accepts/cancels can no
+           longer double-pay the owner), then move resources inside one transaction */
+        const cl = await db.tradeOffer.updateMany({ where: { id, status: 'open' }, data: { status: 'done' } })
+        if (cl.count === 0) return R({ ok: false, reason: 'gone' })
+        let moved = false
+        try {
+          moved = await db.$transaction(async (tx) => {
+            const okA = await tradeApply(user.id, (r) => {
+              r[off.wantRes] = resNum(r[off.wantRes]) - off.wantQty
+              r[off.giveRes] = resNum(r[off.giveRes]) + acceptorGot
+            }, tx)
+            if (!okA) return false
+            const okO = await tradeApply(off.ownerUid, (r) => {
+              r[off.wantRes] = resNum(r[off.wantRes]) + off.wantQty /* escrowed give already left the owner at create */
+            }, tx)
+            return okO
+          })
+        } catch (e) { moved = false }
+        if (!moved) {
+          /* release the claim so the offer is not lost */
+          await db.tradeOffer.updateMany({ where: { id, status: 'done' }, data: { status: 'open' } }).catch(() => {})
+          return R({ ok: false, reason: 'apply' })
+        }
         await addNews(off.server, 'trade', null, user.nick, off.ownerNick)
         return R({ ok: true, got: acceptorGot, fee, give_res: off.giveRes })
       }
@@ -829,9 +880,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (!(score >= 0 && score <= GD_MAX[key] + 50)) return R({ ok: false, reason: 'score' })
         const ent = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
         if (!ent) return R({ ok: false, reason: 'not_registered' })
-        if (ent.attempts >= 5) return R({ ok: false, reason: 'attempts' })
-        const last = ent.lastAt ? ent.lastAt.getTime() : 0
-        if (Date.now() - last < 8000) return R({ ok: false, reason: 'rate' })
+        /* V33.1: attempts + 8s rate gate atomically (concurrent submits can't exceed 5).
+           lastAt is NOT NULL in the schema (default now()), so a plain lte covers it. */
+        const rateCut = new Date(Date.now() - 8000)
+        const gate = await db.olympicEntry.updateMany({
+          where: { id: ent.id, attempts: { lt: 5 }, lastAt: { lte: rateCut } },
+          data: { attempts: { increment: 1 }, lastAt: new Date() },
+        })
+        if (gate.count === 0) return R({ ok: false, reason: ent.attempts >= 5 ? 'attempts' : 'rate' })
         const cfa = ent.countryFa || ent.country || null
         const record = await db.olympicRecord.findUnique({ where: { discipline: key } })
         let recordBroken = false
@@ -847,7 +903,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           })
         }
         const best = Math.max(ent.best, score)
-        await db.olympicEntry.update({ where: { id: ent.id }, data: { best, attempts: { increment: 1 }, lastAt: new Date() } })
+        await db.olympicEntry.update({ where: { id: ent.id }, data: { best } })
         const better = await db.olympicEntry.count({ where: { edition: g.edition, discipline: key, best: { gt: best } } })
         return R({ ok: true, best, attempts: ent.attempts + 1, rank: better + 1, record_broken: recordBroken })
       }
@@ -880,12 +936,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
 
       /* ---------------- v23 server bridge ---------------- */
       case 'wd_init_player': {
-        const server = Math.max(1, Number(args.p_server || 1))
-        const nick = String(args.p_nick || user.nick).slice(0, 20)
+        const server = Math.max(1, Number(args.p_server) || 1)
+        /* V33.1: nick is FORCED to the session user's nick — a client-chosen p_nick let
+           anyone impersonate arbitrary players on leaderboards and medal tables */
         await db.score.upsert({
           where: { userId: user.id },
-          create: { userId: user.id, nick, server },
-          update: { nick, server },
+          create: { userId: user.id, nick: user.nick, server },
+          update: { nick: user.nick, server },
         })
         return R({ ok: true })
       }

@@ -2533,7 +2533,7 @@ async function rankOnline(box){box.append(mk('div','🌍 رتبه‌بندی ج�
 
 /* ---------- glue ---------- */
 async function saveNow(){if(!ACC.ready||!myCountryName)return;if(sb)await saveOnline();else saveLocal()}
-setInterval(saveNow,8000);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow()});addEventListener('pagehide',saveNow);
+setInterval(()=>{if(!document.hidden)saveNow()},8000);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow()});addEventListener('pagehide',saveNow);
 A$('auth').addEventListener('click',e=>e.stopImmediatePropagation());
 A$('acc-chip').addEventListener('click',async()=>{if(!await wdConfirm('از حساب خارج می‌شوی؟','خروج'))return;await saveNow();try{localStorage.removeItem('wd_last')}catch(e){}try{if(sb)await sb.auth.signOut()}catch(e){}location.reload()});
 A$('btn-m-rank').addEventListener('click',async()=>{saveNow();fillWorldRank();const card=document.querySelector('#m-rank .modal-card');let box=A$('live-rank');if(!box){box=mk('div');box.id='live-rank';card.appendChild(box)}
@@ -2691,14 +2691,16 @@ async function claimGrants(){if(typeof sb==='undefined'||!sb||!ACC.uid||!ACC.rea
     const g=Number(x.o_gold)||0,o=Number(x.o_oil)||0,f=Number(x.o_food)||0;if(!g&&!o&&!f)return;
     playerRes.gold=Math.max(0,playerRes.gold+g);playerRes.oil=Math.max(0,playerRes.oil+o);playerRes.food=Math.max(0,playerRes.food+f);updateUI();
     showToast('🎁 هدیه‌ی مدیر: '+[g&&('💰 '+g),o&&('🛢️ '+o),f&&('🌾 '+f)].filter(Boolean).join('  '),'win');if(typeof saveNow==='function')saveNow()}catch(e){console.log(e)}}
-setInterval(claimGrants,30000);
+setInterval(()=>{if(!document.hidden)claimGrants()},30000);
 (function(){const eo=enterOnline;enterOnline=async function(u,nick){await eo(u,nick);setTimeout(claimGrants,3000)}})();
 
 addEventListener('load',()=>{const nb=document.querySelector('.bottom-nav');
   if(nb){const b=el('button','','nav-btn',()=>{if(!isAdmin()){showToast('❌ فقط مدیر بازی به این بخش دسترسی دارد','lose');return}renderAdmin();openModal('m-admin')});
     b.id='btn-m-admin';b.append(el('span','👑'),el('span','مدیریت'));
     b.style.display='none';nb.append(b);
-    const chk=setInterval(()=>{if(ACC&&ACC.nick){b.style.display=isAdmin()?'':'none';if(isAdmin())clearInterval(chk)}},1000)}});
+    let tries=0; /* V33.1: bounded probe — it used to tick forever for every non-admin */
+    const chk=setInterval(()=>{tries++;
+      if((ACC&&ACC.nick)||tries>60){b.style.display=isAdmin()?'':'none';if(isAdmin()||tries>60)clearInterval(chk)}},1000)}});
    </script>
    <script>
     /* ===== v5: connection diagnostics (shown from the login screen) ===== */
@@ -3932,6 +3934,9 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
         '<div class="wd-news-time">'+tm.toLocaleString('fa-IR')+'</div>';b.appendChild(d)
     });
   }
+  /* V33.1: the command-center news button (and any other caller) needs this exported —
+     it stayed IIFE-private, so the button always showed a stale body */
+  window.renderNews=renderNews;
 
   // ---------- Oil storage / realistic production ----------
   window.oilStorageCap=function(){
@@ -4200,6 +4205,9 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
     const prevOcc=occupationPct[country]||0;
     let pvpLine=null;
     battleBusy=true;
+    /* V33.1: kill any stale "موج بعدی" onclick left over from an earlier PvP report —
+       it used to replay an old attack whenever ANY later battle report closed */
+    try{document.getElementById("battle-close-btn").onclick=null}catch(e){}
     const unitsContainer=document.getElementById('battle-units');
     if(unitsContainer){
       unitsContainer.innerHTML="";
@@ -4243,7 +4251,32 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
       if(result.error)throw result.error;
       const x=result.data||{};
       if(x.busy)throw new Error('این جبهه هم‌اکنون درگیر است.');
-      if(!x.ok)throw new Error(x.reason||'حمله ناموفق');
+      if(x.error==='truce'){ /* V33.1: explicit truce report instead of a generic failure */
+        battleBusy=false;
+        if(pvpLine){pvpLine.remove();pvpLine=null}
+        if(log)log.innerHTML='🕊️ <b>آتش‌بس المپیک برقرار است</b><br>در طول بازی‌ها جنگ ممنوع است — امروز میدان، ورزشگاه است.';
+        document.getElementById("battle-close-btn").textContent="باشه";
+        document.getElementById("battle-close-btn").style.display="block";
+        document.getElementById("battle-close-btn").onclick=()=>{battleBusy=false;closeModal("m-battle")};
+        return;
+      }
+      if(!x.ok){ /* V33.1: a DEFEATED wave is a report, not an exception — losses must still apply */
+        const fratio=Number(x.ratio||0),fdef=Number(x.defense||0);
+        const fLoss=Math.min(.6,.5/Math.max(fratio,.2));
+        setTimeout(()=>{
+          if(pvpLine){pvpLine.remove();pvpLine=null}
+          applyBattleLosses(fLoss);updateUI();
+          if(log)log.innerHTML=`🛡️ <b style="color:#ff6b8f">حمله شکست خورد!</b><br>دفاع دشمن مقاومت کرد و موج عقب رانده شد.<br>`+
+            `🛡️ دفاع تخمینی: ${Math.round(fdef).toLocaleString()}<br>🪖 تلفات خودی: ${Math.round(fLoss*100)}٪<br>`+
+            `<span style="color:#8eb9e8">اگر ارتش نگه داشت، می‌توانی موج بعدی را امتحان کنی.</span>`;
+          showToast('🛡️ حمله دفع شد','lose');
+          if(typeof news==='function')news('🛡️ حمله به '+String(target.fa).replace(/[<>&]/g,'')+' دفع شد');
+          const cb=document.getElementById("battle-close-btn");
+          cb.textContent="⚔️ موج بعدی";cb.style.display="block";
+          cb.onclick=()=>{cb.style.display="none";battleBusy=false;professionalAttack(country)};
+        },900);
+        return;
+      }
 
       const occ=Number(x.occupation||0);
       const gain=Number(x.gain||0);
@@ -4770,9 +4803,11 @@ function bindCommand(){
     e.preventDefault();e.stopImmediatePropagation();
     const t=b.dataset.v11;
     if(t==='army'){
-      const m=$('m-army');
-      if(m){m.classList.add('open');m.style.display='flex';m.style.zIndex='10050';toast('⚔️ ارتش باز شد')}
-      else toast('⚔️ ارتش در این نسخه موجود نیست');
+      /* V33.1: the modal system keys on .active — the old class/inline-style toggle
+         produced an invisible, unclickable modal (toast said open, screen stayed shut) */
+      if(typeof openModal==='function'&&$('m-army'))openModal('m-army');
+      else{const m=$('m-army');if(m){m.classList.add('open');m.style.display='flex';m.style.zIndex='10050'}}
+      toast('⚔️ ارتش باز شد');
     }else if(t==='intel'){
       if(typeof window.wd7_spy==='function'){window.wd7_spy();toast('🛰️ عملیات اطلاعاتی اجرا شد')}
       else {const tabs=$('wd7-tabs');const x=tabs&&tabs.querySelector('[data-tab="intel"]');if(x)x.click()}
@@ -5161,7 +5196,9 @@ window.addEventListener('resize',cleanDock,{passive:true});
         for(const [serverKey,localKey] of Object.entries(map)) if(Number.isFinite(Number(b[serverKey]))) W.infra[localKey]=Number(b[serverKey]);
       }
       if(W.ARMY_UNITS){
-        const map={infantry:'infantry',tanks:'tank',aircraft:'fighter',artillery:'artillery',navy:'destroyer',special:'missile'};
+        /* V33.1: server sends artillery=missile, special=drone — the old map wrote the
+           drone count into the missile slot and dropped real missiles entirely */
+        const map={infantry:'infantry',tanks:'tank',aircraft:'fighter',artillery:'missile',navy:'destroyer',special:'drone'};
         for(const [serverKey,localKey] of Object.entries(map)) if(W.ARMY_UNITS[localKey]&&Number.isFinite(Number(a[serverKey]))) W.ARMY_UNITS[localKey].count=Number(a[serverKey]);
       }
       if(Number.isFinite(Number(p.score))&&W.SCORE)W.SCORE=Number(p.score);
@@ -6138,6 +6175,9 @@ window.renderAdmin=async function(){
 var D=document;
 /* ============ 1) اعداد فارسی برای UI (امضای بازی فارسی) ============ */
 function faNum(s){return String(s).replace(/[0-9]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[+d]})}
+/* V33.1: hoisted to window — the V27 gem-shop/museum blocks call faNum cross-IIFE and
+   it silently fell back to Latin digits for months */
+try{window.faNum=faNum}catch(e){}
 var FA_SEL='#r-gold,#r-food,#r-oil,#r-army,#total-attack-power,#hud-gem,#hud-terr,#battle-pct-label,#wd6-level,.lr-val,.wd22-stat b,#c-pop,#c-def-stat,#c-gold-stat,#c-oil-stat,#c-food-stat,#c-rank-stat';
 setInterval(function(){
   try{
@@ -6188,9 +6228,13 @@ setTimeout(function(){
       sb.rpc=function(fn,params){
         var r=_rpcG(fn,params);
         if(fn==='pvp_attack'){
-          return Promise.race([r,new Promise(function(_,rej){
-            setTimeout(function(){rej(new Error('اتصال به جبهه طول کشید'))},25000);
+          var t;
+          var raced=Promise.race([r,new Promise(function(_,rej){
+            t=setTimeout(function(){rej(new Error('اتصال به جبهه طول کشید'))},25000);
           })]);
+          /* V33.1: clear the dead timer when either side settles (one leak per attack before) */
+          raced.finally(function(){clearTimeout(t)});
+          return raced;
         }
         return r;
       };
@@ -7865,6 +7909,7 @@ window.markApplied28=function(id){
 }
 setInterval(async function(){
   try{
+    if(document.hidden)return; /* V33.1: visibility-gated */
     if(typeof sb==='undefined'||!sb||typeof ACC==='undefined'||!ACC||!ACC.uid)return;
     var r=await sb.rpc('trade_offer_mine',{});
     if(r.error||!r.data)return;
@@ -8532,7 +8577,7 @@ function pollGoal(){try{/* sb/ACC are top-level lexical bindings of the page —
   }).catch(()=>{})}catch(e){}}
 function goalTarget(){try{return Math.max(GOAL_BASE,(Number((window.__srvStats||{}).players)||20)*2)}catch(e){return GOAL_BASE}}
 window.WD30_GOAL=()=>({count:Math.max(0,goalCount),target:goalTarget()});
-pollGoal();setInterval(pollGoal,90000);
+pollGoal();setInterval(()=>{if(!document.hidden)pollGoal()},90000);
 try{fetch('/api/db/server_stats',{cache:'no-store'}).then(r=>r.json()).then(j=>{window.__srvStats=j&&j.data?j.data:j;pollGoal()}).catch(()=>{})}catch(e){}
 
 /* ---------- 8) fog of war (مه جنگ — بصری، غیرقفل‌کننده) ---------- */
@@ -9079,8 +9124,8 @@ window.WD31_OLYMPICS=function(){openPage('wd-olympics','horn');
 /* ---------- entry points: HUD chip 🏅 + سرور chip → صفحه سینمایی + دکمه در لابی ---------- */
 window.addEventListener('load',()=>{setTimeout(()=>{try{
   const s=H('hud-strip');
-  if(s&&!H('hud-olympic')){const o=(typeof el==='function')?el('div','🏅','hchip',function(){try{window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}}):null;
-    if(o){o.id='hud-olympic';o.title='المپیک جهانی';s.appendChild(o)}}
+  if(s&&!H('hud-olympic')){const o=(typeof el==='function')?el('div','','hchip',function(){try{window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}}):null;
+    if(o){o.id='hud-olympic';o.title='المپیک جهانی';o.innerHTML=(window.WD33_ICON?window.WD33_ICON(20):'🏅');s.appendChild(o)}}
   const old=H('hud-srv');
   if(old&&!old.__wd31){const neo=old.cloneNode(false);neo.textContent=old.textContent;neo.title='شناسنامه‌ی سینمایی سرور';neo.style.cursor='pointer';
     neo.addEventListener('click',window.WD31_SERVER);old.replaceWith(neo);neo.__wd31=1}
@@ -9185,12 +9230,22 @@ function poll(){try{
     handleStatus(r&&r.data?r.data:null);
   }).catch(()=>{});
 }catch(e){}}
-poll();setTimeout(poll,6000);setInterval(poll,90000);
-setTimeout(placeCrown,12000);setInterval(placeCrown,180000);
+poll();setTimeout(poll,6000);setInterval(()=>{if(!document.hidden)poll()},90000);
+setTimeout(placeCrown,12000);setInterval(()=>{if(!document.hidden)placeCrown()},180000);
 })();
 </script>
 <style id="v33-css">
 /* ============ V33: Olympic Games — truce, ceremonies, 10 mini-games, country medals ============ */
+/* ============ V33.1: signature Olympic icon — golden laurel wreath + living torch flame ============ */
+.wdol-ico{display:block;filter:drop-shadow(0 0 3px rgba(255,204,0,.4))}
+.wdol-ico .wdol-flame{transform-origin:12px 10.5px;animation:wdolFlick 1.7s ease-in-out infinite}
+.wdol-ico .wdol-core{transform-origin:12px 8.4px;animation:wdolCore 1.7s ease-in-out infinite}
+.wg33-live .wdol-ico{filter:drop-shadow(0 0 6px rgba(255,190,0,.9))}
+.wg33-live .wdol-ico .wdol-flame{animation-duration:.9s}
+@keyframes wdolFlick{0%,100%{transform:scale(1,1)}30%{transform:scale(1.09,.93)}55%{transform:scale(.93,1.09)}75%{transform:scale(1.05,1.02)}}
+@keyframes wdolCore{0%,100%{opacity:.9}50%{opacity:.5}}
+.wg33-big .wdol-ico{margin:0 auto}
+#wd33-strip .live33 .wdol-ico{width:13px;height:13px;vertical-align:-2px}
 #wd33-strip{position:fixed;top:54px;left:50%;transform:translateX(-50%);z-index:65000;display:none;align-items:center;gap:7px;
   max-width:94vw;overflow-x:auto;padding:5px 12px;border-radius:99px;white-space:nowrap;direction:ltr;
   background:linear-gradient(90deg,rgba(20,14,2,.92),rgba(40,28,4,.9));border:1px solid rgba(255,204,0,.5);
@@ -9402,6 +9457,38 @@ window.WD33_STATUE=statue33;window.WD33_LEGEND=legend33;
 const DN33={sprint:'دو ۱۰۰ متر',archery:'تیراندازی با کمان',swim:'شنا',gym:'ژیمناستیک',weight:'وزنه‌برداری',cycling:'دوچرخه‌سواری',chess:'شطرنج',volley:'والیبال ساحلی',football:'فوتبال',wrestle:'کشتی'};
 window.WD33_DN=k=>{try{return DN33[k]||k||''}catch(e){return k||''}};
 
+/* ---------- V33.1: signature Olympic icon — golden laurel wreath + living torch flame.
+   Replaces the plain 🏅 emoji everywhere the games are represented. ---------- */
+function wdolIcon(sz,live){
+  sz=sz||22;
+  const P0=[7.7,19.2],P1=[3.0,9.0],P2=[10.9,4.4]; /* left branch Bézier: base→tip */
+  const B=t=>[(1-t)*(1-t)*P0[0]+2*(1-t)*t*P1[0]+t*t*P2[0],(1-t)*(1-t)*P0[1]+2*(1-t)*t*P1[1]+t*t*P2[1]];
+  const Dv=t=>[2*(1-t)*(P1[0]-P0[0])+2*t*(P2[0]-P1[0]),2*(1-t)*(P1[1]-P0[1])+2*t*(P2[1]-P1[1])];
+  const LP='<path d="M0 0 Q2.1 -1.2 4.2 0 Q2.1 1.2 0 0Z" fill="url(#wgA)"/>';
+  let body='<path d="M'+P0[0]+' '+P0[1]+' Q'+P1[0]+' '+P1[1]+' '+P2[0]+' '+P2[1]+'" fill="none" stroke="url(#wgA)" stroke-width="1.05" stroke-linecap="round"/>'+
+    '<path d="M'+(24-P0[0])+' '+P0[1]+' Q'+(24-P1[0])+' '+P1[1]+' '+(24-P2[0])+' '+P2[1]+'" fill="none" stroke="url(#wgA)" stroke-width="1.05" stroke-linecap="round"/>';
+  for(let i=0;i<6;i++){
+    const t=0.10+0.84*i/5,[x,y]=B(t),[dx,dy]=Dv(t);
+    const a=Math.atan2(dy,dx)*180/Math.PI;
+    const r1=(a+38).toFixed(1),r2=(a-38).toFixed(1),X=x.toFixed(2),Y=y.toFixed(2),MX=(24-x).toFixed(2);
+    body+='<g transform="translate('+X+' '+Y+') rotate('+r1+')">'+LP+'</g>';
+    if(i>0)body+='<g transform="translate('+X+' '+Y+') rotate('+r2+')">'+LP+'</g>';
+    body+='<g transform="translate('+MX+' '+Y+') scale(-1 1) rotate('+r1+')">'+LP+'</g>';
+    if(i>0)body+='<g transform="translate('+MX+' '+Y+') scale(-1 1) rotate('+r2+')">'+LP+'</g>';
+  }
+  body+='<path d="M9.6 12.8 h4.8 l-0.9 4.6 h-3 z" fill="url(#wgA)"/>'+
+    '<rect x="11.15" y="17.2" width="1.7" height="3.4" rx="0.8" fill="url(#wgA)"/>'+
+    '<path class="wdol-flame" d="M12 2.6 C14.9 5 15.7 7 15 8.9 C14.5 10.4 13.4 11.2 12 11.2 C10.6 11.2 9.5 10.4 9 8.9 C8.3 7 9.1 5 12 2.6 Z" fill="url(#wgF)"/>'+
+    '<circle class="wdol-core" cx="12" cy="8.4" r="1.2" fill="#fff7d9"/>';
+  return '<svg class="wdol-ico'+(live?' live':'')+'" viewBox="0 0 24 24" width="'+sz+'" height="'+sz+'" aria-hidden="true">'+
+    '<defs><linearGradient id="wgA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffeeb0"/><stop offset="1" stop-color="#c9940e"/></linearGradient>'+
+    '<linearGradient id="wgF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c9"/><stop offset=".5" stop-color="#ffb347"/><stop offset="1" stop-color="#ff5e3a"/></linearGradient></defs>'+
+    body+'</svg>';
+}
+window.WD33_ICON=wdolIcon;
+/* upgrade an already-created 🏅 HUD chip to the signature icon */
+try{const _chip=document.getElementById('hud-olympic');if(_chip&&!_chip.querySelector('.wdol-ico'))_chip.innerHTML=wdolIcon(20)}catch(e){}
+
 /* ---------- state ---------- */
 let WG33=null,wgPollT=null,wgOpenFlag=false,wgSort='total',wgSel=[];
 async function rpc33(fn,args){try{const r=await sb.rpc(fn,args);if(r&&r.error)return{ok:false,e:r.error};return{ok:true,d:r?r.data:null}}catch(e){return{ok:false,e}}}
@@ -9469,7 +9556,7 @@ function renderHub(){
   const my=(d.my||{reg:[],entries:{}});
   const career=myNick()&&(d.career||{})[myNick()];
   const stHtml=(career?statue33(career.g,career.s,career.b,64):'')+(legend33(career)?' <span class="wg33-legend">⭐ اسطوره‌ی المپیک</span>':'');
-  let h='<section class="wg33-hero2"><span class="wg33-big">🏅</span>'+
+  let h='<section class="wg33-hero2"><span class="wg33-big">'+(window.WD33_ICON?window.WD33_ICON(64):'🏅')+'</span>'+
     '<div class="wd31-kicker" style="margin-top:10px">WORLD DOMINION OLYMPIC GAMES</div>'+
     '<h1 class="wd31-title">المپیک جهانی — دوره‌ی '+faN(g.edition)+'</h1>'+
     '<div class="wg33-host"><img src="'+flagUrl33(g.host.f)+'" alt="">میزبان این دوره: '+esc(g.host.c)+'، '+esc(g.host.n)+'</div>';
@@ -9607,7 +9694,7 @@ function strip33Update(d){
   if(!d||((g.phase!=='live')&&(g.phase!=='after'))){stripEl.classList.remove('on');return}
   const t=(d.table||[]).slice(0,3);
   if(!t.length&&!d.today&&g.phase!=='after'){stripEl.classList.remove('on');return}
-  let h='<span class="live33"><i></i>'+(g.phase==='live'?'المپیک زنده':'پایان المپیک')+'</span>';
+  let h='<span class="live33"><i></i>'+(window.WD33_ICON?window.WD33_ICON(13):'')+(g.phase==='live'?'المپیک زنده':'پایان المپیک')+'</span>';
   if(t.length)h+=t.map((r,i)=>{const fl=flagForCountry(r.country);
     return '<span class="s33">'+['🥇','🥈','🥉'][i]+(fl?'<img src="'+fl+'" alt="">':'')+esc(r.countryFa||r.country)+' <b>'+faN(r.total)+'</b></span>'}).join('');
   else h+='<span class="s33">اولین مدال‌ها به‌زودی…</span>';
@@ -10144,7 +10231,7 @@ function placeGoldenFlag(){try{
   gfMk=L.marker(gt.c,{interactive:false,keyboard:false,zIndexOffset:1140,
     icon:L.divIcon({className:'wd33-gflag-wrap',iconSize:[0,0],html:'<div class="wd33-gflag"><img src="/cdn/flags/w80/'+cc+'.png" alt=""><small>🏆 قهرمان جهان — '+esc(c.nick)+'</small></div>'})}).addTo(map);
 }catch(e){}}
-setTimeout(placeGoldenFlag,16000);setInterval(placeGoldenFlag,120000);
+setTimeout(placeGoldenFlag,16000);setInterval(()=>{if(!document.hidden)placeGoldenFlag()},120000);
 window.WD33_GFLAG=placeGoldenFlag; /* test/manual hook */
 })();
 </script>

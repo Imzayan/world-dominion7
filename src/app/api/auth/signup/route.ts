@@ -51,6 +51,11 @@ export async function POST(req: NextRequest) {
         deviceId,
         isAdmin: nickLower === 'alireza',
       },
+    }).catch((e: { code?: string }) => {
+      if (e?.code === 'P2002') {
+        throw new Error('FRIENDLY:User already registered')
+      }
+      throw e
     })
     // welcome wallet: 40 gems
     await db.wallet.create({ data: { userId: user.id, gems: 40 } })
@@ -68,7 +73,13 @@ export async function POST(req: NextRequest) {
     )
     return NextResponse.json({ data: { session: { user: su }, user: su }, error: null })
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'signup failed'
+    const raw = e instanceof Error ? e.message : 'signup failed'
+    /* V33.1: concurrent signups hitting a unique constraint surface a friendly 400,
+       not the raw Prisma error text */
+    if (raw.startsWith('FRIENDLY:')) {
+      return NextResponse.json({ data: {}, error: { message: raw.slice(9), status: 400 } })
+    }
+    const message = raw
     return NextResponse.json({ data: {}, error: { message, status: 500 } })
   }
 }
