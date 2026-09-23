@@ -184,3 +184,21 @@ model SpecialUse {
   @@index([userId, item, usedAt])
   @@map("special_uses")
 }
+
+/* V32 — Olympic champion of each 7-day cycle (weekly crowning + real rewards) */
+model OlympicChampion {
+  id         String   @id @default(cuid())
+  server     Int
+  cycle      Int
+  userId     String   @map("user_id")
+  nick       String
+  country    String?
+  medals     Int      @default(0)
+  golds      Int      @default(0)
+  rewardGold Int      @default(0) @map("reward_gold")
+  rewardGems Int      @default(0) @map("reward_gems")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([server, cycle])
+  @@map("olympic_champions")
+}

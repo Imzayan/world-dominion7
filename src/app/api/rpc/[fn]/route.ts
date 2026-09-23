@@ -111,6 +111,167 @@ async function tradeApply(uid: string, mut: (res: Record<string, number>) => voi
   return true
 }
 
+/* ============================================================
+   V32 — Olympic Champion (تاج‌گذاری هفتگی + جایزه‌ی واقعی)
+   Every 7 days the medal-table #1 is crowned automatically:
+   💎 4 gems + 🪙 100,000 gold + 10k oil + 10k food + 5k steel
+   + 24h production boost + permanent champion medal (visible to all).
+   Crowning is lazy (triggered by olympics/olympic_status/season_reset)
+   and race-safe via the unique (server, cycle) constraint.
+   ============================================================ */
+const CYCLE_MS = 7 * 86400000
+const OL_REWARDS = { gems: 4, gold: 100000, oil: 10000, food: 10000, steel: 5000, boost_hours: 24 }
+const olCycle = (ms = Date.now()) => Math.floor(ms / CYCLE_MS)
+
+type OlAgg = { server: number; players: number; disciplines: { key: string; top: { nick: string; val: number }[] }[]; medals: { nick: string; g: number; s: number; b: number; total: number; score: number }[] }
+
+/* medal-table computation shared by the olympics page and the crowning (V31 logic, extracted) */
+async function olympicCompute(server: number): Promise<OlAgg> {
+  const rows = await db.score.findMany({
+    where: { server },
+    orderBy: [{ score: 'desc' }, { conquered: 'desc' }],
+    take: 200,
+  })
+  const since = new Date(Date.now() - 7 * 86400000)
+  const news = await db.worldNews.findMany({
+    where: { server, createdAt: { gte: since } },
+    select: { action: true, actorNick: true, createdAt: true },
+    take: 5000,
+  })
+  const todayUTC = new Date()
+  todayUTC.setUTCHours(0, 0, 0, 0)
+  const cnt: Record<string, Record<string, number>> = { warrior: {}, coup: {}, meteor: {}, trade: {}, today: {} }
+  const bump = (k: string, who: string | null) => {
+    const w = (who || '').trim()
+    if (!w) return
+    cnt[k][w] = (cnt[k][w] || 0) + 1
+  }
+  for (const n of news) {
+    if (n.action === 'pvp_capture') bump('warrior', n.actorNick)
+    else if (n.action === 'coup') bump('coup', n.actorNick)
+    else if (n.action === 'meteor') bump('meteor', n.actorNick)
+    else if (n.action === 'trade') bump('trade', n.actorNick)
+    if (n.createdAt >= todayUTC && ['capture', 'conquer', 'pvp_capture', 'pvp_attack'].indexOf(n.action) > -1) bump('today', n.actorNick)
+  }
+  const topOf = (c: Record<string, number>) =>
+    Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([nick, val]) => ({ nick, val }))
+  const disc = [
+    { key: 'empire', top: [...rows].sort((a, b) => b.conquered - a.conquered).slice(0, 3).map((r) => ({ nick: r.nick, val: r.conquered })) },
+    { key: 'power', top: rows.slice(0, 3).map((r) => ({ nick: r.nick, val: r.score })) },
+    { key: 'warrior', top: topOf(cnt.warrior) },
+    { key: 'coup', top: topOf(cnt.coup) },
+    { key: 'meteor', top: topOf(cnt.meteor) },
+    { key: 'trade', top: topOf(cnt.trade) },
+    { key: 'today', top: topOf(cnt.today) },
+  ]
+  const medals: Record<string, { nick: string; g: number; s: number; b: number }> = {}
+  const give = (who: string | undefined, k: 'g' | 's' | 'b') => {
+    if (!who) return
+    const m = medals[who] || (medals[who] = { nick: who, g: 0, s: 0, b: 0 })
+    m[k]++
+  }
+  for (const d of disc) {
+    give(d.top[0]?.nick, 'g')
+    give(d.top[1]?.nick, 's')
+    give(d.top[2]?.nick, 'b')
+  }
+  const scoreOf = (nick: string) => rows.find((x) => x.nick === nick)?.score || 0
+  const table = Object.values(medals)
+    .map((m) => ({ ...m, total: m.g + m.s + m.b, score: scoreOf(m.nick) }))
+    .sort((a, b) => b.total - a.total || b.g - a.g || b.score - a.score)
+  return { server, players: rows.length, disciplines: disc, medals: table.slice(0, 20) }
+}
+
+/* champion rewards land directly in the wallet (gems + boost) and in the saved state (gold/oil/food/steel) */
+async function applyOlympicRewards(uid: string) {
+  const w = await ensureWallet(uid)
+  const base = w.boostUntil && w.boostUntil.getTime() > Date.now() ? w.boostUntil.getTime() : Date.now()
+  await db.wallet.update({
+    where: { userId: uid },
+    data: { gems: w.gems + OL_REWARDS.gems, boostUntil: new Date(base + OL_REWARDS.boost_hours * 3600000) },
+  })
+  const save = await db.save.findUnique({ where: { userId: uid } })
+  if (save) {
+    let obj: Record<string, unknown> = {}
+    try { obj = JSON.parse(save.state || '{}') || {} } catch { obj = {} }
+    const res = (obj.res || {}) as Record<string, number>
+    const num = (v: unknown) => Math.max(0, Math.round(Number(v) || 0))
+    res.gold = num(res.gold) + OL_REWARDS.gold
+    res.oil = num(res.oil) + OL_REWARDS.oil
+    res.food = num(res.food) + OL_REWARDS.food
+    res.steel = num(res.steel) + OL_REWARDS.steel
+    obj.res = res
+    await db.save.update({ where: { userId: uid }, data: { state: JSON.stringify(obj) } })
+  }
+}
+
+/* lazy crowning: if the previous 7-day cycle ended without a champion row, crown the medal-table #1 now.
+   The unique (server, cycle) constraint makes concurrent crowning race-safe — rewards are applied
+   only by the request that successfully created the row. */
+async function ensureOlympicChampion(server: number) {
+  const prev = olCycle() - 1
+  const existing = await db.olympicChampion.findUnique({ where: { server_cycle: { server, cycle: prev } } })
+  if (existing) return existing
+  let champ: { nick: string; userId: string; medals: number; golds: number } | null = null
+  try {
+    const agg = await olympicCompute(server)
+    const top = agg.medals && agg.medals[0]
+    if (top && top.total > 0 && top.nick) {
+      const u = await db.user.findFirst({ where: { nickLower: top.nick.toLowerCase() } })
+      if (u) champ = { nick: top.nick, userId: u.id, medals: top.total, golds: top.g }
+    }
+  } catch (e) { console.log('olcompute', e) }
+  try {
+    if (champ) {
+      const terr = (await db.territory.findFirst({ where: { server, userId: champ.userId, isCapital: true } }))
+        || (await db.territory.findFirst({ where: { server, userId: champ.userId } }))
+      const row = await db.olympicChampion.create({
+        data: {
+          server, cycle: prev, userId: champ.userId, nick: champ.nick,
+          country: terr ? terr.country : null, medals: champ.medals, golds: champ.golds,
+          rewardGold: OL_REWARDS.gold, rewardGems: OL_REWARDS.gems,
+        },
+      })
+      await applyOlympicRewards(champ.userId)
+      await addNews(server, 'olympic_champion', null, champ.nick, null)
+      return row
+    }
+    /* no medalists this cycle — mark it processed so we don't recompute every poll */
+    return await db.olympicChampion.create({ data: { server, cycle: prev, userId: 'none', nick: '' } })
+  } catch (e: unknown) {
+    const code = (e as { code?: string })?.code
+    if (code === 'P2002') {
+      return await db.olympicChampion.findUnique({ where: { server_cycle: { server, cycle: prev } } })
+    }
+    console.log('olcrown', e)
+    return null
+  }
+}
+
+async function latestChampion(server: number) {
+  return db.olympicChampion.findFirst({ where: { server, nick: { not: '' } }, orderBy: [{ cycle: 'desc' }] })
+}
+
+/* keep the crown on the champion's CURRENT capital: refresh country on every status poll
+   (cheap — only runs for the latest champion row; covers capital moves after crowning) */
+async function refreshChampCountry(server: number, latest: Awaited<ReturnType<typeof latestChampion>>) {
+  if (!latest || !latest.nick) return latest
+  try {
+    const u = await db.user.findFirst({ where: { nickLower: latest.nick.toLowerCase() } })
+    if (!u) return latest
+    const terr = (await db.territory.findFirst({ where: { server, userId: u.id, isCapital: true } }))
+      || (await db.territory.findFirst({ where: { server, userId: u.id } }))
+    if (terr && terr.country !== latest.country) {
+      await db.olympicChampion.update({ where: { id: latest.id }, data: { country: terr.country } })
+      return { ...latest, country: terr.country }
+    }
+  } catch (e) { console.log('olcc', e) }
+  return latest
+}
+
+const olPublic = (r: { nick: string; country: string | null; medals: number; golds: number; cycle: number; createdAt: Date } | null) =>
+  r ? { nick: r.nick, country: r.country || null, medals: r.medals, golds: r.golds, cycle: r.cycle, at: r.createdAt.toISOString() } : null
+
 export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string }> }) {
   const { fn } = await ctx.params
   const user = await getSessionUser()
@@ -321,6 +482,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       case 'season_reset': {
         if (!user.isAdmin) return R(null)
         const server = Math.max(1, Number(args.p_server || 1))
+        /* V32: crown the pending Olympic champion BEFORE the wipe so medals/scores still count */
+        try { await ensureOlympicChampion(server) } catch (e) { console.log('olcrown-reset', e) }
         const top = await db.score.findMany({ where: { server }, orderBy: { score: 'desc' }, take: 3 })
         const top3: { nick: string; score: number }[] = []
         for (const s of top) {
@@ -417,63 +580,32 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         })))
       }
 
-      /* ---------------- V31 olympics: disciplines + medal table (read-only aggregation) ---------------- */
+      /* ---------------- V31/V32 olympics: disciplines + medal table + crowned champion ---------------- */
       case 'olympics': {
         const server = Math.max(1, Number(args.p_server || 1))
-        const rows = await db.score.findMany({
-          where: { server },
-          orderBy: [{ score: 'desc' }, { conquered: 'desc' }],
-          take: 200,
+        /* V32: lazy weekly crowning — also runs here so page viewers trigger it */
+        let champRow: Awaited<ReturnType<typeof ensureOlympicChampion>> = null
+        try { champRow = await ensureOlympicChampion(server) } catch (e) { console.log('olensure', e) }
+        const agg = await olympicCompute(server)
+        let latest = champRow && champRow.nick ? champRow : await latestChampion(server)
+        return R({
+          ...agg, ts: Date.now(),
+          champ: champRow && champRow.nick ? olPublic(champRow) : olPublic(latest),
+          cycle: { cur: olCycle(), next_at: new Date((olCycle() + 1) * CYCLE_MS).toISOString() },
+          rewards: OL_REWARDS,
         })
-        /* one news fetch covers both windows: last 7 days (disciplines) + today (star of the day) */
-        const since = new Date(Date.now() - 7 * 86400000)
-        const news = await db.worldNews.findMany({
-          where: { server, createdAt: { gte: since } },
-          select: { action: true, actorNick: true, createdAt: true },
-          take: 5000,
+      }
+
+      /* ---------------- V32 olympic_status: light poll for champion badge/crown (all clients, 90s) ---------------- */
+      case 'olympic_status': {
+        const server = Math.max(1, Number(args.p_server || 1))
+        try { await ensureOlympicChampion(server) } catch (e) { console.log('olstatus', e) }
+        const latest = await refreshChampCountry(server, await latestChampion(server))
+        return R({
+          champion: olPublic(latest),
+          cycle: { cur: olCycle(), next_at: new Date((olCycle() + 1) * CYCLE_MS).toISOString() },
+          rewards: OL_REWARDS,
         })
-        const todayUTC = new Date()
-        todayUTC.setUTCHours(0, 0, 0, 0)
-        const cnt: Record<string, Record<string, number>> = { warrior: {}, coup: {}, meteor: {}, trade: {}, today: {} }
-        const bump = (k: string, who: string | null) => {
-          const w = (who || '').trim()
-          if (!w) return
-          cnt[k][w] = (cnt[k][w] || 0) + 1
-        }
-        for (const n of news) {
-          if (n.action === 'pvp_capture') bump('warrior', n.actorNick)
-          else if (n.action === 'coup') bump('coup', n.actorNick)
-          else if (n.action === 'meteor') bump('meteor', n.actorNick)
-          else if (n.action === 'trade') bump('trade', n.actorNick)
-          if (n.createdAt >= todayUTC && ['capture', 'conquer', 'pvp_capture', 'pvp_attack'].indexOf(n.action) > -1) bump('today', n.actorNick)
-        }
-        const topOf = (c: Record<string, number>) =>
-          Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([nick, val]) => ({ nick, val }))
-        const disc = [
-          { key: 'empire', top: [...rows].sort((a, b) => b.conquered - a.conquered).slice(0, 3).map((r) => ({ nick: r.nick, val: r.conquered })) },
-          { key: 'power', top: rows.slice(0, 3).map((r) => ({ nick: r.nick, val: r.score })) },
-          { key: 'warrior', top: topOf(cnt.warrior) },
-          { key: 'coup', top: topOf(cnt.coup) },
-          { key: 'meteor', top: topOf(cnt.meteor) },
-          { key: 'trade', top: topOf(cnt.trade) },
-          { key: 'today', top: topOf(cnt.today) },
-        ]
-        const medals: Record<string, { nick: string; g: number; s: number; b: number }> = {}
-        const give = (who: string | undefined, k: 'g' | 's' | 'b') => {
-          if (!who) return
-          const m = medals[who] || (medals[who] = { nick: who, g: 0, s: 0, b: 0 })
-          m[k]++
-        }
-        for (const d of disc) {
-          give(d.top[0]?.nick, 'g')
-          give(d.top[1]?.nick, 's')
-          give(d.top[2]?.nick, 'b')
-        }
-        const scoreOf = (nick: string) => rows.find((x) => x.nick === nick)?.score || 0
-        const table = Object.values(medals)
-          .map((m) => ({ ...m, total: m.g + m.s + m.b, score: scoreOf(m.nick) }))
-          .sort((a, b) => b.total - a.total || b.g - a.g || b.score - a.score)
-        return R({ server, ts: Date.now(), players: rows.length, disciplines: disc, medals: table.slice(0, 20) })
       }
 
       /* ---------------- news / chat ---------------- */

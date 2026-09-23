@@ -3894,6 +3894,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
     if(a==='coup')return who+' در '+(fa||'نامعلوم')+' کودتا برپا کرد'+(whom?' (خاک '+whom+')':'')+'.';
     if(a==='meteor')return 'رگبار شهاب‌سنگ به فرمان '+who+' بر '+(fa||'نامعلوم')+' بارید'+(whom?' (خاک '+whom+')':'')+'.';
     if(a==='season_champion')return 'فصل به پایان رسید؛ قهرمان: '+(x.actor_nick||'—')+(whom?' (نایب‌قهرمان: '+whom+')':'');
+    if(a==='olympic_champion')return '🏅 تاج‌گذاری المپیک: '+(x.actor_nick||'—')+' قهرمان جهان شد و جایزه‌ی بزرگ (۴ جم + ۱۰۰٬۰۰۰ سکه) گرفت. افتخارش برای همیشه کنار نامش می‌ماند.';
     if(a==='season_start')return 'فصل جدید آغاز شد؛ نقشه دوباره صحنه‌ی نبرد است.';
     if(a==='trade')return who+' با '+(whom||'بازیکن دیگر')+' معامله‌ی امن انجام داد.';
     if(a==='capture'||a==='conquer')return who+' کشور '+(fa||'نامعلوم')+' را فتح کرد.';
@@ -4988,6 +4989,7 @@ body.wd-low-power *{scroll-behavior:auto!important}
         if(a==='coup') return `🎭 ${x.actor_nick||'بازیکن'} در ${x.country||'نامعلوم'} کودتا برپا کرد`;
         if(a==='meteor') return `☄️ رگبار شهاب‌سنگ بر ${x.country||'نامعلوم'} بارید`;
         if(a==='season_champion') return `🏆 قهرمان فصل: ${x.actor_nick||'—'}`;
+        if(a==='olympic_champion') return `🏅 ${x.actor_nick||'—'} قهرمان المپیک شد — ۴ جم + ۱۰۰٬۰۰۰ سکه جایزه گرفت`;
         if(a==='trade') return `🤝 ${x.actor_nick||'بازیکن'} با ${x.target_nick||'بازیکن دیگر'} معامله کرد`;
         if(x.country) return `🌐 ${x.actor_nick||'بازیکن'} در ${x.country} یک رویداد ثبت کرد`;
         return `🌐 ${x.actor_nick||'بازیکن'} یک رویداد ثبت کرد`;
@@ -6634,7 +6636,7 @@ function tabMuseum(c){c.append(el('div','🖼️ موزه‌ی امپراتور�
  if(vipActive())chip('👑','VIP تا '+new Date(COS.vipUntil).toLocaleDateString('fa-IR'));
  if(radarActive())chip('🔔','رادار حمله فعال');
  if(COS.statsOn)chip('📊','تحلیل پیشرفته فعال');
- (COS.medals||[]).forEach(function(m){chip('🏆','مدال فصل '+m.fa)});
+ (COS.medals||[]).forEach(function(m){chip('🏆',(m.k&&String(m.k).indexOf('olympic_')===0)?('🏅 '+m.fa+' — قهرمان المپیک'):('مدال فصل '+m.fa))});
  if(!n)c.append(el('div','هنوز آیتمی در موزه نداری — از تب‌های «زیبایی» و «مجموعه» شروع کن!','cos27-h'));
  c.append(el('div','📌 خلاصه امپراتوری','cos27-h'));
  try{var sc=conqueredCountries.size*1000+(typeof calculateTotalAttack==='function'?calculateTotalAttack():0);
@@ -7178,7 +7180,10 @@ function bubble(x,me,pend){
   av.style.background='linear-gradient(135deg,hsl('+avColor(x.nick)+',65%,45%),hsl('+((avColor(x.nick)+50)%360)+',70%,35%))';
   av.textContent=(x.nick||'؟').trim().charAt(0).toUpperCase();
   var bub=D.createElement('div');bub.className='wd28-bub'+(pend?' wd28-pend':'');
-  var nick=D.createElement('div');nick.className='wd28-nick';nick.textContent=x.nick||'بازیکن';
+  var nick=D.createElement('div');nick.className='wd28-nick';
+  /* V32: تاج قهرمان المپیک کنار نام در چت — همه می‌بینند */
+  if(window.WD32_isChamp&&window.WD32_isChamp(x.nick)){var cr32=D.createElement('span');cr32.className='wd32-tag';cr32.textContent='🏆 قهرمان';nick.append(cr32)}
+  nick.append(document.createTextNode(x.nick||'بازیکن'));
   var txt=D.createElement('div');txt.className='wd28-txt';txt.textContent=x.message;
   var t=D.createElement('div');t.className='wd28-t';t.textContent=relTime(new Date(x.created_at).getTime());
   bub.append(nick,txt,t);
@@ -7403,8 +7408,11 @@ function richRow(x,i,maxVal){
   var mid=D.createElement('div');mid.className='rk-mid';
   var nick=D.createElement('div');nick.className='rk-nick';
   var nb=D.createElement('b');nb.textContent=x.nick||'بازیکن';
+  nick.append(nb);
+  /* V32: تاج قهرمان المپیک در رتبه‌بندی — المان جدا تا با نشان cosmetics تداخل نکند */
+  if(window.WD32_isChamp&&window.WD32_isChamp(x.nick)){var cg32=D.createElement('span');cg32.className='wd32-tag';cg32.textContent='🏆 قهرمان المپیک';nick.append(cg32)}
   var tt=D.createElement('span');tt.className='rk-title';tt.textContent=titleOf(x.conquered||0);
-  nick.append(nb,tt);mid.append(nick);
+  nick.append(tt);mid.append(nick);
   var bar=D.createElement('div');bar.className='rk-bar';
   var fill=D.createElement('i');fill.style.width=Math.max(6,Math.round((x.score||x.conquered||0)/Math.max(1,maxVal)*100))+'%';
   bar.append(fill);mid.append(bar);row.append(mid);
@@ -8414,7 +8422,9 @@ function handleCine(p){if(!p||!p.type)return;if(p.uid===MY30())return;
   else if(p.type==='capital')WD30CINE('👑','پایتخت سقوط کرد!','💀 امپراتوری '+p.target+' با حمله‌ی '+p.nick+' فروپاشید','','horn');
   else if(p.type==='coup')WD30CINE('🎭','کودتای مخفی!','🐍 '+p.nick+' در خاک '+p.country+(p.target?' (بازیکن '+p.target+')':'')+' شورش برپا کرد','c-violet','coup');
   else if(p.type==='meteor')WD30CINE('☄️','رگبار شهاب‌سنگ!','🔥 آسمان '+p.country+' آتش گرفت — دفاعش برای ۳۰ دقیقه زخمی است','','meteor');
-  else if(p.type==='season')WD30CINE('🏆','فصل جدید آغاز شد!','👑 قهرمان فصل قبل: '+(p.champ||'—'),'c-gold','cheer')}
+  else if(p.type==='season')WD30CINE('🏆','فصل جدید آغاز شد!','👑 قهرمان فصل قبل: '+(p.champ||'—'),'c-gold','cheer');
+  else if(p.type==='olympic'){try{localStorage.setItem('wd32cycle_'+(window.SRV||1),String(p.cycle||0))}catch(e){}
+    WD30CINE('🏅','تاج‌گذاری قهرمان المپیک!','👑 '+p.nick+' با '+(p.medals||0)+' مدال قهرمان جهان شد — 💎 ۴ جم + 🪙 ۱۰۰٬۰۰۰ سکه جایزه گرفت','c-gold','cheer')}}
 try{if(typeof sb!=='undefined'&&sb&&sb.channel){sb.channel('wd30-cinema-'+SRV30)
   .on('broadcast',{event:'wd30'},m=>{try{handleCine(m&&m.payload)}catch(e){}}).subscribe()}}catch(e){}
 
@@ -8902,7 +8912,8 @@ async function refreshServer(){
     if(se)se.innerHTML='<div style="font-size:13.5px;font-weight:900;color:#ffd75e">فصل '+faN(ss.no||1)+' — روز '+faN(ss.day||1)+' از '+faN(30)+'</div>'+
       '<div class="wd31-bar" style="margin-top:8px"><i style="width:'+Math.min(100,(ss.day||1)/30*100)+'%"></i></div>'+
       '<div class="wd31-mini" style="margin-top:6px">⏳ '+faN(hh)+' ساعت و '+faN(mm)+' دقیقه تا پایان فصل</div>'+
-      (ch&&ch.nick?'<div class="wd31-mini" style="margin-top:4px;color:#ffe08a">👑 قهرمان فصل قبل: '+esc(ch.nick)+'</div>':'');
+      (ch&&ch.nick?'<div class="wd31-mini" style="margin-top:4px;color:#ffe08a">👑 قهرمان فصل قبل: '+esc(ch.nick)+'</div>':'')+
+      (window.WD_OL_CHAMP&&window.WD_OL_CHAMP.nick?'<div class="wd31-mini" style="margin-top:4px;color:#ffd75e">🏅 قهرمان المپیک (تاج‌گذاری‌شده): <b>'+esc(window.WD_OL_CHAMP.nick)+'</b> — '+faN(window.WD_OL_CHAMP.medals||0)+' مدال</div>':'');
     const g=(window.WD30_GOAL&&window.WD30_GOAL())||{count:0,target:25};
     const gt=g.target||25,gc=Math.max(0,g.count||0);
     const go=H('wdsp-goal');
@@ -8930,6 +8941,7 @@ async function refreshServer(){
         r.innerHTML='<span class="wd31-rk '+(i<3?'g'+(i+1):'')+'">'+(i<3?['🥇','🥈','🥉'][i]:faN(i+1))+'</span>';
         r.appendChild(hueDot(x.nick));
         const who=D.createElement('span');who.className='who';who.textContent=x.nick;r.appendChild(who);
+        if(window.WD32_isChamp&&window.WD32_isChamp(x.nick))who.insertAdjacentHTML('afterbegin','<span class="wd32-tag">🏆 قهرمان المپیک</span>');
         r.insertAdjacentHTML('beforeend','<span class="val">🏴 <b>'+faN(x.conquered||0)+'</b> کشور • ⭐ <b>'+faN(x.score||0)+'</b> امتیاز</span>');
         tb.appendChild(r)})}
     const plq=await tblQ(sb.from('scores').select('nick,conquered').eq('server',S).order('conquered',{ascending:false}).limit(10));
@@ -8938,6 +8950,7 @@ async function refreshServer(){
       else rows.forEach(x=>{const r=D.createElement('div');r.className='wd31-row'+(isMe(x.nick)?' me':'');
         r.appendChild(hueDot(x.nick));
         const who=D.createElement('span');who.className='who';who.textContent=x.nick;r.appendChild(who);
+        if(window.WD32_isChamp&&window.WD32_isChamp(x.nick))who.insertAdjacentHTML('afterbegin','<span class="wd32-tag">🏆 قهرمان المپیک</span>');
         r.insertAdjacentHTML('beforeend','<span class="val">🏴 <b>'+faN(x.conquered||0)+'</b> کشور</span>');
         pb.appendChild(r)})}
     const sg=H('wdsp-srvs');
@@ -8972,9 +8985,15 @@ function olShell(w){
     '<div style="margin-top:8px"><span class="wd31-live"><i></i>زنده — رتبه‌ها لحظه‌ای به‌روز می‌شوند</span></div>'+
   '</section>'+
   '<div class="wd31-card"><div class="wd31-sh" style="margin:0 0 8px">🎖️ کارنامه‌ی من</div><div id="wdol-me-b">…</div></div>'+
+  '<div class="wd31-card wd32-prize"><div class="wd31-sh" style="margin:0 0 10px">🏆 جایزه‌ی قهرمان المپیک — تاج‌گذاری هر هفته</div>'+
+    '<div class="wd32-prize-grid">'+
+      '<span class="wd32-pz">💎 ۴ جم</span><span class="wd32-pz">🪙 ۱۰۰٬۰۰۰ سکه</span><span class="wd32-pz">🛢️ ۱۰٬۰۰۰ نفت</span>'+
+      '<span class="wd32-pz">🌾 ۱۰٬۰۰۰ غذا</span><span class="wd32-pz">🔩 ۵٬۰۰۰ فولاد</span><span class="wd32-pz">⚡ بوست ۲۴ ساعته</span>'+
+    '</div>'+
+    '<div class="wd32-prize-note">🏅 به‌علاوه‌ی مدال طلایی ماندگار در موزه‌ات و تاج «قهرمان المپیک» کنار نامت — در چت، رتبه‌بندی، شناسنامه‌ی سرور و روی نقشه برای همه دیده می‌شود.<br>هر هفته صدرنشین جدول مدال‌ها خودکار تاج‌گذاری می‌شود و جایزه مستقیم به حسابش واریز می‌شود — فقط با بازی، بدون پول (ضد P2W).</div></div>'+
   '<div id="wdol-medsec"><div class="wd31-sh">🏅 جدول مدال‌ها</div><div id="wdol-medals"></div></div>'+
   '<div><div class="wd31-sh">🏟️ رشته‌های رقابت</div><div class="wd31-disc" id="wdol-disc"></div></div>'+
-  '<div class="wd31-note">المپیک با هر فصل از نو آغاز می‌شود • مدال‌ها فقط از عملکرد واقعی‌ات داده می‌شوند • هیچ مدالی فروخته نمی‌شود (ضد P2W)<br>برای بازگشت به نقشه، دکمه‌ی ✕ بالا را بزن یا Escape</div>';
+  '<div class="wd31-note">المپیک با هر فصل از نو آغاز می‌شود • تاج‌گذاری قهرمان: هر هفته • مدال‌ها فقط از عملکرد واقعی‌ات داده می‌شوند • هیچ مدالی فروخته نمی‌شود (ضد P2W)<br>برای بازگشت به نقشه، دکمه‌ی ✕ بالا را بزن یا Escape</div>';
   rise(w.children)}
 async function refreshOly(){
   try{
@@ -8993,17 +9012,33 @@ async function refreshOly(){
       if(my){const myRank=list.indexOf(my)+1;
         meb.innerHTML='<div style="font-size:14px;font-weight:900;color:#ffe08a">رتبه #'+faN(myRank)+' در المپیک • '+faN(my.total)+' مدال</div>'+
           '<div class="wd31-med" style="margin-top:6px;color:#dff6ff">🥇 '+faN(my.g)+' &nbsp;•&nbsp; 🥈 '+faN(my.s)+' &nbsp;•&nbsp; 🥉 '+faN(my.b)+'</div>'}
-      else meb.innerHTML='<div class="wd31-mini" style="font-size:12px;line-height:2">ویترین تو هنوز خالی است — در رشته‌های پایین رکورد بزن تا اولین مدالت برسد! 🏅</div>'}
+      else meb.innerHTML='<div class="wd31-mini" style="font-size:12px;line-height:2">ویترین تو هنوز خالی است — در رشته‌های پایین رکورد بزن تا اولین مدالت برسد! 🏅</div>';
+      /* V32: پیام ویژه وقتی خودم قهرمان تاج‌گذاری‌شده هستم */
+      const mc=(d&&d.champ&&d.champ.nick&&isMe(d.champ.nick))?d.champ:null;
+      if(mc&&meb)meb.insertAdjacentHTML('beforeend',
+        '<div class="wd32-me-champ">👑 تو قهرمان تاج‌گذاری‌شده‌ی این جهانی! جایزه‌ات — 💎 ۴ جم + 🪙 ۱۰۰٬۰۰۰ سکه + بسته‌ی منابع + ⚡ بوست ۲۴ ساعته — مستقیم به حساب‌ت واریز شد و تاج طلایی الان بالای پایتختت می‌درخشد.</div>')}
     const oldC=H('wdol-champ');if(oldC)oldC.remove();
     if(mb){mb.textContent='';
-      if(list.length&&list[0].total>0){const cb=D.createElement('div');cb.className='wd31-champ wd31-rise';cb.id='wdol-champ';
-        cb.innerHTML='👑 قهرمان المپیک این جهان: <b>'+esc(list[0].nick)+'</b><div class="wd31-mini" style="margin-top:4px">'+faN(list[0].total)+' مدال — از همه بالاتر است</div>';
+      /* V32: بنر قهرمان تاج‌گذاری‌شده + شمارش معکوس تاج‌گذاری بعدی */
+      const champ=(d&&d.champ&&d.champ.nick)?d.champ:null,cyc=(d&&d.cycle)||null;
+      if(champ){const cb=D.createElement('div');cb.className='wd31-champ wd31-rise wd32-champbox';cb.id='wdol-champ';
+        cb.innerHTML='<div class="wd32-crownline">👑 قهرمان تاج‌گذاری‌شده‌ی المپیک: <b>'+esc(champ.nick)+'</b></div>'+
+          '<div class="wd31-mini" style="margin-top:4px">'+faN(champ.medals||0)+' مدال در چرخه‌ی شماره‌ی '+faN(champ.cycle||0)+' • جایزه گرفت: 💎 ۴ جم + 🪙 ۱۰۰٬۰۰۰ سکه + بسته‌ی منابع + ⚡ بوست ۲۴ ساعته</div>'+
+          '<div class="wd32-next" id="wdol-next">⏳ …</div>';
+        const sec=H('wdol-medsec');if(sec&&sec.parentNode)sec.parentNode.insertBefore(cb,sec);
+        const nx=H('wdol-next');
+        if(nx&&cyc&&cyc.next_at){const left=Math.max(0,(Date.parse(cyc.next_at)||Date.now())-Date.now());
+          const dd=Math.floor(left/86400000),hh=Math.floor((left%86400000)/3600000);
+          nx.textContent='⏳ تاج‌گذاری قهرمان بعدی: '+faN(dd)+' روز و '+faN(hh)+' ساعت دیگر — رهبر فعلی جدول: '+((list.length&&list[0].total>0)?esc(list[0].nick):'—')}}
+      else if(list.length&&list[0].total>0){const cb=D.createElement('div');cb.className='wd31-champ wd31-rise';cb.id='wdol-champ';
+        cb.innerHTML='👑 رهبر المپیک این جهان: <b>'+esc(list[0].nick)+'</b><div class="wd31-mini" style="margin-top:4px">'+faN(list[0].total)+' مدال — اولین تاج‌گذاری نزدیک است: هر هفته یک قهرمان + جایزه‌ی بزرگ 🏆</div>';
         const sec=H('wdol-medsec');if(sec&&sec.parentNode)sec.parentNode.insertBefore(cb,sec)}
       if(!list.length)mb.innerHTML='<div class="wd31-row"><span class="who">هنوز هیچ مدالی اهد نشده — تاریخ‌ساز باش!</span></div>';
       else list.slice(0,12).forEach((m,i)=>{const row=D.createElement('div');row.className='wd31-row'+(isMe(m.nick)?' me':'');
         row.innerHTML='<span class="wd31-rk '+(i<3?'g'+(i+1):'')+'">'+(i<3?['🥇','🥈','🥉'][i]:faN(i+1))+'</span>';
         row.appendChild(hueDot(m.nick));
         const who=D.createElement('span');who.className='who';who.textContent=m.nick;row.appendChild(who);
+        if(window.WD32_isChamp&&window.WD32_isChamp(m.nick))who.insertAdjacentHTML('afterbegin','<span class="wd32-tag">🏆 قهرمان</span>');
         row.insertAdjacentHTML('beforeend','<span class="val">🥇<b>'+faN(m.g)+'</b> 🥈<b>'+faN(m.s)+'</b> 🥉<b>'+faN(m.b)+'</b> = <b>'+faN(m.total)+'</b> مدال</span>');
         mb.appendChild(row)})}
     if(db2){db2.textContent='';const dcs=(d&&Array.isArray(d.disciplines))?d.disciplines:[];dcs.forEach(dc=>{const meta=OL_META[dc.key]||{t:dc.key,u:''};
@@ -9041,6 +9076,100 @@ window.addEventListener('load',()=>{setTimeout(()=>{try{
       b.addEventListener('click',window.WD31_OLYMPICS);p.prepend(b)}}catch(e){}});
   mo.observe(D.body,{attributes:true,subtree:true,attributeFilter:['class']})
 }catch(e){}})();
+})();
+</script>
+<style id="v32-css">
+/* ============ V32: Olympic champion crown — rewards, badges, map crown ============ */
+.wd32-tag{display:inline-flex;align-items:center;gap:3px;background:linear-gradient(135deg,#ffd75e,#ff9d3c);color:#3a2600;
+  font-size:8.5px;font-weight:900;padding:1.5px 7px;border-radius:99px;box-shadow:0 0 8px rgba(255,204,0,.5);
+  white-space:nowrap;flex:none;vertical-align:middle}
+.wd32-prize{border-color:rgba(255,204,0,.4)!important;background:linear-gradient(160deg,rgba(66,50,6,.38),rgba(6,14,28,.92))!important}
+.wd32-prize-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+@media(max-width:520px){.wd32-prize-grid{grid-template-columns:repeat(2,1fr)}}
+.wd32-pz{display:flex;align-items:center;justify-content:center;text-align:center;padding:9px 4px;border-radius:12px;
+  font-size:11.5px;font-weight:900;color:#ffe08a;background:linear-gradient(170deg,rgba(40,30,4,.8),rgba(18,14,2,.8));
+  border:1px solid rgba(255,204,0,.3)}
+.wd32-prize-note{font-size:10px;color:#c8b47a;line-height:1.9;margin-top:9px}
+.wd32-champbox{box-shadow:0 0 34px rgba(255,204,0,.3)!important}
+.wd32-crownline{font-size:14px;font-weight:900;color:#fff}
+.wd32-crownline b{color:#ffe08a;font-size:16px;text-shadow:0 0 14px rgba(255,204,0,.6)}
+.wd32-next{margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,204,0,.3);font-size:11px;font-weight:800;color:#ffd75e;line-height:1.8}
+.wd32-me-champ{margin-top:9px;padding:10px 12px;border-radius:12px;background:linear-gradient(160deg,rgba(66,50,6,.75),rgba(30,22,4,.85));
+  border:1px solid rgba(255,204,0,.55);font-size:11.5px;line-height:1.9;color:#ffe9b3;font-weight:700;animation:wd31Rise .5s ease both}
+.wd32-crown-wrap{pointer-events:none}
+.wd32-crown{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:1px;
+  font-size:17px;filter:drop-shadow(0 0 8px rgba(255,204,0,.85));animation:wd32CrownFloat 2.6s ease-in-out infinite}
+.wd32-crown small{font-size:8px;font-weight:900;color:#ffe08a;background:rgba(20,14,0,.82);border:1px solid rgba(255,204,0,.5);
+  padding:1px 6px;border-radius:99px;white-space:nowrap}
+@keyframes wd32CrownFloat{0%,100%{transform:translate(-50%,-100%) translateY(0)}50%{transform:translate(-50%,-100%) translateY(-4px)}}
+</style>
+<script id="v32-crown">
+/* ============ V32: Olympic champion — weekly crowning awareness, map crown, badges ============ */
+(function(){
+'use strict';
+const D=document;
+const faN=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const srvN=()=>{try{return Math.max(1,Number(window.SRV)||1)}catch(e){return 1}};
+const seenKey=()=>'wd32cycle_'+srvN();
+window.WD_OL_CHAMP=null;
+try{window.WD_OL_CHAMP=JSON.parse(localStorage.getItem('wd32champ_'+srvN())||'null')}catch(e){}
+window.WD32_isChamp=function(nick){try{const c=window.WD_OL_CHAMP;return !!(c&&c.nick&&nick&&c.nick===nick)}catch(e){return false}};
+
+/* ---------- golden crown marker on the champion's capital (visible to everyone on the map) ---------- */
+let crownMk=null;
+function placeCrown(){try{
+  const c=window.WD_OL_CHAMP;
+  if(crownMk){try{crownMk.remove()}catch(e){}crownMk=null}
+  if(!c||!c.country||!c.nick)return;
+  if(typeof getG!=='function'||typeof map==='undefined'||!map||typeof L==='undefined')return;
+  const g=getG(c.country);if(!g||!g.c)return;
+  crownMk=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:1150,
+    icon:L.divIcon({className:'wd32-crown-wrap',iconSize:[0,0],html:'<div class="wd32-crown">👑<small>قهرمان المپیک — '+esc32(c.nick)+'</small></div>'})}).addTo(map);
+}catch(e){}}
+function esc32(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+window.WD32_PLACE_CROWN=placeCrown;
+
+/* ---------- celebration + museum medal ---------- */
+function announce(c){try{
+  if(!c||!c.nick)return;
+  if(typeof WD30CINE==='function')WD30CINE('🏅','تاج‌گذاری قهرمان المپیک!','👑 '+c.nick+' با '+faN(c.medals||0)+' مدال قهرمان جهان شد — 💎 ۴ جم + 🪙 ۱۰۰٬۰۰۰ سکه + بسته‌ی منابع جایزه گرفت','c-gold','cheer');
+  if(typeof WD30HIST==='function')WD30HIST({t:Date.now(),type:'epic',txt:c.nick+' قهرمان المپیک شد و جایزه‌ی بزرگ گرفت',ico:'🏅'});
+  if(typeof WD30BC==='function')WD30BC('olympic',{nick:c.nick,medals:c.medals||0,cycle:c.cycle||0});
+}catch(e){}}
+function museumMedal(c){try{
+  const me=(typeof ACC!=='undefined'&&ACC&&ACC.nick&&c.nick===ACC.nick);
+  if(!me)return;
+  const mk='olympic_'+(c.cycle||'x');
+  if(window.COS27&&Array.isArray(window.COS27.medals)&&!window.COS27.medals.some(m=>m.k===mk)){
+    window.COS27.medals.push({k:mk,fa:'قهرمان المپیک'});
+    try{if(typeof saveNow==='function')saveNow()}catch(e){}
+    try{if(typeof showToast==='function')showToast('🏅 مدال طلایی «قهرمان المپیک» برای همیشه در موزه‌ات ثبت شد','win')}catch(e){}}
+}catch(e){}}
+
+/* ---------- poll olympic_status (90s) — keeps badges/crown fresh for everyone ---------- */
+function handleStatus(d){try{
+  if(!d)return;
+  const ch=(d.champion&&d.champion.nick)?d.champion:null;
+  let prevSeen=-1;try{prevSeen=Number(localStorage.getItem(seenKey())||-1)}catch(e){}
+  const changed=!!(ch&&Number(ch.cycle||0)>prevSeen);
+  window.WD_OL_CHAMP=ch;
+  try{localStorage.setItem('wd32champ_'+srvN(),JSON.stringify(ch))}catch(e){}
+  window.WD32_isChamp=function(nick){return !!(ch&&ch.nick&&nick&&ch.nick===nick)};
+  if(changed&&ch){try{localStorage.setItem(seenKey(),String(ch.cycle||0))}catch(e){}
+    announce(ch);museumMedal(ch)}
+  else museumMedal(ch||window.WD_OL_CHAMP||{});
+  placeCrown();
+}catch(e){}}
+function poll(){try{
+  if(typeof sb==='undefined'||!sb)return;
+  if(typeof ACC==='undefined'||!ACC||!ACC.uid)return;
+  sb.rpc('olympic_status',{p_server:srvN()}).then(r=>{
+    if(r&&r.error)return;
+    handleStatus(r&&r.data?r.data:null);
+  }).catch(()=>{});
+}catch(e){}}
+poll();setTimeout(poll,6000);setInterval(poll,90000);
+setTimeout(placeCrown,12000);setInterval(placeCrown,180000);
 })();
 </script>
 </body>
