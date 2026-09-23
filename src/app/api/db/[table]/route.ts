@@ -151,10 +151,13 @@ function computeMetrics(stateJson: string) {
     attack += n * (ARMY_ATK[k] || 0) * (AIR_UNITS.has(k) ? airMult : 1)
   }
   const conquered = conq + my
+  /* V35: kills category must show REAL battle kills (client persists them in save state as `kills`),
+     not an attack-power approximation — ranking showed misleading per-section progress */
+  const realKills = Math.max(0, Math.round(Number(st.kills) || 0))
   return {
     conquered,
     score: Math.max(0, Math.round(conquered * 1000 + attack)),
-    kills: Math.round(attack / 10),
+    kills: realKills > 0 ? realKills : Math.round(attack / 10),
     economy: Math.max(0, Math.round((res.gold || 0) + conquered * 750 + (infra.arms || 0) * 400 + (infra.oil || 0) * 300 + (infra.air || 0) * 500)),
     recruits,
   }

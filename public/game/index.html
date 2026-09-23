@@ -8899,20 +8899,24 @@ window.addEventListener('load',()=>{setInterval(drawFronts,4000)});
 .wd31-disc .hd small{margin-inline-start:auto;font-weight:700;font-size:10px;color:#8fb8dd}
 .wd31-btnbig{width:100%;padding:13px;border-radius:16px;border:1px solid rgba(255,204,0,.5);cursor:pointer;font-family:inherit;font-weight:900;font-size:13.5px;color:#ffe08a;background:linear-gradient(160deg,rgba(66,50,6,.7),rgba(30,22,4,.8));transition:.2s}
 .wd31-btnbig:active{transform:scale(.98)}
-/* V34: dedicated Olympic FAB — its own spot on the right edge, below the HUD strip.
-   No longer squeezed among the small chips: bigger icon, own golden button, zero overlap. */
-#hud-olympic{position:fixed;right:10px;top:142px;width:54px;height:54px;z-index:9997;cursor:pointer;
+/* V35: dedicated Olympic FAB — bigger & impossible to miss, still on its own right-edge lane
+   below the HUD strip with dynamic reflow, so it never overlaps any chip or button. */
+#hud-olympic{position:fixed;right:8px;top:142px;width:72px;height:72px;z-index:9997;cursor:pointer;
   display:flex;align-items:center;justify-content:center;border-radius:50%;
-  background:linear-gradient(150deg,rgba(74,56,6,.96),rgba(30,22,2,.96));
-  border:1.5px solid rgba(255,204,0,.65);
-  box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 16px rgba(255,204,0,.28),inset 0 1px 0 rgba(255,232,130,.35);
+  background:radial-gradient(circle at 32% 26%,rgba(122,92,10,.98),rgba(56,42,4,.98) 46%,rgba(24,18,2,.98));
+  border:2.5px solid rgba(255,214,60,.9);
+  box-shadow:0 10px 30px rgba(0,0,0,.6),0 0 26px rgba(255,204,0,.42),inset 0 2px 0 rgba(255,236,150,.5),inset 0 -8px 18px rgba(120,80,0,.35);
   transition:transform .15s,box-shadow .3s}
+#hud-olympic::before{content:'';position:absolute;inset:-5px;border-radius:50%;z-index:-1;
+  background:conic-gradient(from 0deg,rgba(255,214,60,0) 0deg,rgba(255,214,60,.55) 40deg,rgba(255,214,60,0) 90deg);
+  animation:wdolSpin 3.2s linear infinite}
+@keyframes wdolSpin{to{transform:rotate(360deg)}}
 #hud-olympic:active{transform:scale(.92)}
-#hud-olympic .wdol-fab-label{position:absolute;bottom:-13px;left:50%;transform:translateX(-50%);white-space:nowrap;
-  font-size:7.5px;font-weight:900;color:#ffe08a;background:rgba(24,17,1,.92);border:1px solid rgba(255,204,0,.45);
-  padding:1px 6px;border-radius:99px;letter-spacing:.3px;pointer-events:none}
-#hud-olympic .wdol-fab-dot{display:none;position:absolute;top:-2px;right:-2px;width:12px;height:12px;border-radius:50%;
-  background:#ff3366;border:2px solid #16020a;box-shadow:0 0 10px #ff3366;animation:wd31Pulse 1.2s infinite}
+#hud-olympic .wdol-fab-label{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);white-space:nowrap;
+  font-size:9.5px;font-weight:900;color:#ffe08a;background:rgba(24,17,1,.95);border:1px solid rgba(255,204,0,.55);
+  padding:2px 9px;border-radius:99px;letter-spacing:.4px;pointer-events:none;box-shadow:0 3px 10px rgba(0,0,0,.5)}
+#hud-olympic .wdol-fab-dot{display:none;position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;
+  background:#ff3366;border:2.5px solid #16020a;box-shadow:0 0 12px #ff3366;animation:wd31Pulse 1.2s infinite}
 #hud-olympic.wg33-live{border-color:rgba(255,214,80,.95);animation:wg33FabPulse 1.6s infinite}
 #hud-olympic.wg33-live .wdol-fab-dot{display:block}
 #hud-olympic.wg33-live .wdol-fab-label{color:#ff9db6;border-color:rgba(255,51,102,.55);background:rgba(40,4,14,.94)}
@@ -9171,7 +9175,7 @@ function wdolFabPlace(){try{
      whatever the screen width / wrap count — re-checked on resize */
   const fab=H('hud-olympic');if(!fab)return;
   const s=H('hud-strip');let top=142;
-  if(s){const r=s.getBoundingClientRect();if(r.bottom>60)top=Math.min(window.innerHeight-160,Math.max(96,Math.round(r.bottom)+14))}
+  if(s){const r=s.getBoundingClientRect();if(r.bottom>60)top=Math.min(window.innerHeight-190,Math.max(96,Math.round(r.bottom)+16))}
   fab.style.top=top+'px'}catch(e){}}
 window.WD33_FAB_PLACE=wdolFabPlace;
 window.addEventListener('load',()=>{setTimeout(()=>{try{
@@ -9179,7 +9183,7 @@ window.addEventListener('load',()=>{setTimeout(()=>{try{
   if(fab&&fab.classList.contains('hchip'))fab.remove(); /* old squeezed chip from a cached session → rebuild as FAB */
   if(!fab){
     fab=D.createElement('div');fab.id='hud-olympic';fab.title='المپیک جهانی — صفحه‌ی کامل رقابت‌ها';
-    fab.innerHTML=(window.WD33_ICON?window.WD33_ICON(34):'🏅')+'<span class="wdol-fab-dot"></span><span class="wdol-fab-label">المپیک</span>';
+    fab.innerHTML=(window.WD33_ICON?window.WD33_ICON(46):'🏅')+'<span class="wdol-fab-dot"></span><span class="wdol-fab-label">المپیک</span>';
     fab.addEventListener('click',function(){try{window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}});
     D.body.appendChild(fab)}
   wdolFabPlace();
@@ -9455,6 +9459,70 @@ setTimeout(placeCrown,12000);setInterval(()=>{if(!document.hidden)placeCrown()},
 .wg33-pod3 .p2 .pb{height:56px;background:linear-gradient(180deg,#e8eef7,#93a5bd)}
 .wg33-pod3 .p3 .pb{height:46px;background:linear-gradient(180deg,#f0b98a,#b06a35)}
 .wg33-pod3 .pp small{font-size:9px;color:#9cc3e8}
+/* ============ V35 FX: استادیوم سینمایی برای مینی‌گیم‌ها ============ */
+#wd33-stage.wg35-stadium{background:
+  radial-gradient(1200px 500px at 50% -8%,rgba(255,204,0,.10),transparent 60%),
+  radial-gradient(900px 420px at 8% 108%,rgba(0,120,255,.10),transparent 60%),
+  radial-gradient(900px 420px at 92% 108%,rgba(255,60,120,.08),transparent 60%),
+  linear-gradient(180deg,#061528 0%,#030b16 58%,#02060e 100%)}
+#wd33-stage.wg35-stadium::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:
+    conic-gradient(from 200deg at 18% -6%,rgba(255,235,170,.10),transparent 28%),
+    conic-gradient(from 340deg at 82% -6%,rgba(170,220,255,.10),transparent 28%);
+  animation:wg35Beam 9s ease-in-out infinite alternate}
+@keyframes wg35Beam{from{opacity:.55;transform:translateX(-14px)}to{opacity:1;transform:translateX(14px)}}
+#wd33-stage.wg35-stadium .s33bd{z-index:2}
+#wd33-stage .wg35-crowd{position:absolute;top:6px;left:0;right:0;display:flex;justify-content:center;gap:10px;
+  font-size:13px;opacity:.5;pointer-events:none;z-index:1;letter-spacing:2px}
+#wd33-stage .wg35-crowd span{animation:wg35Bob 1.4s ease-in-out infinite}
+#wd33-stage .wg35-crowd span:nth-child(2n){animation-delay:.2s}
+#wd33-stage .wg35-crowd span:nth-child(3n){animation-delay:.45s}
+@keyframes wg35Bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+#wd33-stage.wg35-shake{animation:wg35Shake .32s linear}
+@keyframes wg35Shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-6px,3px)}40%{transform:translate(5px,-4px)}60%{transform:translate(-4px,2px)}80%{transform:translate(3px,-2px)}}
+#wd33-stage .wg35-flash{position:absolute;inset:0;pointer-events:none;z-index:60;opacity:0;background:#fff}
+#wd33-stage .wg35-flash.go{animation:wg35Flash .5s ease-out}
+@keyframes wg35Flash{0%{opacity:var(--o,.55)}100%{opacity:0}}
+#wg33-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:55}
+.wg33-count-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:190px;height:190px}
+.wg33-count-wrap svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.wg33-count-wrap .cd{font-size:84px;font-weight:900;color:#ffd75e;text-shadow:0 0 44px rgba(255,204,0,.65);animation:wg35Pop .82s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes wg35Pop{0%{transform:scale(2.1);opacity:0}55%{transform:scale(.94);opacity:1}100%{transform:scale(1)}}
+.wg33-result .stars{font-size:30px;letter-spacing:6px;margin-top:4px;filter:drop-shadow(0 0 12px rgba(255,204,0,.6))}
+.wg33-result .stars i{font-style:normal;opacity:.22;transition:opacity .4s}
+.wg33-result .stars i.on{opacity:1;animation:wg35Star .5s cubic-bezier(.2,1.8,.4,1) both}
+@keyframes wg35Star{from{transform:scale(0) rotate(-40deg)}to{transform:scale(1) rotate(0)}}
+/* sprint */
+.gm35-lane{position:absolute;inset:0;opacity:.5;background:repeating-linear-gradient(90deg,rgba(255,255,255,.06) 0 26px,transparent 26px 52px);animation:wg35Road .7s linear infinite paused}
+@keyframes wg35Road{to{background-position:-52px 0}}
+.gm35-lane.run{animation-play-state:running}
+/* swim */
+.gm35-water{position:absolute;inset:0;background:linear-gradient(180deg,rgba(43,140,220,.35),rgba(16,70,140,.5));animation:wg35Water 3.2s ease-in-out infinite alternate}
+@keyframes wg35Water{from{background-position:0 0}to{background-position:0 12px}}
+.gm35-wave{position:absolute;left:0;right:0;height:10px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.25) 0 14px,transparent 14px 28px);animation:wg35Road 1.6s linear infinite;opacity:.5}
+/* cycling */
+.gm35-speedlines{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.10) 0 2px,transparent 2px 34px);animation:wg35Road .25s linear infinite}
+.gm35-speedlines.on{opacity:.6}
+/* volley / football */
+.gm35-netwig{animation:wg35Net .35s ease}
+@keyframes wg35Net{0%,100%{transform:skewY(0)}30%{transform:skewY(5deg)}60%{transform:skewY(-4deg)}}
+.gm35-trail{position:absolute;font-size:26px;opacity:.35;pointer-events:none;transition:opacity .35s,transform .35s}
+.gm35-ripple{position:absolute;border:3px solid rgba(255,255,255,.85);border-radius:50%;pointer-events:none;z-index:54;transform:translate(-50%,-50%)}
+/* gym */
+.gm35-combo{position:absolute;top:10px;left:12px;font-size:13px;font-weight:900;color:#ffd75e;z-index:52;text-shadow:0 0 12px rgba(255,157,60,.7);transform:rotate(-4deg)}
+.gm35-perfect{position:absolute;top:14px;right:14px;font-size:15px;font-weight:900;color:#7dff9e;z-index:52;animation:wg35Pop .5s ease both;text-shadow:0 0 16px rgba(80,255,140,.8)}
+/* weight */
+.gm35-crowdstat{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 2px,transparent 2px 7px);pointer-events:none}
+.gm35-aura{box-shadow:0 0 0 0 rgba(255,215,94,.7);animation:wg35Aura .6s ease-out}
+@keyframes wg35Aura{from{box-shadow:0 0 0 0 rgba(255,215,94,.8)}to{box-shadow:0 0 0 34px rgba(255,215,94,0)}}
+/* chess */
+.gm35-chess .mv{background:rgba(255,215,94,.32)!important;outline:2px solid rgba(255,215,94,.75);outline-offset:-2px}
+.gm35-stamp{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%) rotate(-12deg) scale(3);font-size:26px;font-weight:900;color:#ff5d7e;
+  border:4px solid #ff5d7e;border-radius:12px;padding:4px 16px;background:rgba(20,2,8,.8);z-index:56;animation:wg35Stamp .45s cubic-bezier(.3,1.4,.5,1) both}
+@keyframes wg35Stamp{from{transform:translate(-50%,-50%) rotate(-12deg) scale(3);opacity:0}to{transform:translate(-50%,-50%) rotate(-12deg) scale(1);opacity:1}}
+.gm35-glide{position:absolute;z-index:57;font-size:clamp(14px,4.6vw,22px);pointer-events:none;transition:all .6s cubic-bezier(.3,.9,.3,1)}
+
 </style>
 <script id="v33-games">
 /* ============ V33: Olympic Games hub — state, page, strip, statue, truce ============ */
@@ -9962,12 +10030,14 @@ function clrAll(){CL.raf.forEach(id=>{try{cancelAnimationFrame(id)}catch(e){}});
 function loop33(fn){let last=0;const step=t=>{if(!sOpen)return;fn(t);CL.raf.push(requestAnimationFrame(step))};CL.raf.push(requestAnimationFrame(step))}
 function tm33(fn,ms){const id=setTimeout(fn,ms);CL.tm.push(id);return id}
 function on33(el,ev,fn,opt){el.addEventListener(ev,fn,opt);CL.clean.push(()=>{try{el.removeEventListener(ev,fn,opt)}catch(e){}})}
-function ensureStage(){if(!stage){stage=D.createElement('div');stage.id='wd33-stage';
+function ensureStage(){if(!stage){stage=D.createElement('div');stage.id='wd33-stage';stage.classList.add('wg35-stadium');
   stage.innerHTML='<div class="s33hd"><span class="ic" id="wg33-ic">🏅</span><span class="nm" id="wg33-nm"></span><span class="chips"><span class="chip33" id="wg33-att"></span><span class="chip33" id="wg33-bst"></span><button class="x33" id="wg33-x">✕</button></span></div><div class="s33bd" id="wg33-sbd"></div><div class="s33ft" id="wg33-sft"></div>';
   D.body.appendChild(stage);
+  stage.insertAdjacentHTML('beforeend','<div class="wg35-flash" id="wg33-fxflash"></div>');
   stage.querySelector('#wg33-x').addEventListener('click',()=>closeStage(true))}
+  FX.ensure();
   return stage}
-function closeStage(refresh){clrAll();sOpen=false;if(stage)stage.classList.remove('on');
+function closeStage(refresh){clrAll();sOpen=false;FX.stop();if(stage)stage.classList.remove('on');
   if(refresh&&window.WD33_REFRESH)window.WD33_REFRESH(true)}
 D.addEventListener('keydown',ev=>{if(ev&&ev.key==='Escape'&&sOpen)closeStage(true)});
 function hud(m){const att=D.getElementById('wg33-att'),bst=D.getElementById('wg33-bst');
@@ -9975,8 +10045,54 @@ function hud(m){const att=D.getElementById('wg33-att'),bst=D.getElementById('wg3
   if(bst)bst.textContent='بهترین: '+faN(m.best||0)}
 function foot(t){const f=D.getElementById('wg33-sft');if(f)f.textContent=t||''}
 
-/* main entry */
-window.WD33_PLAY=async function(key){
+/* ---------- V35 FX engine: sparks / confetti / floating text / rings / shake / flash ---------- */
+const FX=(()=>{
+  let cv=null,ctx=null,parts=[],run=false,vw=0,vh=0,dpr=1;
+  function ensure(){if(cv)return true;
+    if(!stage)return false;
+    cv=D.createElement('canvas');cv.id='wg33-fx';stage.appendChild(cv);
+    ctx=cv.getContext('2d');
+    const rs=()=>{if(!cv)return;const r=stage.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);
+      vw=r.width;vh=r.height;cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);
+      if(ctx)ctx.setTransform(dpr,0,0,dpr,0,0)};
+    rs();window.addEventListener('resize',rs);CL.clean.push(()=>{try{window.removeEventListener('resize',rs)}catch(e){}});
+    return true}
+  function start(){if(run||!cv)return;run=true;requestAnimationFrame(tick)}
+  function tick(){if(!run||!sOpen){run=false;return}
+    ctx.clearRect(0,0,vw,vh);
+    if(parts.length){
+      const alive=[];
+      for(const p of parts){p.t+=p.dt;p.life-=p.dt;if(p.life<=0)continue;alive.push(p);
+        const k=1-p.life/p.dur;
+        if(p.kind==='text'){ctx.globalAlpha=Math.max(0,1-k);ctx.fillStyle=p.col;ctx.font='900 '+(p.size||17)+'px Vazirmatn,system-ui,sans-serif';ctx.textAlign='center';
+          const y=p.y-k*p.rise;ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=3;ctx.strokeText(p.txt,p.x,y);ctx.fillText(p.txt,p.x,y)}
+        else if(p.kind==='ring'){ctx.globalAlpha=Math.max(0,1-k)*.9;ctx.strokeStyle=p.col;ctx.lineWidth=3.5*(1-k)+.5;
+          ctx.beginPath();ctx.arc(p.x,p.y,p.r0+(p.r1-p.r0)*k,0,6.3);ctx.stroke()}
+        else if(p.kind==='conf'){ctx.globalAlpha=Math.max(0,1-k);ctx.save();ctx.translate(p.x+Math.sin(p.t*p.wob)*14,p.y+p.vy*k*46);ctx.rotate(p.t*p.spin);
+          ctx.fillStyle=p.col;ctx.fillRect(-p.s/2,-p.s/4,p.s,p.s/2);ctx.restore()}
+        else{ctx.globalAlpha=Math.max(0,1-k);ctx.fillStyle=p.col;
+          const x=p.x+p.vx*k*p.dist,y=p.y+p.vy*k*p.dist+(p.grav?p.grav*k*k*60:0);
+          ctx.beginPath();ctx.arc(x,y,p.s*(1-k*.6),0,6.3);ctx.fill()}}
+      parts=alive;ctx.globalAlpha=1}
+    requestAnimationFrame(tick)}
+  function pt(el,fx,fy){const r=el.getBoundingClientRect();return{x:r.left+r.width*(fx==null?.5:fx),y:r.top+r.height*(fy==null?.5:fy)}}
+  function spark(x,y,col,n,spd,grav){if(!ctx)return;start();n=n||12;const cols=Array.isArray(col)?col:[col];
+    for(let i=0;i<n;i++){const a=Math.random()*6.3,d=spd||70;
+      parts.push({kind:'sp',x,y,vx:Math.cos(a),vy:Math.sin(a),dist:d*(.5+Math.random()),t:0,dt:.016,dur:.45+Math.random()*.4,life:0,s:2.5+Math.random()*2.5,col:cols[i%cols.length],grav:grav==null?1:grav})}
+    if(parts.length>260)parts.splice(0,parts.length-260)}
+  function conf(n){if(!ctx)return;start();n=n||60;const cols=['#ffd75e','#ff6b9d','#39e6d0','#7dff9e','#7fd8ff','#ffb02e'];
+    for(let i=0;i<n;i++)parts.push({kind:'conf',x:Math.random()*vw,y:-14-Math.random()*vh*.3,vy:.6+Math.random()*.9,t:Math.random()*3,dt:.016,dur:2.1+Math.random()*.9,life:0,s:6+Math.random()*6,spin:3+Math.random()*5,wob:2+Math.random()*3,col:cols[i%cols.length]})}
+  function text(x,y,txt,col,size){if(!ctx)return;start();parts.push({kind:'text',x,y,txt,col:col||'#ffd75e',size:size||17,t:0,dt:.016,dur:.9,life:0,rise:44})}
+  function ring(x,y,col,r0,r1){if(!ctx)return;start();parts.push({kind:'ring',x,y,col:col||'rgba(255,215,94,.9)',r0:r0||8,r1:r1||54,t:0,dt:.016,dur:.5,life:0})}
+  function shake(){if(!stage)return;stage.classList.remove('wg35-shake');void stage.offsetWidth;stage.classList.add('wg35-shake')}
+  function flash(col,op){const f=D.getElementById('wg33-fxflash');if(!f)return;
+    f.style.background=col||'#fff';f.style.setProperty('--o',String(op==null?.5:op));f.classList.remove('go');void f.offsetWidth;f.classList.add('go')}
+  function punch(el){if(!el)return;el.style.transition='transform .12s';el.style.transform='scale(1.18)';
+    setTimeout(()=>{el.style.transform=''},130)}
+  function stop(){run=false;parts=[];if(cv&&ctx)ctx.clearRect(0,0,vw,vh)}
+  function wipe(){parts=[]}
+  return{ensure,pt,spark,conf,text,ring,shake,flash,punch,stop,wipe};
+})();
   if(sOpen)return;
   const m=GD33[key];if(!m)return;
   const g=(typeof window.WD33_PHASE==='function')?window.WD33_PHASE():null;
@@ -10339,7 +10455,7 @@ window.WD33_GFLAG=placeGoldenFlag; /* test/manual hook */
 .wd34-prestag{display:inline-flex;align-items:center;gap:3px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;font-size:8.5px;font-weight:900;padding:1.5px 7px;border-radius:99px;box-shadow:0 0 8px rgba(99,102,241,.55);white-space:nowrap;flex:none;vertical-align:middle}
 .wd34-allytag{display:inline-flex;align-items:center;background:rgba(0,220,255,.12);border:1px solid rgba(0,220,255,.4);color:#7fd8ff;font-size:8.5px;font-weight:900;padding:0 6px;border-radius:7px;white-space:nowrap;flex:none;vertical-align:middle;direction:ltr}
 /* heatmap button + legend */
-#wd34-heat-btn{position:fixed;right:10px;top:216px;width:44px;height:44px;z-index:9997;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:19px;
+#wd34-heat-btn{position:fixed;right:10px;top:236px;width:44px;height:44px;z-index:9997;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:19px;
   background:linear-gradient(150deg,rgba(60,14,4,.95),rgba(24,6,2,.95));border:1.5px solid rgba(255,110,60,.55);
   box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 12px rgba(255,90,40,.2)}
 #wd34-heat-btn.on{border-color:#ff6a3c;box-shadow:0 0 20px rgba(255,90,40,.75);animation:wd31Pulse 1.6s infinite}
@@ -10676,7 +10792,7 @@ function renderPoster(b){
 function heatBtn(){let b=H('wd34-heat-btn');if(b)return b;
   b=D.createElement('div');b.id='wd34-heat-btn';b.title='نقشه‌ی حرارت نبردها (۴۸ ساعت)';
   b.innerHTML='🔥';b.addEventListener('click',toggleHeat);D.body.appendChild(b);return b}
-function syncHeatPos(){try{const f=H('hud-olympic'),b=H('wd34-heat-btn');if(f&&b){const t=parseFloat(getComputedStyle(f).top)||142;b.style.top=(t+66)+'px'}}catch(e){}}
+function syncHeatPos(){try{const f=H('hud-olympic'),b=H('wd34-heat-btn');if(f&&b){const t=parseFloat(getComputedStyle(f).top)||142,h=f.offsetHeight||72;b.style.top=(t+h+14)+'px'}}catch(e){}}
 async function toggleHeat(){
   S.heat=!S.heat;const b=H('wd34-heat-btn'),lg=H('wd34-heat-lg');
   if(b)b.classList.toggle('on',S.heat);
@@ -10757,6 +10873,178 @@ function hookDrawer(){
             else toast(errFa(r),'lose')});
           d.appendChild(b)}
       }catch(e){console.log(e)}}}catch(e){console.log(e)}}
+})();
+</script>
+<style id="v35-rank-css">
+/* ============ V35: رتبه‌بندی پریمیوم — پیشرفت واقعی هر رشته + جایگاه شخصی ============ */
+.wd35-head{display:flex;align-items:center;gap:8px;margin:2px 0 8px}
+.wd35-head .t{flex:1;font-size:13px;font-weight:900;color:#ffd84d}
+.wd35-head .s{font-size:9.5px;color:#8fb8dd;font-weight:700}
+.wd35-head .rf{border:1px solid rgba(0,220,255,.35);background:rgba(0,220,255,.08);color:#7fd8ff;font-family:inherit;
+  font-weight:900;font-size:10px;border-radius:9px;padding:5px 10px;cursor:pointer}
+.wd35-me{position:relative;overflow:hidden;border-radius:14px;padding:10px 12px;margin-bottom:9px;
+  background:linear-gradient(140deg,rgba(56,189,248,.14),rgba(14,30,54,.92));border:1px solid rgba(56,189,248,.45)}
+.wd35-me .h{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:900;color:#bfe9ff}
+.wd35-me .h b{color:#fff;font-size:12.5px}
+.wd35-me .rk{margin-inline-start:auto;background:linear-gradient(135deg,#ffd75e,#ff9d3c);color:#3a2600;font-size:10.5px;
+  font-weight:900;padding:2px 10px;border-radius:99px;box-shadow:0 0 10px rgba(255,157,60,.5)}
+.wd35-me .bar{margin-top:7px}
+.wd35-me .nx{margin-top:6px;font-size:9.5px;color:#8fb8dd;font-weight:700}
+.wd35-pod{display:flex;gap:8px;align-items:flex-end;margin:4px 0 10px;direction:rtl}
+.wd35-pod .pc{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;border-radius:14px 14px 0 0;padding:8px 4px 7px;
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.1);border-bottom:none}
+.wd35-pod .m{font-size:17px;filter:drop-shadow(0 0 6px rgba(255,204,0,.5))}
+.wd35-pod .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:14px;color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.45)}
+.wd35-pod b{font-size:10.5px;color:#fff;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wd35-pod .v{font-size:9.5px;color:#ffe08a;font-weight:900}
+.wd35-pod .p1{padding-top:14px;background:linear-gradient(180deg,rgba(255,204,0,.16),rgba(255,204,0,.03));border-color:rgba(255,204,0,.5)}
+.wd35-pod .p2{background:linear-gradient(180deg,rgba(220,230,245,.10),rgba(220,230,245,.02))}
+.wd35-pod .p3{background:linear-gradient(180deg,rgba(232,160,107,.10),rgba(232,160,107,.02))}
+.wd35-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;margin-top:6px;
+  background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);animation:wd35In .3s ease both}
+@keyframes wd35In{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.wd35-row.me{border-color:rgba(56,189,248,.55);background:linear-gradient(140deg,rgba(56,189,248,.13),rgba(10,24,44,.9))}
+.wd35-row .rk-n{flex:0 0 22px;text-align:center;font-weight:900;font-size:11px;color:#9fb6d4}
+.wd35-row .av{width:28px;height:28px;flex:0 0 28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:12px;color:#fff}
+.wd35-row .mid{flex:1;min-width:0}
+.wd35-row .nick{display:flex;align-items:center;gap:4px;font-size:11.5px;color:#fff;min-width:0}
+.wd35-row .nick b{max-width:44vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wd35-row .tt{font-size:8.5px;color:#93a8c4;font-weight:800}
+.wd35-row .bar{height:5px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:4px}
+.wd35-row .bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#39e6d0,#2bb8ff);transition:width .6s ease}
+.wd35-row.me .bar i{background:linear-gradient(90deg,#ffd75e,#ff9d3c)}
+.wd35-row .val{flex:0 0 auto;text-align:left;min-width:64px}
+.wd35-row .val b{display:block;font-size:11px;color:#ffe08a}
+.wd35-row .val small{display:block;font-size:8.5px;color:#8fb8dd}
+.wd35-you{font-size:8.5px;font-weight:900;background:rgba(56,189,248,.2);color:#7fd8ff;padding:1px 7px;border-radius:99px;flex:none}
+.wg33-legend{display:inline-flex;align-items:center;background:linear-gradient(135deg,rgba(255,204,0,.25),rgba(255,120,40,.2));
+  border:1px solid rgba(255,204,0,.55);color:#ffe08a;font-size:8.5px;font-weight:900;padding:0 6px;border-radius:99px;white-space:nowrap}
+</style>
+<script id="v35-rank">
+/* ============ V35: رتبه‌بندی هر رشته با پیشرفت واقعی + جایگاه شخصی (فیکس باگ دکمه رنکینگ) ============
+   قبلاً: فقط ۱۰ نفر اول با یک عدد خشک؛ رتبه و پیشرفت خود بازیکن (اگر خارج از ۱۰ نفر بود) هیچ‌جا
+   نشان داده نمی‌شد و رندر پریمیوم V28 هم به تب‌ها وصل نبود. حالا: سکو، نوار پیشرفت نسبت به صدر،
+   جایگاه شخصی پین‌شده در «هر» رشته و فاصله تا رتبه‌ی بعدی. */
+(function(){
+'use strict';
+const D=document;
+const faN=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const num=n=>{try{return Number(n||0).toLocaleString('fa-IR')}catch(e){return faN(n||0)}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const CAT35={
+  score:{fa:'🏰 کشورگشایی',unit:'کشور',col:'conquered',tip:'پیشرفت = تعداد کشورهای تحت کنترل'},
+  kills:{fa:'⚔️ کشتار نظامی',unit:'کشته',col:'kills',tip:'پیشرفت = مجموع کشتار واقعی در نبردها'},
+  economy:{fa:'💰 اقتصاد',unit:'امتیاز',col:'economy',tip:'پیشرفت = خزانه + قلمرو + زیرساخت'},
+  recruits:{fa:'🪖 استخدام نیرو',unit:'نیرو',col:'recruits',tip:'پیشرفت = کل نیروهای ارتش'}};
+const valOf=(cat,x)=>cat==='kills'?Math.max(0,Number(x.kills)||0):cat==='economy'?Math.max(0,Number(x.economy)||0):cat==='recruits'?Math.max(0,Number(x.recruits)||0):Math.max(0,Number(x.conquered)||0);
+const hue35=n=>{let h=11;for(const c of String(n||''))h=(h*37+c.charCodeAt(0))%360;return h};
+const srv35=()=>{try{return Math.max(1,Number(window.SRV||SRV)||1)}catch(e){return 1}};
+/* fetch up to 400 rows so MY exact rank is computable even outside the visible top-10 */
+async function rankQuery35(cat){
+  const col=CAT35[cat].col;
+  const sel='user_id,nick,conquered,score,kills,economy,recruits';
+  let last=null;
+  for(const withSrv of [true,false]){
+    let q=window.sb.from('scores').select(sel);
+    if(withSrv)q=q.eq('server',srv35());
+    const r=await q.order(col,{ascending:false}).limit(400);
+    if(r.error){last=r.error;continue}
+    if(withSrv&&(!r.data||!r.data.length))continue;
+    return{rows:r.data||[],scope:withSrv?'server':'all'}}
+  if(last)throw last;
+  return{rows:[],scope:'all'}}
+function avEl(nick,size){const a=D.createElement('div');a.className='av';
+  a.style.width=size+'px';a.style.height=size+'px';a.style.flexBasis=size+'px';
+  a.style.background='linear-gradient(135deg,hsl('+hue35(nick)+',65%,45%),hsl('+((hue35(nick)+50)%360)+',70%,32%))';
+  a.textContent=(nick||'؟').charAt(0).toUpperCase();return a}
+function bar35(v,max,me){const w=D.createElement('div');w.className='bar';const i=D.createElement('i');
+  w.appendChild(i);requestAnimationFrame(()=>{i.style.width=Math.max(4,Math.round(v/Math.max(1,max)*100))+'%'});return w}
+function badges35(nick,mid){
+  try{if(window.WD32_isChamp&&window.WD32_isChamp(nick)){const t=D.createElement('span');t.className='wd32-tag';t.textContent='🏆 قهرمان';mid.appendChild(t)}}catch(e){}
+  try{const c33=window.WD33_CAREER&&window.WD33_CAREER(nick);
+    if(c33&&c33.total>0){if(window.WD33_LEGEND&&window.WD33_LEGEND(c33)){const l=D.createElement('span');l.className='wg33-legend';l.textContent='⭐ اسطوره';mid.appendChild(l)}
+      else{const s=D.createElement('span');s.className='wd32-tag';s.textContent='🗿 '+faN(c33.total)+' مدال';mid.appendChild(s)}}}catch(e){}
+  try{if(window.WD34_PRES&&window.WD34_PRES()===nick){const p=D.createElement('span');p.className='wd34-prestag';p.textContent='🏛️ رئیس';mid.appendChild(p)}}catch(e){}}
+function row35(x,i,max,cat,pinned){
+  const me=(typeof ACC!=='undefined'&&ACC&&x.user_id===ACC.uid);
+  const row=D.createElement('div');row.className='wd35-row'+(me?' me':'');
+  if(pinned)row.style.borderColor='rgba(255,214,60,.65)';
+  const rk=D.createElement('span');rk.className='rk-n';rk.textContent=faN(i+1);row.appendChild(rk);
+  row.appendChild(avEl(x.nick,28));
+  const mid=D.createElement('div');mid.className='mid';
+  const nick=D.createElement('div');nick.className='nick';
+  const nb=D.createElement('b');nb.textContent=x.nick||'بازیکن';nick.appendChild(nb);
+  if(me){const y=D.createElement('span');y.className='wd35-you';y.textContent='شما';nick.appendChild(y)}
+  if(!pinned){const tt=D.createElement('span');tt.className='tt';
+    tt.textContent=(x.conquered>=40?'فرمانروا':x.conquered>=22?'امپراتور':x.conquered>=10?'فتحگر':x.conquered>=3?'سردار':'آغازگر');nick.appendChild(tt)}
+  badges35(x.nick,nick);mid.appendChild(nick);
+  mid.appendChild(bar35(valOf(cat,x),max,me));row.appendChild(mid);
+  const val=D.createElement('div');val.className='val';
+  const vb=D.createElement('b');vb.textContent=num(valOf(cat,x));val.appendChild(vb);
+  const vs=D.createElement('small');vs.textContent=CAT35[cat].unit;val.appendChild(vs);row.appendChild(val);
+  return row}
+async function renderRank35(box,cat){
+  const my=window.__wd35tok=(window.__wd35tok||0)+1;box.textContent='';
+  const head=D.createElement('div');head.className='wd35-head';
+  head.innerHTML='<div style="flex:1"><div class="t">'+CAT35[cat].fa+'</div><div class="s">در حال دریافت…</div></div>';
+  const rf=D.createElement('button');rf.className='rf';rf.textContent='⟳ بروزرسانی';
+  rf.addEventListener('click',()=>renderRank35(box,cat));head.appendChild(rf);box.appendChild(head);
+  const tip=D.createElement('div');tip.style.cssText='font-size:9px;color:#6f8db0;font-weight:700;margin:-4px 2px 8px';
+  tip.textContent=CAT35[cat].tip;box.appendChild(tip);
+  if(!window.sb){const e=D.createElement('div');e.className='lr-row';e.textContent='رتبه‌بندی فقط با حساب آنلاین کار می‌کند';box.appendChild(e);return}
+  try{
+    const res=await Promise.race([rankQuery35(cat),new Promise((_,no)=>setTimeout(()=>no(new Error('timeout')),15000))]);
+    if(my!==window.__wd35tok)return;
+    const sub=head.querySelector('.s');
+    if(sub)sub.textContent=(res.scope==='server'?'🌍 سرور '+faN(srv35()):'🌐 همه‌ی بازیکنان')+' — '+faN(res.rows.length)+' فرمانده';
+    const rows=res.rows,maxVal=Math.max(1,...rows.map(x=>valOf(cat,x)));
+    /* --- my standing (exact rank, even outside top-10) --- */
+    let myIdx=-1;const uid=(typeof ACC!=='undefined'&&ACC&&ACC.uid)||null;
+    rows.forEach((x,i)=>{if(uid&&x.user_id===uid)myIdx=i});
+    if(uid){
+      const me=box.appendChild(D.createElement('div'));me.className='wd35-me';
+      const h=D.createElement('div');h.className='h';
+      const lb=D.createElement('span');lb.innerHTML='🎯 پیشرفت تو در '+CAT35[cat].fa+': <b>'+(myIdx>-1?esc(rows[myIdx].nick):'—')+'</b>';h.appendChild(lb);
+      const rkb=D.createElement('span');rkb.className='rk';rkb.textContent=myIdx>-1?'رتبه '+faN(myIdx+1):'رتبه‌ای نداری';h.appendChild(rkb);
+      me.appendChild(h);
+      if(myIdx>-1){
+        me.appendChild(bar35(valOf(cat,rows[myIdx]),maxVal,true));
+        const nx=D.createElement('div');nx.className='nx';
+        if(myIdx===0)nx.textContent='👑 صدرنشینی — همه باید به تو برسند!';
+        else{const gap=valOf(cat,rows[myIdx-1])-valOf(cat,rows[myIdx]);
+          nx.textContent='فاصله تا رتبه‌ی بعد ('+esc(rows[myIdx-1].nick)+'): '+num(Math.max(1,gap))+' '+CAT35[cat].unit}
+        me.appendChild(nx)}
+      else{const nx=D.createElement('div');nx.className='nx';
+        nx.textContent='هنوز در این رشته امتیازی ثبت نشده — بازی کن تا وارد جدول شوی';me.appendChild(nx)}
+    }
+    /* --- podium top-3 --- */
+    if(rows.length>=3){
+      const pod=D.createElement('div');pod.className='wd35-pod';
+      [1,0,2].forEach((idx,k)=>{
+        const x=rows[idx],me=uid&&x.user_id===uid;
+        const c=D.createElement('div');c.className='pc '+['p2','p1','p3'][k]+(me?' me':'');
+        const m=D.createElement('div');m.className='m';m.textContent=['🥈','👑','🥉'][k];c.appendChild(m);
+        c.appendChild(avEl(x.nick,34));
+        const b=D.createElement('b');b.textContent=x.nick||'—';c.appendChild(b);
+        const v=D.createElement('div');v.className='v';v.textContent=num(valOf(cat,x))+' '+CAT35[cat].unit;c.appendChild(v);
+        pod.appendChild(c)});
+      box.appendChild(pod)}
+    /* --- rows 4..10 (+ me if outside top-10, pinned) --- */
+    const start=rows.length>=3?3:0,shown=new Set();
+    for(let i=start;i<Math.min(10,rows.length);i++){shown.add(rows[i].user_id);box.appendChild(row35(rows[i],i,maxVal,cat,false))}
+    if(uid&&myIdx>=10)box.appendChild(row35(rows[myIdx],myIdx,maxVal,cat,true));
+    if(!rows.length){const e=D.createElement('div');e.className='lr-row';e.textContent='هنوز کسی امتیازی ثبت نکرده.';box.appendChild(e)}
+  }catch(e){
+    if(my!==window.__wd35tok)return;console.log(e);
+    const el=D.createElement('div');el.className='lr-row';el.style.cursor='pointer';
+    el.textContent='❌ دریافت ناموفق — برای تلاش دوباره بزن';el.addEventListener('click',()=>renderRank35(box,cat));box.appendChild(el)}}
+/* re-route BOTH entry points (open + tabs) to the premium renderer */
+window.rankOnlineBy=async function(box,cat){await renderRank35(box,cat)};
+window.rankOnline=async function(box){
+  try{document.querySelectorAll('#live-rank-tabs .lobby-tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.cat==='score'))}catch(e){}
+  await renderRank35(box,'score')};
 })();
 </script>
 </body>
