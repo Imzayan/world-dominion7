@@ -3895,6 +3895,9 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
     if(a==='meteor')return 'رگبار شهاب‌سنگ به فرمان '+who+' بر '+(fa||'نامعلوم')+' بارید'+(whom?' (خاک '+whom+')':'')+'.';
     if(a==='season_champion')return 'فصل به پایان رسید؛ قهرمان: '+(x.actor_nick||'—')+(whom?' (نایب‌قهرمان: '+whom+')':'');
     if(a==='olympic_champion')return '🏅 تاج‌گذاری المپیک: '+(x.actor_nick||'—')+' قهرمان جهان شد و جایزه‌ی بزرگ (۴ جم + ۱۰۰٬۰۰۰ سکه) گرفت. افتخارش برای همیشه کنار نامش می‌ماند.';
+    if(a==='olympic_podium')return '🥇 پایگاه رشته‌ی '+((typeof getCountryData==='function'&&x.country)?(getCountryData(x.country)||{}).fa||x.country:x.country||'')+' مشخص شد — طلا: '+(x.actor_nick||'—');
+    if(a==='olympic_record')return '⚡ رکورد تازه‌ی المپیک در '+((typeof getCountryData==='function'&&x.country)?(getCountryData(x.country)||{}).fa||x.country:x.country||'')+' — '+(x.actor_nick||'—')+' تاریخ را نوشت!';
+    if(a==='olympic_close')return '🏁 اختتامیه‌ی المپیک — قهرمان جهان: '+(x.target_nick||'—')+(x.actor_nick?' (نفر برتر: '+x.actor_nick+')':'');
     if(a==='season_start')return 'فصل جدید آغاز شد؛ نقشه دوباره صحنه‌ی نبرد است.';
     if(a==='trade')return who+' با '+(whom||'بازیکن دیگر')+' معامله‌ی امن انجام داد.';
     if(a==='capture'||a==='conquer')return who+' کشور '+(fa||'نامعلوم')+' را فتح کرد.';
@@ -4990,6 +4993,9 @@ body.wd-low-power *{scroll-behavior:auto!important}
         if(a==='meteor') return `☄️ رگبار شهاب‌سنگ بر ${x.country||'نامعلوم'} بارید`;
         if(a==='season_champion') return `🏆 قهرمان فصل: ${x.actor_nick||'—'}`;
         if(a==='olympic_champion') return `🏅 ${x.actor_nick||'—'} قهرمان المپیک شد — ۴ جم + ۱۰۰٬۰۰۰ سکه جایزه گرفت`;
+        if(a==='olympic_podium') return `🥇 پایگاه رشته‌ی ${x.country||''} — طلا: ${x.actor_nick||'—'}`;
+        if(a==='olympic_record') return `⚡ ${x.actor_nick||'—'} رکورد ${x.country||''} را شکست!`;
+        if(a==='olympic_close') return `🏁 اختتامیه‌ی المپیک — قهرمان جهان: ${x.target_nick||'—'}`;
         if(a==='trade') return `🤝 ${x.actor_nick||'بازیکن'} با ${x.target_nick||'بازیکن دیگر'} معامله کرد`;
         if(x.country) return `🌐 ${x.actor_nick||'بازیکن'} در ${x.country} یک رویداد ثبت کرد`;
         return `🌐 ${x.actor_nick||'بازیکن'} یک رویداد ثبت کرد`;
@@ -9170,6 +9176,940 @@ function poll(){try{
 }catch(e){}}
 poll();setTimeout(poll,6000);setInterval(poll,90000);
 setTimeout(placeCrown,12000);setInterval(placeCrown,180000);
+})();
+</script>
+<style id="v33-css">
+/* ============ V33: Olympic Games — truce, ceremonies, 10 mini-games, country medals ============ */
+#wd33-strip{position:fixed;top:54px;left:50%;transform:translateX(-50%);z-index:65000;display:none;align-items:center;gap:7px;
+  max-width:94vw;overflow-x:auto;padding:5px 12px;border-radius:99px;white-space:nowrap;direction:ltr;
+  background:linear-gradient(90deg,rgba(20,14,2,.92),rgba(40,28,4,.9));border:1px solid rgba(255,204,0,.5);
+  box-shadow:0 4px 18px rgba(0,0,0,.5),0 0 14px rgba(255,204,0,.15);scrollbar-width:none}
+#wd33-strip::-webkit-scrollbar{display:none}
+#wd33-strip.on{display:flex}
+#wd33-strip .s33{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:900;color:#ffe08a}
+#wd33-strip .s33 img{width:15px;height:11px;object-fit:cover;border-radius:2px;outline:1px solid rgba(255,255,255,.35)}
+#wd33-strip .s33 b{color:#fff}
+#wd33-strip .live33{display:inline-flex;align-items:center;gap:4px;color:#ff6b8f;font-size:9px;font-weight:900}
+#wd33-strip .live33 i{width:6px;height:6px;border-radius:50%;background:#ff3366;box-shadow:0 0 8px #ff3366;animation:wd31Pulse 1.2s infinite}
+#hud-olympic.wg33-live{box-shadow:0 0 12px rgba(255,204,0,.75);border-radius:50%;animation:wg33Pulse 1.6s infinite}
+@keyframes wg33Pulse{0%,100%{box-shadow:0 0 6px rgba(255,204,0,.5)}50%{box-shadow:0 0 16px rgba(255,204,0,.95)}}
+.wg33-hero2{position:relative;text-align:center;padding:22px 12px 18px;border-radius:24px;overflow:hidden;
+  background:linear-gradient(165deg,rgba(46,32,4,.9),rgba(4,12,26,.95));border:1px solid rgba(255,204,0,.4);
+  box-shadow:0 18px 50px rgba(0,0,0,.45),inset 0 0 60px rgba(255,204,0,.06)}
+.wg33-hero2 .wg33-big{font-size:46px;line-height:1;filter:drop-shadow(0 0 16px rgba(255,204,0,.5));display:inline-block;animation:wd31Float 4.5s ease-in-out infinite}
+.wg33-ph{display:inline-block;padding:4px 14px;border-radius:99px;font-size:11px;font-weight:900;border:1px solid;margin-top:8px}
+.wg33-ph.reg{color:#7dff9e;border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.08)}
+.wg33-ph.live{color:#ff6b8f;border-color:rgba(255,51,102,.5);background:rgba(255,51,102,.08)}
+.wg33-ph.after{color:#ffd75e;border-color:rgba(255,204,0,.5);background:rgba(255,204,0,.08)}
+.wg33-ph.pre{color:#8fb8dd;border-color:rgba(140,184,221,.4);background:rgba(140,184,221,.07)}
+.wg33-cd{font-size:15px;font-weight:900;color:#ffe08a;margin-top:8px}
+.wg33-host{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 12px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-size:11.5px;font-weight:800;color:#dff6ff}
+.wg33-host img{width:20px;height:14px;object-fit:cover;border-radius:3px;outline:1px solid rgba(255,255,255,.4)}
+.wg33-grid3{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+@media(min-width:560px){.wg33-grid3{grid-template-columns:repeat(3,1fr)}}
+.wg33-disc{position:relative;border-radius:16px;padding:12px 10px;text-align:center;background:linear-gradient(170deg,rgba(10,26,50,.92),rgba(5,13,28,.95));border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:.15s}
+.wg33-disc .ic{font-size:24px}
+.wg33-disc .nm{font-size:11px;font-weight:900;color:#fff;margin-top:4px}
+.wg33-disc .dy{font-size:8.5px;color:#8fb8dd;margin-top:2px}
+.wg33-disc.today{border-color:rgba(255,204,0,.7);box-shadow:0 0 16px rgba(255,204,0,.25)}
+.wg33-disc.done{opacity:.72}
+.wg33-disc.sel{border-color:#7dff9e;background:linear-gradient(170deg,rgba(6,50,36,.9),rgba(4,20,16,.95))}
+.wg33-disc.lock{opacity:.5}
+.wg33-disc .bdg{position:absolute;top:-6px;left:-6px;min-width:18px;height:18px;border-radius:99px;background:linear-gradient(135deg,#ffd75e,#ff9d3c);color:#3a2600;font-size:9.5px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 5px;box-shadow:0 0 10px rgba(255,204,0,.6)}
+.wg33-play{width:100%;margin-top:8px;padding:11px;border:0;border-radius:14px;font-family:inherit;font-weight:900;font-size:13px;cursor:pointer;color:#3a2600;background:linear-gradient(135deg,#ffd75e,#ffb02e);transition:.15s}
+.wg33-play:active{transform:scale(.97)}
+.wg33-play.ghost{background:rgba(255,255,255,.08);color:#cdd7e8}
+.wg33-tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.wg33-tbl th{padding:8px 6px;color:#ffd75e;font-weight:900;font-size:10px;cursor:pointer;user-select:none;border-bottom:1px solid rgba(255,204,0,.3);white-space:nowrap}
+.wg33-tbl th.on{color:#fff;text-shadow:0 0 8px rgba(255,204,0,.8)}
+.wg33-tbl td{padding:8px 6px;text-align:center;color:#dff6ff;border-bottom:1px solid rgba(255,255,255,.05)}
+.wg33-tbl td.cn{display:flex;align-items:center;gap:6px;font-weight:800;justify-content:flex-start;text-align:right}
+.wg33-tbl td.cn img{width:19px;height:13px;object-fit:cover;border-radius:2px;outline:1px solid rgba(255,255,255,.3)}
+.wg33-tbl td.cn.me{color:#ffe08a}
+.wg33-tbl .m{font-weight:900}
+.wg33-tbl .mg{color:#ffd75e}.wg33-tbl .ms{color:#e8eef7}.wg33-tbl .mb{color:#f0b98a}
+.wg33-rec{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:13px;background:rgba(9,20,40,.78);border:1px solid rgba(255,255,255,.07);margin-top:7px;font-size:11px}
+.wg33-rec .ric{font-size:17px}
+.wg33-rec .rn{font-weight:900;color:#fff}
+.wg33-rec .rv{margin-inline-start:auto;font-weight:900;color:#ffd75e;white-space:nowrap}
+.wg33-rec .rc{color:#8fb8dd;font-size:9.5px}
+.wg33-arch{border-radius:16px;padding:11px 12px;background:rgba(8,18,36,.85);border:1px solid rgba(255,255,255,.1);margin-top:8px}
+.wg33-arch .at{display:flex;align-items:center;gap:7px;font-weight:900;font-size:12px;color:#ffe08a}
+.wg33-arch .at img{width:20px;height:14px;object-fit:cover;border-radius:3px;outline:1px solid rgba(255,255,255,.4)}
+.wg33-arch summary{cursor:pointer;list-style:none}
+.wg33-arch summary::-webkit-details-marker{display:none}
+.wg33-arch .apo{margin-top:8px;font-size:10.5px;color:#bfe9ff;line-height:2}
+.wg33-statue{display:inline-flex;align-items:center;gap:2px;vertical-align:middle}
+.wg33-legend{display:inline-flex;align-items:center;gap:3px;background:linear-gradient(135deg,#ff9d3c,#ffd75e);color:#3a2600;font-size:8.5px;font-weight:900;padding:1.5px 7px;border-radius:99px;box-shadow:0 0 8px rgba(255,157,60,.5);white-space:nowrap;flex:none;vertical-align:middle}
+#wd33-stage{position:fixed;inset:0;z-index:165000;display:none;flex-direction:column;background:radial-gradient(circle at 50% 0%,rgba(60,40,4,.35),transparent 55%),linear-gradient(180deg,#04101f,#020810);color:#eaf6ff;font-family:'Vazirmatn',system-ui,sans-serif;touch-action:manipulation}
+#wd33-stage.on{display:flex}
+#wd33-stage .s33hd{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(255,204,0,.25);background:rgba(4,10,20,.8)}
+#wd33-stage .s33hd .ic{font-size:20px}
+#wd33-stage .s33hd .nm{font-weight:900;font-size:13.5px}
+#wd33-stage .s33hd .chips{margin-inline-start:auto;display:flex;gap:6px;align-items:center}
+#wd33-stage .chip33{background:rgba(255,204,0,.12);border:1px solid rgba(255,204,0,.35);color:#ffe08a;font-size:10px;font-weight:900;padding:3px 9px;border-radius:99px;white-space:nowrap}
+#wd33-stage .x33{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(6,16,32,.85);color:#fff;font-size:15px;cursor:pointer}
+#wd33-stage .s33bd{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;position:relative;overflow:hidden;touch-action:none}
+#wd33-stage .s33ft{padding:9px 14px 14px;text-align:center;font-size:10.5px;color:#9cc3e8;border-top:1px solid rgba(255,255,255,.08)}
+.wg33-intro{text-align:center;max-width:420px}
+.wg33-intro .big{font-size:52px}
+.wg33-intro h2{font-size:20px;font-weight:900;color:#ffe08a;margin:8px 0 6px}
+.wg33-intro p{font-size:12.5px;line-height:2;color:#cfe6ff}
+.wg33-start{margin-top:14px;padding:13px 42px;border:0;border-radius:16px;font-family:inherit;font-weight:900;font-size:15px;cursor:pointer;color:#3a2600;background:linear-gradient(135deg,#ffd75e,#ffb02e);box-shadow:0 8px 24px rgba(255,176,46,.35)}
+.wg33-start:disabled{filter:grayscale(.8);opacity:.6}
+.wg33-count{font-size:88px;font-weight:900;color:#ffd75e;text-shadow:0 0 40px rgba(255,204,0,.6);animation:wg33Zoom .8s ease both}
+@keyframes wg33Zoom{from{transform:scale(2.2);opacity:0}to{transform:scale(1);opacity:1}}
+.wg33-result{text-align:center;max-width:420px}
+.wg33-result .sc{font-size:46px;font-weight:900;color:#ffd75e;text-shadow:0 0 26px rgba(255,204,0,.5)}
+.wg33-result .rr{font-size:12px;color:#bfe9ff;margin-top:6px;line-height:2.1}
+.wg33-result .recflag{display:inline-block;margin-top:8px;padding:6px 16px;border-radius:12px;background:linear-gradient(135deg,rgba(255,204,0,.25),rgba(255,120,40,.2));border:1px solid rgba(255,204,0,.6);color:#ffe08a;font-weight:900;font-size:12.5px;animation:wg33Zoom .5s ease both}
+.gm33-track{width:min(92vw,480px);height:64px;border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.14);position:relative;overflow:hidden}
+.gm33-timer{width:min(92vw,480px);height:8px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:12px}
+.gm33-timer i{display:block;height:100%;background:linear-gradient(90deg,#ffd75e,#ff6b9d);border-radius:99px;transition:width .2s linear}
+.gm33-score{font-size:26px;font-weight:900;color:#ffd75e;margin-top:10px}
+.gm33-hint{font-size:11px;color:#9cc3e8;margin-top:8px}
+.gm33-runner{position:absolute;bottom:6px;font-size:34px;transition:none;will-change:transform}
+.gm33-zone{position:absolute;top:0;bottom:0;width:50%;display:flex;align-items:center;justify-content:center;font-size:26px;color:rgba(255,255,255,.25)}
+.gm33-target{position:absolute;top:50%;will-change:transform}
+.gm33-arrowbig{font-size:74px;user-select:none}
+.gm33-pad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,58px);gap:7px;margin-top:16px;direction:ltr}
+.gm33-pad button{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);border-radius:14px;font-size:24px;color:#fff;cursor:pointer;font-family:inherit}
+.gm33-pad button:active{background:rgba(255,204,0,.3)}
+.gm33-pad .up{grid-column:2}.gm33-pad .lf{grid-column:1;grid-row:2}.gm33-pad .dn{grid-column:2;grid-row:2}.gm33-pad .rt{grid-column:3;grid-row:2}
+.gm33-bar{width:min(80vw,340px);height:190px;border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.14);position:relative;overflow:hidden}
+.gm33-gold{position:absolute;left:0;right:0;background:linear-gradient(180deg,rgba(255,215,94,.4),rgba(255,215,94,.15));border-top:2px solid #ffd75e;border-bottom:2px solid #ffd75e}
+.gm33-marker{position:absolute;left:50%;width:74px;height:16px;margin-left:-37px;border-radius:8px;background:linear-gradient(180deg,#fff,#b9cbdd);box-shadow:0 3px 10px rgba(0,0,0,.5)}
+.gm33-chess{display:grid;grid-template-columns:repeat(8,1fr);width:min(88vw,340px);direction:ltr;user-select:none;border:2px solid rgba(255,204,0,.4);border-radius:8px;overflow:hidden}
+.gm33-chess span{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:clamp(14px,4.6vw,22px)}
+.gm33-opts{display:flex;flex-direction:column;gap:8px;margin-top:14px;width:min(88vw,340px)}
+.gm33-opts button{padding:12px;border-radius:13px;border:1px solid rgba(255,204,0,.35);background:rgba(255,204,0,.08);color:#ffe08a;font-family:inherit;font-weight:900;font-size:14px;cursor:pointer;direction:ltr}
+.gm33-opts button:active{background:rgba(255,204,0,.25)}
+.gm33-ball{position:absolute;font-size:30px;will-change:transform}
+.gm33-net{position:absolute;top:8%;bottom:8%;left:50%;width:4px;margin-left:-2px;background:repeating-linear-gradient(180deg,rgba(255,255,255,.5) 0 6px,transparent 6px 12px);border-radius:2px}
+.gm33-hitzone{position:absolute;top:30%;bottom:30%;right:6%;width:14%;border-radius:12px;background:rgba(0,255,136,.15);border:2px dashed rgba(0,255,136,.55)}
+.gm33-goal{width:min(88vw,360px);aspect-ratio:2.4/1;border-radius:14px;position:relative;overflow:hidden;direction:ltr;
+  background:linear-gradient(180deg,#1c5c2e,#144823);border:3px solid #fff;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.gm33-goal .gzone{position:absolute;top:0;bottom:0;width:33.4%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:rgba(255,255,255,.4)}
+.gm33-goal .gball{position:absolute;bottom:8%;left:50%;font-size:26px;margin-left:-13px;transition:.28s cubic-bezier(.2,.8,.3,1)}
+.gm33-goal .gkeep{position:absolute;top:12%;font-size:30px;transition:.28s ease}
+.gm33-rope{width:min(92vw,480px);height:26px;border-radius:99px;background:linear-gradient(180deg,#3a2a12,#241806);border:1px solid rgba(255,255,255,.15);position:relative;overflow:hidden;direction:ltr}
+.gm33-rope .rmark{position:absolute;top:2px;bottom:2px;width:30px;border-radius:99px;background:linear-gradient(180deg,#fff,#9db4cc);transition:none;will-change:transform}
+.gm33-rope .rl{position:absolute;top:0;bottom:0;left:0;width:12%;background:rgba(0,255,136,.14);border-right:2px dashed rgba(0,255,136,.5)}
+.gm33-rope .rr2{position:absolute;top:0;bottom:0;right:0;width:12%;background:rgba(255,51,102,.14);border-left:2px dashed rgba(255,51,102,.5)}
+.gm33-brk{display:flex;gap:6px;margin-top:8px;direction:rtl}
+.gm33-brk span{font-size:9px;font-weight:900;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#8fb8dd}
+.gm33-brk span.on{background:rgba(255,204,0,.2);border-color:rgba(255,204,0,.5);color:#ffe08a}
+#wd33-cer{position:fixed;inset:0;z-index:158000;display:none;background:linear-gradient(180deg,#050d1c 0%,#02060f 100%);color:#eaf6ff;font-family:'Vazirmatn',system-ui,sans-serif;overflow:hidden}
+#wd33-cer.on{display:block}
+#wd33-cer .csc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;animation:cerIn .8s ease both}
+@keyframes cerIn{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
+#wd33-cer .ck{font-size:10px;letter-spacing:3px;color:#7fd8ff;font-weight:800}
+#wd33-cer .ct{font-size:clamp(24px,7vw,44px);font-weight:900;margin-top:8px;background:linear-gradient(90deg,#ffd75e,#ff6b9d,#00f0ff);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:wd31Grad 6s linear infinite}
+#wd33-cer .cs{font-size:13px;color:#bfe9ff;margin-top:10px;line-height:2.1;max-width:520px}
+#wd33-cer .cskip{position:fixed;top:14px;left:14px;z-index:5;padding:9px 18px;border-radius:99px;border:1px solid rgba(255,255,255,.3);background:rgba(6,16,32,.85);color:#fff;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer}
+.wg33-parade{display:flex;gap:14px;margin-top:26px;direction:ltr;animation:parade 14s linear infinite;width:max-content}
+.wg33-parade .pf{display:flex;flex-direction:column;align-items:center;gap:4px}
+.wg33-parade .pf img{width:52px;height:36px;object-fit:cover;border-radius:5px;outline:2px solid rgba(255,255,255,.4);box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.wg33-parade .pf span{font-size:9.5px;font-weight:800;color:#cfe6ff;white-space:nowrap}
+@keyframes parade{from{transform:translateX(100%)}to{transform:translateX(-100%)}}
+.wg33-torchflame{width:52px;height:74px;position:relative;margin:18px auto 0}
+.wg33-torchflame .fl{position:absolute;bottom:28px;left:50%;width:30px;height:46px;transform:translateX(-50%);border-radius:50% 50% 50% 50%/62% 62% 38% 38%;background:radial-gradient(circle at 50% 72%,#fff7d1 0%,#ffd75e 38%,#ff8a3c 66%,rgba(255,60,40,0) 78%);animation:wd31Flick .7s ease-in-out infinite alternate;filter:drop-shadow(0 0 18px rgba(255,150,40,.7))}
+.wg33-torchflame .st{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:16px;height:40px;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#d9b57c,#6e4f2c)}
+.wg33-bigflag{position:relative;display:inline-block;margin-top:16px;animation:wg33Zoom .9s ease both}
+.wg33-bigflag img{width:min(56vw,190px);height:auto;border-radius:8px;outline:3px solid #ffd75e;box-shadow:0 0 40px rgba(255,204,0,.65),0 14px 40px rgba(0,0,0,.6)}
+.wg33-bigflag .sp{position:absolute;inset:-8px;pointer-events:none;background:radial-gradient(2px 2px at 18% 24%,#fff,transparent 60%),radial-gradient(2px 2px at 76% 18%,#ffe9a8,transparent 60%),radial-gradient(2.5px 2.5px at 62% 78%,#fff,transparent 60%),radial-gradient(2px 2px at 30% 70%,#ffe9a8,transparent 60%);animation:wd31Pulse 1.6s infinite}
+.wg33-conf{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.wg33-conf i{position:absolute;top:-12px;width:8px;height:13px;border-radius:2px;opacity:.9;animation:confFall linear infinite}
+@keyframes confFall{to{transform:translateY(110vh) rotate(660deg)}}
+.wg33-pod3{display:flex;gap:12px;align-items:flex-end;margin-top:22px;direction:rtl}
+.wg33-pod3 .pp{display:flex;flex-direction:column;align-items:center;gap:4px}
+.wg33-pod3 .pp img{width:44px;height:31px;object-fit:cover;border-radius:4px;outline:2px solid rgba(255,255,255,.45)}
+.wg33-pod3 .pp .pb{width:58px;border-radius:8px 8px 0 0;display:flex;align-items:flex-start;justify-content:center;font-size:17px;padding-top:5px}
+.wg33-pod3 .p1 .pb{height:74px;background:linear-gradient(180deg,#ffe08a,#c99619)}
+.wg33-pod3 .p2 .pb{height:56px;background:linear-gradient(180deg,#e8eef7,#93a5bd)}
+.wg33-pod3 .p3 .pb{height:46px;background:linear-gradient(180deg,#f0b98a,#b06a35)}
+.wg33-pod3 .pp small{font-size:9px;color:#9cc3e8}
+</style>
+<script id="v33-games">
+/* ============ V33: Olympic Games hub — state, page, strip, statue, truce ============ */
+(function(){
+'use strict';
+const D=document;
+const faN=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const srvN=()=>{try{return Math.max(1,Number(window.SRV)||1)}catch(e){return 1}};
+const sndK=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
+const ANCHOR=Date.UTC(2026,0,1),EDM=30*864e5,REGO=15*864e5,OPENO=20*864e5,CLOSEO=25*864e5;
+const GD33={sprint:{d:0,ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه هرچه می‌توانی تند بزن — سرعت خالص!'},
+ archery:{d:0,ic:'🎯',fa:'تیراندازی با کمان',tip:'در بهترین لحظه شلیک کن — هرچه مرکزی‌تر، امتیاز بیشتر'},
+ swim:{d:1,ic:'🏊',fa:'شنا',tip:'ضربه‌ها را یکی‌درمیان چپ و راست بزن — ریتم متقارن'},
+ gym:{d:1,ic:'🤸',fa:'ژیمناستیک',tip:'توالی جهت‌ها را به‌ترتیب و به‌موقع لمس کن'},
+ weight:{d:2,ic:'🏋️',fa:'وزنه‌برداری',tip:'دقیقاً وقتی مارکر در ناحیه‌ی طلایی است بزن'},
+ cycling:{d:2,ic:'🚴',fa:'دوچرخه‌سواری',tip:'ریتم یکنواخت ~نیم‌ثانیه — ثبات مهم‌تر از سرعت است'},
+ chess:{d:3,ic:'♟️',fa:'شطرنج',tip:'کیش‌ومات یک‌حرکتی — بهترین حرکت را قبل از پایان زمان انتخاب کن'},
+ volley:{d:3,ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — رالی را بلندتر کن'},
+ football:{d:4,ic:'⚽',fa:'فوتبال',tip:'پنالتی: گوشه را انتخاب کن — دروازه‌بان هر دوره‌ی بعد قوی‌تر می‌شود'},
+ wrestle:{d:4,ic:'🥋',fa:'کشتی',tip:'طناب‌کشی — تند و پیوسته بزن تا مارکر از خطت رد شود'}};
+const GD_KEYS=Object.keys(GD33);
+const SCHED33=[['sprint','archery'],['swim','gym'],['weight','cycling'],['chess','volley'],['football','wrestle']];
+const HOSTS33=[{c:'توکیو',n:'ژاپن',f:'jp'},{c:'پاریس',n:'فرانسه',f:'fr'},{c:'لس‌آنجلس',n:'آمریکا',f:'us'},{c:'لندن',n:'بریتانیا',f:'gb'},{c:'ریودوژانیرو',n:'برزیل',f:'br'},{c:'پکن',n:'چین',f:'cn'},{c:'آتن',n:'یونان',f:'gr'},{c:'سیدنی',n:'استرالیا',f:'au'},{c:'بارسلونا',n:'اسپانیا',f:'es'},{c:'سئول',n:'کره‌ی جنوبی',f:'kr'},{c:'مسکو',n:'روسیه',f:'ru'},{c:'مونترال',n:'کانادا',f:'ca'},{c:'مونیخ',n:'آلمان',f:'de'},{c:'مکزیکوسیتی',n:'مکزیک',f:'mx'},{c:'رم',n:'ایتالیا',f:'it'},{c:'هلزینکی',n:'فنلاند',f:'fi'},{c:'آمستردام',n:'هلند',f:'nl'},{c:'استکهلم',n:'سوئد',f:'se'},{c:'استانبول',n:'ترکیه',f:'tr'},{c:'قاهره',n:'مصر',f:'eg'},{c:'دهلی‌نو',n:'هند',f:'in'},{c:'بوئنوس‌آیرس',n:'آرژانتین',f:'ar'},{c:'نایروبی',n:'کنیا',f:'ke'},{c:'دبی',n:'امارات',f:'ae'},{c:'سنگاپور',n:'سنگاپور',f:'sg'},{c:'کیپ‌تاون',n:'آفریقای جنوبی',f:'za'},{c:'لیما',n:'پرو',f:'pe'},{c:'ورشو',n:'لهستان',f:'pl'},{c:'لیسبون',n:'پرتغال',f:'pt'},{c:'لاگوس',n:'نیجریه',f:'ng'},{c:'کوالالامپور',n:'مالزی',f:'my'},{c:'دوحه',n:'قطر',f:'qa'}];
+function hostOf33(e){let h=(e*2654435761)>>>0;h^=h>>>13;h=Math.imul(h,1274126177)>>>0;return HOSTS33[h%HOSTS33.length]}
+function flagUrl33(cc){try{return (typeof flagUrl==='function')?flagUrl(cc):('/cdn/flags/w80/'+cc+'.png')}catch(e){return '/cdn/flags/w80/'+cc+'.png'}}
+/* client phase mirror — identical anchors to server; wd33toff = E2E time offset */
+function gPhase33(){
+  const off=Number(localStorage.getItem('wd33toff')||0)||0;
+  const now=Date.now()+off;
+  const edition=Math.floor((now-ANCHOR)/EDM)+1;
+  const start=ANCHOR+(edition-1)*EDM;
+  const regAt=start+REGO,openAt=start+OPENO,closeAt=start+CLOSEO;
+  let phase='pre';
+  if(now>=closeAt)phase='after';else if(now>=openAt)phase='live';else if(now>=regAt)phase='reg';
+  const gameDay=Math.min(4,Math.max(0,Math.floor((now-openAt)/864e5)));
+  return{edition,phase,gameDay,regAt,openAt,closeAt,nextReg:start+EDM+REGO,host:hostOf33(edition),
+    today:phase==='live'?SCHED33[gameDay]:[]};
+}
+window.WD33_PHASE=gPhase33;
+const cdTxt=(to,from)=>{const l=Math.max(0,to-(from||Date.now()));const d=Math.floor(l/864e5),h=Math.floor((l%864e5)/36e5),m=Math.floor((l%36e5)/6e4);
+  return d>0?(faN(d)+' روز و '+faN(h)+' ساعت'):d===0&&h>0?(faN(h)+' ساعت و '+faN(m)+' دقیقه'):(faN(m)+' دقیقه')};
+const myNick=()=>{try{return (typeof ACC!=='undefined'&&ACC&&ACC.nick)||''}catch(e){return ''}};
+const isMe33=n=>n&&n===myNick();
+function flagForCountry(en){try{if(typeof FL!=='undefined'&&FL&&FL[en]&&FL[en].code)return flagUrl33(FL[en].code)}catch(e){}return null}
+/* statue: golden figure + pedestal with colored medal stripes */
+function statue33(g,s,b,sz){
+  const seg=[];const push=(n,c)=>{for(let i=0;i<Math.min(n,5);i++)seg.push(c)};
+  push(g,'#ffd75e');push(s,'#dbe6f2');push(b,'#e8a06b');
+  const base=seg.slice(0,15).map((c,i)=>'<rect x="'+(2+i*6.4)+'" y="41" width="5.4" height="4.6" rx="1" fill="'+c+'"/>').join('');
+  const w=sz||56;
+  return '<svg class="wg33-statue" viewBox="0 0 96 48" width="'+w+'" height="'+Math.round(w/2)+'" aria-hidden="true">'+
+    '<defs><linearGradient id="wg33g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#d8a616"/></linearGradient></defs>'+
+    '<circle cx="48" cy="9" r="6" fill="url(#wg33g)"/><path d="M42 17 q6 -3 12 0 l4 12 h-20 z" fill="url(#wg33g)"/>'+
+    '<rect x="34" y="29" width="28" height="4" rx="2" fill="#8a6a20"/><rect x="30" y="33" width="36" height="7" rx="2" fill="#6e531a"/>'+base+'</svg>';
+}
+function legend33(c){try{if(!c||!Array.isArray(c.eds)||c.eds.length<2)return false;const e=c.eds.slice().sort((a,b)=>a-b);
+  for(let i=1;i<e.length;i++)if(e[i]===e[i-1]+1)return true;return false}catch(e){return false}}
+window.WD33_STATUE=statue33;window.WD33_LEGEND=legend33;
+
+/* ---------- state ---------- */
+let WG33=null,wgPollT=null,wgOpenFlag=false,wgSort='total',wgSel=[];
+async function rpc33(fn,args){try{const r=await sb.rpc(fn,args);if(r&&r.error)return{ok:false,e:r.error};return{ok:true,d:r?r.data:null}}catch(e){return{ok:false,e}}}
+
+/* ---------- full-screen page (same cinematic style as V31) ---------- */
+const st33=[];
+function pageOn(){let p=D.getElementById('wd-games');
+  if(!p){p=D.createElement('div');p.id='wd-games';p.className='wd31-page';
+    p.innerHTML='<div class="wd31-aurora a1"></div><div class="wd31-aurora a2"></div><div class="wd31-stars"></div>'+
+      '<button class="wd31-close" aria-label="بستن">✕</button><div class="wd31-wrap" id="wg33-wrap"></div>';
+    D.body.appendChild(p);
+    p.querySelector('.wd31-close').addEventListener('click',wgClose)}
+  return p}
+function wgOpen(){try{if(window.WD30_CANCEL_TARGET)window.WD30_CANCEL_TARGET()}catch(e){}
+  pageOn().classList.add('on');if(st33.indexOf('wd-games')<0)st33.push('wd-games');
+  wgOpenFlag=true;sndK('click');wgRefresh(true);
+  try{const g=gPhase33();if(g.phase==='live'&&!localStorage.getItem('wd33open_'+g.edition)&&typeof window.WD33_OPEN_CEREMONY==='function'){localStorage.setItem('wd33open_'+g.edition,'1');setTimeout(()=>{try{window.WD33_OPEN_CEREMONY()}catch(e){}},450)}}catch(e){}}
+function wgClose(){const p=D.getElementById('wd-games');if(p)p.classList.remove('on');
+  const i=st33.indexOf('wd-games');if(i>-1)st33.splice(i,1);wgOpenFlag=false}
+D.addEventListener('keydown',ev=>{if(ev&&ev.key==='Escape'){
+  if(D.getElementById('wd33-stage')&&D.getElementById('wd33-stage').classList.contains('on'))return; /* minigame handles itself */
+  if(D.getElementById('wd33-cer')&&D.getElementById('wd33-cer').classList.contains('on'))return;
+  if(st33.length)wgClose()}});
+window.WD33_GAMES_OPEN=wgOpen;
+window.WD31_OLYMPICS=wgOpen; /* take over the HUD 🏅 chip + lobby button entry points */
+
+/* ---------- hub rendering ---------- */
+function secTitle(ic,t){return '<div class="wd31-sh">'+ic+' '+esc(t)+'</div>'}
+function discCard(k,st){const m=GD33[k];const cls='wg33-disc'+(st?' '+st:'');
+  return '<div class="'+cls+'" data-k="'+k+'"><div class="ic">'+m.ic+'</div><div class="nm">'+esc(m.fa)+'</div><div class="dy">'+esc(m.tip.slice(0,34))+'…</div></div>'}
+function medalTable(t){
+  const rows=(t||[]).slice(0,20);
+  if(!rows.length)return '<div class="wd31-row"><span class="who">هنوز مدالی اهد نشده — اولین مدال‌ها در پایان روز اول ثبت می‌شوند 🏅</span></div>';
+  const h='<table class="wg33-tbl"><thead><tr><th style="text-align:right">کشور</th>'+
+    ['g','s','b','total'].map(k=>'<th data-s="'+k+'" class="'+(wgSort===k?'on':'')+'">'+({g:'🥇',s:'🥈',b:'🥉',total:'مجموع'})[k]+'</th>').join('')+'</tr></thead><tbody>';
+  const sorted=rows.slice().sort((a,b)=>(b[wgSort]-a[wgSort])||((wgSort==='total')?(b.g-a.g):(b.total-a.total)));
+  const me=isMe33('')?null:null;
+  return h+sorted.map((r,i)=>{const fl=flagForCountry(r.country);const mine=(typeof ACC!=='undefined'&&ACC&&WG33&&WG33.my&&WG33.my.country===r.countryFa);
+    return '<tr><td class="cn'+(mine?' me':'')+'"><span class="wd31-rk '+(i<3?'g'+(i+1):'')+'" style="min-width:22px;height:22px;font-size:10px">'+(i<3?['🥇','🥈','🥉'][i]:faN(i+1))+'</span>'+(fl?'<img src="'+fl+'" alt="">':'')+esc(r.countryFa||r.country)+'</td>'+
+    '<td class="m mg">'+faN(r.g)+'</td><td class="m ms">'+faN(r.s)+'</td><td class="m mb">'+faN(r.b)+'</td><td class="m">'+faN(r.total)+'</td></tr>'}).join('')+'</tbody></table>';
+}
+function recordsBox(recs){
+  const rr=(recs||[]).filter(x=>x&&x.nick);
+  if(!rr.length)return '<div class="wd31-mini" style="margin-top:8px">هنوز رکوردی ثبت نشده — اولین قهرمانی می‌تواند نام تو را در تاریخ ثبت کند ⚡</div>';
+  return rr.map(x=>{const m=GD33[x.discipline]||{ic:'🏅',fa:x.discipline};
+    return '<div class="wg33-rec"><span class="ric">'+m.ic+'</span><span><span class="rn">'+esc(x.nick)+'</span><br><span class="rc">'+esc(m.fa)+(x.country?' • '+esc(x.country):'')+' • دوره‌ی '+faN(x.edition||0)+'</span></span><span class="rv">'+faN(x.score)+'</span></div>'}).join('');
+}
+function archiveBox(arch){
+  const aa=(arch||[]);if(!aa.length)return '<div class="wd31-mini" style="margin-top:8px">هنوز دوره‌ای کامل نشده — صفحه‌ی تاریخ با اولین اختتامیه باز می‌شود 📜</div>';
+  return aa.map(a=>{const fl=a.host_cc?'<img src="'+flagUrl33(a.host_cc)+'" alt="">':'';
+    return '<details class="wg33-arch"><summary><div class="at">📜 دوره‌ی '+faN(a.edition)+' • میزبان: '+fl+esc(a.host_city)+'، '+esc(a.host_country)+
+      (a.champion_country?(' • 🏆 قهرمان: '+esc(a.champion_country)+(a.champion_nick?(' ('+esc(a.champion_nick)+')'):'')):' • بدون قهرمان')+
+      '<span style="margin-inline-start:auto;font-size:9.5px;color:#8fb8dd">👥 '+faN(a.participants||0)+'</span></div></summary><div class="apo">'+
+      Object.keys(a.podiums||{}).map(k=>{const m=GD33[k]||{ic:'🏅',fa:k};
+        return m.ic+' '+esc(m.fa)+': '+(a.podiums[k]||[]).map(p=>({1:'🥇',2:'🥈',3:'🥉'}[p.rank]||'')+' '+esc(p.nick)+' ('+faN(p.score)+')').join(' • ')}).join('<br>')+
+      '</div></details>'}).join('');
+}
+function rewardsCard(){return '<div class="wd31-card wd32-prize">'+secTitle('🏆','جوایز المپیک')+
+  '<div class="wd32-prize-grid"><span class="wd32-pz">💎 ۴ جم قهرمان</span><span class="wd32-pz">🪙 ۱۰۰٬۰۰۰ سکه قهرمان</span><span class="wd32-pz">⚡ بوست ۲۴ ساعته</span>'+
+  '<span class="wd32-pz">💎 ۳ جم هر شرکت‌کننده</span><span class="wd32-pz">🗿 مجسمه‌ی طلایی دائمی</span><span class="wd32-pz">📜 آرشیو تاریخ</span></div>'+
+  '<div class="wd32-prize-note">قهرمان کلی دوره (بیشترین مدال): بسته‌ی کامل جایزه + سرود + پرچم طلایی ۲۴ ساعته روی نقشه + تاج کنار نام برای همه.<br>هر مدال یک رنگ به پایه‌ی مجسمه‌ات اضافه می‌کند؛ مدال در ۲ دوره‌ی پیاپی = لقب «⭐ اسطوره‌ی المپیک» که هیچ‌جای دیگه‌ی بازی پیدا نمی‌شود.</div></div>'}
+function renderHub(){
+  const wrap=D.getElementById('wg33-wrap');if(!wrap||!wgOpenFlag)return;
+  const g=gPhase33();const d=WG33||{};
+  const my=(d.my||{reg:[],entries:{}});
+  const career=myNick()&&(d.career||{})[myNick()];
+  const stHtml=(career?statue33(career.g,career.s,career.b,64):'')+(legend33(career)?' <span class="wg33-legend">⭐ اسطوره‌ی المپیک</span>':'');
+  let h='<section class="wg33-hero2"><span class="wg33-big">🏅</span>'+
+    '<div class="wd31-kicker" style="margin-top:10px">WORLD DOMINION OLYMPIC GAMES</div>'+
+    '<h1 class="wd31-title">المپیک جهانی — دوره‌ی '+faN(g.edition)+'</h1>'+
+    '<div class="wg33-host"><img src="'+flagUrl33(g.host.f)+'" alt="">میزبان این دوره: '+esc(g.host.c)+'، '+esc(g.host.n)+'</div>';
+  if(g.phase==='pre')h+='<span class="wg33-ph pre">⏳ ثبت‌نام باز نشده</span><div class="wg33-cd">🕊️ آتش‌بس و بازی‌ها از '+cdTxt(g.openAt)+' دیگر شروع می‌شود</div><div class="wd31-mini" style="margin-top:4px">باز شدن ثبت‌نام (۳ رشته از ۱۰): '+cdTxt(g.regAt)+' دیگر</div>';
+  else if(g.phase==='reg')h+='<span class="wg33-ph reg">📝 ثبت‌نام باز است</span><div class="wg33-cd">افتتاحیه و شروع بازی‌ها: '+cdTxt(g.openAt)+' دیگر</div>';
+  else if(g.phase==='live')h+='<span class="wg33-ph live">🔴 بازی‌ها زنده است — روز '+faN(g.gameDay+1)+' از ۵</span><div class="wg33-cd">🕊️ آتش‌بس مقدس برقرار است — جنگ ممنوع</div><div class="wd31-mini" style="margin-top:4px">اختتامیه: '+cdTxt(g.closeAt)+' دیگر</div>';
+  else h+='<span class="wg33-ph after">🏁 بازی‌های این دوره تمام شد</span><div class="wg33-cd">ثبت‌نام دوره‌ی بعد: '+cdTxt(g.nextReg)+' دیگر</div>';
+  h+='</section>';
+  /* my career card */
+  if(career&&career.total>0)h+='<div class="wd31-card">'+secTitle('🗿','کارنامه‌ی المپیک من')+
+    '<div style="display:flex;align-items:center;gap:10px">'+stHtml+
+    '<div style="font-size:12.5px;font-weight:900;color:#ffe08a">🥇 '+faN(career.g)+' • 🥈 '+faN(career.s)+' • 🥉 '+faN(career.b)+' = '+faN(career.total)+' مدال در '+faN(career.eds.length)+' دوره</div></div></div>';
+  if(g.phase==='pre'){
+    h+='<div class="wd31-card">'+secTitle('📅','برنامه‌ی این دوره')+
+      '<div class="wd31-mini" style="font-size:11.5px;line-height:2.1">🕊️ روز ۱۶ فصل: باز شدن ثبت‌نام — ۳ رشته از ۱۰ را انتخاب کن<br>🎪 روز ۲۱: مراسم افتتاحیه (رژه‌ی پرچم‌ها + مشعل + میزبان) و آغاز آتش‌بس<br>🏟️ روز ۲۱ تا ۲۶: هر روز ۲ رشته — هر روز یک دلیل تازه برای برگشتن<br>🏁 روز ۲۶: اختتامیه — سرود قهرمان، پرچم طلایی ۲۴ ساعته، تاج‌گذاری و جوایز</div></div>'+
+      '<div class="wd31-card">'+secTitle('🏟️','۱۰ رشته‌ی المپیک')+'<div class="wg33-grid3">'+GD_KEYS.map(k=>discCard(k,'lock')).join('')+'</div></div>';
+  }
+  if(g.phase==='reg'){
+    const myReg=my.reg||[];
+    h+='<div class="wd31-card">'+secTitle('📝','ثبت‌نام — ۳ رشته از ۱۰ را انتخاب کن')+
+      '<div class="wd31-mini" style="margin:0 0 8px">کشور تو: <b style="color:#ffe08a">'+esc(my.country||'—')+'</b> • انتخاب شده: <b id="wg33-seln">'+faN(wgSel.length)+'</b>/۳ — تا لحظه‌ی افتتاحیه می‌توانی عوض کنی</div>'+
+      '<div class="wg33-grid3" id="wg33-reggrid">'+GD_KEYS.map(k=>discCard(k,myReg.indexOf(k)>-1||wgSel.indexOf(k)>-1?'sel':'')).join('')+'</div>'+
+      '<button class="wg33-play" id="wg33-regbtn" style="margin-top:12px">'+(myReg.length?'✅ ثبت/ویرایش انتخاب‌ها':'✅ ثبت‌نام در المپیک')+'</button>'+
+      '<div class="wd31-mini" style="margin-top:7px">برای ثبت‌نام باید پایتخت داشته باشی — کشورت در جدول مدال‌ها با بازیکنان دیگر آن کشور جمع می‌شود.</div></div>';
+    h+='<div class="wd31-card">'+secTitle('🏟️','رشته‌ها — روز برگزاری')+'<div class="wg33-grid3">'+GD_KEYS.map(k=>{
+      const dd=SCHED33.findIndex(day=>day.indexOf(k)>-1);
+      return '<div class="wg33-disc" style="cursor:default"><div class="ic">'+GD33[k].ic+'</div><div class="nm">'+esc(GD33[k].fa)+'</div><div class="dy">روز '+faN(dd+1)+' بازی‌ها</div></div>'}).join('')+'</div></div>';
+  }
+  if(g.phase==='live'){
+    const regd=my.reg||[];const ent=my.entries||{};
+    h+='<div class="wd31-card" style="border-color:rgba(255,51,102,.4)">'+secTitle('🎯','رشته‌های امروز — روز '+faN(g.gameDay+1))+
+      '<div class="wd31-mini" style="margin:0 0 8px">آتش‌بس برقرار است؛ میدان جنگ امروز میدان بازی است ⚔️→🏅</div>'+
+      SCHED33[g.gameDay].map(k=>{const m=GD33[k];const mine=regd.indexOf(k)>-1;const e=ent[k];
+        return '<div class="wd31-row"><span class="wd31-rk" style="font-size:17px;background:none">'+m.ic+'</span>'+
+        '<span class="who">'+esc(m.fa)+(mine?'':' <span class="wd31-mini">(ثبت‌نام نکرده‌ای)</span>')+
+        (e?'<br><span class="wd31-mini">بهترین رکوردت: '+faN(e.best)+' • '+faN(e.attempts)+'/۵ تلاش</span>':'<br><span class="wd31-mini">'+esc(m.tip)+'</span>')+'</span>'+
+        (mine&&(!e||e.attempts<5)?'<button class="wg33-play" style="width:auto;padding:9px 18px" data-play="'+k+'">بازی کن</button>':
+         mine?'<span class="chip33 wd32-tag" style="font-size:9px">✓ ۵/۵</span>':'<span class="wd31-mini">🔒</span>')+'</div>'}).join('')+
+      '<button class="wg33-play ghost" id="wg33-replay">🎬 پخش دوباره‌ی مراسم افتتاحیه</button></div>';
+    h+='<div class="wd31-card">'+secTitle('🗓️','برنامه‌ی ۵ روزه')+'<div class="wd31-mini" style="font-size:11px;line-height:2">'+
+      SCHED33.map((day,i)=>{const ic=day.map(k=>GD33[k].ic).join(' ');
+        return (i===g.gameDay?'<b style="color:#ffe08a">':'')+'روز '+faN(i+1)+': '+ic+(i===g.gameDay?'</b>':'')}).join('<br>')+'</div></div>';
+  }
+  if(g.phase==='after'){
+    const rec=(d.archive||[]).find(a=>a.edition===g.edition);
+    const ch=d.reigning;
+    h+='<div class="wd31-card wd32-champbox">'+secTitle('🏁','اختتامیه‌ی دوره‌ی '+faN(g.edition))+
+      (rec&&rec.champion_country?'<div class="wd32-crownline" style="text-align:center">🏆 قهرمان جهان: <b>'+esc(rec.champion_country)+'</b></div>'+
+      '<div class="wd31-mini" style="text-align:center;margin-top:4px">نفر برتر: <b style="color:#ffe08a">'+esc(rec.champion_nick||'—')+'</b> • میزبان: '+esc(rec.host_city)+'، '+esc(rec.host_country)+' • شرکت‌کننده: '+faN(rec.participants||0)+'</div>'+
+      '<div class="wd31-mini" style="text-align:center;margin-top:6px">🚩 پرچم طلایی قهرمان ۲۴ ساعت روی نقشه می‌درخشد • '+cdTxt((Date.parse(d.close_at||0)||0)+864e5)+' تا جمع شدن پرچم</div>':
+      '<div class="wd31-mini" style="text-align:center">این دوره بدون مدال‌آور تمام شد — دوره‌ی بعد مال توست 🌱</div>')+'</div>';
+  }
+  /* medal table — always */
+  h+='<div class="wd31-card">'+secTitle('🏅','جدول مدال‌ها — بر اساس کشور')+
+    '<div class="wd31-mini" style="margin:0 0 6px">برای مرتب‌سازی روی ستون‌ها بزن • زنده</div><div id="wg33-tblbox">'+medalTable(d.table)+'</div></div>';
+  /* records + my results during live/after */
+  h+='<div class="wd31-card">'+secTitle('⚡','رکوردهای همه‌ی دوران')+'<div>'+recordsBox(d.records)+'</div></div>';
+  /* archive */
+  h+='<div class="wd31-card">'+secTitle('📜','آرشیو المپیک — میراث دائمی')+archiveBox(d.archive)+'</div>';
+  h+=rewardsCard();
+  h+='<div class="wd31-note">المپیک جهانی هر فصل (۳۰ روز) یک دوره‌ی ۵ روزه برگزار می‌شود • مدال‌ها فقط با مهارت واقعی — ضد P2W<br>برای بازگشت به نقشه، ✕ بالا یا Escape</div>';
+  wrap.innerHTML=h;rise33(wrap);
+  /* wire buttons */
+  wrap.querySelectorAll('#wg33-tblbox th[data-s]').forEach(th=>th.addEventListener('click',()=>{wgSort=th.getAttribute('data-s');const bx=D.getElementById('wg33-tblbox');if(bx)bx.innerHTML=medalTable(WG33&&WG33.table)}));
+  const rb=D.getElementById('wg33-regbtn');
+  if(rb)rb.addEventListener('click',doRegister);
+  wrap.querySelectorAll('#wg33-reggrid .wg33-disc').forEach(c=>c.addEventListener('click',()=>{
+    const k=c.getAttribute('data-k');const i=wgSel.indexOf(k);
+    if(i>-1)wgSel.splice(i,1);
+    else{if(wgSel.length>=3){showToast33('حداکثر ۳ رشته — یکی را حذف کن','lose');return}wgSel.push(k)}
+    c.classList.toggle('sel',i<0);
+    const sn=D.getElementById('wg33-seln');if(sn)sn.textContent=faN(wgSel.length);
+    sndK('click')}));
+  wrap.querySelectorAll('[data-play]').forEach(b=>b.addEventListener('click',()=>{const k=b.getAttribute('data-play');
+    if(window.WD33_PLAY)window.WD33_PLAY(k)}));
+  const rp=D.getElementById('wg33-replay');
+  if(rp)rp.addEventListener('click',()=>{try{localStorage.setItem('wd33open_'+g.edition,'0');if(window.WD33_OPEN_CEREMONY)window.WD33_OPEN_CEREMONY()}catch(e){}});
+}
+function rise33(w){[...w.children].forEach((e,i)=>{e.classList.add('wd31-rise');e.style.animationDelay=(0.06*i)+'s'})}
+function showToast33(m,k){try{showToast(m,k)}catch(e){}}
+async function doRegister(){
+  const g=gPhase33();
+  if(g.phase!=='reg'){showToast33('ثبت‌نام فقط پیش از افتتاحیه باز است','lose');return}
+  if(!wgSel.length){showToast33('حداقل یک رشته انتخاب کن','lose');return}
+  let fa='';try{if(typeof getCountryData==='function'&&typeof myCountryName!=='undefined'&&myCountryName){const cd=getCountryData(myCountryName);if(cd&&cd.fa)fa=cd.fa}}catch(e){}
+  const r=await rpc33('olympic_register',{p_disciplines:wgSel,p_country_fa:fa});
+  if(r.ok&&r.d&&r.d.ok){showToast33('🏅 ثبت‌نام شد! رشته‌های تو: '+r.d.keys.map(k=>GD33[k]?GD33[k].fa:k).join('، '),'win');sndK('cheer');wgSel=[];wgRefresh(true)}
+  else{const rs=(r.d&&r.d.reason)||(r.e&&r.e.message)||'خطا';
+    showToast33(rs==='quota'?'حداکثر ۳ رشته':rs==='capital'?'اول پایتخت انتخاب کن':rs==='window'?'پنجره‌ی ثبت‌نام بسته است':'ثبت‌نام ناموفق — دوباره تلاش کن','lose')}}
+async function wgRefresh(force){
+  try{
+    if(typeof sb==='undefined'||!sb)return;
+    if(typeof ACC==='undefined'||!ACC||!ACC.uid){strip33Update(null);return}
+    const r=await rpc33('olympic_games',{p_server:srvN()});
+    if(!r.ok||!r.d)return;
+    WG33=r.d;
+    window.__wg33data=r.d;
+    strip33Update(r.d);
+    if(wgOpenFlag)renderHub();
+    checkCeremonies(r.d);
+  }catch(e){console.log('wg33',e)}
+}
+window.WD33_REFRESH=wgRefresh;
+function wgStartPoll(){if(wgPollT)clearInterval(wgPollT);wgPollT=setInterval(()=>{if(!D.hidden)wgRefresh(false)},60000)}
+wgStartPoll();setTimeout(wgRefresh,4000);
+
+/* ---------- live medal strip on the main screen ---------- */
+let stripEl=null;
+function strip33Update(d){
+  if(!stripEl){stripEl=D.createElement('div');stripEl.id='wd33-strip';D.body.appendChild(stripEl);
+    stripEl.addEventListener('click',wgOpen)}
+  const g=gPhase33();
+  if(!d||((g.phase!=='live')&&(g.phase!=='after'))){stripEl.classList.remove('on');return}
+  const t=(d.table||[]).slice(0,3);
+  if(!t.length&&!d.today&&g.phase!=='after'){stripEl.classList.remove('on');return}
+  let h='<span class="live33"><i></i>'+(g.phase==='live'?'المپیک زنده':'پایان المپیک')+'</span>';
+  if(t.length)h+=t.map((r,i)=>{const fl=flagForCountry(r.country);
+    return '<span class="s33">'+['🥇','🥈','🥉'][i]+(fl?'<img src="'+fl+'" alt="">':'')+esc(r.countryFa||r.country)+' <b>'+faN(r.total)+'</b></span>'}).join('');
+  else h+='<span class="s33">اولین مدال‌ها به‌زودی…</span>';
+  h+='<span class="s33" style="color:#7fd7ff">مشاهده ›</span>';
+  stripEl.innerHTML=h;stripEl.classList.add('on');
+  const chip=D.getElementById('hud-olympic');if(chip)chip.classList.add('wg33-live');
+}
+/* ---------- ceremonies auto-trigger ---------- */
+function checkCeremonies(d){
+  try{
+    const g=gPhase33();
+    if(g.phase==='live'&&!localStorage.getItem('wd33open_'+g.edition)&&typeof window.WD33_OPEN_CEREMONY==='function'){
+      localStorage.setItem('wd33open_'+g.edition,'1');setTimeout(()=>{try{window.WD33_OPEN_CEREMONY()}catch(e){}},1200)}
+    if(g.phase==='after'&&Date.now()-(Date.parse(d.close_at||0)||0)<864e5&&
+       !localStorage.getItem('wd33close_'+g.edition)&&typeof window.WD33_CLOSE_CEREMONY==='function'){
+      const rec=(d.archive||[]).find(a=>a.edition===g.edition);
+      if(rec&&rec.champion_country){localStorage.setItem('wd33close_'+g.edition,'1');
+        setTimeout(()=>{try{window.WD33_CLOSE_CEREMONY(d)}catch(e){}},1200)}}
+  }catch(e){}
+}
+/* ---------- truce (آتش‌بس) — client-side guard on the attack chain ---------- */
+let truceTold=0;
+function truceBlock(){
+  const now=Date.now();
+  if(now-truceTold>30000){truceTold=now;
+    try{if(typeof WD30CINE==='function')WD30CINE('🕊️','آتش‌بس المپیک!','تا پایان بازی‌ها جنگ ممنوع است — امروز میدان، ورزشگاه است','c-gold','cheer')}catch(e){}}
+  showToast33('🕊️ آتش‌بس المپیک — حمله در طول بازی‌ها غیرفعال است','lose');
+  return false}
+setInterval(function(){try{
+  if(gPhase33().phase!=='live')return;
+  if(typeof attackTarget!=='function'||attackTarget.__wd33truce)return;
+  const prev=attackTarget;
+  const wrapped=function(n){if(gPhase33().phase==='live'){truceBlock();return Promise.resolve()}
+    return prev.apply(this,arguments)};
+  wrapped.__wd33truce=1;attackTarget=wrapped;
+}catch(e){}},2000);
+})();
+</script>
+<script id="v33-ceremony">
+/* ============ V33: ceremonies — opening (parade+torch+host+truce) & closing (anthem+golden flag) ============ */
+(function(){
+'use strict';
+const D=document;
+const faN=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const flagU=cc=>{try{return (typeof flagUrl==='function')?flagUrl(cc):('/cdn/flags/w80/'+cc+'.png')}catch(e){return '/cdn/flags/w80/'+cc+'.png'}};
+/* parade roster: alphabetically by Persian name */
+const PARADE=[['ar','آرژانتین'],['de','آلمان'],['us','آمریکا'],['es','اسپانیا'],['au','استرالیا'],['za','آفریقای جنوبی'],['it','ایتالیا'],['br','برزیل'],['pt','پرتغال'],['se','سوئد'],['jp','ژاپن'],['ru','روسیه'],['mx','مکزیک'],['tr','ترکیه'],['fr','فرانسه'],['cn','چین'],['ke','کنیا'],['eg','مصر'],['gb','بریتانیا'],['gr','یونان'],['ca','کانادا'],['kr','کره‌ی جنوبی'],['in','هند'],['ng','نیجریه']];
+let cerEl=null,cerT=null,cerScene=0,cerMode='open',cerData=null,cerDone=null;
+function ensureCer(){if(!cerEl){cerEl=D.createElement('div');cerEl.id='wd33-cer';
+  cerEl.innerHTML='<button class="cskip">رد کردن ✕</button><div class="csc" id="wd33-scene"></div>';
+  D.body.appendChild(cerEl);
+  cerEl.querySelector('.cskip').addEventListener('click',cerClose)}return cerEl}
+function confetti(host){let h='';const cols=['#ffd75e','#ff6b9d','#00f0ff','#7dff9e','#ff9d3c'];
+  for(let i=0;i<26;i++){h+='<i style="left:'+(Math.random()*100)+'%;background:'+cols[i%5]+';animation-duration:'+(2.6+Math.random()*2.4)+'s;animation-delay:'+(Math.random()*2)+'s"></i>'}
+  host.innerHTML=h}
+function scene(html,ms){const sc=cerEl.querySelector('#wd33-scene');
+  sc.style.animation='none';void sc.offsetWidth;sc.style.animation='';
+  sc.innerHTML=html;
+  const cf=sc.querySelector('.wg33-conf');if(cf)confetti(cf);
+  if(cerT)clearTimeout(cerT);
+  if(ms)cerT=setTimeout(nextScene,ms)}
+function nextScene(){cerScene++;
+  if(cerMode==='open')openScenes();else closeScenes()}
+function cerClose(){if(cerEl)cerEl.classList.remove('on');if(cerT)clearTimeout(cerT);
+  try{const c=window.WD_OL_CHAMP;if(c&&c.nick&&cerMode==='close'&&!localStorage.getItem('wd32cycle_'+(window.SRV||1))){localStorage.setItem('wd32cycle_'+(window.SRV||1),String(c.cycle||0))}}catch(e){}
+  if(cerDone){const f=cerDone;cerDone=null;f()}}
+/* ---------- ANTHEM (WebAudio, composed triumphant motif ~8s) ---------- */
+function playAnthem(){
+  try{
+    const AC=(window.__wd33AC=window.__wd33AC||new (window.AudioContext||window.webkitAudioContext)());
+    if(AC.state==='suspended')AC.resume();
+    const t0=AC.currentTime+0.05;
+    /* [freq, beats] — C major fanfare */
+    const N=[[392,.5],[523,.5],[659,.5],[784,1],[659,.5],[784,.5],[1047,1.5],[880,.5],[784,.5],[659,.5],[784,1],[523,.5],[587,.5],[659,1.5],[784,.75],[659,.75],[1047,2]];
+    let t=t0;const beat=.28;
+    N.forEach(([f,b])=>{const dur=b*beat;
+      [[f,'triangle',.16],[f/2,'sawtooth',.05]].forEach(([fq,ty,gv])=>{
+        const o=AC.createOscillator(),g=AC.createGain();
+        o.type=ty;o.frequency.value=fq;
+        g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(gv,t+.04);
+        g.gain.setValueAtTime(gv,t+dur*.6);g.gain.linearRampToValueAtTime(.0001,t+dur);
+        o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur+.02)});
+      t+=dur});
+    /* soft timpani on downbeats */
+    [[0,.9],[4,.7],[8,.9],[13,.7]].forEach(([b,gv])=>{
+      const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(140,t0+b*beat);o.frequency.exponentialRampToValueAtTime(52,t0+b*beat+.4);
+      g.gain.setValueAtTime(gv*.35,t0+b*beat);g.gain.exponentialRampToValueAtTime(.0001,t0+b*beat+.5);
+      o.connect(g);g.connect(AC.destination);o.start(t0+b*beat);o.stop(t0+b*beat+.55)});
+    return Math.ceil((t-t0)*1000);
+  }catch(e){return 0}
+}
+window.WD33_ANTHEM=playAnthem;
+/* ---------- OPENING: پرده‌ی اول ---------- */
+function openScenes(){
+  const g=(typeof window.WD33_PHASE==='function')?window.WD33_PHASE():null;
+  const ed=g?g.edition:1,host=g?g.host:{c:'—',n:'—',f:'jp'};
+  const d=cerData||{};
+  const torch=d.torch||null;
+  if(cerScene===0){
+    scene('<div class="ck">ACT I — THE OPENING CEREMONY</div><div class="ct">پرده‌ی اول — افتتاحیه</div>'+
+      '<div class="cs">رژه‌ی پرچم‌ها — کشورهای جهان به افتخار وارد ورزشگاه می‌شوند</div>'+
+      '<div style="overflow:hidden;width:min(96vw,760px)"><div class="wg33-parade">'+
+      PARADE.map(p=>'<div class="pf"><img src="'+flagU(p[0])+'" alt=""><span>'+esc(p[1])+'</span></div>').join('')+
+      '</div></div>',9000)}
+  else if(cerScene===1){
+    scene('<div class="ck">THE TORCH</div><div class="ct">انتقال مشعل</div>'+
+      '<div class="cs">'+(torch?('🔥 مشعل از دست <b style="color:#ffe08a">'+esc(torch.nick)+'</b> (قهرمان دوره‌ی '+faN(torch.edition||0)+') تحویل داده شد'):'🔥 مشعل المپیک روشن شد — نخستین دوره‌ی تاریخ')+'</div>'+
+      '<div class="wg33-torchflame"><span class="fl"></span><span class="st"></span></div>'+
+      '<div class="cs" style="margin-top:10px">شعله‌ی راه را روشن می‌کند…</div>',6500)}
+  else if(cerScene===2){
+    scene('<div class="ck">THE HOST CITY</div><div class="ct">میزبان دوره‌ی '+faN(ed)+'</div>'+
+      '<div class="wg33-bigflag"><img src="'+flagU(host.f)+'" alt=""><span class="sp"></span></div>'+
+      '<div class="cs" style="font-size:17px;font-weight:900;color:#ffe08a;margin-top:12px">🏟️ '+esc(host.c)+'، '+esc(host.n)+'</div>'+
+      '<div class="wg33-conf"></div>',6500)}
+  else{
+    if(cerScene>3){cerClose();return}
+    scene('<div class="ck">THE OLYMPIC TRUCE</div><div class="ct">🕊️ آتش‌بس مقدس اعلام می‌شود</div>'+
+      '<div class="cs">از این لحظه تا پایان بازی‌ها، <b>هر جنگی متوقف است</b> — امپراتور بزرگ و تازه‌کار، برابر روی یک زمین بازی می‌ایستند.<br>'+
+      '۵ روز رقابت • ۱۰ رشته • هر روز ۲ رشته • سهمیه‌ی هر کشور: ۳ رشته<br>برای چند روز، ورزش جای جنگ را می‌گیرد.</div>'+
+      '<div class="cs" style="color:#ffd75e;font-weight:900;margin-top:8px">بازی‌ها آغاز می‌شود! 🏅</div>'+
+      '<div class="wg33-conf"></div>',8000,true)}
+}
+/* ---------- CLOSING: پرده‌ی سوم ---------- */
+function closeScenes(){
+  const a=cerData||{};
+  const g=(typeof window.WD33_PHASE==='function')?window.WD33_PHASE():null;
+  const rec=a.rec||{};
+  if(cerScene===0){
+    const ms=playAnthem()||6000;
+    const tbl=(rec.table||[]).slice(0,3);
+    scene('<div class="ck">ACT III — THE CLOSING CEREMONY</div><div class="ct">پرده‌ی سوم — اختتامیه</div>'+
+      '<div class="cs">🎵 سرود قهرمان جهان در تمام ورزشگاه طنین‌انداز می‌شود</div>'+
+      (tbl.length?'<div class="wg33-pod3">'+
+        [tbl[1],tbl[0],tbl[2]].map((r,i)=>{if(!r)return '<span></span>';
+          const fl=flagForC(r.country);
+          return '<div class="pp '+(r===tbl[0]?'p1':(r===tbl[1]?'p2':'p3'))+'">'+(fl?'<img src="'+fl+'" alt="">':'')+'<span>'+esc(r.countryFa||r.country)+'</span><div class="pb">'+['🥈','🥇','🥉'][i]+'</div><small>'+faN(r.g)+'/'+faN(r.s)+'/'+faN(r.b)+'</small></div>'}).join('')+
+        '</div>':'<div class="cs">این دوره بدون مدال‌آور به پایان رسید</div>'),Math.max(ms,6500))}
+  else if(cerScene===1){
+    scene('<div class="ck">CHAMPION OF THE WORLD</div><div class="ct">🏆 قهرمان جهان</div>'+
+      '<div class="wg33-bigflag"><img src="'+flagU(rec.host_cc||'jp')+'" alt=""><span class="sp"></span></div>'+
+      '<div class="cs" style="font-size:16px;font-weight:900;color:#ffe08a">'+esc(rec.champion_country||'—')+'</div>'+
+      (rec.champion_nick?'<div class="cs">نفر برتر دوره: <b style="color:#ffe08a">'+esc(rec.champion_nick)+'</b> — 💎 ۴ جم + 🪙 ۱۰۰٬۰۰۰ سکه + بسته‌ی منابع + بوست ۲۴ ساعته گرفت</div>':'')+
+      '<div class="cs">🚩 پرچم طلایی برای ۲۴ ساعت روی نقشه‌ی جهان می‌درخشد • دوره‌ی بعد: '+esc(rec.host_city||'')+'</div>'+
+      '<div class="wg33-conf"></div>',9000)}
+  else cerClose();
+}
+function flagForC(en){try{if(typeof FL!=='undefined'&&FL&&FL[en]&&FL[en].code)return flagU(FL[en].code)}catch(e){}return null}
+/* opening champion flag: use champion country flag — closeScenes uses rec.host_cc placeholder replaced below */
+window.WD33_OPEN_CEREMONY=function(data){cerMode='open';cerData=data||null;cerScene=0;ensureCer().classList.add('on');
+  try{if(typeof snd==='function')snd('horn')}catch(e){}openScenes()};
+window.WD33_CLOSE_CEREMONY=function(d){cerMode='close';
+  const g=(typeof window.WD33_PHASE==='function')?window.WD33_PHASE():null;
+  const rec=(d&&d.archive||[]).find(a=>a.edition===(g?g.edition:0))||{};
+  /* flag of champion country */
+  try{if(typeof FL!=='undefined'&&FL){const keys=Object.keys(FL);for(const k of keys){if(getCountryData&&getCountryData(k)&&getCountryData(k).fa===rec.champion_country){rec.host_cc=FL[k].code;break}}}}catch(e){}
+  cerData={rec};cerScene=0;ensureCer().classList.add('on');
+  try{if(typeof snd==='function')snd('cheer')}catch(e){}closeScenes()};
+window.WD33_CEREMONY_DONE=function(fn){cerDone=fn};
+})();
+</script>
+<style id="v33-css2">
+.wd33-gflag-wrap{pointer-events:none}
+.wd33-gflag{position:absolute;transform:translate(-50%,-92%);display:flex;flex-direction:column;align-items:center;gap:2px;animation:wd32CrownFloat 2.8s ease-in-out infinite}
+.wd33-gflag img{width:46px;height:auto;border-radius:5px;outline:3px solid #ffd75e;box-shadow:0 0 22px rgba(255,204,0,.85),0 8px 20px rgba(0,0,0,.55)}
+.wd33-gflag small{font-size:8px;font-weight:900;color:#ffe08a;background:rgba(20,14,0,.85);border:1px solid rgba(255,204,0,.5);padding:1px 7px;border-radius:99px;white-space:nowrap}
+.gm33-rings{position:absolute;top:50%;left:0;width:84px;height:84px;margin-top:-42px;border-radius:50%;
+  background:radial-gradient(circle,#fff 12%,#ffd75e 13% 30%,#ff6b9d 31% 48%,#00c2ff 49% 66%,#0b3a5e 67% 100%);will-change:transform}
+.gm33-step{font-size:12px;color:#9cc3e8;margin-top:8px}
+.gm33-flash{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:900;pointer-events:none}
+.gm33-cad{width:min(80vw,340px);height:14px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);overflow:hidden;margin-top:12px}
+.gm33-cad i{display:block;height:100%;background:linear-gradient(90deg,#ff6b9d,#ffd75e,#7dff9e);width:0%}
+.gm33-vs{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:11px;color:#9cc3e8}
+.gm33-vs b{color:#ffe08a}
+</style>
+<script id="v33-minigames">
+/* ============ V33: 10 Olympic mini-games (mobile-first, DOM+rAF, zero deps) ============ */
+(function(){
+'use strict';
+const D=document;
+const faN=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const GD33={sprint:{ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه هرچه می‌توانی تند بزن!'},
+ archery:{ic:'🎯',fa:'تیراندازی با کمان',tip:'در بهترین لحظه شلیک کن — مرکز = ۱۰ امتیاز'},
+ swim:{ic:'🏊',fa:'شنا',tip:'یکی‌درمیان چپ و راست بزن — ۱۰ ثانیه'},
+ gym:{ic:'🤸',fa:'ژیمناستیک',tip:'توالی جهت‌ها را به‌ترتیب و به‌موقع لمس کن'},
+ weight:{ic:'🏋️',fa:'وزنه‌برداری',tip:'مارکر را در ناحیه‌ی طلایی شکار کن — ۵ حرکت'},
+ cycling:{ic:'🚴',fa:'دوچرخه‌سواری',tip:'ریتم ~نیم‌ثانیه — ثبات مهم‌تر از سرعت — ۲۰ ثانیه'},
+ chess:{ic:'♟️',fa:'شطرنج',tip:'۴ صفحه‌ی کیش‌ومات — حرکت برنده را انتخاب کن'},
+ volley:{ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — ۳ سرویس داری'},
+ football:{ic:'⚽',fa:'فوتبال',tip:'۳ دور پنالتی — گوشه را انتخاب کن، دروازه‌بان می‌پرد'},
+ wrestle:{ic:'🥋',fa:'کشتی',tip:'۳ دیدار طناب‌کشی — تند و پیوسته بزن'}};
+const sndK2=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
+const rpcG=async fn=>{try{const r=await sb.rpc(fn);if(r&&r.error)return null;return r?r.data:null}catch(e){return null}};
+
+/* stage */
+let stage=null,sOpen=false;
+const CL={raf:[],tm:[],clean:[]};
+function clrAll(){CL.raf.forEach(id=>{try{cancelAnimationFrame(id)}catch(e){}});CL.tm.forEach(id=>{try{clearTimeout(id)}catch(e){}});
+  CL.clean.forEach(f=>{try{f()}catch(e){}});CL.raf=[];CL.tm=[];CL.clean=[]}
+function loop33(fn){let last=0;const step=t=>{if(!sOpen)return;fn(t);CL.raf.push(requestAnimationFrame(step))};CL.raf.push(requestAnimationFrame(step))}
+function tm33(fn,ms){const id=setTimeout(fn,ms);CL.tm.push(id);return id}
+function on33(el,ev,fn,opt){el.addEventListener(ev,fn,opt);CL.clean.push(()=>{try{el.removeEventListener(ev,fn,opt)}catch(e){}})}
+function ensureStage(){if(!stage){stage=D.createElement('div');stage.id='wd33-stage';
+  stage.innerHTML='<div class="s33hd"><span class="ic" id="wg33-ic">🏅</span><span class="nm" id="wg33-nm"></span><span class="chips"><span class="chip33" id="wg33-att"></span><span class="chip33" id="wg33-bst"></span><button class="x33" id="wg33-x">✕</button></span></div><div class="s33bd" id="wg33-sbd"></div><div class="s33ft" id="wg33-sft"></div>';
+  D.body.appendChild(stage);
+  stage.querySelector('#wg33-x').addEventListener('click',()=>closeStage(true))}
+  return stage}
+function closeStage(refresh){clrAll();sOpen=false;if(stage)stage.classList.remove('on');
+  if(refresh&&window.WD33_REFRESH)window.WD33_REFRESH(true)}
+D.addEventListener('keydown',ev=>{if(ev&&ev.key==='Escape'&&sOpen)closeStage(true)});
+function hud(m){const att=D.getElementById('wg33-att'),bst=D.getElementById('wg33-bst');
+  if(att)att.textContent='تلاش '+faN(m.att||0)+'/۵';
+  if(bst)bst.textContent='بهترین: '+faN(m.best||0)}
+function foot(t){const f=D.getElementById('wg33-sft');if(f)f.textContent=t||''}
+
+/* main entry */
+window.WD33_PLAY=async function(key){
+  if(sOpen)return;
+  const m=GD33[key];if(!m)return;
+  const g=(typeof window.WD33_PHASE==='function')?window.WD33_PHASE():null;
+  if(!g||g.phase!=='live'){showToast2('الان زمان بازی‌ها نیست','lose');return}
+  if(g.today.indexOf(key)<0){showToast2('این رشته امروز برگزار نمی‌شود — برنامه را ببین','lose');return}
+  showToast2('⏳ در حال آماده‌سازی…');
+  const data=await rpcG('olympic_games');
+  if(!data){showToast2('دریافت اطلاعات ناموفق بود','lose');return}
+  const reg=(data.my&&data.my.reg)||[],ent=(data.my&&data.my.entries)||{};
+  if(reg.indexOf(key)<0){showToast2('در این رشته ثبت‌نام نکرده‌ای (سهمیه: ۳ رشته)','lose');return}
+  const e=ent[key]||{best:0,attempts:0};
+  if(e.attempts>=5){showToast2('۵ تلاش این رشته تمام شد','lose');return}
+  ensureStage();sOpen=true;stage.classList.add('on');
+  D.getElementById('wg33-ic').textContent=m.ic;
+  D.getElementById('wg33-nm').textContent=m.fa;
+  hud({att:e.attempts,best:e.best});
+  const bd=D.getElementById('wg33-sbd');
+  intro33(bd,m,e,()=>{
+    runGame(bd,key,(norm,raw)=>{
+      finish33(bd,key,norm,raw,e);
+    });
+  });
+};
+function showToast2(m,k){try{showToast(m,k)}catch(e){}}
+function intro33(bd,m,e,onStart){
+  bd.innerHTML='<div class="wg33-intro"><div class="big">'+m.ic+'</div><h2>'+esc(m.fa)+'</h2><p>'+esc(m.tip)+'</p>'+
+    '<p style="font-size:11px;color:#8fb8dd">بهترین امتیاز فعلی: '+faN(e.best||0)+' • تلاش‌های باقی‌مانده: '+faN(5-(e.attempts||0))+'</p>'+
+    '<button class="wg33-start" id="wg33-go">شروع رقابت</button></div>';
+  foot('برای شروع، دکمه را بزن — حین بازی صفحه را نکش');
+  bd.querySelector('#wg33-go').addEventListener('click',onStart);
+}
+function countdown33(bd,cb){
+  let n=3;bd.innerHTML='<div class="wg33-count" id="wg33-cd">۳</div>';sndK2('click');
+  const tick=()=>{const el=D.getElementById('wg33-cd');if(!el)return;
+    if(n>0){el.textContent=faN(n);el.style.animation='none';void el.offsetWidth;el.style.animation='';n--;tm33(tick,850)}
+    else{el.textContent='شروع!';sndK2('stamp');tm33(cb,600)}};
+  tm33(tick,850);
+}
+function runGame(bd,key,done){
+  foot(GD33[key].tip);
+  countdown33(bd,()=>{
+    const fin=(v)=>{tm33(()=>done(Math.max(0,Math.min(1000,Math.round(v)))),450)};
+    try{GAMES[key](bd,fin)}catch(err){console.log('wg33game',err);done(0)}
+  });
+}
+async function finish33(bd,key,norm,raw,e0){
+  hud({att:e0.attempts+1,best:Math.max(e0.best||0,norm)});
+  bd.innerHTML='<div class="wg33-result"><div class="big" style="font-size:40px">'+GD33[key].ic+'</div>'+
+    '<div class="sc">'+faN(norm)+'</div><div class="rr" id="wg33-sub">⏳ ثبت امتیاز…</div></div>';
+  foot('');
+  const r=await (async()=>{try{const res=await sb.rpc('olympic_submit',{p_discipline:key,p_score:norm});
+    if(res&&res.error)return{ok:false,reason:(res.error&&res.error.message)||'err'};return res?res.data:null}catch(e2){return{ok:false,reason:'net'}}})();
+  const box=D.getElementById('wg33-sub');
+  let att=e0.attempts+1,best=e0.best||0;
+  if(r&&r.ok){
+    best=Math.max(best,r.best||norm);att=r.attempts||att;
+    let txt='✅ ثبت شد — بهترینت: <b>'+faN(r.best)+'</b> • رتبه‌ی فعلی این رشته: <b>#'+faN(r.rank||1)+'</b> • تلاش '+faN(att)+'/۵';
+    if(r.record_broken){txt='<span class="recflag">⚡ رکورد همه‌ی دوران شکست!</span><br>'+txt;
+      try{if(typeof WD30CINE==='function')WD30CINE('⚡','رکورد جدید المپیک!','🏁 '+GD33[key].fa+' — '+faN(norm)+' امتیاز — نامت در تاریخ ثبت شد','c-gold','cheer')}catch(e){}}
+    if(box)box.innerHTML=txt;
+    sndK2(r.rank===1?'cheer':'coin');
+  }else{
+    const rs=(r&&r.reason)||'خطا';
+    const map={window:'⏳ زمان این رشته تمام شد — امتیاز ثبت نشد',attempts:'۵ تلاشت تمام شده بود',rate:'کمی صبر کن و دوباره',not_registered:'ثبت‌نام یافت نشد',score:'امتیاز نامعتبر',net:'⚠️ ثبت ناموفق — اینترنت را چک کن (امتیاز سوخت)'};
+    if(box)box.innerHTML='❌ '+(map[rs]||('خطا: '+esc(rs)))+'<br><span style="color:#8fb8dd">امتیاز خام: '+faN(norm)+'</span>';
+    sndK2('alert');
+  }
+  hud({att:att,best:best});
+  const wrap=D.createElement('div');wrap.style.cssText='display:flex;gap:8px;margin-top:14px;justify-content:center';
+  if(att<5){const rb=D.createElement('button');rb.className='wg33-start';rb.style.padding='11px 26px';rb.textContent='تلاش دوباره ('+faN(5-att)+' مانده)';
+    rb.addEventListener('click',()=>{runGame(bd,key,(n2)=>finish33(bd,key,n2,0,{best:best,attempts:att}))});wrap.append(rb)}
+  const cb=D.createElement('button');cb.className='wg33-start';cb.style.cssText+=';background:rgba(255,255,255,.1);color:#cdd7e8;box-shadow:none';
+  cb.textContent='بازگشت';cb.addEventListener('click',()=>closeStage(true));wrap.append(cb);
+  bd.querySelector('.wg33-result').append(wrap);
+}
+
+/* ================= 10 GAMES ================= */
+const GAMES={};
+/* 1 — sprint: raw taps in 8s */
+GAMES.sprint=(el,done)=>{
+  el.innerHTML='<div class="gm33-track"><span class="gm33-zone" style="left:0">👆</span><span class="gm33-zone" style="right:0">👆</span><span class="gm33-runner" id="g33run">🏃</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div>';
+  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s');
+  let taps=0,t0=0;const DUR=8000;let fin=false;
+  on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
+    if(!t0)t0=performance.now();taps++;sndK2('click');
+    run.style.transform='translateX('+Math.min(340,taps*4.4)+'px)';sc.textContent=faN(taps)},{passive:false});
+  loop33(()=>{const p=Math.min(1,(performance.now()-t0-600)/DUR);tb.style.width=Math.max(0,100-p*100)+'%';
+    if(!fin&&t0&&performance.now()-t0-600>=DUR){fin=true;done(Math.min(1000,taps*12))}});
+};
+/* 2 — archery: moving target, 5 shots */
+GAMES.archery=(el,done)=>{
+  el.innerHTML='<div class="gm33-track" style="height:120px"><div class="gm33-rings" id="g33tg"></div><div class="gm33-flash" id="g33fl"></div></div><div class="gm33-score" id="g33s">۰ / ۵۰</div><div class="gm33-step" id="g33st">تیر ۱ از ۵</div>';
+  const tg=el.querySelector('#g33tg'),fl=el.querySelector('#g33fl'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st');
+  const W=el.querySelector('.gm33-track').clientWidth||340;
+  let shot=0,pts=0,t0=performance.now();let fin=false;
+  const SPD=[1,1.35,1.7,2.1,2.5];
+  loop33(()=>{const t=(performance.now()-t0)/1000;
+    const x=(W/2-42)+Math.sin(t*SPD[Math.min(4,shot)])*(W/2-60);
+    tg.style.transform='translateX('+x+'px)'});
+  on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
+    if(shot>=5||fin)return;
+    const rect=tg.getBoundingClientRect(),px=ev.clientX-(rect.left+rect.width/2);
+    const d=Math.abs(px);const p=d<10?10:d<20?9:d<32?8:d<46?6:d<64?4:2;
+    pts+=p;shot++;sc.textContent=faN(pts)+' / ۵۰';st.textContent='تیر '+faN(Math.min(5,shot+1))+' از ۵';
+    fl.innerHTML='<span style="color:'+(p>=9?'#7dff9e':p>=6?'#ffd75e':'#ff8ba0')+'">'+(p>=9?'💥 ':'')+faN(p)+'</span>';
+    tm33(()=>{fl.innerHTML=''},600);sndK2(p>=8?'coin':'click');
+    if(shot>=5){fin=true;done(Math.min(1000,pts*20))}});
+};
+/* 3 — swim: alternating taps 10s */
+GAMES.swim=(el,done)=>{
+  el.innerHTML='<div class="gm33-track"><span class="gm33-zone" style="left:0">👈</span><span class="gm33-zone" style="right:0">👉</span><span class="gm33-runner" id="g33run">🏊</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step">یکی‌درمیان! همان سمت پیاپی نمی‌شمارد</div>';
+  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s');
+  let strokes=0,last=-1,t0=0;const DUR=10000;let fin=false;
+  const trk=el.querySelector('.gm33-track');
+  on33(trk,'pointerdown',ev=>{ev.preventDefault();
+    if(!t0)t0=performance.now();
+    const side=ev.clientX<window.innerWidth/2?0:1;
+    if(side!==last){strokes++;last=side;sndK2('click');
+      run.style.transform='translateX('+Math.min(320,strokes*4.6)+'px)';sc.textContent=faN(strokes)}
+    else sc.style.color='#ff8ba0';
+    setTimeout(()=>{sc.style.color=''},250)},{passive:false});
+  loop33(()=>{if(!t0)return;const p=Math.min(1,(performance.now()-t0)/DUR);tb.style.width=(100-p*100)+'%';
+    if(!fin&&p>=1){fin=true;done(Math.min(1000,strokes*14))}});
+};
+/* 4 — gym: directional sequence (single loop + step generation — no loop accumulation) */
+GAMES.gym=(el,done)=>{
+  el.innerHTML='<div class="gm33-arrowbig" id="g33ar">⬆️</div><div class="gm33-timer" style="width:min(60vw,240px)"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-pad"><button class="up" data-d="0">⬆️</button><button class="lf" data-d="2">⬅️</button><button class="dn" data-d="1">⬇️</button><button class="rt" data-d="3">➡️</button></div>';
+  const AR=['⬆️','⬇️','⬅️','➡️'];
+  const ar=el.querySelector('#g33ar'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s');
+  let step=0,pts=0,miss=0,stepT0=performance.now(),cur=0,gen=0,fin=false;
+  const win=[1600,1600,1450,1450,1300,1300,1150,1150,1000,1000,850,850];
+  const end=()=>{fin=true;done(Math.min(1000,pts))};
+  const next=()=>{if(fin)return;
+    if(step>=12||miss>=4){end();return}
+    cur=Math.floor(Math.random()*4);ar.textContent=AR[cur];
+    stepT0=performance.now();gen++};
+  loop33(()=>{if(fin)return;
+    const w=win[Math.min(11,step)];const p=(performance.now()-stepT0)/w;
+    if(tb)tb.style.width=Math.max(0,100-p*100)+'%';
+    if(p>=1){miss++;step++;sndK2('alert');next()}});
+  el.querySelectorAll('.gm33-pad button').forEach(b=>b.addEventListener('pointerdown',ev=>{ev.preventDefault();
+    if(fin)return;
+    const w=win[Math.min(11,step)];const el3=performance.now()-stepT0;
+    if(Number(b.getAttribute('data-d'))===cur){
+      pts+=70+(el3<w*.4?30:0);step++;sndK2('coin');sc.textContent=faN(pts);
+      next()}
+    else{miss++;sndK2('alert');next()}},{passive:false}));
+  next();
+};
+/* 5 — weight: timing bar, 5 lifts */
+GAMES.weight=(el,done)=>{
+  el.innerHTML='<div class="gm33-bar" id="g33bar"><div class="gm33-gold" id="g33z"></div><div class="gm33-marker" id="g33m"></div></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">حرکت ۱ از ۵</div>';
+  const bar=el.querySelector('#g33bar'),z=el.querySelector('#g33z'),m=el.querySelector('#g33m'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st');
+  const H=bar.clientHeight||190;
+  let lift=0,pts=0,t0=performance.now();let fin=false;
+  const ZC=[.30,.34,.30,.38,.34],ZH=[46,40,36,32,28],SPD=[2.1,2.4,2.7,3.0,3.4];
+  loop33(()=>{const t=(performance.now()-t0)/1000;
+    const y=H/2+Math.sin(t*SPD[Math.min(4,lift)])*(H/2-30);
+    m.style.top=(y-8)+'px'});
+  const drawZone=()=>{const zc=ZC[Math.min(4,lift)]*H,zh=ZH[Math.min(4,lift)];
+    z.style.top=(zc-zh)+'px';z.style.height=(zh*2)+'px'};
+  drawZone();
+  on33(bar,'pointerdown',ev=>{ev.preventDefault();
+    if(lift>=5||fin)return;
+    const zc=ZC[Math.min(4,lift)]*H,zh=ZH[Math.min(4,lift)];
+    const my=((Number(m.style.top.replace('px',''))||0)+8);
+    const d=Math.abs(my-zc);
+    const p=Math.max(0,1-d/(zh*2.2));
+    const got=Math.round(200*p);pts+=got;lift++;
+    sc.textContent=faN(pts);st.textContent='حرکت '+faN(Math.min(5,lift+1))+' از ۵';
+    sndK2(p>.6?'coin':'click');
+    if(lift>=5){fin=true;done(Math.min(1000,pts))}else drawZone()},{passive:false});
+};
+/* 6 — cycling: steady rhythm 20s */
+GAMES.cycling=(el,done)=>{
+  el.innerHTML='<div class="gm33-track"><span class="gm33-runner" id="g33run" style="left:8%">🚴</span></div><div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-cad"><i id="g33c"></i></div><div class="gm33-score" id="g33s">—</div><div class="gm33-step">هر ~نیم‌ثانیه یک ضربه — ثبات = امتیاز</div>';
+  const tb=el.querySelector('#g33t'),cd=el.querySelector('#g33c'),sc=el.querySelector('#g33s');
+  let t0=0,last=0,sum=0,n=0;const DUR=20000;let fin=false;
+  on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
+    const now=performance.now();if(!t0){t0=now;last=now;return}
+    const dt=now-last;last=now;
+    const q=Math.max(0,1-Math.abs(dt-400)/250);sum+=q;n++;
+    const avg=sum/n;sc.textContent=faN(Math.round(avg*1000));
+    cd.style.width=(avg*100)+'%';sndK2('click')},{passive:false});
+  loop33(()=>{if(!t0)return;const p=Math.min(1,(performance.now()-t0)/DUR);tb.style.width=(100-p*100)+'%';
+    if(!fin&&p>=1){fin=true;const avg=n>=8?sum/n:sum/Math.max(1,n)*0.6;done(Math.min(1000,avg*1000))}});
+};
+/* 7 — chess: 4 mate-in-1 puzzles */
+const CHESS33=[
+ {pc:{wK:'g1',wR:'e1',bK:'g8',bP1:'f7',bP2:'g7',bP3:'h7'},opts:['Re8#','Re7+','Rb1'],ans:0},
+ {pc:{wK:'g1',wQ:'h5',wB:'c2',bK:'h8',bP1:'g7'},opts:['Qh7#','Qe8+','Qg5'],ans:0},
+ {pc:{wK:'a1',wN:'d6',wR:'g1',bK:'h8',bP1:'h7'},opts:['Nf7#','Ne8','Rxg7'],ans:0},
+ {pc:{wK:'c2',wQ:'d1',wR:'a1',bK:'a4'},opts:['Qb3#','Qd4+','Ra3+'],ans:0}];
+const GL33={wK:'♔',wQ:'♕',wR:'♖',wN:'♘',wB:'♗',bK:'♚',bP1:'♟',bP2:'♟',bP3:'♟'};
+GAMES.chess=(el,done)=>{
+  let pi=0,pts=0,fin=false,t0=performance.now(),gen=0;
+  const show=()=>{
+    gen++;
+    if(pi>=CHESS33.length||fin){fin=true;done(pts);return}
+    const P=CHESS33[pi],myGen=gen;t0=performance.now();
+    const cells=[];const sq={};Object.keys(P.pc).forEach(k=>{sq[P.pc[k]]=GL33[k]||'♟'});
+    for(let r=8;r>=1;r--)for(let c=0;c<8;c++){
+      const name='abcdefgh'[c]+r;
+      cells.push('<span style="background:'+((r+c)%2?'rgba(255,255,255,.06)':'rgba(0,0,0,.28)')+'">'+(sq[name]||'')+'</span>')}
+    const order=[0,1,2].sort(()=>Math.random()-.5);
+    el.innerHTML='<div class="gm33-step" style="color:#ffe08a;font-weight:900">مات در یک حرکت — حرکت شماره‌ی '+faN(pi+1)+' از ۴</div>'+
+      '<div class="gm33-chess">'+cells.join('')+'</div><div class="gm33-opts">'+
+      order.map(i=>'<button data-i="'+i+'">'+P.opts[i]+'</button>').join('')+'</div>'+
+      '<div class="gm33-timer" style="width:min(88vw,340px)"><i id="g33t" style="width:100%"></i></div>';
+    const tb=el.querySelector('#g33t');
+    loop33(()=>{if(gen!==myGen||fin)return;const p=Math.min(1,(performance.now()-t0)/15000);if(tb)tb.style.width=(100-p*100)+'%';
+      if(p>=1){sndK2('alert');pi++;show()}});
+    el.querySelectorAll('.gm33-opts button').forEach(b=>b.addEventListener('pointerdown',ev=>{ev.preventDefault();
+      if(fin)return;
+      const i=Number(b.getAttribute('data-i'));
+      if(i===P.ans){const dt=performance.now()-t0;pts+=200+(dt<6000?50:dt<10000?25:0);sndK2('coin');pi++;show()}
+      else{fin=true;done(pts)}},{passive:false}));
+  };
+  show();
+};
+/* 8 — volley: spike in the zone, 3 serves */
+GAMES.volley=(el,done)=>{
+  el.innerHTML='<div class="gm33-track" style="height:190px"><div class="gm33-net"></div><div class="gm33-hitzone"></div><div class="gm33-ball" id="g33b">🏐</div></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">سرویس ۱ • رالی ۰</div>';
+  const b=el.querySelector('#g33b'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st');
+  const W=el.querySelector('.gm33-track').clientWidth||340,H=el.querySelector('.gm33-track').clientHeight||190;
+  let spikes=0,serves=1,t0=performance.now(),per=2.6,fin=false;
+  loop33(()=>{const t=(performance.now()-t0)/1000;
+    const ph=(t*per)%1; /* 0..1: left→right, then back */
+    const k=ph<.5?ph*2:(1-ph)*2; /* 0..1..0 — right edge when k=1 */
+    const x=14+(W-46)*k;
+    const y=H*.45+Math.sin(t*3.1)*H*.22;
+    b.style.transform='translate('+(W-x-30)+'px,'+y+'px)';
+    b.style.left='0px';b.style.top='0px'});
+  on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
+    if(fin)return;
+    const r=b.getBoundingClientRect(),z=el.querySelector('.gm33-hitzone').getBoundingClientRect();
+    if(r.right>z.left&&r.left<z.right&&r.top<z.bottom&&r.bottom>z.top){
+      spikes++;per=Math.min(4.6,per*1.09);sndK2('coin');
+      sc.textContent=faN(spikes);st.textContent='سرویس '+faN(serves)+' • رالی '+faN(spikes)}
+    else{serves++;per=Math.max(1.8,per*0.85);sndK2('alert');
+      st.textContent='سرویس '+faN(Math.min(3,serves))+' • رالی '+faN(spikes);
+      if(serves>3){fin=true;done(Math.min(1000,spikes*22))}}},{passive:false});
+};
+/* 9 — football: 3 rounds × 3 penalties */
+GAMES.football=(el,done)=>{
+  let round=0,shot=0,goals=0,pts=0,fin=false;
+  const RN=['یک‌هشتم','نیمه‌نهایی','فینال'],KP=[.33,.5,.65];
+  const show=()=>{
+    el.innerHTML='<div class="gm33-brk">'+RN.map((n,i)=>'<span class="'+(i===round?'on':'')+'">'+n+'</span>').join('')+'</div>'+
+      '<div class="gm33-goal" id="g33g"><div class="gzone" data-z="0" style="left:0">چپ</div><div class="gzone" data-z="1" style="left:33.3%">وسط</div><div class="gzone" data-z="2" style="right:0">راست</div><div class="gkeep" id="g33k" style="left:50%;margin-left:-15px">🧤</div><div class="gball" id="g33b">⚽</div></div>'+
+      '<div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">'+RN[round]+' — ضربه‌ی '+faN(shot+1)+' از ۳ — گوشه را انتخاب کن</div>';
+    const k=el.querySelector('#g33k'),b=el.querySelector('#g33b'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st');
+    el.querySelectorAll('.gzone').forEach(z=>z.addEventListener('pointerdown',ev=>{ev.preventDefault();
+      if(fin)return;
+      const zi=Number(z.getAttribute('data-z'));
+      const kd=Math.random()<KP[Math.min(2,round)]?zi:(zi+1+Math.floor(Math.random()*2))%3;
+      k.style.left=(16.5+kd*33.3)+'%';k.style.marginLeft='-15px';
+      b.style.left=(16.5+zi*33.3)+'%';b.style.bottom='55%';
+      tm33(()=>{
+        if(kd===zi){sndK2('alert');st.innerHTML='🧤 گرفت! '+RN[round]+' — ضربه‌ی '+faN(Math.min(3,shot+1+1))+' از ۳'}
+        else{goals++;pts+=90;sndK2('cheer');sc.textContent=faN(pts);
+          st.innerHTML='⚽ گُل! '+RN[round]+' — ضربه‌ی '+faN(Math.min(3,shot+1+1))+' از ۳'}
+        b.style.bottom='8%';
+        shot++;
+        if(shot>=3){
+          if(goals>=2){pts+=[100,150,200][Math.min(2,round)];sc.textContent=faN(pts);sndK2('cheer')}
+          round++;shot=0;goals=0;
+          if(round>=3){fin=true;done(Math.min(1000,pts))}
+          else tm33(show,900);
+        }},420)},{passive:false}));
+  };
+  show();
+};
+/* 10 — wrestle: tug of war, 3 bouts (dt-based AI — frame-rate independent) */
+GAMES.wrestle=(el,done)=>{
+  let bout=0,pts=0,fin=false;
+  const RIV=(window.__wg33data&&window.__wg33data.rivals&&window.__wg33data.rivals.length)?window.__wg33data.rivals.map(r=>({nick:r.nick})):null;
+  const NAMES=RIV?RIV.map(r=>r.nick):['رستم','سهراب','گردآفرید'];
+  const RATE=[8,11,14];
+  const show=()=>{
+    const opp=NAMES[Math.min(bout,NAMES.length-1)]||'حریف';
+    el.innerHTML='<div class="gm33-rope"><span class="rl"></span><span class="rr2"></span><div class="rmark" id="g33m"></div></div>'+
+      '<div class="gm33-vs">🥋 تو <b>در برابر</b> '+esc(opp)+' — دیدار '+faN(bout+1)+' از ۳</div>'+
+      '<div class="gm33-timer" style="width:min(92vw,480px)"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step">تند و پیوسته روی طناب بزن!</div>';
+    const m=el.querySelector('#g33m'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s');
+    let p=50,t0=performance.now(),lastT=t0;const DUR=12000;let bfin=false;
+    const W=el.querySelector('.gm33-rope').clientWidth||340;
+    loop33(()=>{if(bfin)return;
+      const now=performance.now();const dt=(now-t0)/1000;const dts=(now-lastT)/1000;lastT=now;
+      p-=RATE[Math.min(2,bout)]*dts;
+      const pr=Math.max(0,Math.min(100,p));
+      m.style.left=(pr/100)*(W-32)+'px';
+      const el2=D.getElementById('g33t');if(el2)el2.style.width=Math.max(0,100-(dt/DUR)*100)+'%';
+      if(pr>=100){bfin=true;const left=Math.max(0,12-dt);const got=250+Math.round(left/DUR*1000*0.15);
+        pts+=got;sndK2('cheer');sc.textContent=faN(pts);nextBout(got)}
+      else if(pr<=0||dt>=DUR){bfin=true;sndK2('alert');nextBout(0)}});
+    on33(el.querySelector('.gm33-rope'),'pointerdown',ev=>{ev.preventDefault();
+      if(bfin)return;p+=2.2;sndK2('click')},{passive:false});
+  };
+  const nextBout=(got)=>{bout++;
+    if(bout>=3){fin=true;done(Math.min(1000,pts))}
+    else tm33(()=>{showToast2(got?'💪 بردی! +'+faN(got):'😮 باختی — دیدار بعدی','win');show()},700)};
+  show();
+};
+/* ---------- golden champion flag on the map (24h after closing) ---------- */
+let gfMk=null;
+function placeGoldenFlag(){try{
+  const g=(typeof window.WD33_PHASE==='function')?window.WD33_PHASE():null;
+  if(gfMk){try{gfMk.remove()}catch(e){}gfMk=null}
+  if(!g||g.phase!=='after')return;
+  if(Date.now()-g.closeAt>864e5)return;
+  const c=window.WD_OL_CHAMP;if(!c||!c.country||!c.nick)return;
+  if(typeof getG!=='function'||typeof map==='undefined'||!map||typeof L==='undefined')return;
+  let cc=null;try{if(typeof FL!=='undefined'&&FL[c.country]&&FL[c.country].code)cc=FL[c.country].code}catch(e){}
+  if(!cc)return;
+  const gt=getG(c.country);if(!gt||!gt.c)return;
+  gfMk=L.marker(gt.c,{interactive:false,keyboard:false,zIndexOffset:1140,
+    icon:L.divIcon({className:'wd33-gflag-wrap',iconSize:[0,0],html:'<div class="wd33-gflag"><img src="/cdn/flags/w80/'+cc+'.png" alt=""><small>🏆 قهرمان جهان — '+esc(c.nick)+'</small></div>'})}).addTo(map);
+}catch(e){}}
+setTimeout(placeGoldenFlag,16000);setInterval(placeGoldenFlag,120000);
 })();
 </script>
 </body>

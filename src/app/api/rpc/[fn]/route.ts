@@ -205,46 +205,155 @@ async function applyOlympicRewards(uid: string) {
   }
 }
 
-/* lazy crowning: if the previous 7-day cycle ended without a champion row, crown the medal-table #1 now.
-   The unique (server, cycle) constraint makes concurrent crowning race-safe — rewards are applied
-   only by the request that successfully created the row. */
-async function ensureOlympicChampion(server: number) {
-  const prev = olCycle() - 1
-  const existing = await db.olympicChampion.findUnique({ where: { server_cycle: { server, cycle: prev } } })
-  if (existing) return existing
-  let champ: { nick: string; userId: string; medals: number; golds: number } | null = null
+/* V32 weekly crowning was superseded in V33 by the Olympic Games closing ceremony
+   (closeGamesEdition → crowns the Games champion into the same OlympicChampion table). */
+
+/* ============================================================
+   V33 — OLYMPIC GAMES (ایونت کامل سه‌پرده‌ای)
+   30-day cycle anchored to Jan 1 2026 UTC (same as war season):
+     day 16 → registration opens (pick 3 of 10 disciplines)
+     day 21 → opening ceremony, Games LIVE for 5 days (truce!)
+     day 26 → closing: freeze medals, crown champion, archive, rewards
+   10 mini-game disciplines, 2 per day. Medals by COUNTRY.
+   Deterministic host city (hash of edition) so all clients agree.
+   OL_OFFSET env shifts time (E2E testing only).
+   ============================================================ */
+const ED_ANCHOR = Date.UTC(2026, 0, 1)
+const ED_LEN = 30 * 86400000
+const ED_REG = 15 * 86400000
+const ED_OPEN = 20 * 86400000
+const ED_CLOSE = 25 * 86400000
+const GD_DAY: Record<string, number> = { sprint: 0, archery: 0, swim: 1, gym: 1, weight: 2, cycling: 2, chess: 3, volley: 3, football: 4, wrestle: 4 }
+const GD_MAX: Record<string, number> = { sprint: 1000, archery: 1000, swim: 1000, gym: 1000, weight: 1000, cycling: 1000, chess: 1000, volley: 1000, football: 1000, wrestle: 1000 }
+const HOSTS: { c: string; n: string; f: string }[] = [
+  { c: 'توکیو', n: 'ژاپن', f: 'jp' }, { c: 'پاریس', n: 'فرانسه', f: 'fr' }, { c: 'لس‌آنجلس', n: 'آمریکا', f: 'us' },
+  { c: 'لندن', n: 'بریتانیا', f: 'gb' }, { c: 'ریودوژانیرو', n: 'برزیل', f: 'br' }, { c: 'پکن', n: 'چین', f: 'cn' },
+  { c: 'آتن', n: 'یونان', f: 'gr' }, { c: 'سیدنی', n: 'استرالیا', f: 'au' }, { c: 'بارسلونا', n: 'اسپانیا', f: 'es' },
+  { c: 'سئول', n: 'کره‌ی جنوبی', f: 'kr' }, { c: 'مسکو', n: 'روسیه', f: 'ru' }, { c: 'مونترال', n: 'کانادا', f: 'ca' },
+  { c: 'مونیخ', n: 'آلمان', f: 'de' }, { c: 'مکزیکوسیتی', n: 'مکزیک', f: 'mx' }, { c: 'رم', n: 'ایتالیا', f: 'it' },
+  { c: 'هلزینکی', n: 'فنلاند', f: 'fi' }, { c: 'آمستردام', n: 'هلند', f: 'nl' }, { c: 'استکهلم', n: 'سوئد', f: 'se' },
+  { c: 'استانبول', n: 'ترکیه', f: 'tr' }, { c: 'قاهره', n: 'مصر', f: 'eg' }, { c: 'دهلی‌نو', n: 'هند', f: 'in' },
+  { c: 'بوئنوس‌آیرس', n: 'آرژانتین', f: 'ar' }, { c: 'نایروبی', n: 'کنیا', f: 'ke' }, { c: 'دبی', n: 'امارات', f: 'ae' },
+  { c: 'سنگاپور', n: 'سنگاپور', f: 'sg' }, { c: 'کیپ‌تاون', n: 'آفریقای جنوبی', f: 'za' }, { c: 'لیما', n: 'پرو', f: 'pe' },
+  { c: 'ورشو', n: 'لهستان', f: 'pl' }, { c: 'لیسبون', n: 'پرتغال', f: 'pt' }, { c: 'لاگوس', n: 'نیجریه', f: 'ng' },
+  { c: 'کوالالامپور', n: 'مالزی', f: 'my' }, { c: 'دوحه', n: 'قطر', f: 'qa' },
+]
+const olNow = () => Date.now() + (Number(process.env.OL_OFFSET || 0) || 0)
+const hashEd = (e: number) => { let h = (e * 2654435761) >>> 0; h ^= h >>> 13; h = Math.imul(h, 1274126177) >>> 0; return h >>> 0 }
+const hostOf = (edition: number) => HOSTS[hashEd(edition) % HOSTS.length]
+
+function gamesPhase(now = olNow()) {
+  const edition = Math.floor((now - ED_ANCHOR) / ED_LEN) + 1
+  const start = ED_ANCHOR + (edition - 1) * ED_LEN
+  const regAt = start + ED_REG, openAt = start + ED_OPEN, closeAt = start + ED_CLOSE
+  const nextReg = start + ED_LEN + ED_REG
+  let phase: 'pre' | 'reg' | 'live' | 'after' = 'pre'
+  if (now >= closeAt) phase = 'after'
+  else if (now >= openAt) phase = 'live'
+  else if (now >= regAt) phase = 'reg'
+  const gameDay = Math.min(4, Math.max(0, Math.floor((now - openAt) / 86400000)))
+  const today = phase === 'live' ? Object.keys(GD_DAY).filter((k) => GD_DAY[k] === gameDay) : []
+  return { edition, phase, gameDay, regAt, openAt, closeAt, nextReg, host: hostOf(edition), today }
+}
+
+/* per-discipline podium freeze (race-safe via unique (edition,discipline,rank)) */
+async function freezeDiscipline(edition: number, key: string) {
+  const done = await db.olympicResult.findFirst({ where: { edition, discipline: key } })
+  if (done) return
+  const rows = await db.olympicEntry.findMany({ where: { edition, discipline: key, best: { gt: 0 } }, orderBy: [{ best: 'desc' }, { lastAt: 'asc' }], take: 3 })
+  for (let i = 0; i < rows.length; i++) {
+    try {
+      await db.olympicResult.create({ data: { edition, discipline: key, rank: i + 1, userId: rows[i].userId, nick: rows[i].nick, country: rows[i].country, countryFa: rows[i].countryFa, score: rows[i].best } })
+    } catch (e) {
+      const c = (e as { code?: string })?.code
+      if (c !== 'P2002') console.log('freeze', e)
+    }
+  }
+  if (rows.length) await addNews(0, 'olympic_podium', key, rows[0].nick, null)
+}
+
+/* closing ceremony: freeze all, medal table by country, crown champion player,
+   rewards (4 gems + 100k gold + resources + boost), participant gems, archive row */
+async function closeGamesEdition(edition: number) {
+  const exists = await db.olympicArchive.findUnique({ where: { edition } })
+  if (exists) return exists
+  const host = hostOf(edition)
+  for (const k of Object.keys(GD_DAY)) { try { await freezeDiscipline(edition, k) } catch (e) { console.log('frz', e) } }
+  const results = await db.olympicResult.findMany({ where: { edition } })
+  const byC: Record<string, { country: string; countryFa: string; g: number; s: number; b: number; total: number }> = {}
+  const byP: Record<string, { nick: string; userId: string; g: number; s: number; b: number; total: number }> = {}
+  for (const r of results) {
+    const ck = r.country || '?'
+    const c = byC[ck] || (byC[ck] = { country: ck, countryFa: r.countryFa || ck, g: 0, s: 0, b: 0, total: 0 })
+    if (r.rank === 1) c.g++; else if (r.rank === 2) c.s++; else c.b++
+    c.total++
+    const p = byP[r.userId] || (byP[r.userId] = { nick: r.nick, userId: r.userId, g: 0, s: 0, b: 0, total: 0 })
+    if (r.rank === 1) p.g++; else if (r.rank === 2) p.s++; else p.b++
+    p.total++
+  }
+  const table = Object.values(byC).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
+  const players = Object.values(byP).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
+  const champ = players[0] || null
+  const champCountry = table[0] || null
+  if (champ) {
+    const u = await db.user.findFirst({ where: { nickLower: champ.nick.toLowerCase() } })
+    if (u) {
+      await applyOlympicRewards(u.id)
+      const terr = (await db.territory.findFirst({ where: { userId: u.id, isCapital: true } }))
+        || (await db.territory.findFirst({ where: { userId: u.id } }))
+      for (let s = 1; s <= 5; s++) {
+        try {
+          await db.olympicChampion.create({ data: { server: s, cycle: edition, userId: u.id, nick: champ.nick, country: terr ? terr.country : null, medals: champ.total, golds: champ.g, rewardGold: OL_REWARDS.gold, rewardGems: OL_REWARDS.gems } })
+        } catch (e) {
+          const c = (e as { code?: string })?.code
+          if (c !== 'P2002') console.log('champrow', e)
+        }
+      }
+      await addNews(0, 'olympic_champion', null, champ.nick, null)
+    }
+  }
+  /* participation reward: +3 gems for everyone who actually played */
+  const parts = await db.olympicEntry.findMany({ where: { edition, attempts: { gt: 0 } }, select: { userId: true } })
+  const uids = [...new Set(parts.map((p) => p.userId))]
+  for (const uid of uids) {
+    try {
+      const w = await ensureWallet(uid)
+      await db.wallet.update({ where: { userId: uid }, data: { gems: w.gems + 3 } })
+    } catch (e) { console.log('partgem', e) }
+  }
+  const recs = await db.olympicRecord.findMany({ take: 10, orderBy: [{ discipline: 'asc' }] })
+  const podiums: Record<string, { rank: number; nick: string; country: string; countryFa: string; score: number }[]> = {}
+  for (const r of results) {
+    const arr = podiums[r.discipline] || (podiums[r.discipline] = [])
+    arr.push({ rank: r.rank, nick: r.nick, country: r.country || '?', countryFa: r.countryFa || r.country || '?', score: r.score })
+  }
   try {
-    const agg = await olympicCompute(server)
-    const top = agg.medals && agg.medals[0]
-    if (top && top.total > 0 && top.nick) {
-      const u = await db.user.findFirst({ where: { nickLower: top.nick.toLowerCase() } })
-      if (u) champ = { nick: top.nick, userId: u.id, medals: top.total, golds: top.g }
-    }
-  } catch (e) { console.log('olcompute', e) }
-  try {
-    if (champ) {
-      const terr = (await db.territory.findFirst({ where: { server, userId: champ.userId, isCapital: true } }))
-        || (await db.territory.findFirst({ where: { server, userId: champ.userId } }))
-      const row = await db.olympicChampion.create({
-        data: {
-          server, cycle: prev, userId: champ.userId, nick: champ.nick,
-          country: terr ? terr.country : null, medals: champ.medals, golds: champ.golds,
-          rewardGold: OL_REWARDS.gold, rewardGems: OL_REWARDS.gems,
-        },
-      })
-      await applyOlympicRewards(champ.userId)
-      await addNews(server, 'olympic_champion', null, champ.nick, null)
-      return row
-    }
-    /* no medalists this cycle — mark it processed so we don't recompute every poll */
-    return await db.olympicChampion.create({ data: { server, cycle: prev, userId: 'none', nick: '' } })
-  } catch (e: unknown) {
-    const code = (e as { code?: string })?.code
-    if (code === 'P2002') {
-      return await db.olympicChampion.findUnique({ where: { server_cycle: { server, cycle: prev } } })
-    }
-    console.log('olcrown', e)
-    return null
+    await db.olympicArchive.create({
+      data: {
+        edition, hostCity: host.c, hostCountry: host.n, hostCc: host.f,
+        championCountry: champCountry ? champCountry.countryFa : null, championNick: champ ? champ.nick : null,
+        medalsJson: JSON.stringify(podiums), tableJson: JSON.stringify(table.slice(0, 12)),
+        recordsJson: JSON.stringify(recs), participants: uids.length,
+      },
+    })
+  } catch (e) {
+    const c = (e as { code?: string })?.code
+    if (c !== 'P2002') console.log('arch', e)
+  }
+  await addNews(0, 'olympic_close', null, champ ? champ.nick : null, champCountry ? champCountry.countryFa : null)
+  return { edition, table, champ }
+}
+
+/* lazy trigger: close any edition whose time has come (also covers missed closes) */
+async function ensureGamesClosed() {
+  const now = olNow()
+  const cur = gamesPhase(now)
+  const prev = gamesPhase(now - ED_LEN)
+  const cands = new Set<number>()
+  if (now >= cur.closeAt) cands.add(cur.edition)
+  if (prev.edition < cur.edition && now >= prev.closeAt) cands.add(prev.edition)
+  for (const e of [...cands].sort((a, b) => a - b).slice(-2)) {
+    try { await closeGamesEdition(e) } catch (err) { console.log('closeEd', err) }
   }
 }
 
@@ -411,6 +520,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
 
       /* ---------------- PvP ---------------- */
       case 'pvp_attack': {
+        if (gamesPhase().phase === 'live') return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
         const server = Number(args.p_server || 1)
         const country = String(args.p_country || '')
         const attack = Math.max(0, Number(args.p_attack || 0))
@@ -431,6 +541,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({ ok: win })
       }
       case 'pvp_capture_territory': {
+        if (gamesPhase().phase === 'live') return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
         const server = Number(args.p_server || 1)
         const country = String(args.p_country || '')
         const now = Date.now()
@@ -445,6 +556,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
          coup  : 100 gems, 1 per 24h per player  — artificial unrest on a foreign country
          meteor:  80 gems, 1 per 72h per player AND max 3 per rolling 7 days server-wide */
       case 'use_special': {
+        if (gamesPhase().phase === 'live') return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک */
         const item = String(args.p_item || '')
         const country = String(args.p_country || '')
         const server = Math.max(1, Number(args.p_server || 1))
@@ -482,8 +594,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       case 'season_reset': {
         if (!user.isAdmin) return R(null)
         const server = Math.max(1, Number(args.p_server || 1))
-        /* V32: crown the pending Olympic champion BEFORE the wipe so medals/scores still count */
-        try { await ensureOlympicChampion(server) } catch (e) { console.log('olcrown-reset', e) }
+        /* V33: close pending Games editions BEFORE the wipe so medals still count */
+        try { await ensureGamesClosed() } catch (e) { console.log('olclose-reset', e) }
         const top = await db.score.findMany({ where: { server }, orderBy: { score: 'desc' }, take: 3 })
         const top3: { nick: string; score: number }[] = []
         for (const s of top) {
@@ -584,10 +696,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       case 'olympics': {
         const server = Math.max(1, Number(args.p_server || 1))
         /* V32: lazy weekly crowning — also runs here so page viewers trigger it */
-        let champRow: Awaited<ReturnType<typeof ensureOlympicChampion>> = null
-        try { champRow = await ensureOlympicChampion(server) } catch (e) { console.log('olensure', e) }
+        let champRow: Awaited<ReturnType<typeof latestChampion>> = null
+        champRow = await latestChampion(server)
+        try { await ensureGamesClosed() } catch (e) { console.log('olensure', e) }
         const agg = await olympicCompute(server)
-        let latest = champRow && champRow.nick ? champRow : await latestChampion(server)
+        const latest = champRow && champRow.nick ? champRow : await latestChampion(server)
         return R({
           ...agg, ts: Date.now(),
           champ: champRow && champRow.nick ? olPublic(champRow) : olPublic(latest),
@@ -596,16 +709,124 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         })
       }
 
-      /* ---------------- V32 olympic_status: light poll for champion badge/crown (all clients, 90s) ---------------- */
+      /* ---------------- V32/V33 olympic_status: badges/crown + games phase (all clients, 90s) ---------------- */
       case 'olympic_status': {
         const server = Math.max(1, Number(args.p_server || 1))
-        try { await ensureOlympicChampion(server) } catch (e) { console.log('olstatus', e) }
+        try { await ensureGamesClosed() } catch (e) { console.log('olstatus', e) }
         const latest = await refreshChampCountry(server, await latestChampion(server))
+        const g = gamesPhase()
         return R({
           champion: olPublic(latest),
           cycle: { cur: olCycle(), next_at: new Date((olCycle() + 1) * CYCLE_MS).toISOString() },
           rewards: OL_REWARDS,
+          games: {
+            phase: g.phase, edition: g.edition, game_day: g.gameDay, today: g.today,
+            host: g.host, truce: g.phase === 'live',
+            reg_at: new Date(g.regAt).toISOString(), open_at: new Date(g.openAt).toISOString(),
+            close_at: new Date(g.closeAt).toISOString(), next_reg: new Date(g.nextReg).toISOString(),
+          },
         })
+      }
+
+      /* ---------------- V33 olympic_games: full hub payload (state, schedule, table, records, archive) ---------------- */
+      case 'olympic_games': {
+        try { await ensureGamesClosed() } catch (e) { console.log('olgames', e) }
+        const g = gamesPhase()
+        const edition = g.edition
+        if (g.phase === 'live') for (const k of Object.keys(GD_DAY)) { if (GD_DAY[k] < g.gameDay) { try { await freezeDiscipline(edition, k) } catch (e) {} } }
+        if (g.phase === 'after') for (const k of Object.keys(GD_DAY)) { try { await freezeDiscipline(edition, k) } catch (e) {} }
+        const results = await db.olympicResult.findMany({ where: { edition } })
+        const byC: Record<string, { country: string; countryFa: string; g: number; s: number; b: number; total: number }> = {}
+        for (const r of results) {
+          const ck = r.country || '?'
+          const c = byC[ck] || (byC[ck] = { country: ck, countryFa: r.countryFa || ck, g: 0, s: 0, b: 0, total: 0 })
+          if (r.rank === 1) c.g++; else if (r.rank === 2) c.s++; else c.b++
+          c.total++
+        }
+        const table = Object.values(byC).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
+        const myEntries = await db.olympicEntry.findMany({ where: { edition, userId: user.id } })
+        const records = await db.olympicRecord.findMany({ take: 12 })
+        const allResults = await db.olympicResult.findMany({ orderBy: [{ edition: 'asc' }], take: 400 })
+        const career: Record<string, { nick: string; g: number; s: number; b: number; total: number; eds: number[] }> = {}
+        for (const r of allResults) {
+          const c2 = career[r.nick] || (career[r.nick] = { nick: r.nick, g: 0, s: 0, b: 0, total: 0, eds: [] })
+          if (r.rank === 1) c2.g++; else if (r.rank === 2) c2.s++; else c2.b++
+          c2.total++
+          if (c2.eds.indexOf(r.edition) < 0) c2.eds.push(r.edition)
+        }
+        const rivals = Object.values(career).sort((a, b) => b.total - a.total || b.g - a.g).slice(0, 8).map((c3) => ({ nick: c3.nick, medals: c3.total }))
+        const myReg = myEntries.map((e) => e.discipline)
+        const myE: Record<string, { best: number; attempts: number }> = {}
+        for (const e of myEntries) myE[e.discipline] = { best: e.best, attempts: e.attempts }
+        const torch = await db.olympicArchive.findFirst({ where: { championNick: { not: null } }, orderBy: [{ edition: 'desc' }] })
+        const archives = await db.olympicArchive.findMany({ orderBy: [{ edition: 'desc' }], take: 8 })
+        const champRow = await latestChampion(Math.max(1, Number(args.p_server || 1)))
+        return R({
+          edition, phase: g.phase, game_day: g.gameDay, today: g.today, host: g.host,
+          reg_at: new Date(g.regAt).toISOString(), open_at: new Date(g.openAt).toISOString(),
+          close_at: new Date(g.closeAt).toISOString(), next_reg: new Date(g.nextReg).toISOString(),
+          truce: g.phase === 'live',
+          my: { reg: myReg, entries: myE, country: (myEntries[0] && myEntries[0].countryFa) || null },
+          table, records, career, rivals, torch: torch ? { edition: torch.edition, nick: torch.championNick, country: torch.championCountry } : null,
+          archive: archives.map((a) => ({
+            edition: a.edition, host_city: a.hostCity, host_country: a.hostCountry, host_cc: a.hostCc,
+            champion_country: a.championCountry, champion_nick: a.championNick, participants: a.participants,
+            podiums: JSON.parse(a.medalsJson || '{}'), table: JSON.parse(a.tableJson || '[]'),
+          })),
+          reigning: champRow ? { nick: champRow.nick, medals: champRow.medals, cycle: champRow.cycle } : null,
+          rewards: OL_REWARDS,
+        })
+      }
+
+      /* ---------------- V33 olympic_register: pick 3 of 10 (registration window only) ---------------- */
+      case 'olympic_register': {
+        const g = gamesPhase()
+        if (g.phase !== 'reg') return R({ ok: false, reason: 'window' })
+        const list = Array.isArray(args.p_disciplines) ? args.p_disciplines.map((x) => String(x)) : []
+        const keys = [...new Set(list)].filter((k) => GD_DAY[k] !== undefined)
+        if (!keys.length || keys.length > 3) return R({ ok: false, reason: 'quota' })
+        const cap = (await db.territory.findFirst({ where: { userId: user.id, isCapital: true } }))
+          || (await db.territory.findFirst({ where: { userId: user.id } }))
+        if (!cap) return R({ ok: false, reason: 'capital' })
+        await db.olympicEntry.deleteMany({ where: { edition: g.edition, userId: user.id } })
+        const cfa = String(args.p_country_fa || cap.country).slice(0, 40)
+        for (const k of keys) {
+          await db.olympicEntry.create({ data: { edition: g.edition, userId: user.id, nick: user.nick, country: cap.country, countryFa: cfa, discipline: k } })
+        }
+        return R({ ok: true, keys })
+      }
+
+      /* ---------------- V33 olympic_submit: mini-game score (registered + today + attempts + rate) ---------------- */
+      case 'olympic_submit': {
+        const g = gamesPhase()
+        const key = String(args.p_discipline || '')
+        if (GD_DAY[key] === undefined) return R({ ok: false, reason: 'discipline' })
+        if (g.phase !== 'live' || GD_DAY[key] !== g.gameDay) return R({ ok: false, reason: 'window' })
+        const score = Math.round(Number(args.p_score) || 0)
+        if (!(score >= 0 && score <= GD_MAX[key] + 50)) return R({ ok: false, reason: 'score' })
+        const ent = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
+        if (!ent) return R({ ok: false, reason: 'not_registered' })
+        if (ent.attempts >= 5) return R({ ok: false, reason: 'attempts' })
+        const last = ent.lastAt ? ent.lastAt.getTime() : 0
+        if (Date.now() - last < 8000) return R({ ok: false, reason: 'rate' })
+        const cfa = ent.countryFa || ent.country || null
+        const record = await db.olympicRecord.findUnique({ where: { discipline: key } })
+        let recordBroken = false
+        if (!record || score > record.score) {
+          if (record && score > record.score) {
+            recordBroken = true
+            await addNews(0, 'olympic_record', key, user.nick, null)
+          }
+          await db.olympicRecord.upsert({
+            where: { discipline: key },
+            create: { discipline: key, score, nick: user.nick, country: cfa, edition: g.edition },
+            update: { score, nick: user.nick, country: cfa, edition: g.edition },
+          })
+        }
+        const best = Math.max(ent.best, score)
+        await db.olympicEntry.update({ where: { id: ent.id }, data: { best, attempts: { increment: 1 }, lastAt: new Date() } })
+        const better = await db.olympicEntry.count({ where: { edition: g.edition, discipline: key, best: { gt: best } } })
+        return R({ ok: true, best, attempts: ent.attempts + 1, rank: better + 1, record_broken: recordBroken })
       }
 
       /* ---------------- news / chat ---------------- */

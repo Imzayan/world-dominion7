@@ -202,3 +202,64 @@ model OlympicChampion {
   @@unique([server, cycle])
   @@map("olympic_champions")
 }
+
+/* V33 — Olympic Games (10 mini-game disciplines, country medal table, records, archive) */
+model OlympicEntry {
+  id         String   @id @default(cuid())
+  edition    Int
+  userId     String   @map("user_id")
+  nick       String
+  country    String?
+  countryFa  String?  @map("country_fa")
+  discipline String
+  best       Int      @default(0)
+  attempts   Int      @default(0)
+  lastAt     DateTime @default(now()) @map("last_at")
+
+  @@unique([edition, userId, discipline])
+  @@index([edition, discipline])
+  @@map("olympic_entries")
+}
+
+model OlympicResult {
+  id         String  @id @default(cuid())
+  edition    Int
+  discipline String
+  rank       Int
+  userId     String  @map("user_id")
+  nick       String
+  country    String?
+  countryFa  String? @map("country_fa")
+  score      Int
+
+  @@unique([edition, discipline, rank])
+  @@map("olympic_results")
+}
+
+model OlympicRecord {
+  discipline String   @id
+  score      Int
+  nick       String
+  country    String?
+  edition    Int
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("olympic_records")
+}
+
+model OlympicArchive {
+  id              String   @id @default(cuid())
+  edition         Int      @unique
+  hostCity        String   @map("host_city")
+  hostCountry     String   @map("host_country")
+  hostCc          String   @map("host_cc")
+  championCountry String?  @map("champion_country")
+  championNick    String?  @map("champion_nick")
+  medalsJson      String   @map("medals_json")
+  tableJson       String   @map("table_json")
+  recordsJson     String   @map("records_json")
+  participants    Int      @default(0)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("olympic_archives")
+}
