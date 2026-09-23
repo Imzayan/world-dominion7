@@ -212,17 +212,19 @@ async function applyOlympicRewards(uid: string) {
    V33 — OLYMPIC GAMES (ایونت کامل سه‌پرده‌ای)
    30-day cycle anchored to Jan 1 2026 UTC (same as war season):
      day 16 → registration opens (pick 3 of 10 disciplines)
-     day 21 → opening ceremony, Games LIVE for 5 days (truce!)
-     day 26 → closing: freeze medals, crown champion, archive, rewards
-   10 mini-game disciplines, 2 per day. Medals by COUNTRY.
+     day 25 → opening ceremony, Games LIVE for 5 days (truce!) — ALL 10 disciplines open
+     day 30 → closing: freeze medals, crown champion, archive, rewards
+   10 mini-game disciplines (all playable through the whole live window,
+   "today" pair is just the featured match). Medals by COUNTRY, live table
+   computed from entries during the games.
    Deterministic host city (hash of edition) so all clients agree.
    OL_OFFSET env shifts time (E2E testing only).
    ============================================================ */
 const ED_ANCHOR = Date.UTC(2026, 0, 1)
 const ED_LEN = 30 * 86400000
 const ED_REG = 15 * 86400000
-const ED_OPEN = 20 * 86400000
-const ED_CLOSE = 25 * 86400000
+const ED_OPEN = 24 * 86400000
+const ED_CLOSE = 29 * 86400000
 const GD_DAY: Record<string, number> = { sprint: 0, archery: 0, swim: 1, gym: 1, weight: 2, cycling: 2, chess: 3, volley: 3, football: 4, wrestle: 4 }
 const GD_MAX: Record<string, number> = { sprint: 1000, archery: 1000, swim: 1000, gym: 1000, weight: 1000, cycling: 1000, chess: 1000, volley: 1000, football: 1000, wrestle: 1000 }
 const HOSTS: { c: string; n: string; f: string }[] = [
@@ -733,15 +735,31 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         try { await ensureGamesClosed() } catch (e) { console.log('olgames', e) }
         const g = gamesPhase()
         const edition = g.edition
-        if (g.phase === 'live') for (const k of Object.keys(GD_DAY)) { if (GD_DAY[k] < g.gameDay) { try { await freezeDiscipline(edition, k) } catch (e) {} } }
         if (g.phase === 'after') for (const k of Object.keys(GD_DAY)) { try { await freezeDiscipline(edition, k) } catch (e) {} }
-        const results = await db.olympicResult.findMany({ where: { edition } })
+        /* live medal table by COUNTRY: during the games standings come straight from
+           entry bests (top-3 per discipline, same ranking as the freeze), after close
+           they come from the frozen olympicResult rows */
         const byC: Record<string, { country: string; countryFa: string; g: number; s: number; b: number; total: number }> = {}
-        for (const r of results) {
-          const ck = r.country || '?'
-          const c = byC[ck] || (byC[ck] = { country: ck, countryFa: r.countryFa || ck, g: 0, s: 0, b: 0, total: 0 })
-          if (r.rank === 1) c.g++; else if (r.rank === 2) c.s++; else c.b++
-          c.total++
+        if (g.phase === 'live') {
+          const ents = await db.olympicEntry.findMany({ where: { edition, best: { gt: 0 } }, orderBy: [{ best: 'desc' }, { lastAt: 'asc' }] })
+          const picked: Record<string, number> = {}
+          for (const e of ents) {
+            const n = picked[e.discipline] || 0
+            if (n >= 3) continue
+            picked[e.discipline] = n + 1
+            const ck = e.country || '?'
+            const c = byC[ck] || (byC[ck] = { country: ck, countryFa: e.countryFa || ck, g: 0, s: 0, b: 0, total: 0 })
+            if (n === 0) c.g++; else if (n === 1) c.s++; else c.b++
+            c.total++
+          }
+        } else {
+          const results = await db.olympicResult.findMany({ where: { edition } })
+          for (const r of results) {
+            const ck = r.country || '?'
+            const c = byC[ck] || (byC[ck] = { country: ck, countryFa: r.countryFa || ck, g: 0, s: 0, b: 0, total: 0 })
+            if (r.rank === 1) c.g++; else if (r.rank === 2) c.s++; else c.b++
+            c.total++
+          }
         }
         const table = Object.values(byC).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
         const myEntries = await db.olympicEntry.findMany({ where: { edition, userId: user.id } })
@@ -778,30 +796,35 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         })
       }
 
-      /* ---------------- V33 olympic_register: pick 3 of 10 (registration window only) ---------------- */
+      /* ---------------- V33 olympic_register: pick 3 of 10 (reg window + late entry while live) ----------------
+         Late registration during live keeps existing rows (best/attempts preserved)
+         so editing your pick mid-games never wipes scores. */
       case 'olympic_register': {
         const g = gamesPhase()
-        if (g.phase !== 'reg') return R({ ok: false, reason: 'window' })
+        if (g.phase !== 'reg' && g.phase !== 'live') return R({ ok: false, reason: 'window' })
         const list = Array.isArray(args.p_disciplines) ? args.p_disciplines.map((x) => String(x)) : []
         const keys = [...new Set(list)].filter((k) => GD_DAY[k] !== undefined)
         if (!keys.length || keys.length > 3) return R({ ok: false, reason: 'quota' })
         const cap = (await db.territory.findFirst({ where: { userId: user.id, isCapital: true } }))
           || (await db.territory.findFirst({ where: { userId: user.id } }))
         if (!cap) return R({ ok: false, reason: 'capital' })
-        await db.olympicEntry.deleteMany({ where: { edition: g.edition, userId: user.id } })
+        const prior = await db.olympicEntry.findMany({ where: { edition: g.edition, userId: user.id } })
+        for (const p of prior) { if (keys.indexOf(p.discipline) < 0) await db.olympicEntry.delete({ where: { id: p.id } }) }
+        const keep = new Set(prior.map((p) => p.discipline).filter((k) => keys.indexOf(k) > -1))
         const cfa = String(args.p_country_fa || cap.country).slice(0, 40)
         for (const k of keys) {
+          if (keep.has(k)) continue
           await db.olympicEntry.create({ data: { edition: g.edition, userId: user.id, nick: user.nick, country: cap.country, countryFa: cfa, discipline: k } })
         }
         return R({ ok: true, keys })
       }
 
-      /* ---------------- V33 olympic_submit: mini-game score (registered + today + attempts + rate) ---------------- */
+      /* ---------------- V33 olympic_submit: mini-game score (registered + live + attempts + rate) ---------------- */
       case 'olympic_submit': {
         const g = gamesPhase()
         const key = String(args.p_discipline || '')
         if (GD_DAY[key] === undefined) return R({ ok: false, reason: 'discipline' })
-        if (g.phase !== 'live' || GD_DAY[key] !== g.gameDay) return R({ ok: false, reason: 'window' })
+        if (g.phase !== 'live') return R({ ok: false, reason: 'window' })
         const score = Math.round(Number(args.p_score) || 0)
         if (!(score >= 0 && score <= GD_MAX[key] + 50)) return R({ ok: false, reason: 'score' })
         const ent = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })

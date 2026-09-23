@@ -8,8 +8,8 @@ NICK="v33t$(date +%H%M%S)"
 E(){ $AB eval "$1" 2>/dev/null | tr -d '"\n' | head -1; }
 EDD=$(node -e "const A=Date.UTC(2026,0,1),L=30*864e5;console.log(Math.floor((Date.now()-A)/L)+1)")
 OFF_REG=$(node -e "const A=Date.UTC(2026,0,1),L=30*864e5,R=15*864e5;const s=A+(Math.floor((Date.now()-A)/L))*L;console.log(Math.round((s+R+3600e3)-Date.now()))")
-OFF_LIVE=$(node -e "const A=Date.UTC(2026,0,1),L=30*864e5,O=20*864e5;const s=A+(Math.floor((Date.now()-A)/L))*L;console.log(Math.round((s+O+7200e3)-Date.now()))")
-OFF_AFTER=$(node -e "const A=Date.UTC(2026,0,1),L=30*864e5,C=25*864e5;const s=A+(Math.floor((Date.now()-A)/L))*L;console.log(Math.round((s+C+7200e3)-Date.now()))")
+OFF_LIVE=$(node -e "const A=Date.UTC(2026,0,1),L=30*864e5,O=24*864e5;const s=A+(Math.floor((Date.now()-A)/L))*L;console.log(Math.round((s+O+7200e3)-Date.now()))")
+OFF_AFTER=$(node -e "const A=Date.UTC(2026,0,1),L=30*864e5,C=29*864e5;const s=A+(Math.floor((Date.now()-A)/L))*L;console.log(Math.round((s+C+7200e3)-Date.now()))")
 echo "NICK=$NICK EDITION=$EDD OFF_REG=$OFF_REG OFF_LIVE=$OFF_LIVE OFF_AFTER=$OFF_AFTER"
 
 # clean olympic tables from any previous session's test data
@@ -54,7 +54,7 @@ client_sync(){ # set client time offset to match server, reload
   sleep 9
 }
 
-echo "=========== PHASE A: registration window ==========="
+echo "=========== PHASE A: registration window (2 of 3 quota — room for late-reg test) ==========="
 boot $OFF_REG
 $AB open http://localhost:3100/game/index.html >/dev/null 2>&1; sleep 9
 # force clean session: any remembered cookie would auto-login and hijack the test user
@@ -85,7 +85,7 @@ echo "A_hub_on=$(E "!!document.querySelector('#wd-games.on')")"
 echo "A_phase_chip=$(E "(document.querySelector('.wg33-ph')?.textContent||'').slice(0,30)")"
 echo "A_host=$(E "(document.querySelector('.wg33-host')?.textContent||'').slice(0,44)")"
 echo "A_grid=$(E "document.querySelectorAll('#wg33-reggrid .wg33-disc').length")"
-$AB eval "(function(){try{var ds=document.querySelectorAll('#wg33-reggrid .wg33-disc');ds[0].click();ds[1].click();ds[2].click();return 'ok'}catch(e){return 'ERR'}})()" >/dev/null 2>&1
+$AB eval "(function(){try{var ds=document.querySelectorAll('#wg33-reggrid .wg33-disc');ds[0].click();ds[1].click();return 'ok'}catch(e){return 'ERR'}})()" >/dev/null 2>&1
 sleep 1
 echo "A_selcount=$(E "document.getElementById('wg33-seln')?.textContent")"
 $AB eval "try{document.getElementById('wg33-regbtn').click();'ok'}catch(e){'ERR'}" >/dev/null 2>&1
@@ -94,7 +94,7 @@ echo "A_myreg=$(E "fetch('/api/rpc/olympic_games',{method:'POST',headers:{'conte
 $AB screenshot $ROOT/download/v33-reg.png >/dev/null 2>&1
 $AB press Escape >/dev/null 2>&1
 
-echo "=========== PHASE B: games live (day 1: sprint+archery) ==========="
+echo "=========== PHASE B: games live (ALL 10 open + late registration) ==========="
 boot $OFF_LIVE
 client_sync $OFF_LIVE
 sleep 2
@@ -124,8 +124,13 @@ $AB eval "try{document.querySelector('#wg33-x').click();'ok'}catch(e){'ERR'}" >/
 echo "B_submit_arch=$(E "fetch('/api/rpc/olympic_submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({p_discipline:'archery',p_score:920})}).then(r=>r.json()).then(j=>JSON.stringify(j.data))")"
 sleep 9
 echo "B_submit_record=$(E "fetch('/api/rpc/olympic_submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({p_discipline:'archery',p_score:980})}).then(r=>r.json()).then(j=>JSON.stringify(j.data))")"
-echo "B_submit_offday=$(E "fetch('/api/rpc/olympic_submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({p_discipline:'swim',p_score:500})}).then(r=>r.json()).then(j=>JSON.stringify(j.data))")"
+echo "B_submit_unreg_swim=$(E "fetch('/api/rpc/olympic_submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({p_discipline:'swim',p_score:500})}).then(r=>r.json()).then(j=>JSON.stringify(j.data))")"
 echo "B_submit_unreg=$(E "fetch('/api/rpc/olympic_submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({p_discipline:'football',p_score:500})}).then(r=>r.json()).then(j=>JSON.stringify(j.data))")"
+echo "B_late_reg=$(E "fetch('/api/rpc/olympic_register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({p_disciplines:['sprint','archery','swim']})}).then(r=>r.json()).then(j=>JSON.stringify(j.data))")"
+sleep 9 # submit rate-limit window (8s) — a real player always clears it naturally
+echo "B_submit_swim=$(E "fetch('/api/rpc/olympic_submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({p_discipline:'swim',p_score:760})}).then(r=>r.json()).then(j=>JSON.stringify(j.data))")"
+echo "B_quota_full=$(E "fetch('/api/rpc/olympic_register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({p_disciplines:['sprint','archery','swim','football']})}).then(r=>r.json()).then(j=>JSON.stringify(j.data))")"
+echo "B_live_table=$(E "fetch('/api/rpc/olympic_games',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}).then(r=>r.json()).then(j=>JSON.stringify(j.data.table))")"
 echo "B_truce_atk=$(E "fetch('/api/rpc/pvp_attack',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({p_server:1,p_country:'Brazil',p_attack:9000})}).then(r=>r.json()).then(j=>JSON.stringify(j.data))")"
 echo "B_truce_special=$(E "fetch('/api/rpc/use_special',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({p_item:'coup',p_country:'Brazil'})}).then(r=>r.json()).then(j=>JSON.stringify(j.data))")"
 echo "B_status=$(E "fetch('/api/rpc/olympic_status',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}).then(r=>r.json()).then(j=>{var g=j.data.games;return g.phase+'/truce='+g.truce+'/day='+g.game_day})")"
@@ -156,7 +161,7 @@ echo "C_career_fn=$(E "typeof WD33_CAREER==='function'&&!!WD33_CAREER('$NICK')")
 # headless pages report document.hidden=true → the 30s news poller skips; call the sync manually
 $AB eval "(function(){try{if(window.WD23&&window.WD23.news){window.WD23.news();return 'news-sync'}return 'no-fn'}catch(e){return 'ERR'}})()" >/dev/null 2>&1
 sleep 4
-echo "C_ticker=$(E "(window.WD_NEWS||[]).join(' ').includes('المپیک')")"
+echo "C_ticker=$(E "(window.WD_NEWS||[]).map(function(x){return (x&&x.text)||x}).join(' ').includes('المپیک')")"
 echo "C_ticker_sample=$(E "((window.WD_NEWS||[])[0]||{}).text||''" | head -c 110)"
 
 echo "--- DB proof ---"

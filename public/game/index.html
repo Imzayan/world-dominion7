@@ -9350,7 +9350,7 @@ const faN=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const srvN=()=>{try{return Math.max(1,Number(window.SRV)||1)}catch(e){return 1}};
 const sndK=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
-const ANCHOR=Date.UTC(2026,0,1),EDM=30*864e5,REGO=15*864e5,OPENO=20*864e5,CLOSEO=25*864e5;
+const ANCHOR=Date.UTC(2026,0,1),EDM=30*864e5,REGO=15*864e5,OPENO=24*864e5,CLOSEO=29*864e5;
 const GD33={sprint:{d:0,ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه هرچه می‌توانی تند بزن — سرعت خالص!'},
  archery:{d:0,ic:'🎯',fa:'تیراندازی با کمان',tip:'در بهترین لحظه شلیک کن — هرچه مرکزی‌تر، امتیاز بیشتر'},
  swim:{d:1,ic:'🏊',fa:'شنا',tip:'ضربه‌ها را یکی‌درمیان چپ و راست بزن — ریتم متقارن'},
@@ -9475,7 +9475,7 @@ function renderHub(){
     '<div class="wg33-host"><img src="'+flagUrl33(g.host.f)+'" alt="">میزبان این دوره: '+esc(g.host.c)+'، '+esc(g.host.n)+'</div>';
   if(g.phase==='pre')h+='<span class="wg33-ph pre">⏳ ثبت‌نام باز نشده</span><div class="wg33-cd">🕊️ آتش‌بس و بازی‌ها از '+cdTxt(g.openAt)+' دیگر شروع می‌شود</div><div class="wd31-mini" style="margin-top:4px">باز شدن ثبت‌نام (۳ رشته از ۱۰): '+cdTxt(g.regAt)+' دیگر</div>';
   else if(g.phase==='reg')h+='<span class="wg33-ph reg">📝 ثبت‌نام باز است</span><div class="wg33-cd">افتتاحیه و شروع بازی‌ها: '+cdTxt(g.openAt)+' دیگر</div>';
-  else if(g.phase==='live')h+='<span class="wg33-ph live">🔴 بازی‌ها زنده است — روز '+faN(g.gameDay+1)+' از ۵</span><div class="wg33-cd">🕊️ آتش‌بس مقدس برقرار است — جنگ ممنوع</div><div class="wd31-mini" style="margin-top:4px">اختتامیه: '+cdTxt(g.closeAt)+' دیگر</div>';
+  else if(g.phase==='live')h+='<span class="wg33-ph live">🔴 بازی‌ها زنده است — روز '+faN(g.gameDay+1)+' از ۵</span><div class="wg33-cd">🕊️ آتش‌بس مقدس برقرار است — جنگ ممنوع</div><div class="wd31-mini" style="margin-top:4px">هر ۱۰ رشته بازند • اختتامیه: '+cdTxt(g.closeAt)+' دیگر</div>';
   else h+='<span class="wg33-ph after">🏁 بازی‌های این دوره تمام شد</span><div class="wg33-cd">ثبت‌نام دوره‌ی بعد: '+cdTxt(g.nextReg)+' دیگر</div>';
   h+='</section>';
   /* my career card */
@@ -9484,7 +9484,7 @@ function renderHub(){
     '<div style="font-size:12.5px;font-weight:900;color:#ffe08a">🥇 '+faN(career.g)+' • 🥈 '+faN(career.s)+' • 🥉 '+faN(career.b)+' = '+faN(career.total)+' مدال در '+faN(career.eds.length)+' دوره</div></div></div>';
   if(g.phase==='pre'){
     h+='<div class="wd31-card">'+secTitle('📅','برنامه‌ی این دوره')+
-      '<div class="wd31-mini" style="font-size:11.5px;line-height:2.1">🕊️ روز ۱۶ فصل: باز شدن ثبت‌نام — ۳ رشته از ۱۰ را انتخاب کن<br>🎪 روز ۲۱: مراسم افتتاحیه (رژه‌ی پرچم‌ها + مشعل + میزبان) و آغاز آتش‌بس<br>🏟️ روز ۲۱ تا ۲۶: هر روز ۲ رشته — هر روز یک دلیل تازه برای برگشتن<br>🏁 روز ۲۶: اختتامیه — سرود قهرمان، پرچم طلایی ۲۴ ساعته، تاج‌گذاری و جوایز</div></div>'+
+      '<div class="wd31-mini" style="font-size:11.5px;line-height:2.1">🕊️ روز ۱۶ فصل: باز شدن ثبت‌نام — ۳ رشته از ۱۰ را انتخاب کن<br>🎪 روز ۲۵ فصل: مراسم افتتاحیه (رژه‌ی پرچم‌ها + مشعل + میزبان) و آغاز آتش‌بس<br>🏟️ روز ۲۵ تا ۳۰: هر ۱۰ رشته باز است — هر روز یک دلیل تازه برای برگشتن<br>🏁 روز ۳۰: اختتامیه — سرود قهرمان، پرچم طلایی ۲۴ ساعته، تاج‌گذاری و جوایز</div></div>'+
       '<div class="wd31-card">'+secTitle('🏟️','۱۰ رشته‌ی المپیک')+'<div class="wg33-grid3">'+GD_KEYS.map(k=>discCard(k,'lock')).join('')+'</div></div>';
   }
   if(g.phase==='reg'){
@@ -9500,16 +9500,23 @@ function renderHub(){
   }
   if(g.phase==='live'){
     const regd=my.reg||[];const ent=my.entries||{};
-    h+='<div class="wd31-card" style="border-color:rgba(255,51,102,.4)">'+secTitle('🎯','رشته‌های امروز — روز '+faN(g.gameDay+1))+
-      '<div class="wd31-mini" style="margin:0 0 8px">آتش‌بس برقرار است؛ میدان جنگ امروز میدان بازی است ⚔️→🏅</div>'+
-      SCHED33[g.gameDay].map(k=>{const m=GD33[k];const mine=regd.indexOf(k)>-1;const e=ent[k];
+    /* late registration while the games are running — join or top up your quota */
+    if(regd.length<3){
+      h+='<div class="wd31-card" style="border-color:rgba(125,255,158,.35)">'+secTitle('📝','ثبت‌نام دیرهنگام — سهمیه‌ات را بگیر')+
+        '<div class="wd31-mini" style="margin:0 0 8px">بازی‌ها شروع شده ولی دیر نشده! <b style="color:#ffe08a">'+faN(3-regd.length)+'</b> رشته‌ی دیگر می‌توانی اضافه کنی — رکوردهای قبلی‌ات حفظ می‌شود • کشور تو: <b style="color:#ffe08a">'+esc(my.country||'—')+'</b></div>'+
+        '<div class="wg33-grid3" id="wg33-reggrid-live">'+GD_KEYS.map(k=>discCard(k,regd.indexOf(k)>-1||wgSel.indexOf(k)>-1?'sel':'')).join('')+'</div>'+
+        '<button class="wg33-play" id="wg33-regbtn-live" style="margin-top:12px">✅ ثبت/اضافه کردن رشته‌ها</button></div>';
+    }
+    h+='<div class="wd31-card" style="border-color:rgba(255,51,102,.4)">'+secTitle('🎯','همه‌ی رشته‌ها بازند — روز '+faN(g.gameDay+1)+' از ۵')+
+      '<div class="wd31-mini" style="margin:0 0 8px">آتش‌بس برقرار است؛ میدان جنگ امروز میدان بازی است ⚔️→🏅 • مسابقه‌ی اصلی امروز: '+SCHED33[g.gameDay].map(k=>GD33[k].ic+' '+GD33[k].fa).join(' • ')+'</div>'+
+      GD_KEYS.map(k=>{const m=GD33[k];const mine=regd.indexOf(k)>-1;const e=ent[k];const feat=SCHED33[g.gameDay].indexOf(k)>-1;
         return '<div class="wd31-row"><span class="wd31-rk" style="font-size:17px;background:none">'+m.ic+'</span>'+
-        '<span class="who">'+esc(m.fa)+(mine?'':' <span class="wd31-mini">(ثبت‌نام نکرده‌ای)</span>')+
+        '<span class="who">'+esc(m.fa)+(feat?' <span class="chip33 wd32-tag" style="font-size:8.5px">امروز</span>':'')+(mine?'':' <span class="wd31-mini">(ثبت‌نام نکرده‌ای)</span>')+
         (e?'<br><span class="wd31-mini">بهترین رکوردت: '+faN(e.best)+' • '+faN(e.attempts)+'/۵ تلاش</span>':'<br><span class="wd31-mini">'+esc(m.tip)+'</span>')+'</span>'+
         (mine&&(!e||e.attempts<5)?'<button class="wg33-play" style="width:auto;padding:9px 18px" data-play="'+k+'">بازی کن</button>':
          mine?'<span class="chip33 wd32-tag" style="font-size:9px">✓ ۵/۵</span>':'<span class="wd31-mini">🔒</span>')+'</div>'}).join('')+
       '<button class="wg33-play ghost" id="wg33-replay">🎬 پخش دوباره‌ی مراسم افتتاحیه</button></div>';
-    h+='<div class="wd31-card">'+secTitle('🗓️','برنامه‌ی ۵ روزه')+'<div class="wd31-mini" style="font-size:11px;line-height:2">'+
+    h+='<div class="wd31-card">'+secTitle('🗓️','مسابقه‌ی اصلی هر روز')+'<div class="wd31-mini" style="font-size:11px;line-height:2">'+
       SCHED33.map((day,i)=>{const ic=day.map(k=>GD33[k].ic).join(' ');
         return (i===g.gameDay?'<b style="color:#ffe08a">':'')+'روز '+faN(i+1)+': '+ic+(i===g.gameDay?'</b>':'')}).join('<br>')+'</div></div>';
   }
@@ -9536,6 +9543,16 @@ function renderHub(){
   wrap.querySelectorAll('#wg33-tblbox th[data-s]').forEach(th=>th.addEventListener('click',()=>{wgSort=th.getAttribute('data-s');const bx=D.getElementById('wg33-tblbox');if(bx)bx.innerHTML=medalTable(WG33&&WG33.table)}));
   const rb=D.getElementById('wg33-regbtn');
   if(rb)rb.addEventListener('click',doRegister);
+  const rbl=D.getElementById('wg33-regbtn-live');
+  if(rbl)rbl.addEventListener('click',doRegister);
+  wrap.querySelectorAll('#wg33-reggrid-live .wg33-disc').forEach(c=>c.addEventListener('click',()=>{
+    const k=c.getAttribute('data-k');
+    const cur=(WG33&&WG33.my&&WG33.my.reg)||[];
+    if(cur.indexOf(k)>-1){showToast33('این رشته قبلاً ثبت شده — رکوردش حفظ می‌شود','win');return}
+    const i=wgSel.indexOf(k);
+    if(i>-1)wgSel.splice(i,1);
+    else{if(cur.length+wgSel.length>=3){showToast33('حداکثر ۳ رشته — یکی را حذف کن','lose');return}wgSel.push(k)}
+    c.classList.toggle('sel',i<0);sndK('click')}));
   wrap.querySelectorAll('#wg33-reggrid .wg33-disc').forEach(c=>c.addEventListener('click',()=>{
     const k=c.getAttribute('data-k');const i=wgSel.indexOf(k);
     if(i>-1)wgSel.splice(i,1);
@@ -9552,10 +9569,13 @@ function rise33(w){[...w.children].forEach((e,i)=>{e.classList.add('wd31-rise');
 function showToast33(m,k){try{showToast(m,k)}catch(e){}}
 async function doRegister(){
   const g=gPhase33();
-  if(g.phase!=='reg'){showToast33('ثبت‌نام فقط پیش از افتتاحیه باز است','lose');return}
+  const live=g.phase==='live';
+  if(g.phase!=='reg'&&!live){showToast33('ثبت‌نام بسته است','lose');return}
   if(!wgSel.length){showToast33('حداقل یک رشته انتخاب کن','lose');return}
   let fa='';try{if(typeof getCountryData==='function'&&typeof myCountryName!=='undefined'&&myCountryName){const cd=getCountryData(myCountryName);if(cd&&cd.fa)fa=cd.fa}}catch(e){}
-  const r=await rpc33('olympic_register',{p_disciplines:wgSel,p_country_fa:fa});
+  const cur=(WG33&&WG33.my&&WG33.my.reg)||[];
+  const send=live?[...new Set([...cur,...wgSel])].slice(0,3):wgSel;
+  const r=await rpc33('olympic_register',{p_disciplines:send,p_country_fa:fa});
   if(r.ok&&r.d&&r.d.ok){showToast33('🏅 ثبت‌نام شد! رشته‌های تو: '+r.d.keys.map(k=>GD33[k]?GD33[k].fa:k).join('، '),'win');sndK('cheer');wgSel=[];wgRefresh(true)}
   else{const rs=(r.d&&r.d.reason)||(r.e&&r.e.message)||'خطا';
     showToast33(rs==='quota'?'حداکثر ۳ رشته':rs==='capital'?'اول پایتخت انتخاب کن':rs==='window'?'پنجره‌ی ثبت‌نام بسته است':'ثبت‌نام ناموفق — دوباره تلاش کن','lose')}}
@@ -9707,7 +9727,7 @@ function openScenes(){
     if(cerScene>3){cerClose();return}
     scene('<div class="ck">THE OLYMPIC TRUCE</div><div class="ct">🕊️ آتش‌بس مقدس اعلام می‌شود</div>'+
       '<div class="cs">از این لحظه تا پایان بازی‌ها، <b>هر جنگی متوقف است</b> — امپراتور بزرگ و تازه‌کار، برابر روی یک زمین بازی می‌ایستند.<br>'+
-      '۵ روز رقابت • ۱۰ رشته • هر روز ۲ رشته • سهمیه‌ی هر کشور: ۳ رشته<br>برای چند روز، ورزش جای جنگ را می‌گیرد.</div>'+
+      '۵ روز رقابت • ۱۰ رشته • همه‌ی رشته‌ها از روز اول بازند • سهمیه‌ی هر بازیکن: ۳ رشته<br>برای چند روز، ورزش جای جنگ را می‌گیرد.</div>'+
       '<div class="cs" style="color:#ffd75e;font-weight:900;margin-top:8px">بازی‌ها آغاز می‌شود! 🏅</div>'+
       '<div class="wg33-conf"></div>',8000,true)}
 }
@@ -9810,7 +9830,6 @@ window.WD33_PLAY=async function(key){
   const m=GD33[key];if(!m)return;
   const g=(typeof window.WD33_PHASE==='function')?window.WD33_PHASE():null;
   if(!g||g.phase!=='live'){showToast2('الان زمان بازی‌ها نیست','lose');return}
-  if(g.today.indexOf(key)<0){showToast2('این رشته امروز برگزار نمی‌شود — برنامه را ببین','lose');return}
   showToast2('⏳ در حال آماده‌سازی…');
   const data=await rpcG('olympic_games');
   if(!data){showToast2('دریافت اطلاعات ناموفق بود','lose');return}
