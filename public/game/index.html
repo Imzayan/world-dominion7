@@ -1878,9 +1878,12 @@ attackTarget=async function(n){
 // --- economy, upkeep, sanctions, unrest ---
 function revolt(n){delete unrest[n];conqueredCountries.delete(n);occupationPct[n]=45;applyCountryColor(n);try{setHatch(n,45,false,0)}catch(e){}
   news(`🔥 شورش در ${getCountryData(n).fa}! کنترل این کشور را از دست دادی`,'lose')}
-function econ(){if(!myCountryName)return;const terr=conqueredCountries.size,pw=calculateTotalAttack(),need=Math.round(pw/400);
+function econ(){if(!myCountryName)return;const terr=conqueredCountries.size,pw=calculateTotalAttack();
+  /* V40: مصرف نفت واقع‌بینانه — قبلاً pw/400 بود (در قدرت ۱۶هزار = ۶۰۰ نفت در دقیقه!) الان ≈ ۱/۵ + پژوهش لجستیک تا ۶۰٪ کاهش */
+  const logR=(typeof S!=='undefined'&&S.tech)?(S.tech.logistics||0):0;
+  const need=Math.max(1,Math.round(Math.min(25,pw/2500)*(1-.12*logR)));
   if(need>0){if(playerRes.oil>=need)playerRes.oil-=need;else{playerRes.oil=0;lose(.05);news('⛽ کمبود سوخت! بخشی از یگان‌ها از کار افتادند','lose')}}
-  if(sanction>0){playerRes.gold-=7.5*terr;playerRes.food-=5*terr;playerRes.oil-=oilPerTick()*terr/2;sanction-=4;if(sanction<=0){tension=45;news('🕊️ تحریم‌ها لغو شد','win')}}
+  if(sanction>0){playerRes.gold-=7.5*terr;playerRes.food-=5*terr;playerRes.oil-=Math.min(12,oilPerTick()*terr/2);sanction-=4;if(sanction<=0){tension=45;news('🕊️ تحریم‌ها لغو شد','win')}}
   else if(tension>=80){sanction=60;news('🚫 تحریم‌های بین‌المللی اعمال شد: درآمد تو نصف شد','lose')}
   conqueredCountries.forEach(n=>{if(n===myCountryName)return;if(unrest[n]==null)unrest[n]=25;unrest[n]+=Math.max(.1,.6-pw/8000);if(unrest[n]>=100)revolt(n)});
   ['gold','food','oil'].forEach(k=>playerRes[k]=Math.max(0,playerRes[k]));updateUI()}
@@ -2158,10 +2161,13 @@ function baseBonus(){return Math.min(.2,.02*prod().bases)}
   airBonus=function(){return ab()+airportBonus()};
   calculateTotalAttack=function(){return Math.round(cta()*(1+baseBonus()))}})();
 setInterval(()=>{if(typeof myCountryName==='undefined'||!myCountryName)return;
-  const p=prod();playerRes.gold+=p.gold;playerRes.oil+=p.oil;playerRes.food+=p.food;
+  /* V40: تولید پایه + تولید نفت به‌ازای هر قلمرو (که UI سال‌ها وعده داده بود ولی هرگز پرداخت نمی‌شد!) */
+  const p=prod();const _terr=conqueredCountries.size||0;
+  const baseOil=2+_terr*oilPerTick(), baseFood=4+_terr*3;
+  playerRes.gold+=p.gold;playerRes.oil+=p.oil+baseOil;playerRes.food+=p.food+baseFood;
   if(typeof unrest!=='undefined'){const cnt={};allSites().forEach(s=>{if(ST[s.t].calm&&isBuilt(s)&&owned(s.c)&&s.c!==myCountryName)cnt[s.c]=(cnt[s.c]||0)+1});
     Object.keys(cnt).forEach(c=>{unrest[c]=Math.max(0,(unrest[c]==null?25:unrest[c])-.15*cnt[c])})}
-  if(p.gold||p.oil||p.food)updateUI()},4000);
+  if(p.gold||p.oil||p.food||baseOil||baseFood)updateUI()},4000);
 
 /* ----- building ----- */
 function buildSite(s){
@@ -2810,9 +2816,11 @@ refreshSites=function(){if(typeof map==='undefined'||!map||!Object.keys(layersBy
 /* ---- economy: no more buy-oil / sell-oil loops ---- */
 const TR={buys:[],sells:[]};let lastCap=0;
 const recentN=a=>{const t=Date.now();while(a.length&&t-a[0]>180000)a.shift();return a.length};
-function capStore(){const t=Math.max(1,conqueredCountries.size),oc=2500+900*t,fc=4000+1200*t;let cut=false;
+function capStore(){const t=Math.max(1,conqueredCountries.size);
+  /* V40: سقف نفت حالا از همان oilStorageCap می‌آید که UI نشان می‌دهد (قبلاً متفاوت بود و ارتقای انبار بی‌اثر بود!) — سقف غذا هم بزرگ‌تر شد */
+  const oc=(typeof window.oilStorageCap==='function')?window.oilStorageCap():6000+1500*t,fc=9000+2500*t;let cut=false;
   if(playerRes.oil>oc){playerRes.oil=oc;cut=true}if(playerRes.food>fc){playerRes.food=fc;cut=true}
-  if(cut&&Date.now()-lastCap>60000){lastCap=Date.now();showToast('📦 انبارها پر است؛ مازاد تولید از بین می‌رود (ظرفیت نفت '+oc+'، غذا '+fc+')','lose')}return cut}
+  if(cut&&Date.now()-lastCap>60000){lastCap=Date.now();showToast('📦 انبارها پر است؛ مازاد تولید از بین می‌رود (ظرفیت نفت '+oc.toLocaleString()+'، غذا '+fc.toLocaleString()+')','lose')}return cut}
 setInterval(()=>{if(myCountryName&&capStore())updateUI()},3000);
 function buyMarket(kind){const c=kind==='oil'?{b:250,g:150,i:'🛢️',n:'بشکه نفت',id:'act-buy-oil'}:{b:150,g:300,i:'🌾',n:'واحد غذا',id:'act-buy-food'};
   const price=Math.round(c.b*(1+.12*recentN(TR.buys)));
@@ -3993,9 +4001,10 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
   window.renderNews=renderNews;
 
   // ---------- Oil storage / realistic production ----------
+  /* V40: ظرفیت انبار تقریباً ۲.۵ برابر شد — جمع‌کردن نفت حالا واقعاً ممکن است */
   window.oilStorageCap=function(){
-    const territoryBonus=(typeof conqueredCountries!=='undefined'?conqueredCountries.size:0)*500;
-    return 2500 + territoryBonus + ((infra&&infra.storage)||0)*2500;
+    const territoryBonus=(typeof conqueredCountries!=='undefined'?conqueredCountries.size:0)*1200;
+    return 6000 + territoryBonus + ((infra&&infra.storage)||0)*6000;
   };
   window.storageCost=function(){return 1000+(((infra&&infra.storage)||0)+1)*750};
   if(typeof infra!=='undefined' && infra.storage==null)infra.storage=0;
@@ -4028,8 +4037,8 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
       const cap=oilStorageCap();
       let cut=false;
       if(playerRes.oil>cap){playerRes.oil=cap;cut=true}
-      if(playerRes.food>2500+900*Math.max(1,conqueredCountries.size)){
-        playerRes.food=2500+900*Math.max(1,conqueredCountries.size);cut=true
+      if(playerRes.food>9000+2500*Math.max(1,conqueredCountries.size)){
+        playerRes.food=9000+2500*Math.max(1,conqueredCountries.size);cut=true
       }
       return cut;
     };
@@ -4853,7 +4862,9 @@ function markCountryAura(){
  paths.forEach(p=>{const c=(p.getAttribute('class')||'')+' '+(p.getAttribute('fill')||'');if(/own|player|capital/i.test(c))p.classList.add('wd11-owned')});
 }
 function start(){
- const observer=new MutationObserver(()=>{bindToolbar();installReliableActions();repairWorldTabs()});
+ /* V40: debounce — هر موج mutation فقط یک‌بار در فریم اجرا شود (قبلاً هر بار ۳ اسکن DOM کامل بود) */
+ let v11pend=false;
+ const observer=new MutationObserver(()=>{if(v11pend)return;v11pend=true;requestAnimationFrame(()=>{v11pend=false;bindToolbar();installReliableActions();repairWorldTabs()})});
  const c=$('wd7-content');if(c)observer.observe(c,{childList:true,subtree:true});
  bindToolbar();installReliableActions();repairWorldTabs();
  // Country aura refresh is deliberately slow: visual polish without animation storms.
@@ -9744,18 +9755,15 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 const srvN=()=>{try{return Math.max(1,Number(window.SRV)||1)}catch(e){return 1}};
 const sndK=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
 const ANCHOR=Date.UTC(2026,0,1),EDM=30*864e5,REGO=15*864e5,OPENO=24*864e5,CLOSEO=29*864e5;
+/* V40: المپیک حالا ۶ رشته‌ی سینمایی دارد — رکوردهای رشته‌های قدیمی در آرشیو/رتبه سرور می‌مانند */
 const GD33={sprint:{d:0,ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه هرچه می‌توانی تند بزن — سرعت خالص!'},
  archery:{d:0,ic:'🎯',fa:'تیراندازی با کمان',tip:'در بهترین لحظه شلیک کن — هرچه مرکزی‌تر، امتیاز بیشتر'},
  swim:{d:1,ic:'🏊',fa:'شنا',tip:'ضربه‌ها را یکی‌درمیان چپ و راست بزن — ریتم متقارن'},
- gym:{d:1,ic:'🤸',fa:'ژیمناستیک',tip:'توالی جهت‌ها را به‌ترتیب و به‌موقع لمس کن'},
  weight:{d:2,ic:'🏋️',fa:'وزنه‌برداری',tip:'دقیقاً وقتی مارکر در ناحیه‌ی طلایی است بزن'},
- cycling:{d:2,ic:'🚴',fa:'دوچرخه‌سواری',tip:'ریتم یکنواخت ~نیم‌ثانیه — ثبات مهم‌تر از سرعت است'},
- chess:{d:3,ic:'♟️',fa:'شطرنج',tip:'کیش‌ومات یک‌حرکتی — بهترین حرکت را قبل از پایان زمان انتخاب کن'},
  volley:{d:3,ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — رالی را بلندتر کن'},
- football:{d:4,ic:'⚽',fa:'فوتبال',tip:'پنالتی: گوشه را انتخاب کن — دروازه‌بان هر دوره‌ی بعد قوی‌تر می‌شود'},
- wrestle:{d:4,ic:'🥋',fa:'کشتی',tip:'طناب‌کشی — تند و پیوسته بزن تا مارکر از خطت رد شود'}};
+ football:{d:4,ic:'⚽',fa:'فوتبال',tip:'پنالتی: گوشه را انتخاب کن — دروازه‌بان هر دوره‌ی بعد قوی‌تر می‌شود'}};
 const GD_KEYS=Object.keys(GD33);
-const SCHED33=[['sprint','archery'],['swim','gym'],['weight','cycling'],['chess','volley'],['football','wrestle']];
+const SCHED33=[['sprint','archery'],['swim','weight'],['volley','football'],['sprint','volley'],['swim','football']];
 const HOSTS33=[{c:'توکیو',n:'ژاپن',f:'jp'},{c:'پاریس',n:'فرانسه',f:'fr'},{c:'لس‌آنجلس',n:'آمریکا',f:'us'},{c:'لندن',n:'بریتانیا',f:'gb'},{c:'ریودوژانیرو',n:'برزیل',f:'br'},{c:'پکن',n:'چین',f:'cn'},{c:'آتن',n:'یونان',f:'gr'},{c:'سیدنی',n:'استرالیا',f:'au'},{c:'بارسلونا',n:'اسپانیا',f:'es'},{c:'سئول',n:'کره‌ی جنوبی',f:'kr'},{c:'مسکو',n:'روسیه',f:'ru'},{c:'مونترال',n:'کانادا',f:'ca'},{c:'مونیخ',n:'آلمان',f:'de'},{c:'مکزیکوسیتی',n:'مکزیک',f:'mx'},{c:'رم',n:'ایتالیا',f:'it'},{c:'هلزینکی',n:'فنلاند',f:'fi'},{c:'آمستردام',n:'هلند',f:'nl'},{c:'استکهلم',n:'سوئد',f:'se'},{c:'استانبول',n:'ترکیه',f:'tr'},{c:'قاهره',n:'مصر',f:'eg'},{c:'دهلی‌نو',n:'هند',f:'in'},{c:'بوئنوس‌آیرس',n:'آرژانتین',f:'ar'},{c:'نایروبی',n:'کنیا',f:'ke'},{c:'دبی',n:'امارات',f:'ae'},{c:'سنگاپور',n:'سنگاپور',f:'sg'},{c:'کیپ‌تاون',n:'آفریقای جنوبی',f:'za'},{c:'لیما',n:'پرو',f:'pe'},{c:'ورشو',n:'لهستان',f:'pl'},{c:'لیسبون',n:'پرتغال',f:'pt'},{c:'لاگوس',n:'نیجریه',f:'ng'},{c:'کوالالامپور',n:'مالزی',f:'my'},{c:'دوحه',n:'قطر',f:'qa'}];
 function hostOf33(e){let h=(e*2654435761)>>>0;h^=h>>>13;h=Math.imul(h,1274126177)>>>0;return HOSTS33[h%HOSTS33.length]}
 function flagUrl33(cc){try{return (typeof flagUrl==='function')?flagUrl(cc):('/cdn/flags/w80/'+cc+'.png')}catch(e){return '/cdn/flags/w80/'+cc+'.png'}}
@@ -9965,9 +9973,9 @@ function renderHub(){
     '<div class="wd31-kicker" style="margin-top:10px">WORLD DOMINION OLYMPIC GAMES</div>'+
     '<h1 class="wd31-title">المپیک جهانی — دوره‌ی '+faN(g.edition)+'</h1>'+
     '<div class="wg33-host"><img src="'+flagUrl33(g.host.f)+'" alt="">میزبان این دوره: '+esc(g.host.c)+'، '+esc(g.host.n)+'</div>';
-  if(g.phase==='pre')h+='<span class="wg33-ph pre">⏳ ثبت‌نام باز نشده</span><div class="wg33-cd">🕊️ آتش‌بس و بازی‌ها از '+cdTxt(g.openAt)+' دیگر شروع می‌شود</div><div class="wd31-mini" style="margin-top:4px">باز شدن ثبت‌نام (۳ رشته از ۱۰): '+cdTxt(g.regAt)+' دیگر</div>';
+  if(g.phase==='pre')h+='<span class="wg33-ph pre">⏳ ثبت‌نام باز نشده</span><div class="wg33-cd">🕊️ آتش‌بس و بازی‌ها از '+cdTxt(g.openAt)+' دیگر شروع می‌شود</div><div class="wd31-mini" style="margin-top:4px">باز شدن ثبت‌نام (هر ۶ رشته): '+cdTxt(g.regAt)+' دیگر</div>';
   else if(g.phase==='reg')h+='<span class="wg33-ph reg">📝 ثبت‌نام باز است</span><div class="wg33-cd">افتتاحیه و شروع بازی‌ها: '+cdTxt(g.openAt)+' دیگر</div>';
-  else if(g.phase==='live')h+='<span class="wg33-ph live">🔴 بازی‌ها زنده است — روز '+faN(g.gameDay+1)+' از ۵</span><div class="wg33-cd">🕊️ آتش‌بس مقدس برقرار است — جنگ ممنوع</div><div class="wd31-mini" style="margin-top:4px">هر ۱۰ رشته بازند • اختتامیه: '+cdTxt(g.closeAt)+' دیگر</div>';
+  else if(g.phase==='live')h+='<span class="wg33-ph live">🔴 بازی‌ها زنده است — روز '+faN(g.gameDay+1)+' از ۵</span><div class="wg33-cd">🕊️ آتش‌بس مقدس برقرار است — جنگ ممنوع</div><div class="wd31-mini" style="margin-top:4px">هر ۶ رشته بازند • اختتامیه: '+cdTxt(g.closeAt)+' دیگر</div>';
   else h+='<span class="wg33-ph after">🏁 بازی‌های این دوره تمام شد</span><div class="wg33-cd">ثبت‌نام دوره‌ی بعد: '+cdTxt(g.nextReg)+' دیگر</div>';
   h+='</section>';
   /* my career card */
@@ -9976,13 +9984,13 @@ function renderHub(){
     '<div style="font-size:12.5px;font-weight:900;color:#ffe08a">🥇 '+faN(career.g)+' • 🥈 '+faN(career.s)+' • 🥉 '+faN(career.b)+' = '+faN(career.total)+' مدال در '+faN(career.eds.length)+' دوره</div></div></div>';
   if(g.phase==='pre'){
     h+='<div class="wd31-card">'+secTitle('📅','برنامه‌ی این دوره')+
-      '<div class="wd31-mini" style="font-size:11.5px;line-height:2.1">🕊️ روز ۱۶ فصل: باز شدن ثبت‌نام — ۳ رشته از ۱۰ را انتخاب کن<br>🎪 روز ۲۵ فصل: مراسم افتتاحیه (رژه‌ی پرچم‌ها + مشعل + میزبان) و آغاز آتش‌بس<br>🏟️ روز ۲۵ تا ۳۰: هر ۱۰ رشته باز است — هر روز یک دلیل تازه برای برگشتن<br>🏁 روز ۳۰: اختتامیه — سرود قهرمان، پرچم طلایی ۲۴ ساعته، تاج‌گذاری و جوایز</div></div>'+
-      '<div class="wd31-card">'+secTitle('🏟️','۱۰ رشته‌ی المپیک')+'<div class="wg33-grid3">'+GD_KEYS.map(k=>discCard(k,'lock')).join('')+'</div></div>';
+      '<div class="wd31-mini" style="font-size:11.5px;line-height:2.1">🕊️ روز ۱۶ فصل: باز شدن ثبت‌نام — هر ۶ رشته را انتخاب کن<br>🎪 روز ۲۵ فصل: مراسم افتتاحیه (رژه‌ی پرچم‌ها + مشعل + میزبان) و آغاز آتش‌بس<br>🏟️ روز ۲۵ تا ۳۰: هر ۶ رشته باز است — هر روز یک دلیل تازه برای برگشتن<br>🏁 روز ۳۰: اختتامیه — سرود قهرمان، پرچم طلایی ۲۴ ساعته، تاج‌گذاری و جوایز</div></div>'+
+      '<div class="wd31-card">'+secTitle('🏟️','۶ رشته‌ی المپیک')+'<div class="wg33-grid3">'+GD_KEYS.map(k=>discCard(k,'lock')).join('')+'</div></div>';
   }
   if(g.phase==='reg'){
     const myReg=my.reg||[];
-    h+='<div class="wd31-card">'+secTitle('📝','ثبت‌نام — ۳ رشته از ۱۰ را انتخاب کن')+
-      '<div class="wd31-mini" style="margin:0 0 8px">کشور تو: <b style="color:#ffe08a">'+esc(my.country||'—')+'</b> • انتخاب شده: <b id="wg33-seln">'+faN(wgSel.length)+'</b>/۳ — تا لحظه‌ی افتتاحیه می‌توانی عوض کنی</div>'+
+    h+='<div class="wd31-card">'+secTitle('📝','ثبت‌نام — هر ۶ رشته را انتخاب کن')+
+      '<div class="wd31-mini" style="margin:0 0 8px">کشور تو: <b style="color:#ffe08a">'+esc(my.country||'—')+'</b> • انتخاب شده: <b id="wg33-seln">'+faN(wgSel.length)+'</b>/۶ — تا لحظه‌ی افتتاحیه می‌توانی عوض کنی</div>'+
       '<div class="wg33-grid3" id="wg33-reggrid">'+GD_KEYS.map(k=>discCard(k,myReg.indexOf(k)>-1||wgSel.indexOf(k)>-1?'sel':'')).join('')+'</div>'+
       '<button class="wg33-play" id="wg33-regbtn" style="margin-top:12px">'+(myReg.length?'✅ ثبت/ویرایش انتخاب‌ها':'✅ ثبت‌نام در المپیک')+'</button>'+
       '<div class="wd31-mini" style="margin-top:7px">برای ثبت‌نام باید پایتخت داشته باشی — کشورت در جدول مدال‌ها با بازیکنان دیگر آن کشور جمع می‌شود.</div></div>';
@@ -9993,9 +10001,9 @@ function renderHub(){
   if(g.phase==='live'){
     const regd=my.reg||[];const ent=my.entries||{};
     /* late registration while the games are running — join or top up your quota */
-    if(regd.length<3){
+    if(regd.length<6){
       h+='<div class="wd31-card" style="border-color:rgba(125,255,158,.35)">'+secTitle('📝','ثبت‌نام دیرهنگام — سهمیه‌ات را بگیر')+
-        '<div class="wd31-mini" style="margin:0 0 8px">بازی‌ها شروع شده ولی دیر نشده! <b style="color:#ffe08a">'+faN(3-regd.length)+'</b> رشته‌ی دیگر می‌توانی اضافه کنی — رکوردهای قبلی‌ات حفظ می‌شود • کشور تو: <b style="color:#ffe08a">'+esc(my.country||'—')+'</b></div>'+
+        '<div class="wd31-mini" style="margin:0 0 8px">بازی‌ها شروع شده ولی دیر نشده! <b style="color:#ffe08a">'+faN(6-regd.length)+'</b> رشته‌ی دیگر می‌توانی اضافه کنی — رکوردهای قبلی‌ات حفظ می‌شود • کشور تو: <b style="color:#ffe08a">'+esc(my.country||'—')+'</b></div>'+
         '<div class="wg33-grid3" id="wg33-reggrid-live">'+GD_KEYS.map(k=>discCard(k,regd.indexOf(k)>-1||wgSel.indexOf(k)>-1?'sel':'')).join('')+'</div>'+
         '<button class="wg33-play" id="wg33-regbtn-live" style="margin-top:12px">✅ ثبت/اضافه کردن رشته‌ها</button></div>';
     }
@@ -10008,6 +10016,7 @@ function renderHub(){
         (mine&&(!e||e.attempts<5)?'<button class="wg33-play" style="width:auto;padding:9px 18px" data-play="'+k+'">بازی کن</button>':
          mine?'<span class="chip33 wd32-tag" style="font-size:9px">✓ ۵/۵</span>':'<span class="wd31-mini">🔒</span>')+'</div>'}).join('')+
       '<button class="wg33-play ghost" id="wg33-replay">🎬 پخش دوباره‌ی مراسم افتتاحیه</button></div>';
+    h+=liveFeedCard(d);
     h+='<div class="wd31-card">'+secTitle('🗓️','مسابقه‌ی اصلی هر روز')+'<div class="wd31-mini" style="font-size:11px;line-height:2">'+
       SCHED33.map((day,i)=>{const ic=day.map(k=>GD33[k].ic).join(' ');
         return (i===g.gameDay?'<b style="color:#ffe08a">':'')+'روز '+faN(i+1)+': '+ic+(i===g.gameDay?'</b>':'')}).join('<br>')+'</div></div>';
@@ -10044,12 +10053,12 @@ function renderHub(){
     if(cur.indexOf(k)>-1){showToast33('این رشته قبلاً ثبت شده — رکوردش حفظ می‌شود','win');return}
     const i=wgSel.indexOf(k);
     if(i>-1)wgSel.splice(i,1);
-    else{if(cur.length+wgSel.length>=3){showToast33('حداکثر ۳ رشته — یکی را حذف کن','lose');return}wgSel.push(k)}
+    else{if(cur.length+wgSel.length>=6){showToast33('هر ۶ رشته انتخاب شده','lose');return}wgSel.push(k)}
     c.classList.toggle('sel',i<0);sndK('click')}));
   wrap.querySelectorAll('#wg33-reggrid .wg33-disc').forEach(c=>c.addEventListener('click',()=>{
     const k=c.getAttribute('data-k');const i=wgSel.indexOf(k);
     if(i>-1)wgSel.splice(i,1);
-    else{if(wgSel.length>=3){showToast33('حداکثر ۳ رشته — یکی را حذف کن','lose');return}wgSel.push(k)}
+    else{if(wgSel.length>=6){showToast33('هر ۶ رشته انتخاب شده','lose');return}wgSel.push(k)}
     c.classList.toggle('sel',i<0);
     const sn=D.getElementById('wg33-seln');if(sn)sn.textContent=faN(wgSel.length);
     sndK('click')}));
@@ -10060,6 +10069,22 @@ function renderHub(){
   const rp=D.getElementById('wg33-replay');
   if(rp)rp.addEventListener('click',()=>{try{localStorage.setItem('wd33open_'+g.edition,'0');if(window.WD33_OPEN_CEREMONY)window.WD33_OPEN_CEREMONY()}catch(e){}});
 }
+/* V40: کارت «پخش زنده» — آخرین نتایج واقعی بازیکنان، همان لحظه */
+function liveFeedCard(d){
+  const feed=(d&&d.live_feed)||[];
+  if(!feed.length)return '<div class="wd31-card" style="border-color:rgba(255,51,102,.45)">'+secTitle('📡','پخش زنده — المپیک')+
+    '<div class="wd31-mini" style="text-align:center;padding:6px 0">🔴 آنتن زنده برقرار است — اولین نتایج همین‌جا پخش می‌شود…</div></div>';
+  const rows=feed.slice(0,8).map((f,i)=>{
+    const ic=(GD33[f.discipline]||{}).ic||'🏅',dn=DN33[f.discipline]||f.discipline;
+    const ago=(()=>{try{const s=Math.max(1,Math.round((Date.now()-Date.parse(f.at))/1000));
+      return s<60?faN(s)+' ثانیه پیش':s<3600?faN(Math.round(s/60))+' دقیقه پیش':faN(Math.round(s/3600))+' ساعت پیش'}catch(e){return ''}})();
+    return '<div class="wd40-live-row"><span class="lr-ic">'+ic+'</span>'+
+      '<span class="lr-body"><b>'+esc(f.nick)+'</b>'+(f.countryFa?' <small>'+esc(f.countryFa)+'</small>':'')+
+      '<br><small>'+dn+' — <b style="color:#ffe08a">'+faN(f.best)+'</b> امتیاز</small></span>'+
+      '<span class="lr-ago">'+ago+'</span></div>'}).join('');
+  return '<div class="wd31-card" style="border-color:rgba(255,51,102,.45)">'+secTitle('📡','پخش زنده — المپیک')+
+    '<div class="wd40-live-hd"><i></i>🔴 LIVE — آخرین نتایج بازیکنان سراسر جهان</div>'+rows+'</div>';
+}
 function rise33(w){[...w.children].forEach((e,i)=>{e.classList.add('wd31-rise');e.style.animationDelay=(0.06*i)+'s'})}
 function showToast33(m,k){try{showToast(m,k)}catch(e){}}
 async function doRegister(){
@@ -10069,11 +10094,11 @@ async function doRegister(){
   if(!wgSel.length){showToast33('حداقل یک رشته انتخاب کن','lose');return}
   let fa='';try{if(typeof getCountryData==='function'&&typeof myCountryName!=='undefined'&&myCountryName){const cd=getCountryData(myCountryName);if(cd&&cd.fa)fa=cd.fa}}catch(e){}
   const cur=(WG33&&WG33.my&&WG33.my.reg)||[];
-  const send=live?[...new Set([...cur,...wgSel])].slice(0,3):wgSel;
+  const send=live?[...new Set([...cur,...wgSel])].slice(0,6):wgSel;
   const r=await rpc33('olympic_register',{p_disciplines:send,p_country_fa:fa});
   if(r.ok&&r.d&&r.d.ok){showToast33('🏅 ثبت‌نام شد! رشته‌های تو: '+r.d.keys.map(k=>GD33[k]?GD33[k].fa:k).join('، '),'win');sndK('cheer');wgSel=[];wgRefresh(true)}
   else{const rs=(r.d&&r.d.reason)||(r.e&&r.e.message)||'خطا';
-    showToast33(rs==='quota'?'حداکثر ۳ رشته':rs==='capital'?'اول پایتخت انتخاب کن':rs==='window'?'پنجره‌ی ثبت‌نام بسته است':'ثبت‌نام ناموفق — دوباره تلاش کن','lose')}}
+    showToast33(rs==='quota'?'هر ۶ رشته بیشتر نمی‌شود':rs==='capital'?'اول پایتخت انتخاب کن':rs==='window'?'پنجره‌ی ثبت‌نام بسته است':'ثبت‌نام ناموفق — دوباره تلاش کن','lose')}}
 async function wgRefresh(force){
   try{
     if(typeof sb==='undefined'||!sb)return;
@@ -10096,33 +10121,60 @@ function wgStartPoll(){if(wgPollT)clearInterval(wgPollT);wgPollT=setInterval(()=
 wgStartPoll();setTimeout(wgRefresh,4000);
 
 /* ---------- live medal strip on the main screen ---------- */
-let stripEl=null;
-function strip33Update(d){
-  if(!stripEl){stripEl=D.createElement('div');stripEl.id='wd33-strip';D.body.appendChild(stripEl);
-    stripEl.addEventListener('click',wgOpen)}
-  const g=gPhase33();
-  if(!d||((g.phase!=='live')&&(g.phase!=='after'))){stripEl.classList.remove('on');return}
+let stripEl=null,stripT=null,stripMsgs=[],stripIx=0;
+/* V40: پخش زنده‌ی واقعی — تیکر چرخشی از نتایج تازه‌ی بازیکنان + صدر جدول + برنامه‌ی امروز */
+function stripBuild(d){
+  const g=gPhase33(),m=[];
+  if(d.live_feed&&d.live_feed.length){
+    d.live_feed.slice(0,8).forEach(f=>{
+      const dn=DN33[f.discipline]||f.discipline,ic=(GD33[f.discipline]||{}).ic||'🏅';
+      m.push(ic+' '+esc(f.nick)+' — '+faN(f.best)+' امتیاز در '+dn+(f.countryFa?' ('+esc(f.countryFa)+')':''))})}
   const t=(d.table||[]).slice(0,3);
-  if(!t.length&&!d.today&&g.phase!=='after'){stripEl.classList.remove('on');return}
-  let h='<span class="live33"><i></i>'+(window.WD33_ICON?window.WD33_ICON(13):'')+(g.phase==='live'?'المپیک زنده':'پایان المپیک')+'</span>';
-  if(t.length)h+=t.map((r,i)=>{const fl=flagForCountry(r.country);
-    return '<span class="s33">'+['🥇','🥈','🥉'][i]+(fl?'<img src="'+fl+'" alt="">':'')+esc(r.countryFa||r.country)+' <b>'+faN(r.total)+'</b></span>'}).join('');
-  else h+='<span class="s33">اولین مدال‌ها به‌زودی…</span>';
-  h+='<span class="s33" style="color:#7fd7ff">مشاهده ›</span>';
-  stripEl.innerHTML=h;stripEl.classList.add('on');
+  if(t.length)m.push('🏆 صدر جدول: '+t.map((r,i)=>['🥇','🥈','🥉'][i]+' '+(r.countryFa||r.country)+' '+faN(r.total)).join(' | '));
+  if(g.phase==='live'&&SCHED33[g.gameDay])m.push('📅 مسابقه‌ی اصلی امروز: '+SCHED33[g.gameDay].map(k=>(GD33[k]||{}).ic+' '+(DN33[k]||k)).join(' + '));
+  if(d.records&&d.records.length){const r=d.records[0];m.push('⚡ رکورد جهانی: '+esc(r.nick||'—')+' با '+faN(r.best||0)+' در '+(DN33[r.discipline]||r.discipline||'—'))}
+  return m;
+}
+function stripRotate(){
+  if(!stripEl||!stripMsgs.length)return;
+  const el=stripEl.querySelector('#wd33-feed');if(!el)return;
+  el.classList.remove('wg40feedin');void el.offsetWidth;el.classList.add('wg40feedin');
+  el.textContent=stripMsgs[stripIx%stripMsgs.length];stripIx++;
+}
+function strip33Update(d){
+  if(!stripEl){stripEl=D.createElement('div');stripEl.id='wd33-strip';stripEl.innerHTML='<span class="live33"><i></i>'+(window.WD33_ICON?window.WD33_ICON(13):'')+'<b>LIVE</b></span><span id="wd33-feed"></span><span class="s33" style="color:#7fd7ff">مشاهده ›</span>';
+    stripEl.addEventListener('click',wgOpen);D.body.appendChild(stripEl)}
+  const g=gPhase33();
+  if(!d||((g.phase!=='live')&&(g.phase!=='after'))){stripEl.classList.remove('on');if(stripT){clearInterval(stripT);stripT=null}return}
+  stripMsgs=stripBuild(d);
+  if(!stripMsgs.length){stripEl.classList.remove('on');return}
+  stripMsgs.unshift(g.phase==='live'?'المپیک جهانی زنده است — دوره‌ی '+faN(g.edition):'پایان المپیک — دوره‌ی '+faN(g.edition));
+  stripIx=0;stripRotate();
+  if(stripT)clearInterval(stripT);
+  stripT=setInterval(()=>{if(!D.hidden)stripRotate()},4200);
+  stripEl.classList.add('on');
   const chip=D.getElementById('hud-olympic');if(chip)chip.classList.add('wg33-live');
 }
 /* ---------- ceremonies auto-trigger ---------- */
 function checkCeremonies(d){
   try{
     const g=gPhase33();
+    /* V40: پایانِ کامل — اگر اسباب‌تستی wd33toff باقی مانده باشد، بازی‌ها «از ادامه» می‌آیند.
+       ۲۴ ساعت بعد از اختتامیه، اوفست پاک می‌شود تا دوره واقعاً تمام شده باشد و چرخه به زمان واقعی برگردد */
+    if(g.phase==='after'){
+      const off=Number(localStorage.getItem('wd33toff')||0)||0;
+      if(off&&Date.now()+off>g.closeAt+864e5){
+        localStorage.removeItem('wd33toff');localStorage.setItem('wd33toffdone_'+g.edition,'1');
+        try{wgRefresh(true)}catch(e){}}
+    }
     if(g.phase==='live'&&!localStorage.getItem('wd33open_'+g.edition)&&typeof window.WD33_OPEN_CEREMONY==='function'){
       localStorage.setItem('wd33open_'+g.edition,'1');setTimeout(()=>{try{window.WD33_OPEN_CEREMONY()}catch(e){}},1200)}
     if(g.phase==='after'&&Date.now()-(Date.parse(d.close_at||0)||0)<864e5&&
        !localStorage.getItem('wd33close_'+g.edition)&&typeof window.WD33_CLOSE_CEREMONY==='function'){
       const rec=(d.archive||[]).find(a=>a.edition===g.edition);
-      if(rec&&rec.champion_country){localStorage.setItem('wd33close_'+g.edition,'1');
-        setTimeout(()=>{try{window.WD33_CLOSE_CEREMONY(d)}catch(e){}},1200)}}
+      /* V40: پرچم حتی بدون قهرمان هم ست می‌شود — قبلاً دوره‌های بدون مدال برای همیشه «بسته‌نشده» می‌ماندند */
+      localStorage.setItem('wd33close_'+g.edition,'1');
+      if(rec&&rec.champion_country)setTimeout(()=>{try{window.WD33_CLOSE_CEREMONY(d)}catch(e){}},1200)}
   }catch(e){}
 }
 /* ---------- truce (آتش‌بس) — client-side guard on the attack chain ---------- */
@@ -10447,6 +10499,9 @@ function ensureStage(){if(!stage){stage=D.createElement('div');stage.id='wd33-st
   D.body.appendChild(stage);
   /* V35: تماشاگران سینمایی بالای استادیوم */
   stage.insertAdjacentHTML('afterbegin','<div class="wg35-crowd" aria-hidden="true"><span>🎉</span><span>🇮🇷</span><span>🎉</span><span>🇧🇷</span><span>🎉</span><span>🇫🇷</span><span>🎉</span><span>🇯🇵</span><span>🎉</span><span>🇩🇪</span><span>🎉</span><span>🇬🇧</span></div>');
+  /* V40: جو استادیوم برای همه‌ی بازی‌ها — ردیف دوم تماشاگر + نور استادیوم */
+  stage.insertAdjacentHTML('afterbegin','<div class="wg35-crowd r2" aria-hidden="true"><span>🇪🇸</span><span>🎉</span><span>🇺🇸</span><span>🎉</span><span>🇮🇹</span><span>🎉</span><span>🇷🇺</span><span>🎉</span><span>🇨🇳</span><span>🎉</span><span>🇪🇬</span><span>🎉</span></div>');
+  stage.insertAdjacentHTML('afterbegin','<div class="wg35-light" aria-hidden="true"></div>');
   stage.insertAdjacentHTML('beforeend','<div class="wg35-flash" id="wg33-fxflash"></div>');
   stage.querySelector('#wg33-x').addEventListener('click',()=>closeStage(true))}
   FX.ensure();
@@ -10570,7 +10625,7 @@ async function openGame33(key){
   const data=await rpcG('olympic_games');
   if(!data){showToast2('دریافت اطلاعات ناموفق بود','lose');return}
   const reg=(data.my&&data.my.reg)||[],ent=(data.my&&data.my.entries)||{};
-  if(reg.indexOf(key)<0){showToast2('در این رشته ثبت‌نام نکرده‌ای (سهمیه: ۳ رشته)','lose');return}
+  if(reg.indexOf(key)<0){showToast2('در این رشته ثبت‌نام نکرده‌ای — از بخش ثبت‌نام اضافه کن','lose');return}
   const e=ent[key]||{best:0,attempts:0};
   if(e.attempts>=5){showToast2('۵ تلاش این رشته تمام شد','lose');return}
   ensureStage();sOpen=true;stage.classList.add('on');
@@ -10979,45 +11034,115 @@ GAMES.chess=(el,done)=>{
   show();
 };
 /* 8 — volley: beach rally — ball flies a real parabola over the net with a ground shadow; rival receives on the far side (score formula unchanged: spikes*22) */
+/* V40 — والیبال ساحلی: بازسازی سینمایی کامل بر اساس طرح ۶ نقطه‌ای کاربر
+   ① زمین پرسپکتیو واقعی (rotateX + خطوط همگرا) ② سیر پارابولیک توپ + اسپین + سایه‌ی بیضی متحرک
+   ③ بازیکن SVG چندفریمی (آماده/پرش/ضربه) ④ دوربین دینامیک (زوم نزدیک تور + لرزش لحظه‌ی ضربه)
+   ⑤ تماشاگران پرچم‌به‌دست با پارالاکس ⑥ نور استادیوم + سایه‌ی نرم تور/تیرک‌ها
+   فرمول امتیاز دست‌نخورده: spikes*22 — سه سرویس */
 GAMES.volley=(el,done)=>{
   const S=window.ST38;
-  el.innerHTML='<div class="gm33-track" style="height:200px;position:relative;overflow:hidden"><div class="gm33-net" id="g33net"></div><div class="gm33-hitzone"></div>'+
-    '<span style="position:absolute;left:4%;bottom:8px;font-size:24px;opacity:.85">🧍</span>'+
-    '<div class="w38-shadow" id="g33sh"></div><div class="gm33-ball" id="g33b">🏐</div></div>'+
-    '<div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">سرویس ۱ • رالی ۰ — وقتی تو ناحیه است بزن!</div>';
-  const b=el.querySelector('#g33b'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st'),net=el.querySelector('#g33net'),sh=el.querySelector('#g33sh');
-  const W=el.querySelector('.gm33-track').clientWidth||340,H=el.querySelector('.gm33-track').clientHeight||200;
-  JUICE.cam('court'); /* V39: دوربین نزدیک ساحلی */
-  let spikes=0,serves=1,t0=performance.now(),per=2.6,fin=false;
+  const crowd=()=>{
+    const f=['🇮🇷','🎉','🇧🇷','🎉','🇫🇷','🇯🇵','🎉','🇩🇪','🇬🇧','🎉','🇮🇹','🎉','🇪🇸','🎉','🇺🇸','🎉','🇷🇺','🎉','🇨🇳','🎉','🇪🇬','🎉','🇦🇺'];
+    let a='',b2='';
+    for(let i=0;i<f.length;i++){a+='<span>'+f[i]+'</span>';b2+='<span>'+(f[f.length-1-i])+'</span>'}
+    return '<div class="w40-vb-crowd r1">'+a+'</div><div class="w40-vb-crowd r2">'+b2+'</div>';
+  };
+  const playerSVG='<svg viewBox="0 0 44 60" width="44" height="60">'+
+    '<g class="v40p v40-idle">'+
+      '<circle cx="22" cy="9" r="6" fill="#e8b98a"/><path d="M16 6 q6 -6 12 0 l-1 3 q-5 -3 -10 0z" fill="#2b3a67"/>'+
+      '<rect x="17" y="15" width="10" height="13" rx="3" fill="#e04848"/>'+
+      '<rect x="13" y="16" width="4" height="12" rx="2" fill="#e8b98a" transform="rotate(14 15 16)"/>'+
+      '<rect x="27" y="16" width="4" height="12" rx="2" fill="#e8b98a" transform="rotate(-14 29 16)"/>'+
+      '<rect x="17" y="28" width="4" height="14" rx="2" fill="#1f2c50"/><rect x="23" y="28" width="4" height="14" rx="2" fill="#1f2c50"/>'+
+      '<rect x="15" y="41" width="7" height="4" rx="2" fill="#f4f4f4"/><rect x="22" y="41" width="7" height="4" rx="2" fill="#f4f4f4"/></g>'+
+    '<g class="v40p v40-ready" style="display:none">'+
+      '<circle cx="22" cy="12" r="6" fill="#e8b98a"/><path d="M16 9 q6 -6 12 0 l-1 3 q-5 -3 -10 0z" fill="#2b3a67"/>'+
+      '<rect x="17" y="18" width="10" height="12" rx="3" fill="#e04848"/>'+
+      '<rect x="11" y="20" width="12" height="4" rx="2" fill="#e8b98a"/>'+
+      '<rect x="21" y="20" width="12" height="4" rx="2" fill="#e8b98a"/>'+
+      '<rect x="16" y="30" width="5" height="10" rx="2" fill="#1f2c50" transform="rotate(18 18 30)"/>'+
+      '<rect x="23" y="30" width="5" height="10" rx="2" fill="#1f2c50" transform="rotate(-18 25 30)"/>'+
+      '<rect x="12" y="39" width="8" height="4" rx="2" fill="#f4f4f4"/><rect x="24" y="39" width="8" height="4" rx="2" fill="#f4f4f4"/></g>'+
+    '<g class="v40p v40-jump" style="display:none">'+
+      '<circle cx="22" cy="6" r="6" fill="#e8b98a"/><path d="M16 3 q6 -6 12 0 l-1 3 q-5 -3 -10 0z" fill="#2b3a67"/>'+
+      '<rect x="17" y="12" width="10" height="12" rx="3" fill="#e04848"/>'+
+      '<rect x="27" y="8" width="4" height="11" rx="2" fill="#e8b98a" transform="rotate(-38 29 8)"/>'+
+      '<rect x="13" y="8" width="4" height="11" rx="2" fill="#e8b98a" transform="rotate(38 15 8)"/>'+
+      '<rect x="17" y="24" width="5" height="9" rx="2" fill="#1f2c50" transform="rotate(30 19 24)"/>'+
+      '<rect x="22" y="24" width="5" height="9" rx="2" fill="#1f2c50" transform="rotate(-42 24 24)"/>'+
+      '<rect x="13" y="32" width="7" height="4" rx="2" fill="#f4f4f4"/><rect x="24" y="30" width="7" height="4" rx="2" fill="#f4f4f4"/></g>'+
+    '<g class="v40p v40-hit" style="display:none">'+
+      '<circle cx="24" cy="7" r="6" fill="#e8b98a"/><path d="M18 4 q6 -6 12 0 l-1 3 q-5 -3 -10 0z" fill="#2b3a67"/>'+
+      '<rect x="19" y="13" width="10" height="12" rx="3" fill="#e04848"/>'+
+      '<rect x="28" y="0" width="4" height="15" rx="2" fill="#e8b98a" transform="rotate(-16 30 0)"/>'+
+      '<rect x="12" y="14" width="4" height="11" rx="2" fill="#e8b98a" transform="rotate(24 14 14)"/>'+
+      '<rect x="18" y="25" width="5" height="10" rx="2" fill="#1f2c50" transform="rotate(12 20 25)"/>'+
+      '<rect x="24" y="25" width="5" height="10" rx="2" fill="#1f2c50" transform="rotate(-16 26 25)"/>'+
+      '<rect x="16" y="34" width="7" height="4" rx="2" fill="#f4f4f4"/><rect x="24" y="34" width="7" height="4" rx="2" fill="#f4f4f4"/></g>'+
+    '</svg>';
+  el.innerHTML='<div class="w40-vb-scene" id="v40sc">'+crowd()+
+    '<div class="w40-vb-light"></div>'+
+    '<div class="w40-vb-arena">'+
+      '<div class="w40-vb-persp"><div class="w40-vb-plane">'+
+        '<div class="w40-vb-court"></div><div class="w40-vb-spot"></div></div></div>'+
+      '<div class="w40-vb-netsh"></div>'+
+      '<div class="w40-vb-net"><i class="p l"></i><i class="mesh"></i><i class="p r"></i><i class="tape"></i></div>'+
+      '<div class="w40-vb-pshadow" id="v40ps"></div>'+
+      '<div class="w40-vb-player" id="v40pl">'+playerSVG+'</div>'+
+      '<div class="w40-vb-shadow" id="v40sh"></div>'+
+      '<div class="w40-vb-ball" id="v40b">🏐</div>'+
+      '<div class="w40-vb-hitzone"></div>'+
+    '</div></div>'+
+    '<div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">سرویس ۱ • رالی ۰ — وقتی توپ در زون سبز است بزن!</div>';
+  const scene=el.querySelector('#v40sc'),b=el.querySelector('#v40b'),st=el.querySelector('#g33st'),
+    sh=el.querySelector('#v40sh'),pl=el.querySelector('#v40pl'),ps=el.querySelector('#v40ps'),
+    net=el.querySelector('.w40-vb-net'),arena=el.querySelector('.w40-vb-arena'),score=el.querySelector('#g33s');
+  const frames={idle:pl.querySelector('.v40-idle'),ready:pl.querySelector('.v40-ready'),jump:pl.querySelector('.v40-jump'),hit:pl.querySelector('.v40-hit')};
+  let curF='idle';
+  const setFrame=f=>{if(!frames[f]||curF===f)return;frames[curF].style.display='none';frames[f].style.display='';curF=f};
+  const W=(arena.clientWidth>60?arena.clientWidth:340)||340,H=(arena.clientHeight>60?arena.clientHeight:210)||210;
+  JUICE.cam('court');
+  const nearY=H*.80, farY=H*.355, arcH=H*.457; /* خطوط پایه‌ی نزدیک/دور — دقیقاً هم‌تراز صفحه‌ی پرسپکتیو CSS */
+  let spikes=0,serves=1,t0=performance.now(),per=2.2,fin=false,jumpT=0,zoomed=false;
   loop33(()=>{const t=(performance.now()-t0)/1000;
-    /* پرواز واقعی: سیر پارابولیک کامل بین دو سمت — اوج روی تور */
-    const ph=(t*per)%1; /* 0..1: left→right, then back */
-    const k=ph<.5?ph*2:(1-ph)*2; /* 0..1..0 — right edge when k=1 */
-    const x=(W-44)*k;
-    const arc=Math.sin(k*Math.PI); /* اوج وسط زمین */
-    const y=Math.max(-6,H*.66-arc*H*.44+Math.sin(t*2.3)*3);
-    b.style.transform='translate('+x+'px,'+y+'px)';
-    b.style.left='0px';b.style.top='0px';
-    /* سایه روی ماسه */
-    if(sh){sh.style.left=(x+5)+'px';sh.style.top=(H*.66+8)+'px';
-      sh.style.opacity=String(Math.max(.12,.45-arc*.3));sh.style.transform='scale('+(1-arc*.4)+')'}});
-  on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
+    const ph=(t*per)%1, k=ph<.5?ph*2:(1-ph)*2;
+    const arc=Math.sin(k*Math.PI);
+    const x=26+(W-78)*k;
+    const gy=farY+(nearY-farY)*k;
+    const y=Math.max(-8,gy-10-arc*arcH+Math.sin(t*2.3)*2);
+    b.style.transform='translate('+x+'px,'+y+'px) rotate('+Math.round(x*1.35)+'deg)'; /* ② اسپین توپ */
+    /* سایه‌ی بیضی: جای پای عمق‌نما + کوچک‌تر/کم‌رنگ‌تر وقتی توپ بالا */
+    sh.style.left=(x-9)+'px';sh.style.top=(gy-3)+'px';
+    sh.style.width=Math.max(8,22*(1-arc*.42)*(0.62+0.38*k))+'px';
+    sh.style.opacity=String(Math.max(.08,(0.38-arc*.22)*(0.55+0.45*k)));
+    /* ④ دوربین دینامیک: زوم نرم وقتی توپ به اوج/تور نزدیک است */
+    const wantZoom=k>.34&&k<.66;
+    if(wantZoom!==zoomed){zoomed=wantZoom;scene.style.transform=wantZoom?'scale(1.055)':'scale(1)'}
+    /* ③ فریم‌های بازیکن */
+    if(jumpT&&performance.now()-jumpT<420)setFrame('hit');
+    else if(performance.now()-jumpT<820&&jumpT)setFrame('jump');
+    else setFrame(k>.7?'ready':k>.34?'idle':'ready');
+    /* بازیکن جابه‌جایی افقی جزئی به سمت توپ + سایه‌ی او */
+    const px=(W-86)-Math.max(0,(k-.6))*34;
+    pl.style.left=px+'px';
+    ps.style.left=(px+10)+'px';ps.style.opacity=String(.32-.10*Math.max(0,k-.5));});
+  on33(arena,'pointerdown',ev=>{ev.preventDefault();
     if(fin)return;
-    const r=b.getBoundingClientRect(),z=el.querySelector('.gm33-hitzone').getBoundingClientRect();
+    const r=b.getBoundingClientRect(),z=el.querySelector('.w40-vb-hitzone').getBoundingClientRect();
     if(r.right>z.left&&r.left<z.right&&r.top<z.bottom&&r.bottom>z.top){
       spikes++;per=Math.min(4.6,per*1.09);sndK2('coin');sndK2('thump');
-      /* V35: موج + ترکش واترپولو + پانچ توپ */
+      jumpT=performance.now();setFrame('hit');           /* ③ ضربه */
       FX.punch(b);FX.spark(ev.clientX,ev.clientY,['#ffd75e','#fff','#ff9d3c'],14,130,.6);
       FX.ring(ev.clientX,ev.clientY,'rgba(255,215,94,.9)',8,66);
       FX.text(ev.clientX,ev.clientY-20,'💥 اسپیک!','#ffd75e',18);
-      /* V39: اسلوموشن کوتاه لحظه‌ی اسپایک + لرزش زمین شنی */
-      JUICE.slow(480);FX.shake();
-      if(net){net.classList.remove('gm35-netwig');void net.offsetWidth;net.classList.add('gm35-netwig')}
-      sc.textContent=faN(spikes);st.textContent='سرویس '+faN(serves)+' • رالی '+faN(spikes);
+      JUICE.slow(480);FX.shake();                         /* ④ لرزش لحظه‌ی ضربه */
+      net.classList.remove('gm35-netwig');void net.offsetWidth;net.classList.add('gm35-netwig');
+      score.textContent=faN(spikes);st.textContent='سرویس '+faN(serves)+' • رالی '+faN(spikes);
       if(spikes===5&&S)S.say('رالی پنج تایی! تماشاگران روی ماسه می‌رقصند');
       if(spikes===9&&S)S.say('رقیب خسته شد — دریافتش کوتاه می‌شود');
       if(spikes===13&&S)S.say('افسانه‌ای! ساحل طلایی نامت را فریاد می‌زند')}
     else{serves++;per=Math.max(1.8,per*0.85);sndK2('alert');FX.shake();
+      jumpT=0;setFrame('idle');
       FX.text(ev.clientX,ev.clientY-20,'💔 خطا!','#ff8ba0',17);
       if(S)S.say(['توپ بیرون رفت — داور پرچم زد','دست‌ها زیر توپ رفت — خطا','سخت زدی، بلند رفت — تمرکز کن'][serves%3]||'خطا!');
       st.textContent='سرویس '+faN(Math.min(3,serves))+' • رالی '+faN(spikes);
@@ -11715,6 +11840,21 @@ function row35(x,i,max,cat,pinned){
   const vb=D.createElement('b');vb.textContent=num(valOf(cat,x));val.appendChild(vb);
   const vs=D.createElement('small');vs.textContent=CAT35[cat].unit;val.appendChild(vs);row.appendChild(val);
   return row}
+/* V40: نمودار رقابت — ۵ نفر برتر به‌شکل میله‌های درخشان متحرک */
+function chart40(rows,valOf,cat,maxVal,uid){
+  const w=D.createElement('div');w.className='wd40-rc';
+  w.innerHTML='<div class="h">📊 نمودار رقابت — '+CAT35[cat].fa+'</div>';
+  rows.slice(0,5).forEach((x,i)=>{
+    const me=uid&&x.user_id===uid;
+    const r=D.createElement('div');r.className='rw'+(me?' me':'');
+    const n=D.createElement('span');n.className='n';n.textContent=['🥇','🥈','🥉','۴','۵'][i];r.appendChild(n);
+    const nm=D.createElement('span');nm.className='nm';nm.textContent=x.nick||'—';r.appendChild(nm);
+    const bt=D.createElement('div');bt.className='bt';const bi=D.createElement('i');
+    bt.appendChild(bi);r.appendChild(bt);
+    const v=D.createElement('span');v.className='v';v.textContent=num(valOf(cat,x));r.appendChild(v);
+    w.appendChild(r);
+    requestAnimationFrame(()=>{bi.style.width=Math.max(6,Math.round(valOf(cat,x)/Math.max(1,maxVal)*100))+'%'})});
+  return w}
 async function renderRank35(box,cat){
   const my=window.__wd35tok=(window.__wd35tok||0)+1;box.textContent='';
   const head=D.createElement('div');head.className='wd35-head';
@@ -11761,6 +11901,7 @@ async function renderRank35(box,cat){
         const v=D.createElement('div');v.className='v';v.textContent=num(valOf(cat,x))+' '+CAT35[cat].unit;c.appendChild(v);
         pod.appendChild(c)});
       box.appendChild(pod)}
+    if(rows.length)box.appendChild(chart40(rows,valOf,cat,maxVal,uid));
     /* --- rows 4..10 (+ me if outside top-10, pinned) --- */
     const start=rows.length>=3?3:0,shown=new Set();
     for(let i=start;i<Math.min(10,rows.length);i++){shown.add(rows[i].user_id);box.appendChild(row35(rows[i],i,maxVal,cat,false))}
@@ -11994,6 +12135,7 @@ setInterval(function(){try{
 function gkey(bd){
   if(bd.querySelector('.gm33-chess'))return 'chess';
   if(bd.querySelector('.gm33-goal'))return 'football';
+  if(bd.querySelector('.w40-vb-arena'))return 'volley'; /* V40 scene */
   if(bd.querySelector('.gm33-net'))return 'volley';
   if(bd.querySelector('.gm33-rope'))return 'wrestle';
   if(bd.querySelector('.gm33-bar'))return 'weight';
@@ -12230,6 +12372,8 @@ function medalRace(mount,table){
 function radar39(cv,entries,keys,names){
   if(!cv)return;var m=dims(cv),ctx=m.ctx,W=m.w,H=m.h;ctx.clearRect(0,0,W,H);
   var cx=W/2,cy=H/2+4,R=Math.min(W,H)/2-26;
+  /* V40: کانواس مخفی (۰px) → شعاع منفی → خطای حلقه‌ای؛ رد کن */
+  if(W<20||H<20||R<6)return;
   var vals=keys.map(function(k){var e=entries&&entries[k];return Math.max(0,Math.min(1,(e&&e.best||0)/1000))});
   var avg=vals.reduce(function(s,v){return s+v},0)/Math.max(1,vals.length);
   /* rings */
@@ -12281,9 +12425,9 @@ function injectCharts(){
     if(D.getElementById('wd39-charts'))return;
     var anchor=D.getElementById('wg33-rankcard')||wrap.children[1];if(!anchor)return;
     var host=D.createElement('div');host.id='wd39-charts';
-    var GD=[['sprint','دو'],['archery','کمان'],['swim','شنا'],['gym','ژیم'],['weight','وزنه'],['cycling','رکاب'],['chess','شطرنج'],['volley','والی'],['football','فوت'],['wrestle','کشتی']];
+    var GD=[['sprint','دو'],['archery','کمان'],['swim','شنا'],['weight','وزنه'],['volley','والی'],['football','فوت']];
     host.innerHTML='<div class="wd31-card wd39-chartcard" id="wd39-medalcard"><div class="wd39-chart-h"><b>📊 مسابقه‌ی مدال‌ها — زنده</b><small>۸ کشور صدر • به‌روزرسانی خودکار</small></div><div id="wd39-medalrace"></div></div>'+
-      '<div class="wd31-card wd39-chartcard" id="wd39-radarcard"><div class="wd39-chart-h"><b>🕸️ رادار قدرت من — ۱۰ رشته</b><small>هر ضلع تا ۱۰۰۰ امتیاز</small></div><canvas id="wd39-radar" height="210"></canvas><div id="wd39-radar-empty" class="wd31-mini" style="display:none;margin-top:4px">در رشته‌ها بازی کن تا رادارت جان بگیرد 🌱</div></div>';
+      '<div class="wd31-card wd39-chartcard" id="wd39-radarcard"><div class="wd39-chart-h"><b>🕸️ رادار قدرت من — ۶ رشته</b><small>هر ضلع تا ۱۰۰۰ امتیاز</small></div><canvas id="wd39-radar" height="210"></canvas><div id="wd39-radar-empty" class="wd31-mini" style="display:none;margin-top:4px">در رشته‌ها بازی کن تا رادارت جان بگیرد 🌱</div></div>';
     anchor.parentNode.insertBefore(host,anchor);
     medalRace(D.getElementById('wd39-medalrace'),d.table);
     var my=d.my||{};var hasAny=GD.some(function(x){return my.entries&&my.entries[x[0]]&&my.entries[x[0]].best>0});
@@ -12339,6 +12483,173 @@ function drawerWatch(){
 if(!drawerWatch())setInterval(drawerWatch,2500);
 })();
 </script>
+<script id="v40-perf">
+/* ============ V40: PERFORMANCE — پایان لگ ============
+   ۱) هر اورلی تمام‌صفحه (بازی المپیک/هاب/مراسم/مودال‌ها) → paint نقشه صفر + توقف انیمیشن‌های پس‌زمینه
+   ۲) تب مخفی → همه‌ی انیمیشن‌ها متوقف
+   ۳) پالس FAB المپیک از box-shadow (گران) به opacity (ارزان) */
+(function(){
+'use strict';
+const D=document;
+function ovState(){
+  const st=D.getElementById('wd33-stage'),pg=D.getElementById('wd-games'),cer=D.getElementById('wd33-cer');
+  const fs=(st&&st.classList.contains('on'))||(pg&&pg.classList.contains('on'))||(cer&&cer.classList.contains('on'));
+  const modal=!!D.querySelector('.modal.active');
+  D.body.classList.toggle('wg-ov-fs',!!fs);
+  D.body.classList.toggle('wg-ov',!!fs||modal);
+}
+try{let _ovP=false;new MutationObserver(()=>{if(_ovP)return;_ovP=true;requestAnimationFrame(()=>{_ovP=false;ovState()})}).observe(D.body,{attributes:true,subtree:true,attributeFilter:['class']})}catch(e){}
+setInterval(ovState,2000);ovState();
+D.addEventListener('visibilitychange',()=>{try{D.body.classList.toggle('idle',D.hidden)}catch(e){}});
+})();
+</script>
+<style id="v40-perf-css">
+/* ---- full-screen overlay: map paint → zero, background animations → paused ---- */
+body.wg-ov-fs .leaflet-pane,body.wg-ov-fs .leaflet-control-container{visibility:hidden!important}
+body.wg-ov .res-card::after,body.wg-ov .res-card i,body.wg-ov .hchip,body.wg-ov #hud-olympic,body.wg-ov .wdol-fab-dot,body.wg-ov #hud-srv2,body.wg-ov #hud-gem,body.wg-ov #ticker,body.wg-ov .c-shine,body.wg-ov .nav-btn span:first-child,body.wg-ov #act-tax{animation-play-state:paused!important}
+body.wg-ov #top-bar{backdrop-filter:none!important}
+/* ---- hidden tab: pause everything ---- */
+body.idle *{animation-play-state:paused!important}
+/* ---- FAB pulse: box-shadow paint هر فریم → فقط opacity روی هاله (GPU) ---- */
+@keyframes wg33FabPulse40{0%,100%{opacity:.55}50%{opacity:1}}
+#hud-olympic.wg33-live{animation:none!important}
+#hud-olympic.wg33-live::before{animation:wdolSpin 3.2s linear infinite,wg33FabPulse40 1.6s ease-in-out infinite!important}
+/* ---- V40: پخش زنده ---- */
+@keyframes wg40feedin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.wg40feedin{animation:wg40feedin .45s ease}
+#wd33-strip #wd33-feed{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:#ffe9b0;max-width:64vw;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#wd33-strip .live33 b{letter-spacing:1px;color:#ff5f7e}
+.wd40-live-hd{display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:900;color:#ff8ba0;margin:0 0 8px;
+  padding:6px 10px;border-radius:10px;background:linear-gradient(90deg,rgba(255,51,102,.12),rgba(255,51,102,.02));border:1px solid rgba(255,51,102,.3)}
+.wd40-live-hd i{width:8px;height:8px;border-radius:50%;background:#ff3355;box-shadow:0 0 10px #ff3355;animation:wd31Pulse 1.2s ease-in-out infinite}
+.wd40-live-row{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:11px;margin-bottom:5px;
+  background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.07)}
+.wd40-live-row .lr-ic{font-size:17px;filter:drop-shadow(0 0 6px rgba(255,204,0,.5))}
+.wd40-live-row .lr-body{flex:1;min-width:0;font-size:11px;color:#fff}
+.wd40-live-row .lr-body small{color:#9fb6d4;font-size:9.5px}
+.wd40-live-row .lr-ago{font-size:8.5px;color:#7fd7ff;white-space:nowrap;font-weight:700}
+/* ============ V40: والیبال ساحلی سینمایی ============ */
+.w40-vb-scene{position:relative;width:100%;box-sizing:border-box;height:262px;border-radius:16px;overflow:hidden;margin-bottom:8px;
+  background:linear-gradient(180deg,#0b1730 0%,#12244a 30%,#1b3358 46%,#c9a05c 62%,#bd9050 100%);
+  transition:transform .38s cubic-bezier(.22,.9,.36,1);transform-origin:50% 42%;
+  border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 0 40px rgba(0,0,0,.45)}
+.w40-vb-crowd{position:absolute;left:-4%;right:-4%;display:flex;justify-content:space-around;gap:5px;pointer-events:none;z-index:1}
+.w40-vb-crowd.r1{top:5px;font-size:11px;opacity:.55;animation:w40ParA 14s ease-in-out infinite alternate}
+.w40-vb-crowd.r2{top:20px;font-size:15px;opacity:.85;animation:w40ParB 9.5s ease-in-out infinite alternate}
+@keyframes w40ParA{from{transform:translateX(-11px)}to{transform:translateX(12px)}}
+@keyframes w40ParB{from{transform:translateX(14px)}to{transform:translateX(-12px)}}
+.w40-vb-light{position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(198deg,rgba(255,242,205,.20),rgba(255,242,205,.05) 34%,transparent 58%),
+  radial-gradient(ellipse 70% 34% at 50% -6%,rgba(255,248,220,.30),transparent 72%)}
+.w40-vb-arena{position:absolute;inset:0;z-index:2}
+.w40-vb-persp{position:absolute;left:4%;right:4%;top:35%;bottom:6%;perspective:430px;perspective-origin:50% -14%}
+.w40-vb-plane{position:absolute;inset:0;transform:rotateX(57deg);transform-origin:50% 0;
+  background:linear-gradient(180deg,#dcbc7e,#caa15d 52%,#bb8e4e);
+  box-shadow:inset 0 0 34px rgba(110,72,18,.4);border-radius:4px/10px}
+.w40-vb-court{position:absolute;inset:7% 5.5%;border:2.5px solid rgba(255,255,255,.92);border-radius:2px;
+  background:linear-gradient(90deg,transparent 48.6%,rgba(255,255,255,.95) 48.6% 51.4%,transparent 51.4%),
+  linear-gradient(180deg,transparent 30%,rgba(255,255,255,.7) 30% 31.6%,transparent 31.6%),
+  linear-gradient(180deg,transparent 65%,rgba(255,255,255,.7) 65% 66.6%,transparent 66.6%)}
+.w40-vb-spot{position:absolute;inset:0;background:radial-gradient(ellipse 62% 46% at 50% 26%,rgba(255,246,210,.30),transparent 70%)}
+.w40-vb-net{position:absolute;left:9%;right:9%;top:12.5%;height:22%;z-index:4;filter:drop-shadow(0 7px 9px rgba(0,0,0,.38))}
+.w40-vb-net .mesh{position:absolute;inset:0;border-radius:2px;
+  background:repeating-linear-gradient(180deg,rgba(255,255,255,.5) 0 1.6px,transparent 1.6px 4.6px),
+  repeating-linear-gradient(90deg,rgba(255,255,255,.34) 0 1.6px,transparent 1.6px 5.4px)}
+.w40-vb-net .tape{position:absolute;top:-2px;left:0;right:0;height:5px;border-radius:2px;
+  background:linear-gradient(180deg,#fff,#dbe3ec);box-shadow:0 1px 4px rgba(0,0,0,.45)}
+.w40-vb-net .p{position:absolute;top:-5px;bottom:-3px;width:5px;border-radius:3px;
+  background:linear-gradient(90deg,#8a97ad,#41506b 55%,#2b374f);box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.w40-vb-net .p.l{left:-3px}.w40-vb-net .p.r{right:-3px}
+.w40-vb-netsh{position:absolute;left:10%;right:10%;top:34.5%;height:12px;z-index:2;filter:blur(3px);
+  background:radial-gradient(ellipse at 50% 0,rgba(40,24,0,.38),transparent 72%)}
+.w40-vb-shadow{position:absolute;height:7px;border-radius:50%;background:rgba(20,10,0,.55);filter:blur(2px);z-index:3;pointer-events:none;left:0;top:0}
+.w40-vb-pshadow{position:absolute;width:40px;height:9px;border-radius:50%;background:rgba(20,10,0,.4);filter:blur(3px);z-index:3;top:80%;pointer-events:none}
+.w40-vb-player{position:absolute;bottom:11%;z-index:5;transition:left .5s ease;will-change:left}
+.w40-vb-player svg{width:clamp(44px,4.4vw,62px);height:auto;filter:drop-shadow(0 3px 5px rgba(0,0,0,.35))}
+.w40-vb-ball{position:absolute;left:0;top:0;font-size:27px;z-index:6;will-change:transform;pointer-events:none;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
+.w40-vb-hitzone{position:absolute;top:33%;bottom:12%;right:2%;width:27%;border-radius:12px;z-index:5;
+  background:linear-gradient(180deg,rgba(0,255,136,.16),rgba(0,255,136,.07));border:2px dashed rgba(0,255,136,.55);
+  box-shadow:0 0 14px rgba(0,255,136,.14) inset}
+/* ============ V40: جو استادیوم مشترک همه‌ی بازی‌ها ============ */
+#wd33-stage[data-g37="volley"] .wg37-floor,#wd33-stage[data-g37="volley"] .wg37-horizon,#wd33-stage[data-g37="volley"] .wg37-spot{display:none}
+#wd33-stage .wg35-light{position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:linear-gradient(196deg,rgba(255,242,205,.15),rgba(255,242,205,.04) 30%,transparent 55%),
+  radial-gradient(ellipse 66% 30% at 50% -4%,rgba(255,248,220,.24),transparent 70%)}
+#wd33-stage .wg35-crowd.r2{top:24px;font-size:11px;opacity:.5;animation:w40ParA 13s ease-in-out infinite alternate}
+#wd33-stage .wg35-crowd{animation:w40ParB 10s ease-in-out infinite alternate}
+#wd33-stage .s33hd{z-index:3;position:relative}
+#wd33-stage .s33bd{position:relative;z-index:2}
+/* ============ V40: آیکون‌های بالای نقشه — سینمایی، درخشان، RGB ============ */
+@property --ha{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes hue40{to{--ha:360deg}}
+.res-card,.hchip{position:relative}
+/* .hchip حلقه بیرونی (کلیپ نمی‌شود) */
+.hchip::before{content:'';position:absolute;inset:-2.5px;border-radius:inherit;padding:1.6px;z-index:0;
+  background:conic-gradient(from var(--ha),#ff4d6d,#ffb02e,#ffe08a,#7dff6a,#39e6d0,#4da3ff,#b06bff,#ff4d6d);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
+  animation:hue40 4.5s linear infinite;opacity:.9;pointer-events:none;
+  filter:drop-shadow(0 0 5px rgba(120,180,255,.35))}
+/* .res-card حلقه داخلی (چون overflow:hidden دارد) */
+.res-card::before{content:'';position:absolute;inset:0;border-radius:inherit;padding:1.8px;z-index:0;
+  background:conic-gradient(from var(--ha),#ff4d6d,#ffb02e,#ffe08a,#7dff6a,#39e6d0,#4da3ff,#b06bff,#ff4d6d);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
+  animation:hue40 4.5s linear infinite;opacity:.95;pointer-events:none}
+.res-card::after{z-index:1}
+/* بزرگ‌تر ولی بدون برخورد */
+.res-card{min-width:56px;padding:8px 11px;border-radius:15px}
+.res-card span{font-size:9px}
+.res-card b{font-size:13.5px}
+.res-card i{font-size:14px}
+.hchip{padding:5px 11px;font-size:11px;border-radius:15px}
+#hud-strip .hchip{padding:4px 10px!important;font-size:11px!important}
+#hud-olympic{width:78px!important;height:78px!important}
+#hud-olympic .wdol-fab-label{font-size:10px}
+/* محتوای چیپ‌ها بالای حلقه‌ی RGB */
+.res-card>*,.hchip>*{position:relative;z-index:1}
+/* ============ V40: رنکینگ سینمایی ============ */
+#m-rank .modal-card{width:min(96vw,760px)!important;max-height:88vh!important}
+#m-rank .modal-title-row b,#m-rank .modal-title-row{font-size:17px!important;
+  background:linear-gradient(90deg,#ffe08a,#fff,#ffb02e,#ffe08a);background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent!important;
+  animation:w40title 5s linear infinite;filter:drop-shadow(0 0 10px rgba(255,190,0,.35))}
+@keyframes w40title{to{background-position:-220% 0}}
+#m-rank .modal-card{border-radius:24px!important;
+  box-shadow:0 0 60px rgba(255,180,0,.18),0 0 22px rgba(255,51,102,.10),0 30px 80px rgba(0,0,0,.65)!important;
+  border:1px solid rgba(255,204,0,.4)!important}
+.wd35-head .t{font-size:19px!important;font-weight:950!important;letter-spacing:.3px;
+  background:linear-gradient(90deg,#7dff9e,#39e6d0,#7fd8ff,#b06bff,#7dff9e);background-size:260% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent!important;
+  animation:w40title 6s linear infinite}
+.wd35-head{border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:8px}
+.wd40-rc{margin-top:10px;padding:10px 12px;border-radius:15px;
+  background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.02));
+  border:1px solid rgba(255,214,60,.28);box-shadow:0 0 18px rgba(255,190,0,.08) inset}
+.wd40-rc .h{font-size:11px;font-weight:900;color:#ffe08a;margin-bottom:8px}
+.wd40-rc .rw{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.wd40-rc .rw:last-child{margin-bottom:0}
+.wd40-rc .n{flex:0 0 20px;text-align:center;font-size:12px}
+.wd40-rc .nm{flex:0 0 84px;font-size:10.5px;font-weight:800;color:#dfe9f7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wd40-rc .rw.me .nm{color:#7dd8ff}
+.wd40-rc .bt{flex:1;height:13px;border-radius:8px;background:rgba(255,255,255,.07);overflow:hidden;position:relative}
+.wd40-rc .bt i{display:block;height:100%;width:0;border-radius:8px;transition:width .9s cubic-bezier(.2,.8,.3,1);
+  background:linear-gradient(90deg,#ffb02e,#ffe08a 55%,#fff);background-size:200% 100%;
+  animation:w40bar 2.4s linear infinite;box-shadow:0 0 9px rgba(255,204,0,.55)}
+.wd40-rc .rw:nth-child(3) .bt i{background:linear-gradient(90deg,#9fb6d4,#e8f1fb);box-shadow:0 0 8px rgba(200,220,255,.4)}
+.wd40-rc .rw:nth-child(4) .bt i{background:linear-gradient(90deg,#e8a06b,#f5cf9a);box-shadow:0 0 8px rgba(240,170,110,.4)}
+@keyframes w40bar{to{background-position:-200% 0}}
+.wd40-rc .v{flex:0 0 52px;text-align:left;font-size:10px;font-weight:900;color:#ffe08a;direction:ltr}
+/* ============ V40: تیترهای RGB هاب المپیک ============ */
+.wd31-title{background:linear-gradient(90deg,#ffd75e,#ff6b9d,#39e6d0,#7fd8ff,#ffd75e);background-size:300% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent!important;
+  animation:w40title 7s linear infinite;filter:drop-shadow(0 2px 14px rgba(255,120,80,.25))}
+.wg33-ph.live{box-shadow:0 0 16px rgba(255,51,102,.4),0 0 4px rgba(255,51,102,.8) inset}
+.wg33-ph.reg{box-shadow:0 0 16px rgba(57,230,208,.35)}
+.wd31-card{border-radius:18px}
+
+</style>
 </body>
 </html>
 

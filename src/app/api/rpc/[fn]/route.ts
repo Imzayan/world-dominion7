@@ -1050,13 +1050,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const torch = await db.olympicArchive.findFirst({ where: { championNick: { not: null } }, orderBy: [{ edition: 'desc' }] })
         const archives = await db.olympicArchive.findMany({ orderBy: [{ edition: 'desc' }], take: 8 })
         const champRow = await latestChampion(Math.max(1, Number(args.p_server || 1)))
+        /* V40: پخش زنده — آخرین نتایج واقعی بازیکنان برای تیکر زنده‌ی المپیک */
+        const feedRows = await db.olympicEntry.findMany({ where: { edition, best: { gt: 0 } }, orderBy: [{ lastAt: 'desc' }], take: 10 })
+        const live_feed = feedRows.map((f) => ({ nick: f.nick, discipline: f.discipline, best: f.best, countryFa: f.countryFa || f.country || '', at: f.lastAt.toISOString() }))
         return R({
           edition, phase: g.phase, game_day: g.gameDay, today: g.today, host: g.host,
           reg_at: new Date(g.regAt).toISOString(), open_at: new Date(g.openAt).toISOString(),
           close_at: new Date(g.closeAt).toISOString(), next_reg: new Date(g.nextReg).toISOString(),
           truce: g.phase === 'live',
           my: { reg: myReg, entries: myE, country: (myEntries[0] && myEntries[0].countryFa) || null },
-          table, records, career, rivals, torch: torch ? { edition: torch.edition, nick: torch.championNick, country: torch.championCountry } : null,
+          table, records, career, rivals, live_feed, torch: torch ? { edition: torch.edition, nick: torch.championNick, country: torch.championCountry } : null,
           archive: archives.map((a) => ({
             edition: a.edition, host_city: a.hostCity, host_country: a.hostCountry, host_cc: a.hostCc,
             champion_country: a.championCountry, champion_nick: a.championNick, participants: a.participants,
@@ -1077,7 +1080,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (g.phase !== 'reg' && g.phase !== 'live') return R({ ok: false, reason: 'window' })
         const list = Array.isArray(args.p_disciplines) ? args.p_disciplines.map((x) => String(x)) : []
         const keys = [...new Set(list)].filter((k) => GD_DAY[k] !== undefined)
-        if (!keys.length || keys.length > 3) return R({ ok: false, reason: 'quota' })
+        if (!keys.length || keys.length > 6) return R({ ok: false, reason: 'quota' }) /* V40: هر ۶ رشته */
         const cap = (await db.territory.findFirst({ where: { userId: user.id, isCapital: true } }))
           || (await db.territory.findFirst({ where: { userId: user.id } }))
         if (!cap) return R({ ok: false, reason: 'capital' })
