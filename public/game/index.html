@@ -8502,7 +8502,7 @@ function pollGoal(){try{/* sb/ACC are top-level lexical bindings of the page —
     goalCount=c;const g=goalTarget();
     if(c>=g&&!goalDone[goalKey()]){goalDone[goalKey()]=true;localStorage.setItem('wd30goal',JSON.stringify(goalDone));
       WD30CINE('🎯','هدف روز سرور محقق شد!','🌍 مجموع فتوحات امروز به '+faNum(g)+' رسید — همه با هم','c-gold','cheer')}
-  })}catch(e){}}
+  }).catch(()=>{})}catch(e){}}
 function goalTarget(){try{return Math.max(GOAL_BASE,(Number((window.__srvStats||{}).players)||20)*2)}catch(e){return GOAL_BASE}}
 window.WD30_GOAL=()=>({count:Math.max(0,goalCount),target:goalTarget()});
 pollGoal();setInterval(pollGoal,90000);
@@ -8701,6 +8701,346 @@ function drawFronts(){if(typeof map==='undefined'||!map||typeof occupationPct===
   Object.keys(want).forEach(k=>{if(!FL30[k]){try{FL30[k]=L.polyline(want[k],{className:'wd-front',interactive:false,keyboard:false,weight:2.6}).addTo(map)}catch(e){}}
     else{try{FL30[k].setLatLngs(want[k])}catch(e){}}})}
 window.addEventListener('load',()=>{setInterval(drawFronts,4000)});
+})();
+</script>
+<style id="v31-css">
+/* ============ V31: cinematic full-screen pages (server profile + olympics) ============ */
+.wd31-page{position:fixed;inset:0;z-index:150000;display:none;overflow-y:auto;overflow-x:hidden;color:#eaf6ff;
+  background:linear-gradient(180deg,#04101f 0%,#030b18 55%,#020810 100%);
+  font-family:'Vazirmatn',system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;
+  -webkit-overflow-scrolling:touch;animation:wd31PgIn .35s ease both}
+.wd31-page.on{display:block}
+@keyframes wd31PgIn{from{opacity:0;transform:scale(1.02)}to{opacity:1;transform:none}}
+.wd31-aurora{position:fixed;border-radius:50%;filter:blur(70px);opacity:.5;pointer-events:none;z-index:0}
+.wd31-page .a1{width:520px;height:520px;top:-160px;right:-120px;background:radial-gradient(circle,rgba(0,240,255,.2),transparent 65%);animation:wd31Aur 11s ease-in-out infinite alternate}
+.wd31-page .a2{width:560px;height:560px;bottom:-200px;left:-140px;background:radial-gradient(circle,rgba(255,51,102,.16),transparent 65%);animation:wd31Aur 13s ease-in-out infinite alternate-reverse}
+@keyframes wd31Aur{from{transform:translate(0,0) scale(1)}to{transform:translate(-40px,30px) scale(1.12)}}
+.wd31-stars{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.55;
+  background-image:radial-gradient(1.5px 1.5px at 12% 22%,rgba(255,255,255,.5),transparent 60%),radial-gradient(1px 1px at 78% 12%,rgba(255,255,255,.4),transparent 60%),radial-gradient(1.5px 1.5px at 32% 78%,rgba(255,255,255,.35),transparent 60%),radial-gradient(1px 1px at 64% 52%,rgba(255,255,255,.45),transparent 60%),radial-gradient(1px 1px at 88% 68%,rgba(255,255,255,.35),transparent 60%),radial-gradient(1.2px 1.2px at 46% 8%,rgba(255,255,255,.4),transparent 60%)}
+.wd31-close{position:fixed;top:12px;left:12px;z-index:6;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(6,16,32,.85);color:#fff;font-size:18px;cursor:pointer;backdrop-filter:blur(6px);transition:.2s;font-family:inherit}
+.wd31-close:active{transform:scale(.9)}
+.wd31-wrap{position:relative;z-index:2;max-width:880px;margin:0 auto;padding:28px 14px 90px;display:flex;flex-direction:column;gap:14px}
+.wd31-rise{opacity:0;animation:wd31Rise .55s ease forwards}
+@keyframes wd31Rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.wd31-hero{position:relative;text-align:center;padding:26px 12px 20px;border-radius:24px;overflow:hidden;
+  background:linear-gradient(165deg,rgba(8,26,52,.85),rgba(4,12,26,.92));border:1px solid rgba(0,240,255,.25);
+  box-shadow:0 18px 50px rgba(0,0,0,.45),inset 0 0 60px rgba(0,240,255,.05)}
+.wd31-globe{font-size:56px;line-height:1;display:inline-block;filter:drop-shadow(0 0 18px rgba(0,240,255,.45));animation:wd31Float 4.5s ease-in-out infinite}
+@keyframes wd31Float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.wd31-kicker{font-size:10px;letter-spacing:3px;color:#7fd8ff;font-weight:800;opacity:.85;margin-top:8px}
+.wd31-title{font-size:clamp(30px,8.5vw,54px);font-weight:900;line-height:1.3;margin-top:4px;
+  background:linear-gradient(90deg,#00f0ff,#ffd75e,#ff6b9d,#7dff9e,#00f0ff);background-size:300% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:wd31Grad 7s linear infinite}
+@keyframes wd31Grad{to{background-position:300% 0}}
+.wd31-sub{font-size:12px;color:#a8d4f5;margin-top:6px}
+.wd31-badge{display:inline-block;padding:4px 14px;border-radius:99px;font-size:11px;font-weight:800;border:1px solid;margin:8px 3px 0}
+.wd31-badge.open{color:#7dff9e;border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.08)}
+.wd31-badge.full{color:#ffd75e;border-color:rgba(255,204,0,.5);background:rgba(255,204,0,.08)}
+.wd31-badge.lock{color:#ff8ba0;border-color:rgba(255,51,102,.5);background:rgba(255,51,102,.08)}
+.wd31-live{display:inline-flex;align-items:center;gap:6px;color:#ff6b8f;font-weight:800;font-size:10.5px}
+.wd31-live i{width:8px;height:8px;border-radius:50%;background:#ff3366;box-shadow:0 0 10px #ff3366;animation:wd31Pulse 1.3s infinite}
+@keyframes wd31Pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.72)}}
+.wd31-bar{height:12px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:14px;border:1px solid rgba(255,255,255,.08)}
+.wd31-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#00f0ff,#7dff9e);position:relative;transition:width .8s ease}
+.wd31-bar i::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:wd31Shine 2.2s linear infinite}
+@keyframes wd31Shine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.wd31-card{background:linear-gradient(160deg,rgba(10,24,46,.9),rgba(6,14,28,.92));border:1px solid rgba(0,240,255,.16);border-radius:18px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.wd31-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:640px){.wd31-stats{grid-template-columns:repeat(4,1fr)}}
+.wd31-stat{text-align:center;padding:16px 8px;border-radius:18px;background:linear-gradient(170deg,rgba(10,26,50,.92),rgba(5,13,28,.95));border:1px solid rgba(255,255,255,.09)}
+.wd31-stat .ico{font-size:22px}
+.wd31-stat .num{font-size:26px;font-weight:900;color:#00f0ff;margin-top:4px;text-shadow:0 0 16px rgba(0,240,255,.35)}
+.wd31-stat .lbl{font-size:10.5px;color:#9cc3e8;margin-top:3px}
+.wd31-grid2{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:640px){.wd31-grid2{grid-template-columns:1fr 1fr}}
+.wd31-sh{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:900;color:#bfe9ff;margin:8px 2px 0}
+.wd31-sh::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(0,240,255,.4),transparent)}
+.wd31-row{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:14px;background:rgba(9,20,40,.78);border:1px solid rgba(255,255,255,.07);margin-top:8px}
+.wd31-row.me{border-color:rgba(255,204,0,.55);background:linear-gradient(90deg,rgba(46,36,8,.65),rgba(9,20,40,.8))}
+.wd31-rk{min-width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12.5px;background:rgba(255,255,255,.1);color:#dff6ff;flex:none}
+.wd31-rk.g1{background:linear-gradient(160deg,#ffe08a,#c99619);color:#3a2a00}
+.wd31-rk.g2{background:linear-gradient(160deg,#e8eef7,#93a5bd);color:#1d2735}
+.wd31-rk.g3{background:linear-gradient(160deg,#f0b98a,#b06a35);color:#33180a}
+.wd31-hue{width:12px;height:12px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
+.wd31-row .who{font-weight:800;font-size:13px;color:#fff;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wd31-row .val{font-size:11.5px;color:#9cc3e8;white-space:nowrap}
+.wd31-row .val b{color:#ffd75e}
+.wd31-mini{font-size:10.5px;color:#8fb8dd}
+.wd31-err{padding:14px;border-radius:14px;background:rgba(60,14,20,.5);border:1px solid rgba(255,51,102,.4);color:#ffb9c8;font-size:12px;text-align:center}
+.wd31-skel{height:50px;border-radius:14px;margin-top:8px;background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 37%,rgba(255,255,255,.05) 63%);background-size:400% 100%;animation:wd31Skel 1.2s infinite}
+@keyframes wd31Skel{from{background-position:100% 0}to{background-position:-100% 0}}
+.wd31-note{font-size:10px;color:#6f9cc4;text-align:center;padding-top:6px;line-height:1.9}
+.wd31-srvs{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:560px){.wd31-srvs{grid-template-columns:1fr 1fr}}
+.wd31-srv{border-radius:16px;padding:12px;border:1px solid rgba(255,255,255,.1);background:rgba(8,18,36,.85)}
+.wd31-srv.me{border-color:rgba(0,240,255,.6);box-shadow:0 0 18px rgba(0,240,255,.15)}
+.wd31-srv .t{display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:13px;gap:6px}
+.wd31-rings{display:flex;justify-content:center;gap:7px;margin-bottom:10px}
+.wd31-ring{width:28px;height:28px;border-radius:50%;border:4px solid;animation:wd31RingIn .7s ease both}
+.wd31-ring:nth-child(1){border-color:#3fa9f5;animation-delay:.05s}
+.wd31-ring:nth-child(2){border-color:#fcb131;animation-delay:.15s}
+.wd31-ring:nth-child(3){border-color:#e8eef7;animation-delay:.25s}
+.wd31-ring:nth-child(4){border-color:#2ecc71;animation-delay:.35s}
+.wd31-ring:nth-child(5){border-color:#ee334e;animation-delay:.45s}
+@keyframes wd31RingIn{from{opacity:0;transform:translateY(-18px) scale(.6)}to{opacity:1;transform:none}}
+.wd31-torch{position:relative;width:46px;height:74px;margin:8px auto 0}
+.wd31-torch .flame{position:absolute;bottom:30px;left:50%;width:26px;height:40px;border-radius:50% 50% 50% 50%/62% 62% 38% 38%;transform:translateX(-50%);
+  background:radial-gradient(circle at 50% 72%,#fff7d1 0%,#ffd75e 38%,#ff8a3c 66%,rgba(255,60,40,0) 78%);
+  animation:wd31Flick .8s ease-in-out infinite alternate;filter:drop-shadow(0 0 16px rgba(255,150,40,.6))}
+.wd31-torch .flame::after{content:'';position:absolute;inset:8px 7px 4px;border-radius:inherit;background:radial-gradient(circle at 50% 78%,#fff 0%,rgba(255,255,255,0) 70%)}
+.wd31-torch .stick{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:14px;height:34px;border-radius:7px 7px 3px 3px;background:linear-gradient(180deg,#d9b57c,#6e4f2c);box-shadow:inset 0 2px 3px rgba(255,255,255,.35)}
+@keyframes wd31Flick{from{transform:translateX(-50%) scale(1) rotate(-3deg)}to{transform:translateX(-50%) scale(1.14,1.22) rotate(3deg)}}
+.wd31-champ{margin-top:10px;padding:14px;border-radius:16px;text-align:center;border:1px solid rgba(255,204,0,.55);
+  background:linear-gradient(160deg,rgba(66,50,6,.75),rgba(30,22,4,.85));box-shadow:0 0 26px rgba(255,204,0,.18)}
+.wd31-champ b{font-size:15px;color:#ffe08a}
+.wd31-med{font-size:12px}
+.wd31-disc{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:640px){.wd31-disc{grid-template-columns:1fr 1fr}}
+.wd31-disc .hd{display:flex;align-items:center;gap:8px;font-weight:900;font-size:13px;color:#ffe3b0}
+.wd31-disc .hd small{margin-inline-start:auto;font-weight:700;font-size:10px;color:#8fb8dd}
+.wd31-btnbig{width:100%;padding:13px;border-radius:16px;border:1px solid rgba(255,204,0,.5);cursor:pointer;font-family:inherit;font-weight:900;font-size:13.5px;color:#ffe08a;background:linear-gradient(160deg,rgba(66,50,6,.7),rgba(30,22,4,.8));transition:.2s}
+.wd31-btnbig:active{transform:scale(.98)}
+#hud-olympic{cursor:pointer;font-size:13px}
+</style>
+<script id="v31-pages">
+/* ============ V31: cinematic server profile page + world olympics ============ */
+(function(){
+'use strict';
+const D=document,H=id=>D.getElementById(id);
+const faN=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const faDT=t=>{try{return new Intl.DateTimeFormat('fa-IR',{month:'long',day:'numeric'}).format(new Date(t))+' • '+new Intl.DateTimeFormat('fa-IR',{hour:'2-digit',minute:'2-digit'}).format(new Date(t))}catch(e){return ''}};
+const hueOf=n=>{let h=11;for(const c of String(n||''))h=(h*37+c.charCodeAt(0))%360;return h};
+const srvN=()=>{try{return Math.max(1,Number(SRV)||1)}catch(e){return 1}};
+const sndSafe=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* V31 fix: SRV is a top-level `let`, so window.SRV never existed and V30 broadcast/goal/specials
+   were scoped to server 1 — mirror the real SRV onto window for all consumers */
+setInterval(()=>{try{window.SRV=srvN()}catch(e){}},2000);try{window.SRV=srvN()}catch(e){}
+
+/* ---------- full-screen page scaffold ---------- */
+const openStack=[];
+function pageEl(id){let p=H(id);
+  if(!p){p=D.createElement('div');p.id=id;p.className='wd31-page';
+    p.innerHTML='<div class="wd31-aurora a1"></div><div class="wd31-aurora a2"></div><div class="wd31-stars"></div>'+
+      '<button class="wd31-close" aria-label="بستن">✕</button><div class="wd31-wrap"></div>';
+    D.body.appendChild(p);
+    p.querySelector('.wd31-close').addEventListener('click',()=>closePage(id))}
+  return p}
+function openPage(id,sk){const p=pageEl(id);
+  try{if(window.WD30_CANCEL_TARGET)window.WD30_CANCEL_TARGET()}catch(e){}
+  p.classList.add('on');p.scrollTop=0;
+  if(openStack.indexOf(id)<0)openStack.push(id);
+  sndSafe(sk||'click');return p}
+function closePage(id){const p=H(id);if(p)p.classList.remove('on');
+  const i=openStack.indexOf(id);if(i>-1)openStack.splice(i,1)}
+D.addEventListener('keydown',ev=>{if(ev&&ev.key==='Escape'&&openStack.length)closePage(openStack[openStack.length-1])});
+
+/* helpers */
+function rise(els){[...els].forEach((e,i)=>{e.classList.add('wd31-rise');e.style.animationDelay=(0.07*i)+'s'})}
+function countUp(el,to){if(!el)return;const from=Number(el.dataset.v||0);el.dataset.v=to;const t0=performance.now(),dur=750;
+  const step=ts=>{const k=Math.min(1,(ts-t0)/dur),v=Math.round(from+(to-from)*(1-Math.pow(1-k,3)));
+    el.textContent=faN(v);if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)}
+function hueDot(n){const s=D.createElement('span');s.className='wd31-hue';const c=`hsl(${hueOf(n)},80%,60%)`;s.style.background=c;s.style.color=c;return s}
+function skels(box,n){if(!box)return;box.textContent='';for(let i=0;i<n;i++){const s=D.createElement('div');s.className='wd31-skel';box.appendChild(s)}}
+async function q(fn){try{return{ok:true,d:await fn()}}catch(e){return{ok:false,e}}}
+/* sb.rpc / sb.from resolve to supabase-style {data,error} — unwrap defensively */
+async function rpcQ(fn,args){try{const r=await sb.rpc(fn,args);if(r&&r.error)return{ok:false,e:r.error};return{ok:true,d:r?r.data:null}}catch(e){return{ok:false,e}}}
+async function tblQ(p){try{const r=await p;if(r&&r.error)return{ok:false,e:r.error};return{ok:true,d:r?r.data:null}}catch(e){return{ok:false,e}}}
+const isMe=n=>{try{return typeof ACC!=='undefined'&&ACC&&n===ACC.nick}catch(e){return false}};
+const CAP31=()=>{try{return (typeof SRV_CAP!=='undefined')?SRV_CAP:80}catch(e){return 80}};
+
+/* ================================================================
+   PAGE 1 — شناسنامه‌ی سینمایی سرور (وارد شدن با چیپ سرور در HUD)
+================================================================ */
+let srvT=null,srvBuiltFor=0;
+function srvShell(w,S){
+  if(srvBuiltFor===S)return;srvBuiltFor=S;
+  w.innerHTML=
+  '<section class="wd31-hero"><span class="wd31-globe">🌍</span>'+
+    '<div class="wd31-kicker">WORLD DOMINION • شناسنامه‌ی جهان</div>'+
+    '<h1 class="wd31-title">جهان '+faN(S)+'</h1>'+
+    '<div class="wd31-sub">دنیای مشترک زنده — لحظه‌به‌لحظه با بازیکنان واقعی</div>'+
+    '<div id="wdsp-badges"></div>'+
+    '<div class="wd31-bar"><i id="wdsp-capbar" style="width:0%"></i></div>'+
+    '<div class="wd31-mini" id="wdsp-cap" style="margin-top:6px">…</div>'+
+  '</section>'+
+  '<div class="wd31-stats">'+
+    '<div class="wd31-stat"><div class="ico">👥</div><div class="num" id="wdsp-n-pl">۰</div><div class="lbl">بازیکنان</div></div>'+
+    '<div class="wd31-stat"><div class="ico">🏴</div><div class="num" id="wdsp-n-tk">۰</div><div class="lbl">کشورهای تصرف‌شده</div></div>'+
+    '<div class="wd31-stat"><div class="ico">⚔️</div><div class="num" id="wdsp-n-wr">۰</div><div class="lbl">فتح‌های امروز سرور</div></div>'+
+    '<div class="wd31-stat"><div class="ico">🏆</div><div class="num" id="wdsp-n-sn">۰</div><div class="lbl">فصل جنگ</div></div>'+
+  '</div>'+
+  '<div class="wd31-grid2">'+
+    '<div class="wd31-card"><div class="wd31-sh" style="margin:0 0 8px">⚔️ وضعیت فصل</div><div id="wdsp-season">…</div></div>'+
+    '<div class="wd31-card"><div class="wd31-sh" style="margin:0 0 8px">🎯 هدف امروز سرور</div><div id="wdsp-goal">…</div></div>'+
+  '</div>'+
+  '<div><div class="wd31-sh">👑 امپراتوری‌های برتر این جهان</div><div id="wdsp-top"></div></div>'+
+  '<div><div class="wd31-sh">🖥️ همه‌ی سرورهای بازی</div><div class="wd31-srvs" id="wdsp-srvs"></div></div>'+
+  '<div><div class="wd31-sh">👥 بازیکنان این سرور</div><div id="wdsp-players"></div></div>'+
+  '<div><div class="wd31-sh">📰 آخرین اخبار جهان</div><div id="wdsp-news"></div></div>'+
+  '<div class="wd31-note">WORLD DOMINION V31 • به‌روزرسانی خودکار هر ۲۰ ثانیه • دیتای زنده از سرور<br>برای بازگشت به نقشه، دکمه‌ی ✕ بالا را بزن یا Escape</div>';
+  rise(w.children)}
+async function refreshServer(){
+  try{
+    const w=H('wd-srvpage');if(!w||!w.classList.contains('on'))return;
+    const S=srvN(),CAP=CAP31();
+    srvShell(w.querySelector('.wd31-wrap'),S);
+    try{if(typeof loadStats==='function')await loadStats()}catch(e){}
+    const st=(typeof STATS!=='undefined'&&STATS[S])||{};
+    const tk=Number(st.taken)||0,pl=Number(st.players)||0;
+    countUp(H('wdsp-n-tk'),tk);countUp(H('wdsp-n-pl'),pl);
+    const bar=H('wdsp-capbar');if(bar)bar.style.width=Math.min(100,tk/CAP*100)+'%';
+    const cap=H('wdsp-cap');if(cap)cap.textContent=faN(tk)+' از '+faN(CAP)+' کشور تصرف شده — وقتی پر شود، جهان بعدی باز می‌شود';
+    const bg=H('wdsp-badges');
+    if(bg){const open=(typeof srvOpen==='function')?srvOpen(S):true,full=tk>=CAP;
+      bg.innerHTML='<span class="wd31-live"><i></i>زنده</span> '+(full?'<span class="wd31-badge full">✅ پر</span>':open?'<span class="wd31-badge open">🟢 باز — ورود آزاد</span>':'<span class="wd31-badge lock">🔒 قفل</span>')}
+    const ss=(window.WD30_SEASON&&window.WD30_SEASON())||{no:1,day:1,left:0};
+    countUp(H('wdsp-n-sn'),ss.no||1);
+    const hh=Math.max(0,Math.floor((ss.left||0)/3600000)),mm=Math.max(0,Math.floor(((ss.left||0)%3600000)/60000));
+    const ch=(window.WD30_CHAMP&&window.WD30_CHAMP());
+    const se=H('wdsp-season');
+    if(se)se.innerHTML='<div style="font-size:13.5px;font-weight:900;color:#ffd75e">فصل '+faN(ss.no||1)+' — روز '+faN(ss.day||1)+' از '+faN(30)+'</div>'+
+      '<div class="wd31-bar" style="margin-top:8px"><i style="width:'+Math.min(100,(ss.day||1)/30*100)+'%"></i></div>'+
+      '<div class="wd31-mini" style="margin-top:6px">⏳ '+faN(hh)+' ساعت و '+faN(mm)+' دقیقه تا پایان فصل</div>'+
+      (ch&&ch.nick?'<div class="wd31-mini" style="margin-top:4px;color:#ffe08a">👑 قهرمان فصل قبل: '+esc(ch.nick)+'</div>':'');
+    const g=(window.WD30_GOAL&&window.WD30_GOAL())||{count:0,target:25};
+    const gt=g.target||25,gc=Math.max(0,g.count||0);
+    const go=H('wdsp-goal');
+    if(go)go.innerHTML='<div style="font-size:13.5px;font-weight:900;color:#7dff9e">'+faN(gc)+' / '+faN(gt)+' فتح</div>'+
+      '<div class="wd31-bar" style="margin-top:8px"><i style="width:'+Math.min(100,gc/gt*100)+'%;background:linear-gradient(90deg,#7dff9e,#00f0ff)"></i></div>'+
+      '<div class="wd31-mini" style="margin-top:6px">مجموع فتح‌های امروز همه‌ی بازیکنان این سرور — با هم</div>';
+    const nb=H('wdsp-news'),tb=H('wdsp-top'),pb=H('wdsp-players');
+    skels(nb,3);skels(tb,2);skels(pb,3);
+    let warsToday=0;
+    const mid=Date.UTC(new Date().getUTCFullYear(),new Date().getUTCMonth(),new Date().getUTCDate());
+    const nl=await rpcQ('get_world_news',{p_server:S,p_limit:60});
+    if(nb){nb.textContent='';
+      const items=(nl.ok&&Array.isArray(nl.d))?nl.d:[];
+      if(!items.length)nb.innerHTML='<div class="wd31-row"><span class="who">هنوز خبری ثبت نشده — اولین نبرد را تو بساز!</span></div>';
+      else items.slice(0,8).forEach(x=>{try{const t=Date.parse(x.created_at);
+          if(t>=mid&&['capture','conquer','pvp_capture','pvp_attack'].indexOf(x.action)>-1)warsToday++}catch(e){}
+        const r=D.createElement('div');r.className='wd31-row';
+        r.innerHTML='<span class="who">'+esc(window.wdNewsFa?window.wdNewsFa(x):String(x.action||''))+'</span><span class="val">'+esc(faDT(Date.parse(x.created_at)))+'</span>';
+        nb.appendChild(r)})}
+    countUp(H('wdsp-n-wr'),warsToday);
+    const tl=await tblQ(sb.from('scores').select('nick,conquered,score').eq('server',S).order('score',{ascending:false}).limit(5));
+    if(tb){tb.textContent='';const rows=(tl.ok&&Array.isArray(tl.d))?tl.d:[];
+      if(!rows.length)tb.innerHTML='<div class="wd31-row"><span class="who">هنوز امپراتوری ساخته نشده — رتبه اول می‌تواند تو باشی!</span></div>';
+      else rows.forEach((x,i)=>{const r=D.createElement('div');r.className='wd31-row'+(isMe(x.nick)?' me':'');
+        r.innerHTML='<span class="wd31-rk '+(i<3?'g'+(i+1):'')+'">'+(i<3?['🥇','🥈','🥉'][i]:faN(i+1))+'</span>';
+        r.appendChild(hueDot(x.nick));
+        const who=D.createElement('span');who.className='who';who.textContent=x.nick;r.appendChild(who);
+        r.insertAdjacentHTML('beforeend','<span class="val">🏴 <b>'+faN(x.conquered||0)+'</b> کشور • ⭐ <b>'+faN(x.score||0)+'</b> امتیاز</span>');
+        tb.appendChild(r)})}
+    const plq=await tblQ(sb.from('scores').select('nick,conquered').eq('server',S).order('conquered',{ascending:false}).limit(10));
+    if(pb){pb.textContent='';const rows=(plq.ok&&Array.isArray(plq.d))?plq.d:[];
+      if(!rows.length)pb.innerHTML='<div class="wd31-row"><span class="who">هنوز کسی این جهان ساکن نشده</span></div>';
+      else rows.forEach(x=>{const r=D.createElement('div');r.className='wd31-row'+(isMe(x.nick)?' me':'');
+        r.appendChild(hueDot(x.nick));
+        const who=D.createElement('span');who.className='who';who.textContent=x.nick;r.appendChild(who);
+        r.insertAdjacentHTML('beforeend','<span class="val">🏴 <b>'+faN(x.conquered||0)+'</b> کشور</span>');
+        pb.appendChild(r)})}
+    const sg=H('wdsp-srvs');
+    if(sg){sg.textContent='';const N=(typeof SRV_COUNT!=='undefined')?SRV_COUNT:5;
+      for(let k=1;k<=N;k++){let t=0,p2=0;
+        try{t=typeof taken==='function'?taken(k):0;p2=((typeof STATS!=='undefined'&&STATS[k])||{}).players||0}catch(e){}
+        const open=(typeof srvOpen==='function')?srvOpen(k):true,full=t>=CAP;
+        const c=D.createElement('div');c.className='wd31-srv'+(k===S?' me':'');
+        c.innerHTML='<div class="t"><span>🌍 جهان '+faN(k)+(k===S?' <span class="wd31-mini">(تو اینجایی)</span>':'')+'</span>'+
+          (full?'<span class="wd31-badge full">✅ پر</span>':open?'<span class="wd31-badge open">🟢 باز</span>':'<span class="wd31-badge lock">🔒 قفل</span>')+'</div>'+
+          '<div class="wd31-bar" style="height:8px;margin-top:8px"><i style="width:'+Math.min(100,t/CAP*100)+'%"></i></div>'+
+          '<div class="wd31-mini" style="margin-top:5px">🏴 '+faN(t)+'/'+faN(CAP)+' کشور • 👥 '+faN(p2)+' بازیکن</div>';
+        sg.appendChild(c)}}
+  }catch(e){console.log('v31srv',e)}}
+window.WD31_SERVER=function(){openPage('wd-srvpage','click');refreshServer();
+  if(srvT)clearInterval(srvT);srvT=setInterval(refreshServer,20000)};
+
+/* ================================================================
+   PAGE 2 — المپیک جهانی (صفحه‌ی کاملاً جدا و تمام‌صفحه)
+================================================================ */
+let olT=null,olBuilt=false;
+const OL_META={empire:{t:'🏴 امپراتوری بزرگ',u:'کشور'},power:{t:'⭐ قدرت برتر',u:'امتیاز'},warrior:{t:'⚔️ جنگاوری — ۷ روز',u:'فتح PvP'},coup:{t:'🎭 جسارت — ۷ روز',u:'کودتا'},meteor:{t:'☄️ آسمان‌شکن — ۷ روز',u:'شهاب'},trade:{t:'🤝 تاجر — ۷ روز',u:'معامله'},today:{t:'🎯 ستاره‌ی امروز',u:'فتح'}};
+function olShell(w){
+  if(olBuilt)return;olBuilt=true;
+  w.innerHTML=
+  '<section class="wd31-hero">'+
+    '<div class="wd31-rings"><span class="wd31-ring"></span><span class="wd31-ring"></span><span class="wd31-ring"></span><span class="wd31-ring"></span><span class="wd31-ring"></span></div>'+
+    '<div class="wd31-torch"><span class="flame"></span><span class="stick"></span></div>'+
+    '<div class="wd31-kicker" style="margin-top:12px">WORLD DOMINION OLYMPICS</div>'+
+    '<h1 class="wd31-title">المپیک جهانی</h1>'+
+    '<div class="wd31-sub" id="wdol-sub">افتخار فقط با بازی به دست می‌آید</div>'+
+    '<div style="margin-top:8px"><span class="wd31-live"><i></i>زنده — رتبه‌ها لحظه‌ای به‌روز می‌شوند</span></div>'+
+  '</section>'+
+  '<div class="wd31-card"><div class="wd31-sh" style="margin:0 0 8px">🎖️ کارنامه‌ی من</div><div id="wdol-me-b">…</div></div>'+
+  '<div id="wdol-medsec"><div class="wd31-sh">🏅 جدول مدال‌ها</div><div id="wdol-medals"></div></div>'+
+  '<div><div class="wd31-sh">🏟️ رشته‌های رقابت</div><div class="wd31-disc" id="wdol-disc"></div></div>'+
+  '<div class="wd31-note">المپیک با هر فصل از نو آغاز می‌شود • مدال‌ها فقط از عملکرد واقعی‌ات داده می‌شوند • هیچ مدالی فروخته نمی‌شود (ضد P2W)<br>برای بازگشت به نقشه، دکمه‌ی ✕ بالا را بزن یا Escape</div>';
+  rise(w.children)}
+async function refreshOly(){
+  try{
+    const w=H('wd-olympics');if(!w||!w.classList.contains('on'))return;
+    olShell(w.querySelector('.wd31-wrap'));
+    const ss=(window.WD30_SEASON&&window.WD30_SEASON())||{no:1,day:1};
+    const sub=H('wdol-sub');if(sub)sub.textContent='فصل '+faN(ss.no||1)+' • روز '+faN(ss.day||1)+' — افتخار فقط با بازی به دست می‌آید';
+    const mb=H('wdol-medals'),db2=H('wdol-disc'),meb=H('wdol-me-b');
+    if(meb)meb.innerHTML='<div class="wd31-skel" style="margin:0"></div>';
+    skels(mb,3);if(db2)db2.textContent='';
+    const r=await rpcQ('olympics',{p_server:srvN()});
+    if(!r.ok||!r.d){if(meb)meb.innerHTML='<div class="wd31-err">⚠️ دریافت داده‌های المپیک ناموفق بود — اتصال اینترنت را چک کن و دوباره باز کن</div>';
+      if(mb){mb.textContent='';mb.innerHTML='<div class="wd31-row"><span class="who">—</span></div>'}return}
+    const d=r.d,list=(d&&Array.isArray(d.medals))?d.medals:[];
+    if(meb){const my=list.find?list.find(m=>isMe(m.nick)):null;
+      if(my){const myRank=list.indexOf(my)+1;
+        meb.innerHTML='<div style="font-size:14px;font-weight:900;color:#ffe08a">رتبه #'+faN(myRank)+' در المپیک • '+faN(my.total)+' مدال</div>'+
+          '<div class="wd31-med" style="margin-top:6px;color:#dff6ff">🥇 '+faN(my.g)+' &nbsp;•&nbsp; 🥈 '+faN(my.s)+' &nbsp;•&nbsp; 🥉 '+faN(my.b)+'</div>'}
+      else meb.innerHTML='<div class="wd31-mini" style="font-size:12px;line-height:2">ویترین تو هنوز خالی است — در رشته‌های پایین رکورد بزن تا اولین مدالت برسد! 🏅</div>'}
+    const oldC=H('wdol-champ');if(oldC)oldC.remove();
+    if(mb){mb.textContent='';
+      if(list.length&&list[0].total>0){const cb=D.createElement('div');cb.className='wd31-champ wd31-rise';cb.id='wdol-champ';
+        cb.innerHTML='👑 قهرمان المپیک این جهان: <b>'+esc(list[0].nick)+'</b><div class="wd31-mini" style="margin-top:4px">'+faN(list[0].total)+' مدال — از همه بالاتر است</div>';
+        const sec=H('wdol-medsec');if(sec&&sec.parentNode)sec.parentNode.insertBefore(cb,sec)}
+      if(!list.length)mb.innerHTML='<div class="wd31-row"><span class="who">هنوز هیچ مدالی اهد نشده — تاریخ‌ساز باش!</span></div>';
+      else list.slice(0,12).forEach((m,i)=>{const row=D.createElement('div');row.className='wd31-row'+(isMe(m.nick)?' me':'');
+        row.innerHTML='<span class="wd31-rk '+(i<3?'g'+(i+1):'')+'">'+(i<3?['🥇','🥈','🥉'][i]:faN(i+1))+'</span>';
+        row.appendChild(hueDot(m.nick));
+        const who=D.createElement('span');who.className='who';who.textContent=m.nick;row.appendChild(who);
+        row.insertAdjacentHTML('beforeend','<span class="val">🥇<b>'+faN(m.g)+'</b> 🥈<b>'+faN(m.s)+'</b> 🥉<b>'+faN(m.b)+'</b> = <b>'+faN(m.total)+'</b> مدال</span>');
+        mb.appendChild(row)})}
+    if(db2){db2.textContent='';const dcs=(d&&Array.isArray(d.disciplines))?d.disciplines:[];dcs.forEach(dc=>{const meta=OL_META[dc.key]||{t:dc.key,u:''};
+      const c=D.createElement('div');c.className='wd31-card';
+      const hd=D.createElement('div');hd.className='hd';hd.innerHTML=esc(meta.t)+'<small>'+esc(meta.u)+'</small>';c.appendChild(hd);
+      const top=dc.top||[];
+      if(!top.length){const e=D.createElement('div');e.className='wd31-mini';e.style.marginTop='8px';e.textContent='— هنوز رکوردی ثبت نشده — تو اولین باش!';c.appendChild(e)}
+      else top.forEach((x,i)=>{const row=D.createElement('div');row.className='wd31-row'+(isMe(x.nick)?' me':'');
+        row.innerHTML='<span class="wd31-rk '+(i<3?'g'+(i+1):'')+'">'+(i<3?['🥇','🥈','🥉'][i]:faN(i+1))+'</span>';
+        row.appendChild(hueDot(x.nick));
+        const who=D.createElement('span');who.className='who';who.textContent=x.nick;row.appendChild(who);
+        row.insertAdjacentHTML('beforeend','<span class="val"><b>'+faN(x.val||0)+'</b> '+esc(meta.u)+'</span>');
+        c.appendChild(row)});
+      db2.appendChild(c)})}
+  }catch(e){console.log('v31oly',e)}}
+window.WD31_OLYMPICS=function(){openPage('wd-olympics','horn');
+  try{setTimeout(()=>sndSafe('cheer'),850)}catch(e){}
+  refreshOly();
+  if(olT)clearInterval(olT);olT=setInterval(refreshOly,30000)};
+
+/* ---------- entry points: HUD chip 🏅 + سرور chip → صفحه سینمایی + دکمه در لابی ---------- */
+window.addEventListener('load',()=>{setTimeout(()=>{try{
+  const s=H('hud-strip');
+  if(s&&!H('hud-olympic')){const o=(typeof el==='function')?el('div','🏅','hchip',window.WD31_OLYMPICS):null;
+    if(o){o.id='hud-olympic';o.title='المپیک جهانی';s.appendChild(o)}}
+  const old=H('hud-srv');
+  if(old&&!old.__wd31){const neo=old.cloneNode(false);neo.textContent=old.textContent;neo.title='شناسنامه‌ی سینمایی سرور';neo.style.cursor='pointer';
+    neo.addEventListener('click',window.WD31_SERVER);old.replaceWith(neo);neo.__wd31=1}
+}catch(e){}},400)});
+(function(){try{
+  const mo=new MutationObserver(()=>{try{const p=H('lobby-panel-sp');
+    if(p&&p.classList.contains('active')&&!H('wdol-lobby-btn')){
+      const b=D.createElement('button');b.id='wdol-lobby-btn';b.className='wd31-btnbig';b.style.marginTop='10px';
+      b.textContent='🏅 المپیک جهانی — صفحه‌ی کامل رقابت‌ها';
+      b.addEventListener('click',window.WD31_OLYMPICS);p.prepend(b)}}catch(e){}});
+  mo.observe(D.body,{attributes:true,subtree:true,attributeFilter:['class']})
+}catch(e){}})();
 })();
 </script>
 </body>

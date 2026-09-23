@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
    get_wallet, spend_gems, is_admin, claim_admin_grants,
    claim_weekly_rewards, release_inactive_territories,
    pvp_attack, pvp_capture_territory, get_world_news,
-   get_world_chat, wd_init_player, wd_get_state
+   get_world_chat, wd_init_player, wd_get_state, olympics (V31)
    ============================================================ */
 
 const GEM_COSTS: Record<string, number> = {
@@ -415,6 +415,65 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           id: r.id, status: r.status, give_res: r.giveRes, give_qty: r.giveQty,
           want_res: r.wantRes, want_qty: r.wantQty,
         })))
+      }
+
+      /* ---------------- V31 olympics: disciplines + medal table (read-only aggregation) ---------------- */
+      case 'olympics': {
+        const server = Math.max(1, Number(args.p_server || 1))
+        const rows = await db.score.findMany({
+          where: { server },
+          orderBy: [{ score: 'desc' }, { conquered: 'desc' }],
+          take: 200,
+        })
+        /* one news fetch covers both windows: last 7 days (disciplines) + today (star of the day) */
+        const since = new Date(Date.now() - 7 * 86400000)
+        const news = await db.worldNews.findMany({
+          where: { server, createdAt: { gte: since } },
+          select: { action: true, actorNick: true, createdAt: true },
+          take: 5000,
+        })
+        const todayUTC = new Date()
+        todayUTC.setUTCHours(0, 0, 0, 0)
+        const cnt: Record<string, Record<string, number>> = { warrior: {}, coup: {}, meteor: {}, trade: {}, today: {} }
+        const bump = (k: string, who: string | null) => {
+          const w = (who || '').trim()
+          if (!w) return
+          cnt[k][w] = (cnt[k][w] || 0) + 1
+        }
+        for (const n of news) {
+          if (n.action === 'pvp_capture') bump('warrior', n.actorNick)
+          else if (n.action === 'coup') bump('coup', n.actorNick)
+          else if (n.action === 'meteor') bump('meteor', n.actorNick)
+          else if (n.action === 'trade') bump('trade', n.actorNick)
+          if (n.createdAt >= todayUTC && ['capture', 'conquer', 'pvp_capture', 'pvp_attack'].indexOf(n.action) > -1) bump('today', n.actorNick)
+        }
+        const topOf = (c: Record<string, number>) =>
+          Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([nick, val]) => ({ nick, val }))
+        const disc = [
+          { key: 'empire', top: [...rows].sort((a, b) => b.conquered - a.conquered).slice(0, 3).map((r) => ({ nick: r.nick, val: r.conquered })) },
+          { key: 'power', top: rows.slice(0, 3).map((r) => ({ nick: r.nick, val: r.score })) },
+          { key: 'warrior', top: topOf(cnt.warrior) },
+          { key: 'coup', top: topOf(cnt.coup) },
+          { key: 'meteor', top: topOf(cnt.meteor) },
+          { key: 'trade', top: topOf(cnt.trade) },
+          { key: 'today', top: topOf(cnt.today) },
+        ]
+        const medals: Record<string, { nick: string; g: number; s: number; b: number }> = {}
+        const give = (who: string | undefined, k: 'g' | 's' | 'b') => {
+          if (!who) return
+          const m = medals[who] || (medals[who] = { nick: who, g: 0, s: 0, b: 0 })
+          m[k]++
+        }
+        for (const d of disc) {
+          give(d.top[0]?.nick, 'g')
+          give(d.top[1]?.nick, 's')
+          give(d.top[2]?.nick, 'b')
+        }
+        const scoreOf = (nick: string) => rows.find((x) => x.nick === nick)?.score || 0
+        const table = Object.values(medals)
+          .map((m) => ({ ...m, total: m.g + m.s + m.b, score: scoreOf(m.nick) }))
+          .sort((a, b) => b.total - a.total || b.g - a.g || b.score - a.score)
+        return R({ server, ts: Date.now(), players: rows.length, disciplines: disc, medals: table.slice(0, 20) })
       }
 
       /* ---------------- news / chat ---------------- */
