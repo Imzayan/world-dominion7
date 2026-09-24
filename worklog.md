@@ -726,3 +726,25 @@ Work Log:
 Stage Summary:
 - خروجی‌ها در /home/z/my-project/download/store-assets/: icon-512/192/1024, feature-graphic-1024x500, screenshot-1-map تا screenshot-5-rank (1170x2532 @3x)
 - گام بعدی: ساخت APK امضاشده (icon-192/512 آماده)، متن توضیحات فروشگاه، و شروع دوره ۱۰ المپیک توسط کاربر برای شات زنده‌تر
+
+---
+Task ID: V44-apk
+Agent: Super Z (main)
+Task: ساخت APK امضاشده WebView wrapper + تکمیل پکیج انتشار بازار/مایکت
+
+Work Log:
+- بنر/آیکون/اسکرین‌شات‌ها از ران قبل آماده بودند (feature-graphic-1024x500, icon-512/192/1024-clean, 5 اسکرین‌شات @3x) — بازبینی بصری انجام شد
+- محیط: java 21 JRE بود، javac و Android SDK نبود → دانلود مستقیم: build-tools_r34 (aapt2 2.19, d8 8.2.2, apksigner 0.9, zipalign) + platform-34-ext7_r03 (android.jar) + ecj 3.33
+- ecj روی JRE دبیان crash داد (fs=null با --release؛ با -source 11 هم system modules resolve نشد) → Temurin JDK 17 دانلود شد و javac اصلی استفاده شد (--release 11)
+- پروژه wrapper در apk-build/app: package com.worlddominion.game، minSdk 21/targetSdk 34، فقط دسترسی INTERNET
+- MainActivity.java: WebView immersive fullscreen به https://world-dominion7.vercel.app/game/index.html، keep-screen-on، BACK=minimize، onSaveInstanceState، onRenderProcessGone→rebuild، لینک غیر از دامنه بازی → مرورگر، onReceivedError(main frame) → assets/error.html فارسی با دکمه تلاش مجدد
+- آیکون‌ها با scripts/make-apk-icons.py از icon-1024-clean: legacy 48..192 + adaptive foreground 108..432 (scale 0.70 — با r_norm=0.94 محتوا در دایره 72dp جا می‌شود و لبه مربع بیرون ماسک است = full-bleed) + splash_logo با fade شعاعی؛ رنگ adaptive bg از نمونه‌برداری گوشه آیکون #0B1227
+- بیلد scripts/build-apk.sh: aapt2 compile/link (-A assets) → javac → d8 → zip -j classes.dex → zipalign → apksigner sign → verify؛ resources.arsc Stored (uncompressed) تأیید شد
+- keystore: download/apk/world-dominion.keystore (alias worlddominion، 30 سال، SHA-256 e21f94...e182، رمز در README-release.md)
+- خروجی: download/apk/WorldDominion-v1.0.0.apk (960KB، v1+v2+v3، zipalign OK، badging صحیح با label ورلد دامین)
+- متن‌های فروشگاه: download/store-assets/store-listing.md (عنوان/توضیح کوتاه و کامل/دسته/کلیدواژه/ترجمه انگلیسی)؛ راهنمای انتشار: download/apk/README-release.md
+
+Stage Summary:
+- پکیج انتشار کامل است: APK امضاشده + آیکون/بنر/۵ اسکرین‌شات + متن فروشگاه + privacy لایو + README (فنی/فرآیندی/بکاپ keystore)
+- نکات بحرانی: keystore را کاربر باید فوراً بکاپ بگیرد؛ رمز دیتابیس Render هنوز ریست نشده؛ ثبت‌نام پنل‌ها باید همین امروز شروع شود
+- آینده: بعد از رسیدن دامنه .ir → اتصال به Vercel و انتشار v1.0.1 با GAME_URL جدید (تغییر یک ثابت + bash scripts/build-apk.sh)
