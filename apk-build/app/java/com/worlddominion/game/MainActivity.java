@@ -17,7 +17,8 @@ import android.widget.FrameLayout;
 
 public class MainActivity extends Activity {
 
-    private static final String GAME_URL = "https://world-dominion7.vercel.app/game/index.html";
+    /* V45: پارامتر نسخه → WebView هرگز HTML قدیمی کش‌شده را سرو نمی‌کند (رفع باگ‌های نسخه‌های قبلی روی گوشی کاربر) */
+    private static final String GAME_URL = "https://world-dominion7.vercel.app/game/index.html?v=45";
     private static final String GAME_HOST = "world-dominion7.vercel.app";
     private static final String ERROR_URL = "file:///android_asset/error.html";
 
@@ -39,6 +40,11 @@ public class MainActivity extends Activity {
 
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState);
+            /* V45: اگر state قدیمی URL بدون پارامتر نسخه را نگه داشته بود، به نسخه‌ی تازه هدایت کن */
+            String u = web.getUrl();
+            if (u == null || !u.contains("?v=45")) {
+                web.loadUrl(GAME_URL);
+            }
         } else {
             web.loadUrl(GAME_URL);
         }

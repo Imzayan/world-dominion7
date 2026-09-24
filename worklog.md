@@ -774,3 +774,29 @@ Stage Summary:
 - هر ۴ خواسته‌ی کاربر رفع و روی production است: نقشه کاملاً رنگی، لگ شدیداً کمتر (مخصوصاً موبایل/APK)، آموزش بالای همه‌چیز و بعد از بستن مودال‌ها، چیپ آغازگر حذف
 - نکته: toggle «مه جنگ» در پنل هنوز فعال است (حالت سبک جدید)؛ دسکتاپ انیمیشن‌های سینمایی را دارد، فقط HUD ایستا شد
 - اسکریپت‌های تست: scripts/smoke-v44.mjs و scripts/smoke-v44-map.mjs (قابل اجرا مجدد با WD_BASE)
+
+---
+Task ID: V45-bugfix-apk-v2
+Agent: Super Z (main)
+Task: ادامه‌ی رفع باگ‌های کاربر (باقی‌مانده‌های V44): لگ شدید، کشورهای سیاه، آموزش زیر آیتم‌ها، آیکون آغازگر + درخواست «همینجا APK بفرست»
+
+Work Log:
+- تشخیص زنده با agent-browser روی سایت لایو (ورود مهمان + eval + اسکرین‌شات):
+  1) کشورهای سیاه ریشه‌ی دوم داشت: baseStyle با lightness 45٪ → hueهای ۱۸۰-۳۳۰ (آبی/بنفش: مصر hsl(228)، مکزیک hsl(260)) روی گوشی = تقریباً سیاه. ریشه‌ی سوم: مه جنگ V30 اگر در localStorage روشن مانده بود (V44 فقط پیش‌فرض را عوض کرده بود) با #16283f تیره می‌کرد
+  2) آموزش V44 با z=10005 هنوز زیر status-banner(100015)/drawer(100010)/bottom-nav(100020)/sheet/menu/olympics بود
+  3) چیپ‌های شناور (hud-info + hud-gem/hud-terr تکراری داخل hud-strip) از گوشه‌ی کارت آموزش بیرون می‌زدند
+  4) لگ: V44 انیمیشن‌ها را کشته بود ولی ~۱۲ backdrop-filter باقی مانده بود (toast! wd-confirm! wd-menu! wd22-sheet! wd31-close! s33hd!) + showDate با ICU تقویم فارسی هر ثانیه + mainRing بدون کش در هر moveend/zoomend برای ۱۸۰ کشور
+- پچ‌های V45 (کامیت 9898aa2 + 029df8c + ab5ae34):
+  1) پالت روشن: lightness 55+((h*7919)%9)، satur 52٪، border hsla(h,50%,32%,.55) در هر دو baseStyle (خط 1674 و 2302) + پایه‌ی lerpColor اشغال #0a2a4a→#4a7ab8 + paintOther 42%→56% روشنایی
+  2) مه جنگ کلاً حذف: FOG.on=false اجباری + localStorage.setItem('wd30fog','off') + دکمه‌ی پنل disabled با پیام «حذف شد»
+  3) آموزش: z-index 200000/199990 + wd45busy() (مودال فعال + sheet/menu/wd7-panel/wd33-stage/wd33-cer/wd5-mini/cos27-lucky/wd31-page) → tutHide خودکار و برگشت بعد از بستن + هایلایت گام جاری (.cur) + «رفتم!» اول کشوی کشور را می‌بندد
+  4) آغازگر: حذف دوره‌ای wd-lvlchip (5s) + مخفی‌شدن #hud-info/#hud-strip/#hud-gem/#hud-terr/#wd34-heat-btn تا باز بودن آموزش (MutationObserver روی کلاس کارت)
+  5) کارایی: *{backdrop-filter:none!important;will-change:auto!important} + *{animation-iteration-count:1!important} با whitelist نوار خبر (34s infinite بازگردانده شد — V44 با .001s آن را کور کرده بود) + showDate throttle 30s + کش mainRing بر اساس _leaflet_id + invalidateSize بعد از visibilitychange
+- APK v2: rebuild کامل از /tmp/my-project/apk-build/tools (محیط قبلی پاک شده بود؛ ابزارها کپی شد: build-tools android-14 + platform-34 + JDK17 با tar). versionCode=2/versionName=1.0.1 + GAME_URL با ?v=45 (ضد کش WebView) + restoreState اگر URL قدیمی بود به نسخه‌ی تازه هدایت می‌کند
+- ⚠️ keystore نسخه ۱.۰.۰ قابل بازیابی نبود (download/apk از بین رفته بود) → keystore جدید (alias worlddominion، همان رمزها، SHA-256: 981f75f8...04c49) — README به‌روز شد: نصب ۱.۰.۰ باید حذف شود؛ چون ۱.۰.۰ منتشر نشده بود مشکلی نیست
+- بیلد: scripts/build-apk.sh (بازنویسی شد) → download/apk/WorldDominion-v1.0.1.apk (984KB، v1+v2+v3، zipalign OK، badging: package com.worlddominion.game vc=2 vn=1.0.1، URL v=45 در dex تأیید شد)
+- تست نهایی لایو: ورود مهمان → آموزش ۶ مرحله، انتخاب پایتخت ترکمنستان → پیشرفت آموزش به ۲/۶ با اسپات‌لایت درست، FPS 60.1 دسکتاپ، ticker در حال چرخش، fogOn=false، بعد از رد شدن چیپ‌ها برگشتند (opacity 1)، اسکرین‌شات نهایی = نقشه کاملاً رنگی بدون سیاه
+
+Stage Summary:
+- هر ۵ خواسته روی production: V45b لایو (V45c جزئی در حال build)، نقشه روشن و بدون سیاهی، آموزش مستقل از پوشش‌ها، چیپ‌های اضافه مدیریت شده، لگ با ۵ بهینه‌سازی ریشه‌ای کم شد
+- APK: download/apk/WorldDominion-v1.0.1.apk (versionCode 2) + keystore جدید + README-release.md به‌روز (هشدار تغییر امضا + چک‌لیست تست)
