@@ -707,3 +707,22 @@ Stage Summary:
 - نکته کلیدی برای ادامه: باز شدن vercel.com لزوماً باز شدن *.vercel.app را تضمین نمی‌کند — بعد از دیپلوی باید لینک واقعی تست شود
 - در صورت بلاک بودن *.vercel.app: پلن B = ۹ روز دیگر دامنه .ir کاربر → اتصال به Vercel/Render + Cloudflare
 - بعد از تایید لینک: ساخت APK امضاشده (WebView به لینک نهایی) برای بازار/مایکت + صفحه privacy policy
+
+---
+Task ID: V44-store-assets
+Agent: Super Z (main)
+Task: تولید دارایی‌های فروشگاه (آیکون/بنر/اسکرین‌شات) برای انتشار بازار و مایکت
+
+Work Log:
+- دیپلوی Vercel کاربر تایید شد: world-dominion7.vercel.app (بازی 200، API+Neon 200، privacy.html 200)
+- مهاجرت دیتا Render→Neon با scripts/migrate-render-to-neon.mjs انجام شد: 75 ردیف، 19 جدول، topo-sort FK، سینک sequence ها؛ تایید: 5 یوزر (live27chk, v39live213132, v36live, کسخور, Alireza)
+- آیکون: 3 بار تولید؛ نسخه برتر (cand-B تاج+کره+گل تاج) با crop داخلی از قاب گرد → full-bleed؛ icon-512/192/1024-clean
+- بنر: 1440x704 تولید شد (1440x720 خطای مضرب 32 داد؛ SDK هم IOC خطا داد → CLI با 1344x768 ناموفق، 1440x704 با SDK در ران بعدی موفق)؛ crop به 1024x500 + اسکریم + تایپوگرافی طلایی فارسی (Vazirmatn-Black + raqm، گرادیان طلایی + glow) با scripts/make-store-assets.py
+- حذف سکه‌های $ از آیکون اول با cv2.inpaint تلاش شد؛ در نهایت cand-B برنده شد
+- اسکرین‌شات واقعی با Playwright (390x844@3x): ثبت اکانت AdShot2414 با /api/auth/signup داخل صفحه، ورود، مخفی‌سازی CSSWD آموزش (#wd-advisor,#wd43-tut,#wd43-spot)، شات‌های: نقشه، المپیک (برش نوار «غیرفعال» با تشخیص ردیف قرمز در scripts/splice-olympics.py)، خزانه ملی، فروشگاه جم، رتبه‌بندی نظامی
+- نکته: آموزش V43 برای هر اکانت جدید 6 مرحله spotlight دارد — با CSS display:none قابل دور زدن است
+- نکته: المپیک دوره ۹ در فاز «غیرفعال موقت» است؛ برای شات نهایی کاربر باید از پنل ادمین دوره ۱۰ را شروع کند (شات فعلی برش خورده)
+
+Stage Summary:
+- خروجی‌ها در /home/z/my-project/download/store-assets/: icon-512/192/1024, feature-graphic-1024x500, screenshot-1-map تا screenshot-5-rank (1170x2532 @3x)
+- گام بعدی: ساخت APK امضاشده (icon-192/512 آماده)، متن توضیحات فروشگاه، و شروع دوره ۱۰ المپیک توسط کاربر برای شات زنده‌تر
