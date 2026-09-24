@@ -1803,7 +1803,7 @@ async function attackTarget(n){
   txt.textContent="🚢 نیروها در حال اعزام به جبهه...";$("battle-close-btn").style.display="none";
   $("country-drawer").classList.remove("open");openModal("m-battle");updateUI();
   const g=getG(n);if(map&&g)map.flyToBounds([[g.s,g.w],[g.n,g.e]],{maxZoom:4,duration:1.2,paddingBottomRight:[0,220]});
-  await sleep(1400);const line=atkLine(n),def0=t.def*1.25*(window.__wdDebuff&&window.__wdDebuff[n]&&window.__wdDebuff[n].until>Date.now()?(1-window.__wdDebuff[n].pct):1);
+  await sleep(800);const line=atkLine(n),def0=t.def*1.25*(window.__wdDebuff&&window.__wdDebuff[n]&&window.__wdDebuff[n].until>Date.now()?(1-window.__wdDebuff[n].pct):1);
   for(let r=1;r<=5;r++){
     txt.textContent=`⚔️ دور ${r} از ۵ — درگیری سنگین در خط مقدم`;
     const defNow=Math.max(def0*(1-occ/100*.75),def0*.2),ratio=power*(.8+Math.random()*.4)/defNow;
@@ -1812,7 +1812,7 @@ async function attackTarget(n){
     bar.style.transition="width 1.2s ease";bar.style.width=occ+"%";$("battle-pct-label").textContent=Math.round(occ)+"%";
     setHatch(n,occ,true,prev);blasts(n,5);
     lose(Math.min(.1,.03+.03/Math.max(ratio,.2)));power=Math.round(calculateTotalAttack()*(window.__ovs?ovsMult():1));updateUI();
-    await sleep(1500);if(power<=0){txt.textContent="💀 ارتش شما نابود شد!";break}
+    await sleep(850);if(power<=0){txt.textContent="💀 ارتش شما نابود شد!";break}
   }
   if(line)line.remove();
   occupationPct[n]=occ;if(occ<=0)delete occupationPct[n];
@@ -1824,6 +1824,8 @@ async function attackTarget(n){
   else{const cback=Math.min(15,start);if(cback>0){occupationPct[n]=Math.max(0,start-cback);setHatch(n,occupationPct[n],false,start);/* V41: ضدحمله‌ی مدافع — تنها راه عقب‌نشانی پیشروی */}
     txt.innerHTML=(power<=0?'💀 ارتش شما نابود شد!<br>':'')+`🛡️ <b style="color:var(--red-glow)">حمله دفع شد!</b> مدافعان ضدحمله زدند${cback>0?' و '+cback+'٪ از پیشروی را عقب راندند':''}.<br>تلفات: ${lostPct}٪`;showToast(`🛡️ حمله به ${t.fa} شکست خورد${cback>0?' — ضدحمله‌ی مدافع':''}`,"lose")}
   applyCountryColor(n);updateUI();$("battle-close-btn").style.display="block";battleBusy=false;
+  /* V50: صفحه‌ی نبرد چند ثانیه بعد خودش جمع می‌شود — بازیباز نمی‌ماند */
+  setTimeout(()=>{try{const mb=$("m-battle");if(mb&&mb.classList.contains('active')&&!battleBusy)closeModal("m-battle")}catch(e){}},5200);
   if(activeEngName===n)onCountryClick({properties:{name:n}},layersByName[n])}
 function decay(){/* V41: پیشروی هرگز خودبه‌خود کم نمی‌شود (قبلاً هر ۵ ثانیه ۱.۵٪ سوزانده می‌شد!) —
   فقط ضدحمله‌ی مدافع آن را عقب می‌راند (در لحظه‌ی «دفع شدن» موج حمله اعمال می‌شود) */}
@@ -4385,9 +4387,14 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
     document.getElementById("battle-close-btn").style.display="none";
     const modal=document.getElementById("m-battle");modal.classList.add('wg39-cine');
     openModal("m-battle");
+    /* V50: واچ‌داگ ضد قفل — اگر هر چیزی گیر کرد، ۳۰ ثانیه بعد همه‌چیز اجباری آزاد می‌شود */
+    setTimeout(function(){try{
+      if(battleBusy&&document.getElementById("m-battle").classList.contains('active')){
+        battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();closeModal("m-battle");
+        showToast('⏱️ نبرد معطل ماند — صفحه بسته شد، دوباره حمله کن','lose')}}catch(e){}},30000);
     const gTgt=typeof getG==='function'?getG(country):null;
     if(map&&gTgt)map.flyToBounds([[gTgt.s,gTgt.w],[gTgt.n,gTgt.e]],{maxZoom:4,duration:1.2,paddingBottomRight:[0,220]});
-    await sleep(1300);
+    await sleep(700); /* V50: سینما سریع‌تر شد — قبلاً ۱.۳ثانیه معطلی اول بود */
 
     /* نوار قدرت دو طرف (در نمای دلخواه مهاجم) */
     let hpBox=document.getElementById('wd39-hp');
@@ -4415,9 +4422,13 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
     try{snd('boom')}catch(e){}
 
     try{
-      const result=await sb.rpc('pvp_attack',{
+      /* V50: ضد قفل‌شدن — اگر پاسخ سرور ۱۵ ثانیه نیامد (اینترنت کند)، نبرد با پیام خطا آزاد می‌شود */
+      const result=await Promise.race([
+        sb.rpc('pvp_attack',{
         p_server:SRV,p_country:country,p_attack:Math.round(calculateTotalAttack())
-      });
+      }),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('اتصال سرور کند بود — دوباره تلاش کن')),15000))
+      ]);
       if(result.error)throw result.error;
       const x=result.data||{};
       if(x.busy)throw new Error('این جبهه هم‌اکنون درگیر است.');
@@ -4454,7 +4465,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
           if(typeof setHatch==='function')setHatch(country,occ,true,occPlan[r-1]);
           if(typeof blasts==='function')blasts(country,2);
         }
-        await sleep(r===4?1700:1350);
+        await sleep(r===4?950:760); /* V50: هر دور کوتاه‌تر — کل نبرد حدود ۵ ثانیه، نه ۱۲ ثانیه قفل */
       }
 
       const occ=win?100:Math.max(0,Number(x.occupation||0));
@@ -4483,7 +4494,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
         setHP(Math.max(20,100-Math.min(70,Math.round(60/Math.max(ratio,.2)))),Math.max(46,100-Math.round(8*ratio)));
       }
 
-      setTimeout(async()=>{
+      setTimeout(async()=>{try{
         if(pvpLine){pvpLine.remove();pvpLine=null}
         applyBattleLosses(lossFraction);
         updateUI();
@@ -4506,6 +4517,8 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
           const cb=document.getElementById("battle-close-btn");
           cb.textContent="🏆 ادامه";cb.style.display="block";
           cb.onclick=()=>{battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();closeModal("m-battle")};
+          /* V50: بعد از ۴.۸ ثانیه صفحه‌ی نتیجه خودش بسته می‌شود — بازی باز نمی‌ماند */
+          setTimeout(function(){try{if(battleBusy&&modal.classList.contains('active'))cb.onclick()}catch(e){}},4800);
         }else{
           log.innerHTML=
             '🛡️ دفاع تخمینی: <b>'+fmt(defense)+'</b><br>'+
@@ -4526,8 +4539,20 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
             cb.style.display="none";closeModal("m-battle");
             setTimeout(()=>professionalAttack(country),350);
           };
+          /* V50: اگر بازیکن موج بعدی را نزد، ۶ ثانیه بعد صفحه خودش بسته می‌شود */
+          setTimeout(function(){try{if(battleBusy&&modal.classList.contains('active')){
+            battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();
+            cb.style.display="none";closeModal("m-battle");showToast('⚔️ برای موج بعدی دوباره روی کشور بزن','lose')}}catch(e){}},5800);
         }
-      },1200);
+      }catch(e50){console.log('wd39res',e50);
+        /* V50: اگر وسط نمایش نتیجه خطا خورد (sync/save)، صفحه هیچ‌وقت بدون دکمه‌ی بستن نمی‌ماند */
+        try{
+          battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();
+          const cb3=document.getElementById("battle-close-btn");
+          cb3.style.display="block";cb3.textContent="باشه";
+          cb3.onclick=()=>{battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();closeModal("m-battle")};
+        }catch(e51){}
+      }},1200);
     }catch(e){
       console.log(e);
       if(pvpLine){pvpLine.remove();pvpLine=null}
@@ -6315,8 +6340,10 @@ window.renderAdmin=async function(){
 .toast.lose{border-color:rgba(255,90,122,.55)!important}
 
 /* ---------- 9) آیکون‌های زیرساخت بزرگ و خوانا ---------- */
-.site{width:30px!important;height:30px!important;font-size:16px!important;background:rgba(255,255,255,.96)!important;border:2.5px solid #17a557!important;box-shadow:0 2px 8px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.25)!important}
-.site.s-free{border-style:dashed!important;border-color:#2f6da8!important;background:rgba(240,248,255,.92)!important}
+/* V50: زیرساخت‌های روی نقشه کوچک و شیک شدند — قبلاً دایره‌های ۳۰px سفید غول‌پیکر بودند */
+.site{width:15px!important;height:15px!important;font-size:8.5px!important;background:rgba(6,22,40,.88)!important;border:1.2px solid #35e08d!important;box-shadow:0 1px 5px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.3)!important;opacity:.92}
+.site.s-built{border-color:#35e08d!important}
+.site.s-free{border-style:dashed!important;border-color:#2f6da8!important;background:rgba(240,248,255,.92)!important;opacity:.7}
 .site-wrap{pointer-events:none!important}
 
 /* ---------- 10) برچسب کشورها روی نقشه (سبک GeoWar) ---------- */
@@ -6889,7 +6916,8 @@ renderShop=function(){try{var b=S$('shop-body');if(!b)return;b.textContent='';
  m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span id="cos-pick-t">انتخاب</span><span class="close-modal" id="cos-pick-x" style="cursor:pointer;font-size:18px">✕</span></div><div id="cos-pick-b"></div></div>';
  D.body.appendChild(m);m.querySelector('#cos-pick-x').onclick=function(){closeModal('cos-pick')};
  m.addEventListener('click',function(e){if(e.target===m)closeModal('cos-pick')})})();
-function refreshChip(){try{var c=A$('acc-chip');if(!c||!c.querySelector('.wd-nick'))return;var n=(typeof ACC!=='undefined'&&ACC.nick)||'';if(!n)return;c.querySelector('.wd-nick').textContent=cosTagText(n)}catch(e){}}
+function refreshChip(){try{var c=A$('acc-chip');if(!c||!c.querySelector('.wd-nick'))return;var n=(typeof ACC!=='undefined'&&ACC.nick)||'';if(!n)return;var bb=c.querySelector('.wd-nick');
+ if(COS.emblem&&COS.emst&&typeof window.cosTagHTML==='function')bb.innerHTML=window.cosTagHTML(n);else bb.textContent=cosTagText(n)}catch(e){}}
 function setColor(h){COS.hue=h;cosRepaint();closeModal('cos-pick');try{if(typeof saveNow==='function')saveNow()}catch(e){}refreshChip();showToast(h==null?'🎨 رنگ پیش‌فرض':'🎨 رنگ امپراتوری عوض شد','win')}
 function setEmblem(e2){COS.emblem=e2;cosRepaint();closeModal('cos-pick');try{if(typeof saveNow==='function')saveNow()}catch(e){}refreshChip();showToast(e2?'🏳️ نشان تو: '+e2:'🏳️ نشان حذف شد','win')}
 function setTitle(t2){COS.title=t2;closeModal('cos-pick');try{if(typeof saveNow==='function')saveNow()}catch(e){}refreshChip();showToast(t2?'👑 لقب تو: «'+t2+'»':'👑 لقب حذف شد','win')}
@@ -6907,6 +6935,7 @@ function openPick(kind0){var kind=kind0==='fx_conq'?'fx':kind0;var b=S$('cos-pic
   var g2=el('div');g2.style.cssText='display:flex;flex-wrap:wrap;gap:8px;justify-content:center';
   EMBLEMS.forEach(function(e3,ix){var s=el('button',e3,'cos27-em'+(COS.emblem===e3?' on':''));s.style.setProperty('--eh',(ix*137+20)%360);s.onclick=function(){setEmblem(e3)};g2.append(s)});
   b.append(g2);
+  try{if(typeof window.WD50_EMBLEM_SECTION==='function')window.WD50_EMBLEM_SECTION(b)}catch(e){}
   var rm=el('button','حذف نشان','cos27-buy off');rm.style.cssText='width:100%;margin-top:12px';rm.onclick=function(){setEmblem(null)};b.append(rm)}
  else if(kind==='title'){t.textContent='👑 لقب اختصاصی';
   TITLES.forEach(function(x){var r=el('div','','cos27-card');r.append(el('div','👑','cos27-ico'));
@@ -7006,13 +7035,16 @@ try{var _ph=plHue;plHue=function(){if(COS.hue!=null)return COS.hue;return _ph()}
 /* plNick is a const binding — cannot reassign; inject emblem via ownership label markers (OL) instead */
 function cosLabelFix(n){try{if(typeof OL==='undefined'||!OL||!OL[n]||!OL[n].getElement)return;if(typeof statusOf!=='function')return;var st=statusOf(n);if(st==='neutral')return;
  var elx=OL[n].getElement();if(!elx||!elx.firstChild)return;
- var base=(st==='capital'?'⭐ ':'')+plNick();elx.firstChild.textContent=COS.emblem?COS.emblem+' '+base:base}catch(e){}}
+ var base=(st==='capital'?'⭐ ':'')+plNick();
+ var esc50=function(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+ if(COS.emblem&&COS.emst&&typeof window.wd50EmTag==='function')elx.firstChild.innerHTML=window.wd50EmTag(COS.emblem,COS.emst)+' '+esc50(base);
+ else elx.firstChild.textContent=COS.emblem?COS.emblem+' '+base:base}catch(e){}}
 try{var _ac=applyCountryColor;applyCountryColor=function(n){_ac(n);try{cosLabelFix(n)}catch(e){}cosDetect(n)}}catch(e){}
 /* ---------------- hooks: چرخه‌ی حیات بازی ---------------- */
 try{var _rs=restoreState;restoreState=function(st){var r=_rs(st);try{cosArm()}catch(e){}return r}}catch(e){}
 try{var _lw=loadWallet;loadWallet=async function(){var r=await _lw.apply(this,arguments);try{cosVipTick()}catch(e){}return r}}catch(e){}
 try{var _sn=saveNow;saveNow=function(){try{cosRecordStat()}catch(e){}return _sn.apply(this,arguments)}}catch(e){}
-try{var _sc=showChip;showChip=function(n){_sc(n);try{var c=A$('acc-chip');if(c){var b=c.querySelector('.wd-nick');if(b)b.textContent=cosTagText(n)}}catch(e){}}}catch(e){}
+try{var _sc=showChip;showChip=function(n){_sc(n);try{var c=A$('acc-chip');if(c){var b=c.querySelector('.wd-nick');if(b){if(COS.emblem&&COS.emst&&typeof window.cosTagHTML==='function')b.innerHTML=window.cosTagHTML(n);else b.textContent=cosTagText(n)}}}catch(e){}}}catch(e){}
 /* menuHead/item live inside the V26 IIFE — decorate the ☰ menu reactively instead */
 (function(){var mo=new MutationObserver(function(){try{var nn=A$('wd-menu-nick');if(!nn)return;
  if(typeof ACC==='undefined'||!ACC)return;var nick=ACC.nick||'مهمان';
@@ -7041,7 +7073,7 @@ setInterval(function(){try{if(typeof ACC==='undefined'||!ACC||!ACC.nick)return;v
  var rows=D.querySelectorAll('#m-rank .lr-row,#m-rank .wd26-pc');
  for(var i=0;i<rows.length;i++){var r=rows[i];if(r.getAttribute('data-cos27'))continue;
   var b=r.querySelector('b');
-  if(b&&b.textContent.indexOf(nick)>-1){b.textContent=cosTagText(nick);r.setAttribute('data-cos27','1');continue}
+  if(b&&b.textContent.indexOf(nick)>-1){if(COS.emblem&&COS.emst&&typeof window.cosTagHTML==='function')b.innerHTML=window.cosTagHTML(nick);else b.textContent=cosTagText(nick);r.setAttribute('data-cos27','1');continue}
   var sp=r.querySelector('span');
   if(sp&&sp.textContent.indexOf(nick)>-1&&!sp.getAttribute('data-cos27')){sp.setAttribute('data-cos27','1');sp.textContent=sp.textContent.replace(nick,cosTagText(nick))}}
 }catch(e){}},1300);
@@ -7760,7 +7792,8 @@ function openPick28(kind0){
   prev.innerHTML='<span>پیش‌نمایش امپراتوری:</span><span class="wd28-prev-dot"></span><span id="wd28-hue-val">—</span>';
   b.append(prev);
   var dot=prev.querySelector('.wd28-prev-dot'),hval=prev.querySelector('#wd28-hue-val');
-  function upd(h){if(dot)dot.style.background='hsl('+h+',78%,46%)';if(hval)hval.textContent=fa(h)+'°'}
+  function upd(h){if(dot)dot.style.background='hsl('+h+',78%,46%)';if(hval)hval.textContent=fa(h)+'°';
+    try{if(typeof window.WD50_RETINT==='function')window.WD50_RETINT(h)}catch(e){}}
   var curHue=(window.COS27&&window.COS27.hue!=null)?window.COS27.hue:null;upd(curHue!=null?curHue:210);
   buildWheel(wrap,function(h,redraw){upd(h);applyHue28(h);redraw()},curHue);
   var hint=D.createElement('div');hint.className='cos27-h';hint.textContent='👆 روی چرخ بکش تا رنگ زنده عوض شود';b.append(hint);
@@ -7777,6 +7810,8 @@ function openPick28(kind0){
   b.append(grid);
   var nm=D.createElement('div');nm.style.cssText='font-size:9px;color:#8fb0d6;text-align:center;margin-top:7px';
   nm.textContent='رنگ‌های نام‌دار — با کشیدن روی چرخ، هر رنگی بساز';b.append(nm);
+  /* V50: قسمت طرح‌های سینمایی (روی نقشه هم اعمال می‌شود) */
+  try{if(typeof window.WD50_PATTERN_SECTION==='function')window.WD50_PATTERN_SECTION(b)}catch(e){}
   var def=D.createElement('button');def.className='cos27-buy off';def.style.cssText='width:100%;margin-top:8px';
   def.textContent='بازگشت به رنگ پیش‌فرض';def.onclick=function(){applyHue28(null)};b.append(def);
 }
@@ -8828,6 +8863,14 @@ function startTargeting(kind){if(!myCountryName){showToast('❌ اول پایت�
   if(!sb||!ACC.uid||!WALLET_OK){showToast('❌ عملیات ویژه فقط با حساب آنلاین فعال است','lose');return}
   const left=cdLeft(kind);
   if(left){showToast('⏳ '+(kind==='coup'?'کودتای بعدی':'شهاب‌سنگ بعدی')+': '+faDate(left),'lose');return}
+  /* V50: چک وضعیت واقعی سرور قبل از حالت هدفگیری */
+  try{const st50=window.__wd30st;
+    if(st50&&st50[kind+'_next']&&Date.parse(st50[kind+'_next'])>Date.now()){showToast('⏳ '+(kind==='coup'?'کودتای بعدی':'شهاب‌سنگ بعدی')+': '+faDate(Date.parse(st50[kind+'_next'])),'lose');return}
+    if(kind==='meteor'&&st50&&st50.meteor_left===0){showToast('🌩️ سهمیهِ هفتهِ سرور پر شد — تا '+faDate(st50.meteor_reset?Date.parse(st50.meteor_reset):0),'lose');return}}catch(e){}
+  /* V50: چک وضعیت واقعی سرور قبل از حالت هدف‌گیری — دیگه پیام مبهم نمی‌آید */
+  try{const st50=window.__wd30st;
+    if(st50&&st50[kind+'_next']&&Date.parse(st50[kind+'_next'])>Date.now()){showToast('⏳ '+(kind==='coup'?'کودتای بعدی':'شهاب‌سنگ بعدی')+': '+faDate(st50[kind+'_next']),'lose');return}
+    if(kind==='meteor'&&st50&&st50.meteor_left===0){showToast('🌩️ سهمیه‌ی هفته‌ی سرور پر شد — تا '+faDate(st50.meteor_reset),'lose');return}}catch(e){}
   targeting=kind;closeAllOverlays();targetHint(kind==='coup'?'🎭 کشور هدف برای کودتا را روی نقشه بزن':'☄️ کشور هدف را برای رگبار شهاب روی نقشه بزن');
   if(targetT)clearTimeout(targetT);targetT=setTimeout(targetStop,45000);   /* ضد گیرکردن: لغو خودکار */
   if(escT)D.removeEventListener('keydown',escT);escT=function(ev){if(ev&&ev.key==='Escape')targetStop()};D.addEventListener('keydown',escT);
@@ -8909,8 +8952,13 @@ function soCard(kind){const coup=kind==='coup';
   btn.addEventListener('click',()=>startTargeting(kind));
   card.append(ico,body,btn);
   const cd=()=>{const el=card.querySelector('.wd-so-cd');if(!el)return;
-    const left=cdLeft(kind);el.textContent=left?('⏳ آماده‌ی بعدی: '+faNum(Math.max(1,Math.ceil((left-Date.now())/3600000)))+' ساعت دیگر'):'✅ آماده‌ی اجرا';
-    el.style.color=left?'#ffb27d':'#7dff9e';};cd();
+    /* V50: وضعیت واقعی سرور (کول‌داون دقیق + سهمیهٔ هفته) به‌جای ساعت مبهم */
+    const left=cdLeft(kind);const st=window.__wd30st||null;let txt=null,col='#7dff9e';
+    if(st&&st[kind+'_next']&&Date.parse(st[kind+'_next'])>Date.now()){txt='⏳ آمادهِ بعدی: '+faDate(Date.parse(st[kind+'_next']));col='#ffb27d'}
+    else if(kind==='meteor'&&st&&st.meteor_left===0){txt='🌩️ سهمیهِ هفتهِ سرور پر شد — تا '+faDate(st.meteor_reset?Date.parse(st.meteor_reset):0);col='#ffb27d'}
+    else if(left){txt='⏳ آمادهِ بعدی: '+faDate(left);col='#ffb27d'}
+    else txt='✅ آمادهِ اجرا';
+    el.textContent=txt;el.style.color=col};cd();
   card.__cdTick=cd;return card}
 function specialPanel(p){p.textContent='';
   const h=D.createElement('div');h.className='sites-h';h.textContent='🎬 عملیات‌های ویژه (سینمایی)';p.append(h);
@@ -14497,6 +14545,307 @@ try{
   var _armShop=function(){var b=D.getElementById('shop-body');if(b&&b!==_sb){_sb=b;_ob.disconnect();_ob.observe(b,{childList:true,subtree:true});return true}return false};
   if(!_armShop()){var _siv=setInterval(function(){if(_armShop())clearInterval(_siv)},1000)}
 }catch(e){}
+})();
+</script>
+<style id="wd50-css">
+/* ==================== V50: طرح‌های سینمایی رنگ + نشان‌های ویژه ==================== */
+/* --- pattern swatches in the color picker --- */
+.wd28-patgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;direction:rtl}
+.wd28-pat{position:relative;height:58px;border-radius:12px;border:2px solid rgba(255,255,255,.16);overflow:hidden;cursor:pointer;background-size:56px 56px;background-repeat:repeat;transition:transform .15s,border-color .15s,box-shadow .15s;padding:0}
+.wd28-pat:hover{transform:translateY(-2px) scale(1.05)}
+.wd28-pat.on{border-color:#fff;box-shadow:0 0 0 2px hsl(var(--h,205),90%,58%),0 0 18px hsla(var(--h,205),95%,58%,.8)}
+.wd28-pat.on::after{content:'✓';position:absolute;top:3px;left:6px;color:#fff;font-weight:900;font-size:11px;text-shadow:0 1px 3px #000;z-index:2}
+.wd28-pat span{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,rgba(2,8,20,.85),transparent);color:#fff;font-size:8.5px;font-weight:800;padding:8px 2px 2px;letter-spacing:.2px;text-shadow:0 1px 2px #000}
+.wd28-pat.none{display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06)!important;background-image:none!important}
+.wd28-pat.none span{position:static;background:none;padding:0;color:#cfe2ff;font-size:10px}
+/* --- emblem badge (نشان با طرح ویژه) — everywhere: map label / ranking / chip --- */
+.wd-em{display:inline-flex;align-items:center;justify-content:center;width:1.5em;height:1.5em;border-radius:50%;font-size:1em;line-height:1;vertical-align:-.3em;margin-inline-end:.18em;position:relative;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.35),rgba(255,255,255,.05) 62%),#12263f;border:1.5px solid rgba(255,255,255,.45);box-shadow:0 1px 4px rgba(0,0,0,.55);text-shadow:0 1px 2px rgba(0,0,0,.65);font-style:normal}
+.wd-em-gold{background:radial-gradient(circle at 32% 26%,#ffe9a8,#8a6410 58%,#3a2a04);border-color:#ffd75e;box-shadow:0 0 9px rgba(255,205,60,.75),inset 0 0 5px rgba(255,240,180,.5);animation:wd50pulse-gold 2.2s ease-in-out infinite}
+@keyframes wd50pulse-gold{0%,100%{box-shadow:0 0 6px rgba(255,205,60,.5),inset 0 0 5px rgba(255,240,180,.45)}50%{box-shadow:0 0 14px rgba(255,215,80,.95),inset 0 0 7px rgba(255,240,180,.65)}}
+.wd-em-fire{background:radial-gradient(circle at 34% 30%,#ffd29b,#ff7a18 48%,#7a1500);border-color:#ffab5e;box-shadow:0 0 10px rgba(255,120,30,.8),inset 0 0 6px rgba(255,220,150,.55);animation:wd50flick 1.5s ease-in-out infinite}
+@keyframes wd50flick{0%,100%{box-shadow:0 0 7px rgba(255,120,30,.6),inset 0 0 6px rgba(255,220,150,.5)}50%{box-shadow:0 0 15px rgba(255,150,50,1),inset 0 0 8px rgba(255,230,170,.7)}}
+.wd-em-ice{background:radial-gradient(circle at 32% 28%,#e8fbff,#37b6ff 52%,#073a66);border-color:#a8ecff;box-shadow:0 0 10px rgba(120,220,255,.8),inset 0 0 6px rgba(220,248,255,.6)}
+.wd-em-galaxy{background:radial-gradient(circle at 35% 30%,#d5b8ff,#6b2fd6 50%,#12063a);border-color:#c09aff;box-shadow:0 0 11px rgba(150,90,255,.85),inset 0 0 6px rgba(220,190,255,.5);animation:wd50tw 2.6s ease-in-out infinite}
+.wd-em-galaxy::after{content:'';position:absolute;width:2.5px;height:2.5px;border-radius:50%;background:#fff;top:18%;left:24%;box-shadow:8px 7px 0 -0.5px rgba(255,255,255,.85),5px 11px 0 -1px rgba(255,255,255,.6);animation:wd50tw 1.8s ease-in-out infinite}
+@keyframes wd50tw{0%,100%{opacity:.75}50%{opacity:1}}
+.wd-em-dragon{background:radial-gradient(circle at 34% 28%,#9af0bb,#0f9d58 52%,#03331a);border-color:#57e389;box-shadow:0 0 10px rgba(60,220,120,.75),inset 0 0 6px rgba(170,255,200,.45);animation:wd50pulse-gold 2.8s ease-in-out infinite}
+.wd-em-royal{background:linear-gradient(135deg,#7b3fd6 0%,#3a1268 55%,#1a0630 100%);border:2px solid #ffd75e;box-shadow:0 0 10px rgba(255,215,94,.6),0 0 16px rgba(123,63,214,.55),inset 0 0 5px rgba(255,225,150,.4)}
+.wd-em-shadow{background:radial-gradient(circle at 34% 30%,#5a5a66,#23232b 55%,#07070a);border-color:#7a7a88;box-shadow:0 0 7px rgba(0,0,0,.9),inset 0 0 8px rgba(255,40,60,.75)}
+.wd-em-neon{background:#0b1022!important;border:1.5px solid rgba(255,255,255,.9)!important;box-shadow:0 0 11px rgba(170,120,255,.9)!important;overflow:visible}
+.wd-em-neon::before{content:'';position:absolute;inset:-2.5px;border-radius:50%;background:conic-gradient(#ff4d6d,#ffd75e,#3ee87f,#39e6d0,#5aa7ff,#b06bff,#ff4d6d);animation:wd50spin 2.8s linear infinite;z-index:-1;filter:blur(.3px)}
+@keyframes wd50spin{to{transform:rotate(360deg)}}
+/* --- emblem picker preview cards --- */
+.wd50-emgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;direction:rtl}
+.wd50-emcard{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.13);border-radius:12px;padding:9px;transition:border-color .15s,box-shadow .15s}
+.wd50-emcard.on{border-color:rgba(255,216,77,.8);box-shadow:0 0 14px rgba(255,200,60,.28)}
+.wd50-emcard .wd-em{width:38px;height:38px;font-size:22px;flex:none}
+.wd50-emcard .tx{flex:1;min-width:0}
+.wd50-emcard .tx b{display:block;font-size:11.5px;color:#fff}
+.wd50-emcard .tx small{display:block;font-size:9px;color:#9fb4d8;margin-top:2px;line-height:1.5}
+.wd50-emcard button{flex:none;width:auto!important;padding:6px 11px!important;font-size:10px!important}
+</style>
+<script id="wd50-engine">
+/* ============ V50: موتور طرح‌های سینمایی (روی نقشه) + نشان‌های ویژه جمی ============ */
+(function(){
+'use strict';
+var D=document;
+function esc50(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function fnum(x){try{return (typeof window.faNum==='function')?window.faNum(x):String(x)}catch(e){return String(x)}}
+
+/* ---------------- 1) طرح‌های نقشه (SVG pattern — با هر رنگی) ---------------- */
+/* هر طرح: id، نام فارسی، اندازه‌ی کاشی، و بدنه‌ی SVG (تابع hue) */
+var PATS=[
+ {id:'royal',n:'شاهانه',s:42,def:function(h){return "<rect width='42' height='42' fill='hsl("+h+",66%,30%)'/>"
+   +"<path d='M0 42L42 0M-21 21L21 -21M21 63L63 21' stroke='hsla("+h+",55%,18%,.9)' stroke-width='11' fill='none'/>"
+   +"<path d='M0 42L42 0M-21 21L21 -21M21 63L63 21' stroke='hsla(45,92%,62%,.85)' stroke-width='4.5' fill='none'/>"
+   +"<path d='M0 42L42 0M-21 21L21 -21M21 63L63 21' stroke='hsla(45,95%,75%,.5)' stroke-width='1.4' fill='none'/>"
+   +"<rect x='17.5' y='17.5' width='7' height='7' transform='rotate(45 21 21)' fill='hsla("+h+",92%,66%,.95)'/>"}},
+ {id:'wave',n:'امواج',s:36,def:function(h){return "<rect width='36' height='36' fill='hsl("+h+",72%,28%)'/>"
+   +"<path d='M0 9 Q9 0 18 9 T36 9' stroke='hsla("+h+",95%,66%,.9)' stroke-width='3.4' fill='none'/>"
+   +"<path d='M0 18 Q9 9 18 18 T36 18' stroke='hsla("+h+",95%,58%,.5)' stroke-width='2.2' fill='none'/>"
+   +"<path d='M0 27 Q9 18 18 27 T36 27' stroke='hsla("+h+",95%,66%,.9)' stroke-width='3.4' fill='none'/>"
+   +"<circle cx='9' cy='9' r='1.2' fill='hsla(45,95%,75%,.55)'/><circle cx='27' cy='27' r='1.2' fill='hsla(45,95%,75%,.45)'/>"}},
+ {id:'scale',n:'فلس اژدها',s:32,def:function(h){return "<rect width='32' height='32' fill='hsl("+h+",68%,24%)'/>"
+   +"<path d='M-8 8 a8 8 0 0 0 16 0 M8 8 a8 8 0 0 0 16 0 M24 8 a8 8 0 0 0 16 0' fill='hsl("+h+",80%,42%)'/>"
+   +"<path d='M0 24 a8 8 0 0 0 16 0 M16 24 a8 8 0 0 0 16 0' fill='hsl("+h+",86%,54%)'/>"
+   +"<path d='M-8 8 a8 8 0 0 0 16 0 M8 8 a8 8 0 0 0 16 0 M24 8 a8 8 0 0 0 16 0 M0 24 a8 8 0 0 0 16 0 M16 24 a8 8 0 0 0 16 0' stroke='hsla(45,85%,72%,.28)' stroke-width='1' fill='none'/>"}},
+ {id:'star',n:'ستاره‌باران',s:40,def:function(h){return "<rect width='40' height='40' fill='hsl("+h+",62%,20%)'/>"
+   +"<path d='M10 4l1.7 4.6L16.3 10l-4.6 1.4L10 16l-1.7-4.6L3.7 10l4.6-1.4z' fill='hsla("+h+",96%,74%,.95)'/>"
+   +"<path d='M30 24l1.4 3.8 3.8 1.4-3.8 1.4L30 34.4l-1.4-3.8-3.8-1.4 3.8-1.4z' fill='hsla("+h+",96%,70%,.85)'/>"
+   +"<circle cx='33' cy='8' r='1.5' fill='hsla("+h+",85%,82%,.8)'/><circle cx='7' cy='31' r='1.2' fill='hsla("+h+",85%,82%,.6)'/><circle cx='22' cy='20' r='.9' fill='hsla(45,95%,80%,.7)'/>"}},
+ {id:'hex',n:'کندو',s:30,def:function(h){return "<rect width='30' height='26' fill='hsl("+h+",58%,23%)'/>"
+   +"<path d='M15 3.5l7.4 4.3v8.4L15 20.5l-7.4-4.3V7.8z' fill='hsla("+h+",70%,32%,.65)' stroke='hsla("+h+",90%,62%,.95)' stroke-width='2.2'/>"
+   +"<circle cx='15' cy='12' r='2' fill='hsla("+h+",95%,70%,.6)'/>"
+   +"<circle cx='.5' cy='.5' r='2' fill='hsla("+h+",90%,62%,.55)'/><circle cx='29.5' cy='25.5' r='2' fill='hsla("+h+",90%,62%,.55)'/>"}},
+ {id:'camo',n:'کامو',s:48,def:function(h){return "<rect width='48' height='48' fill='hsl("+h+",42%,28%)'/>"
+   +"<ellipse cx='12' cy='12' rx='11' ry='8' fill='hsl("+h+",48%,42%)'/>"
+   +"<ellipse cx='38' cy='32' rx='12' ry='9' fill='hsl("+h+",52%,18%)'/>"
+   +"<ellipse cx='32' cy='6' rx='7' ry='5' fill='hsla("+h+",55%,56%,.85)'/>"
+   +"<ellipse cx='8' cy='40' rx='8' ry='6' fill='hsla("+h+",46%,52%,.8)'/>"
+   +"<ellipse cx='24' cy='24' rx='4' ry='3' fill='hsla(45,80%,60%,.4)'/>"}},
+ {id:'bolt',n:'آذرخش',s:32,def:function(h){return "<rect width='32' height='32' fill='hsl("+h+",70%,26%)'/>"
+   +"<path d='M0 10L8 4l8 6 8-6 8 6v4.5l-8-6-8 6-8-6-8 6z' fill='hsla("+h+",96%,62%,.92)'/>"
+   +"<path d='M0 26L8 20l8 6 8-6 8 6v4.5l-8-6-8 6-8-6-8 6z' fill='hsla("+h+",96%,54%,.55)'/>"}},
+ {id:'lace',n:'نگین',s:32,def:function(h){return "<rect width='32' height='32' fill='hsl("+h+",64%,30%)'/>"
+   +"<path d='M0 0L16 16 0 32 -16 16z' fill='hsla("+h+",72%,40%,.55)'/>"
+   +"<path d='M32 0L48 16 32 32 16 16z' fill='hsla("+h+",72%,40%,.55)'/>"
+   +"<path d='M16 0L32 16 16 32 0 16z' fill='hsla("+h+",80%,50%,.55)'/>"
+   +"<path d='M16 7L25 16 16 25 7 16z' fill='none' stroke='hsla(45,92%,64%,.85)' stroke-width='1.5'/>"
+   +"<circle cx='16' cy='16' r='1.8' fill='hsla(45,96%,76%,.95)'/>"}}
+];
+var PATMAP={};PATS.forEach(function(p){PATMAP[p.id]=p});
+
+function patDefStr(p,h,pid){return "<pattern id='"+pid+"' width='"+p.s+"' height='"+(p.id==='hex'?26:p.s)+"' patternUnits='userSpaceOnUse'>"+p.def(h)+"</pattern>"}
+function wdPatURI(p,h){
+  var hh=(p.id==='hex')?26:p.s;
+  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 "+p.s+" "+hh+"'>"+patDefStr(p,h,'pv')+"<rect width='"+p.s+"' height='"+hh+"' fill='url(#pv)'/></svg>";
+  return encodeURIComponent(svg).replace(/'/g,'%27');
+}
+window.WD50_PATURI=wdPatURI;
+
+/* V50-REV2: نقشه با preferCanvas رندر می‌شود → طرح با اورلی SVG اختصاصی روی قلمرو خودت می‌نشیند */
+function curHue(){var C=window.COS||window.COS27;if(C&&C.hue!=null)return C.hue;try{if(typeof plHue==='function')return plHue()}catch(e){}return 205}
+function patTargets(){var a=[];try{if(typeof myCountryName!=='undefined'&&myCountryName)a.push(myCountryName);
+  if(typeof conqueredCountries!=='undefined')conqueredCountries.forEach(function(n){a.push(n)})}catch(e){}return a}
+var patR=null,patOv={},patSig='';
+function patR_ensure(){try{
+  if(patR)return patR;
+  patR=L.svg({padding:.3});
+  if(typeof map!=='undefined'&&map)map.addLayer(patR); /* کانتینر SVG فوراً ساخته شود */
+  return patR;
+}catch(e){return null}}
+function patDefs_ensure(){
+  try{
+    if(!patR||!patR._container)return false;
+    var C=window.COS||window.COS27;if(!C||!C.pat)return false;
+    var p=PATMAP[C.pat];if(!p)return false;
+    var h=curHue();
+    var old=D.getElementById('wd-pat-defs');if(old)old.remove();
+    patR._container.insertAdjacentHTML('afterbegin','<defs id="wd-pat-defs">'+patDefStr(p,h,'wdp-'+C.pat)+'</defs>');
+    return true;
+  }catch(e){return false}
+}
+function patOv_clear(){for(var k in patOv){try{patOv[k].remove()}catch(e){}}patOv={}}
+function patOv_rebuild(force){
+  try{
+    if(typeof map==='undefined'||!map||typeof statusOf!=='function')return;
+    var C=window.COS||window.COS27;
+    var sig=(C&&C.pat?C.pat:'none')+'|'+curHue()+'|'+patTargets().join(',');
+    if(!force&&sig===patSig)return;
+    patSig=sig;
+    patOv_clear();
+    if(!C||!C.pat)return;
+    if(!patR_ensure())return;
+    if(!patDefs_ensure())return;
+    var url='url(#wdp-'+C.pat+')';
+    patTargets().forEach(function(n){
+      try{
+        if(statusOf(n)==='neutral')return;
+        var l=(typeof layersByName!=='undefined')?layersByName[n]:null;
+        if(!l||!l.getLatLngs)return;
+        var m=L.polygon(l.getLatLngs(),{renderer:patR,interactive:false,keyboard:false,stroke:false,fill:true,fillColor:url,fillOpacity:.75,className:'wd-pat-ov',bubblingMouseEvents:false}).addTo(map);
+        patOv[n]=m;
+      }catch(e){}
+    });
+  }catch(e){}
+}
+window.wdPatOvRebuild=patOv_rebuild;
+/* بعد از آماده‌شدن نقشه + هر تغییر مالکیت/رنگ (سیگنچک) بازسازی */
+var patBoot=setInterval(function(){try{if(typeof map==='undefined'||!map)return;var n=0;try{n=Object.keys(layersByName).length}catch(e){}if(n>50){clearInterval(patBoot);patOv_rebuild(true)}}catch(e){}},1200);
+setInterval(function(){try{patOv_rebuild(false)}catch(e){}},3000);
+/* بعد از فتح جدید هم فوری بازسازی */
+try{
+  var _ac50w=window.applyCountryColor;
+  window.applyCountryColor=function(n){var r=_ac50w.apply(this,arguments);try{patSig='';clearTimeout(window.__wd50pt);window.__wd50pt=setTimeout(function(){patOv_rebuild(false)},250)}catch(e){}return r};
+}catch(e){}
+
+/* ---------------- 2) بخش «طرح» داخل انتخابگر رنگ ---------------- */
+window.WD50_PATTERN_SECTION=function(box){
+  try{
+    var C=window.COS||window.COS27;if(!C||!box)return;
+    var old2=D.getElementById('wd50-pat-host');if(old2)old2.remove();
+    var h=D.createElement('div');h.className='cos27-h';h.textContent='🖼️ طرح‌های سینمایی — همراه رنگ، روی خود نقشه نقش می‌بندد';box.appendChild(h);
+    var host=D.createElement('div');host.id='wd50-pat-host';box.appendChild(host);
+    build();
+    function build(){
+      host.textContent='';
+      var g=D.createElement('div');g.className='wd28-patgrid';
+      var hz=curHue();
+      PATS.forEach(function(p){
+        var s=D.createElement('button');s.className='wd28-pat'+(C.pat===p.id?' on':'');s.title=p.n;
+        s.style.setProperty('--h',hz);
+        s.style.backgroundImage="url(\"data:image/svg+xml,"+wdPatURI(p,hz)+"\")";
+        var lb=D.createElement('span');lb.textContent=p.n;s.appendChild(lb);
+        s.onclick=function(){
+          C.pat=p.id;patSig='';patOv_rebuild(true);
+          try{if(typeof repaint28==='function')repaint28()}catch(e){}
+          try{if(typeof saveNow==='function')saveNow()}catch(e){}
+          try{showToast('🖼️ طرح «'+p.n+'» روی قلمروت فعال شد','win')}catch(e){}
+          build();
+        };
+        g.appendChild(s);
+      });
+      var nz=D.createElement('button');nz.className='wd28-pat none'+(C.pat?'':' on');nz.title='بدون طرح';
+      var nl=D.createElement('span');nl.textContent='بدون طرح';nz.appendChild(nl);
+      nz.onclick=function(){
+        C.pat=null;patSig='';patOv_rebuild(true);
+        try{if(typeof saveNow==='function')saveNow()}catch(e){}
+        try{showToast('🖼️ طرح حذف شد — رنگ ساده','win')}catch(e){}
+        build();
+      };
+      g.appendChild(nz);
+      host.appendChild(g);
+    }
+  }catch(e){console.log('wd50pat',e)}
+};
+/* tint مجدد سواچ‌ها وقتی کاربر hue را روی چرخ عوض می‌کند */
+window.WD50_RETINT=function(h){
+  try{
+    var host=D.getElementById('wd50-pat-host');if(!host)return;
+    var bs=host.querySelectorAll('.wd28-pat');
+    for(var i=0;i<bs.length&&i<PATS.length;i++){
+      bs[i].style.setProperty('--h',h);
+      bs[i].style.backgroundImage="url(\"data:image/svg+xml,"+wdPatURI(PATS[i],h)+"\")";
+    }
+  }catch(e){}
+};
+
+/* ---------------- 3) نشان‌های ویژه (با جم) ---------------- */
+var EMST=[
+ {id:'gold',  n:'تاج طلایی',  c:25,d:'حلقه‌ی طلا با تپش نور — سلطنتی و خیره‌کننده'},
+ {id:'fire',  n:'حلقه‌ی شعله',c:30,d:'هاله‌ی آتشین با لرزش زنده — نشان جنگاوران'},
+ {id:'ice',   n:'یخبندان',   c:30,d:'بلور یخی با درخشش سرد و آرام'},
+ {id:'galaxy',n:'کهکشان',    c:35,d:'سحابی بنفش با ستاره‌های چشمک‌زن'},
+ {id:'dragon',n:'اژدها',     c:40,d:'فلس سبز زمردی با تپش نفس اژدها'},
+ {id:'royal', n:'سلطنتی',    c:35,d:'نگین ارغوانی با رینگ طلایی — برای امپراتورها'},
+ {id:'shadow',n:'سایه',      c:30,d:'ریشه‌ی تیره با گل سرخ درون — مرموز و خطرناک'},
+ {id:'neon',  n:'نئون',      c:45,d:'رینگ رنگین‌کمان چرخان — کمیاب‌ترین طرح'}
+];
+window.EMST=EMST;
+window.wd50EmTag=function(em,id){
+  return '<i class="wd-em wd-em-'+String(id||'').replace(/[^a-z0-9_-]/gi,'')+'">'+em+'</i>';
+};
+window.cosTagHTML=function(nick){
+  var C=window.COS||window.COS27;if(!C)return esc50(nick);
+  var em='';
+  if(C.emblem)em=(C.emst&&window.wd50EmTag)?window.wd50EmTag(C.emblem,C.emst)+' ':esc50(C.emblem)+' ';
+  return em+esc50(nick)+(C.title?' «'+esc50(C.title)+'»':'');
+};
+function emstOwned(id){var C=window.COS||window.COS27;return C&&(C.emstOwned||[]).indexOf(id)>-1}
+function setEmst(id,silent){
+  var C=window.COS||window.COS27;if(!C)return;
+  C.emst=id;
+  try{if(typeof saveNow==='function')saveNow()}catch(e){}
+  /* چیپ حساب */
+  try{var acc=D.querySelector('#acc-chip .wd-nick');var nick=(window.ACC&&ACC.nick)||'';
+    if(acc&&nick&&window.cosTagHTML)acc.innerHTML=window.cosTagHTML(nick)}catch(e){}
+  /* برچسب‌های مالکیت روی نقشه (همه مربوط به خود بازیکن‌اند) */
+  try{var nick2=(window.ACC&&ACC.nick)||'';var os=D.querySelectorAll('.own');
+    for(var i=0;i<os.length;i++){var f=os[i].firstChild;if(!f)continue;
+      var cur=f.textContent||'';var star=cur.indexOf('\u2b50')===0?'\u2b50 ':'';
+      if(!nick2)continue;
+      f.innerHTML=(star?star:'')+(C.emblem?(window.wd50EmTag?window.wd50EmTag(C.emblem,C.emst)+' ':''):'')+esc50(nick2);
+    }}catch(e){}
+  /* ردیف‌های رنکینگ نشان‌دار */
+  try{D.querySelectorAll('#m-rank b[data-cos50]').forEach(function(b){var n2=b.getAttribute('data-cos50');if(window.cosTagHTML)b.innerHTML=window.cosTagHTML(n2)})}catch(e){}
+  if(!silent){try{showToast(id?('🏳️ طرح نشان فعال شد — نقشه و رتبه‌بندی جدید شد'):('🏳️ نشان ساده شد'),'win')}catch(e){}}
+}
+window.WD50_SET_EMST=setEmst;
+
+window.WD50_EMBLEM_SECTION=function(box){
+  try{
+    var C=window.COS||window.COS27;if(!C||!box)return;
+    var old3=D.getElementById('wd50-emst-host');if(old3)old3.remove();
+    var h=D.createElement('div');h.className='cos27-h';h.textContent='💎 طرح‌های ویژه نشان — روی نقشه، رتبه‌بندی و پروفایل';box.appendChild(h);
+    var host=D.createElement('div');host.id='wd50-emst-host';box.appendChild(host);
+    build();
+    function build(){
+      host.textContent='';
+      var g=D.createElement('div');g.className='wd50-emgrid';
+      EMST.forEach(function(p){
+        var owned=emstOwned(p.id);
+        var card=D.createElement('div');card.className='wd50-emcard'+(C.emst===p.id?' on':'');
+        var pv=D.createElement('div');pv.className='wd-em wd-em-'+p.id;pv.textContent='🐉';
+        var tx=D.createElement('div');tx.className='tx';
+        var b1=D.createElement('b');b1.textContent=p.n;
+        var sm=D.createElement('small');sm.textContent=p.d;
+        tx.appendChild(b1);tx.appendChild(sm);
+        var btn=D.createElement('button');btn.className='cos27-buy'+(owned?' alt':'');
+        btn.textContent=owned?(C.emst===p.id?'فعال ✓':'انتخاب'):('💎 '+fnum(p.c));
+        btn.onclick=function(){
+          if(emstOwned(p.id)){setEmst(p.id);build()}
+          else if(typeof window.spendGem==='function'){
+            window.spendGem({k:'emst_'+p.id,c:p.c,t:'طرح نشان: '+p.n,f:function(){
+              C.emstOwned=(C.emstOwned||[]).concat([p.id]);
+              setEmst(p.id,true);
+              try{showToast('💎 طرح «'+p.n+'» خریداری شد و فعال است!','win')}catch(e){}
+              build();
+            }});
+          }
+        };
+        card.appendChild(pv);card.appendChild(tx);card.appendChild(btn);
+        g.appendChild(card);
+      });
+      host.appendChild(g);
+      var clr=D.createElement('button');clr.className='cos27-buy off';clr.style.cssText='width:100%;margin-top:10px';
+      clr.textContent='حذف طرح (نشان ساده)';
+      clr.onclick=function(){setEmst(null);build()};
+      host.appendChild(clr);
+    }
+  }catch(e){console.log('wd50em',e)}
+};
+
+/* ---------------- 4) وضعیت زنده‌ی عملیات ویژه از سرور ---------------- */
+function pollSpecial(){
+  try{
+    if(typeof sb==='undefined'||!sb)return;
+    if(typeof ACC==='undefined'||!ACC||!ACC.uid)return;
+    sb.rpc('special_status',{p_server:Math.max(1,Number(window.SRV)||1)}).then(function(r){
+      var d=r&&r.data;if(d)window.__wd30st=d;
+    }).catch(function(){});
+  }catch(e){}
+}
+pollSpecial();setInterval(pollSpecial,30000);
 })();
 </script>
 </body>

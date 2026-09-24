@@ -936,7 +936,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
 
       /* ---------------- V30 special ops (server-enforced limits) ----------------
          coup  : 100 gems, 1 per 24h per player  — artificial unrest on a foreign country
-         meteor:  80 gems, 1 per 72h per player AND max 3 per rolling 7 days server-wide */
+         V50:  meteor:  80 gems, 1 per 6h per player AND max 30 per rolling 7 days server-wide (قبلاً ۷۲ساعت و ۳ در هفته بود → عملاً غیرقابل استفاده) */
       case 'use_special': {
         if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
         const item = String(args.p_item || '')
@@ -945,7 +945,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (!['coup', 'meteor'].includes(item)) return R({ ok: false, error: 'item' })
         if (!country) return R({ ok: false, error: 'country' })
         const costs: Record<string, number> = { coup: 100, meteor: 80 }
-        const cooldownMs: Record<string, number> = { coup: 24 * 3600_000, meteor: 72 * 3600_000 }
+        const cooldownMs: Record<string, number> = { coup: 24 * 3600_000, meteor: 6 * 3600_000 }
         const cost = costs[item]
         /* V33.1: validate the TARGET before any charge — gems were burning on no-op strikes */
         const terr = await db.territory.findUnique({ where: { server_country: { server, country } } })
@@ -958,10 +958,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           return R({ ok: false, error: 'cooldown', next_ok: new Date(last.usedAt.getTime() + cooldownMs[item]).toISOString() })
         }
         if (item === 'meteor') {
-          /* rolling-week global cap: max 3 meteor strikes in any 7-day window */
+          /* V50: rolling-week global cap — 30 strikes (قبلاً ۳ بود و آیتم عملاً قفل می‌شد) */
           const since = new Date(Date.now() - 7 * 24 * 3600_000)
           const used = await db.specialUse.count({ where: { item: 'meteor', usedAt: { gte: since } } })
-          if (used >= 3) {
+          if (used >= 30) {
             const oldest = await db.specialUse.findFirst({ where: { item: 'meteor', usedAt: { gte: since } }, orderBy: { usedAt: 'asc' } })
             return R({ ok: false, error: 'weekly_cap', next_ok: oldest ? new Date(oldest.usedAt.getTime() + 7 * 24 * 3600_000).toISOString() : null })
           }
@@ -979,6 +979,29 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* V34: special strikes also feed the war-heatmap */
         try { await db.battleLog.create({ data: { server, kind: item, country, attacker: user.nick, defender: terr.nick || null, win: true } }) } catch (e) { console.log('blog', e) }
         return R({ ok: true, gems: nw.gems, owner_nick: terr.nick ? terr.nick : null, next_ok: new Date(Date.now() + cooldownMs[item]).toISOString() })
+      }
+
+      /* ---------------- V50 special ops live status (برای نمایش واقعی کول‌داون/سهمیه روی کارت) ---------------- */
+      case 'special_status': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        void server
+        const cds: Record<string, number> = { coup: 24 * 3600_000, meteor: 6 * 3600_000 }
+        const lastCoup = await db.specialUse.findFirst({ where: { userId: user.id, item: 'coup' }, orderBy: { usedAt: 'desc' } })
+        const lastMet = await db.specialUse.findFirst({ where: { userId: user.id, item: 'meteor' }, orderBy: { usedAt: 'desc' } })
+        const since = new Date(Date.now() - 7 * 24 * 3600_000)
+        const usedMet = await db.specialUse.count({ where: { item: 'meteor', usedAt: { gte: since } } })
+        let metReset: string | null = null
+        if (usedMet >= 30) {
+          const oldest = await db.specialUse.findFirst({ where: { item: 'meteor', usedAt: { gte: since } }, orderBy: { usedAt: 'asc' } })
+          metReset = oldest ? new Date(oldest.usedAt.getTime() + 7 * 24 * 3600_000).toISOString() : null
+        }
+        return R({
+          ok: true,
+          coup_next: lastCoup ? new Date(lastCoup.usedAt.getTime() + cds.coup).toISOString() : null,
+          meteor_next: lastMet ? new Date(lastMet.usedAt.getTime() + cds.meteor).toISOString() : null,
+          meteor_left: Math.max(0, 30 - usedMet),
+          meteor_reset: metReset,
+        })
       }
 
       /* ---------------- V30 season reset (admin only) ----------------
