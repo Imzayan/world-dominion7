@@ -14103,8 +14103,8 @@ setTimeout(function(){try{WD43._t={propRender:propRender,propModalEnsure:propMod
 /* 3) آموزش همیشه روی همه‌چیز (جز پوشش‌های تمام‌صفحه که خودش مخفی می‌شود) */
 #wd43-tut{z-index:200000!important}
 #wd43-spot{z-index:199990!important}
-/* 4) تا کارت آموزش باز است، چیپ‌های گوشه‌ی بالا-چپ مخفی (قبلاً از گوشه‌ی کارت بیرون می‌زدند — همان «آیکون اضافه») */
-body.wd45-tutshow #hud-info{opacity:0!important;pointer-events:none!important;transition:opacity .25s}
+/* 4) تا کارت آموزش باز است، هر چیپ شناور بالای صفحه مخفی (idهای تکراری هم با CSS پوشش داده می‌شوند) */
+body.wd45-tutshow #hud-info,body.wd45-tutshow #hud-strip,body.wd45-tutshow #hud-gem,body.wd45-tutshow #hud-terr,body.wd45-tutshow #wd34-heat-btn{opacity:0!important;pointer-events:none!important;transition:opacity .25s}
 /* 5) نقطه‌ی گام جاری آموزش */
 #wd43-tut .st i.cur{background:#ffd84d;opacity:.45;box-shadow:none}
 /* 6) تغییر اندازه‌ی انیمیشنی چیپ‌ها هنگام عدد فارسی — ری‌لی‌اوت کمتر */
