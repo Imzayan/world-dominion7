@@ -12,7 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "render-build": "node scripts/prisma-setup.mjs && prisma generate && prisma db push --accept-data-loss && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
-    "render-start": "NODE_ENV=production HOSTNAME=0.0.0.0 node .next/standalone/server.js"
+    "render-start": "NODE_ENV=production HOSTNAME=0.0.0.0 node .next/standalone/server.js",
+    "vercel-build": "node scripts/prisma-setup.mjs && prisma generate && prisma db push --accept-data-loss && next build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
