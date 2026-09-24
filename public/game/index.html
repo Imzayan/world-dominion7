@@ -1229,6 +1229,7 @@ function updateUI() {
 
 /* --- perf: diffed DOM text updates (no pointless rewrites, no layout thrash) --- */
 const __uiCache = {};
+const __uiPrev = {}; /* V42: آخرین عدد عددی برای شمارش نرم و دلتا */
 function uiText(id, num, pop) {
   const txt = Math.floor(num).toLocaleString();
   if (__uiCache[id] === txt) return;
@@ -1236,6 +1237,13 @@ function uiText(id, num, pop) {
   if (!el) return;
   const up = pop && typeof __uiCache[id] === 'string' && num > (parseInt(__uiCache[id].replace(/[^0-9]/g, ''), 10) || 0);
   __uiCache[id] = txt;
+  /* V42: کارت‌های منابع — شمارش نرم سینمایی + چیپ دلتای (+/−) */
+  const prev = __uiPrev[id];
+  if (typeof window.__wd42num === 'function' && window.__wd42num(el, (typeof prev === 'number' ? prev : Math.floor(num)), Math.floor(num))) {
+    __uiPrev[id] = Math.floor(num);
+    return;
+  }
+  __uiPrev[id] = Math.floor(num);
   el.textContent = txt;
   if (up) { el.classList.remove('wd-pop'); void el.offsetWidth; el.classList.add('wd-pop'); }
 }
@@ -1650,7 +1658,17 @@ function collectTax() {
    </script>
    <script>
     /* ===== Visual + gameplay upgrade layer ===== */
-addEventListener('error',e=>{const b=document.getElementById('status-banner');if(b){b.style.background='#ff3366';b.style.color='#fff';b.textContent='⚠️ خطا: '+e.message}});
+/* V42: خطا دیگر بنر قرمز همیشگی بالای صفحه نمی‌شود — توست کوتاه پایین صفحه + لاگ ساکت */
+addEventListener('error',e=>{try{console.log('wd-err:',e.message)}catch(_){}
+  const m=String((e&&e.message)||'');
+  if(!m||m==='Script error.'||/ResizeObserver|network|Load failed|favicon/i.test(m))return;
+  try{
+    const now=Date.now();
+    if(addEventListener._lastE===m&&now-(addEventListener._lastT||0)<3000)return;
+    addEventListener._lastE=m;addEventListener._lastT=now;
+    showToast('⚠️ '+m.slice(0,70),'lose');
+  }catch(_){}});
+addEventListener('unhandledrejection',e=>{try{console.log('wd-rej:',e&&e.reason)}catch(_){}});
 const $=id=>document.getElementById(id), sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const hueOf=n=>{let h=7;for(const c of n)h=(h*31+c.charCodeAt(0))%360;return h};
 function baseStyle(n){const h=hueOf(String(n||''));
@@ -9777,10 +9795,10 @@ const GD33={sprint:{d:0,ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانی�
  cycling:{d:2,ic:'🚴',fa:'دوچرخه‌سواری',tip:'ریتم یکنواخت ~نیم‌ثانیه — ثبات مهم‌تر از سرعت است'},
  chess:{d:3,ic:'♟️',fa:'شطرنج',tip:'کیش‌ومات یک‌حرکتی — بهترین حرکت را قبل از پایان زمان انتخاب کن'},
  volley:{d:3,ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — رالی را بلندتر کن'},
- football:{d:4,ic:'⚽',fa:'فوتبال',tip:'پنالتی: گوشه را انتخاب کن — دروازه‌بان هر دوره‌ی بعد قوی‌تر می‌شود'},
+ lj:{d:4,ic:'🦘',fa:'پرش طول',tip:'سرعت دویدن و لحظه‌ی پرواز — ریسک بیشتر، پرش دورتر'},
  wrestle:{d:4,ic:'🥋',fa:'کشتی',tip:'طناب‌کشی — تند و پیوسته بزن تا مارکر از خطت رد شود'}};
 const GD_KEYS=Object.keys(GD33);
-const SCHED33=[['sprint','archery'],['swim','gym'],['weight','cycling'],['chess','volley'],['football','wrestle']];
+const SCHED33=[['sprint','archery'],['swim','gym'],['weight','cycling'],['chess','volley'],['lj','wrestle']];
 const HOSTS33=[{c:'توکیو',n:'ژاپن',f:'jp'},{c:'پاریس',n:'فرانسه',f:'fr'},{c:'لس‌آنجلس',n:'آمریکا',f:'us'},{c:'لندن',n:'بریتانیا',f:'gb'},{c:'ریودوژانیرو',n:'برزیل',f:'br'},{c:'پکن',n:'چین',f:'cn'},{c:'آتن',n:'یونان',f:'gr'},{c:'سیدنی',n:'استرالیا',f:'au'},{c:'بارسلونا',n:'اسپانیا',f:'es'},{c:'سئول',n:'کره‌ی جنوبی',f:'kr'},{c:'مسکو',n:'روسیه',f:'ru'},{c:'مونترال',n:'کانادا',f:'ca'},{c:'مونیخ',n:'آلمان',f:'de'},{c:'مکزیکوسیتی',n:'مکزیک',f:'mx'},{c:'رم',n:'ایتالیا',f:'it'},{c:'هلزینکی',n:'فنلاند',f:'fi'},{c:'آمستردام',n:'هلند',f:'nl'},{c:'استکهلم',n:'سوئد',f:'se'},{c:'استانبول',n:'ترکیه',f:'tr'},{c:'قاهره',n:'مصر',f:'eg'},{c:'دهلی‌نو',n:'هند',f:'in'},{c:'بوئنوس‌آیرس',n:'آرژانتین',f:'ar'},{c:'نایروبی',n:'کنیا',f:'ke'},{c:'دبی',n:'امارات',f:'ae'},{c:'سنگاپور',n:'سنگاپور',f:'sg'},{c:'کیپ‌تاون',n:'آفریقای جنوبی',f:'za'},{c:'لیما',n:'پرو',f:'pe'},{c:'ورشو',n:'لهستان',f:'pl'},{c:'لیسبون',n:'پرتغال',f:'pt'},{c:'لاگوس',n:'نیجریه',f:'ng'},{c:'کوالالامپور',n:'مالزی',f:'my'},{c:'دوحه',n:'قطر',f:'qa'}];
 function hostOf33(e){let h=(e*2654435761)>>>0;h^=h>>>13;h=Math.imul(h,1274126177)>>>0;return HOSTS33[h%HOSTS33.length]}
 function flagUrl33(cc){try{return (typeof flagUrl==='function')?flagUrl(cc):('/cdn/flags/w80/'+cc+'.png')}catch(e){return '/cdn/flags/w80/'+cc+'.png'}}
@@ -9817,7 +9835,7 @@ function statue33(g,s,b,sz){
 function legend33(c){try{if(!c||!Array.isArray(c.eds)||c.eds.length<2)return false;const e=c.eds.slice().sort((a,b)=>a-b);
   for(let i=1;i<e.length;i++)if(e[i]===e[i-1]+1)return true;return false}catch(e){return false}}
 window.WD33_STATUE=statue33;window.WD33_LEGEND=legend33;
-const DN33={sprint:'دو ۱۰۰ متر',archery:'تیراندازی با کمان',swim:'شنا',gym:'ژیمناستیک',weight:'وزنه‌برداری',cycling:'دوچرخه‌سواری',chess:'شطرنج',volley:'والیبال ساحلی',football:'فوتبال',wrestle:'کشتی'};
+const DN33={sprint:'دو ۱۰۰ متر',archery:'تیراندازی با کمان',swim:'شنا',gym:'ژیمناستیک',weight:'وزنه‌برداری',cycling:'دوچرخه‌سواری',chess:'شطرنج',volley:'والیبال ساحلی',lj:'پرش طول',wrestle:'کشتی'};
 window.WD33_DN=k=>{try{return DN33[k]||k||''}catch(e){return k||''}};
 
 /* ---------- V33.1: signature Olympic icon — golden laurel wreath + living torch flame.
@@ -10444,7 +10462,7 @@ const META={
  cycling:{v:'جاده‌ی کوهستانی',u:'امتیاز',narr:'جاده از مهِ پاس کوهستانی می‌گذرد؛ رقیب‌ها پشت چرخ‌هایت قایم شده‌اند. پدالِ ثابت، سلاح پنهان توست.'},
  chess:{v:'تالار ذهن',u:'امتیاز',narr:'تالار آن‌قدر ساکت است که عقربه‌ی ساعت صدا دارد. صفحه شطرنج وسطش می‌درخشد — یک حرکت، و نامت وارد کتاب تاریخ می‌شود.'},
  volley:{v:'ساحل طلایی',u:'امتیاز',narr:'ماسه‌ی داغ زیر پای برهنه و تورِ میان تو و افتخار. آفتاب در آب دریا می‌سوزد؛ هر اسپایک، طنین‌دارتر از قبلی.'},
- football:{v:'استادیوم مرکزی',u:'امتیاز',narr:'دوازده قدم تا دروازه‌ی تاریخ. دروازه‌بان حریف چشمانش را در تو دوخته — گوشه را انتخاب کن و سرنوشت را شوت کن.'},
+ lj:{v:'پیست پرش طول',u:'امتیاز',narr:'باندِ پرش در آفتاب می‌درخشد و شنیِ فرود آرام است. تخته‌ی پرش مرزِ رؤیا و خطاست — سه فرصت داری؛ سرعت را ببلع، در لحظه‌ی درست پرواز کن و تاریخ را در شنی‌ها جا بگذار.'},
  wrestle:{v:'سالن پهلوان',u:'امتیاز',narr:'طناب در مشت‌هایت می‌سوزد و خطِ سرخ وسط، مرزِ افتخار است. دو دیدار از سه مال تو — پاهایت را مثل ریشه در زمین فرو کن.'}};
 const EPI=[
  'حریفت {r} با سر پایین از کنارت گذشت — حافظه‌ی ورزشگاه کوتاه است، تمرین کن و برگرد.',
@@ -10497,7 +10515,7 @@ const GD33={sprint:{ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه ه
  cycling:{ic:'🚴',fa:'دوچرخه‌سواری',tip:'ریتم ~نیم‌ثانیه — ثبات مهم‌تر از سرعت — ۲۰ ثانیه'},
  chess:{ic:'♟️',fa:'شطرنج',tip:'۴ صفحه‌ی کیش‌ومات — حرکت برنده را انتخاب کن'},
  volley:{ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — ۳ سرویس داری'},
- football:{ic:'⚽',fa:'فوتبال',tip:'۳ دور پنالتی — گوشه را انتخاب کن، دروازه‌بان می‌پرد'},
+ lj:{ic:'🦘',fa:'پرش طول',tip:'سه پرش — سرعت بیشتر = پرش دورتر ولی ریسک خطا'},
  wrestle:{ic:'🥋',fa:'کشتی',tip:'۳ دیدار طناب‌کشی — تند و پیوسته بزن'}};
 const sndK2=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -12207,7 +12225,8 @@ setInterval(startMo,1500);
 <style id="v39-css">
 /* ============ V39 — juice: slow-mo + camera, glowing gem/server chips, cinematic war, hub charts, rank polish ============ */
 /* ---------- 1) Olympic stage juice ---------- */
-#wd33-stage{position:relative}
+/* V42 فیکس «نصفه صفحه»: stage دوباره fixed تمام‌صفحه شد (relative در V39 ناخواسته نقشه را از زیر بازی بیرون می‌گذاشت) */
+#wd33-stage{position:fixed;inset:0}
 #wd33-stage::before,#wd33-stage::after{content:'';position:absolute;left:0;right:0;height:0;background:#000;z-index:60;opacity:0;transition:height .28s ease,opacity .28s ease;pointer-events:none}
 #wd33-stage::before{top:0}#wd33-stage::after{bottom:0}
 #wd33-stage.wg39-slow::before,#wd33-stage.wg39-slow::after{height:9%;opacity:.88}
@@ -12446,9 +12465,9 @@ function injectCharts(){
     if(D.getElementById('wd39-charts'))return;
     var anchor=D.getElementById('wg33-rankcard')||wrap.children[1];if(!anchor)return;
     var host=D.createElement('div');host.id='wd39-charts';
-    var GD=[['sprint','دو'],['archery','کمان'],['swim','شنا'],['weight','وزنه'],['volley','والی'],['football','فوت']];
+    var GD=[['sprint','دو'],['archery','کمان'],['swim','شنا'],['gym','ژیم'],['weight','وزنه'],['cycling','رخ'],['chess','شطرنج'],['volley','والی'],['lj','پرش'],['wrestle','کشتی']];
     host.innerHTML='<div class="wd31-card wd39-chartcard" id="wd39-medalcard"><div class="wd39-chart-h"><b>📊 مسابقه‌ی مدال‌ها — زنده</b><small>۸ کشور صدر • به‌روزرسانی خودکار</small></div><div id="wd39-medalrace"></div></div>'+
-      '<div class="wd31-card wd39-chartcard" id="wd39-radarcard"><div class="wd39-chart-h"><b>🕸️ رادار قدرت من — ۶ رشته</b><small>هر ضلع تا ۱۰۰۰ امتیاز</small></div><canvas id="wd39-radar" height="210"></canvas><div id="wd39-radar-empty" class="wd31-mini" style="display:none;margin-top:4px">در رشته‌ها بازی کن تا رادارت جان بگیرد 🌱</div></div>';
+      '<div class="wd31-card wd39-chartcard" id="wd39-radarcard"><div class="wd39-chart-h"><b>🕸️ رادار قدرت من — ۱۰ رشته</b><small>هر ضلع تا ۱۰۰۰ امتیاز</small></div><canvas id="wd39-radar" height="210"></canvas><div id="wd39-radar-empty" class="wd31-mini" style="display:none;margin-top:4px">در رشته‌ها بازی کن تا رادارت جان بگیرد 🌱</div></div>';
     anchor.parentNode.insertBefore(host,anchor);
     medalRace(D.getElementById('wd39-medalrace'),d.table);
     var my=d.my||{};var hasAny=GD.some(function(x){return my.entries&&my.entries[x[0]]&&my.entries[x[0]].best>0});
@@ -12686,7 +12705,7 @@ body.idle *{animation-play-state:paused!important}
   background:linear-gradient(90deg,#ffb02e,#ffe08a,#fff);box-shadow:0 0 12px rgba(255,204,0,.5);transition:width .3s linear}
 #w41-marks{position:absolute;inset:0}
 #w41-marks i{position:absolute;top:-7px;width:6px;height:6px;border-radius:50%;background:#ff5f7e;box-shadow:0 0 8px #ff5f7e}
-.w41-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.w41-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:7px}
 .w41-stat{display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:11px;
   background:linear-gradient(140deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08)}
 .w41-stat small{font-size:8.5px;color:#9fb6d4;white-space:nowrap;font-weight:800}
@@ -12745,6 +12764,89 @@ body.idle *{animation-play-state:paused!important}
 .w41-repbtns button{all:unset;cursor:pointer;flex:1;text-align:center;padding:11px;border-radius:12px;font-weight:950;font-size:12.5px}
 .w41-repbtns .rp{background:rgba(255,255,255,.09);color:#cdd7e8;border:1px solid rgba(255,255,255,.15)}
 .w41-repbtns .go{background:linear-gradient(135deg,#ffb02e,#ffe08a);color:#241500;box-shadow:0 6px 20px rgba(255,180,0,.35)}
+/* ============ V42: بازی تمام‌صفحه سینمایی ============ */
+#wd33-stage .s33bd{padding:8px 10px 10px}
+.w41-sim{position:relative;width:100%;height:100%;gap:7px;justify-content:flex-start}
+.w41-vs{padding:5px 11px;border-radius:12px;flex:0 0 auto}
+.w41-clock>span{font-size:13.5px}
+.w41-stats{flex:0 0 auto;gap:5px}
+.w41-stat{padding:4px 8px}
+.w41-feed{flex:0 0 auto;max-height:84px;min-height:46px;padding:6px 9px;touch-action:pan-y}
+.w41-line{font-size:10px;line-height:1.6}
+.w41-arena{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;position:relative}
+.w41-decide{position:absolute;left:0;right:0;bottom:0;z-index:46}
+.w41-ask{background:linear-gradient(160deg,rgba(16,32,64,.97),rgba(8,14,30,.98));box-shadow:0 -10px 44px rgba(0,0,0,.68);border-color:rgba(120,180,255,.4)}
+.w41-rep{position:absolute;left:0;right:0;bottom:0;z-index:48;max-height:min(82%,460px);overflow-y:auto;scrollbar-width:thin;touch-action:pan-y}
+/* نوارهای اثر تاکتیک + پیشنهاد کادر فنی */
+.w41-opts button{position:relative}
+.w41-opts button.rec{border-color:#ffd75e;background:rgba(255,204,0,.09);box-shadow:0 0 18px rgba(255,204,0,.22)}
+.w41-opts .rectag{position:absolute;top:-8px;right:8px;font-size:8px;font-weight:950;color:#241500;
+  background:linear-gradient(135deg,#ffd75e,#ffb02e);padding:2px 7px;border-radius:99px;box-shadow:0 2px 8px rgba(255,180,0,.45);z-index:1}
+.w41-opts .wb{display:flex;align-items:center;gap:4px;width:100%}
+.w41-opts .wb span{font-size:9px;flex:0 0 13px;text-align:center}
+.w41-opts .wb .wb-t{flex:1;height:5px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden}
+.w41-opts .wb .wb-t i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#ffb02e,#ffe08a)}
+.w41-opts .wb .wb-t i.d{background:linear-gradient(90deg,#ff5f7e,#ff8ba0)}
+/* صحنه‌ی مسابقه (خانواده A) — پیست تمام‌صفحه با ورزشکار متحرک */
+.w41-trk{flex:1;display:flex;flex-direction:column;gap:6px;padding:11px 12px;border-radius:16px;position:relative;overflow:hidden;
+  border:1px solid rgba(255,255,255,.1);
+  background:linear-gradient(180deg,rgba(10,26,50,.55),rgba(4,10,22,.85)),repeating-linear-gradient(90deg,rgba(255,255,255,.05) 0 3px,transparent 3px 30px)}
+.w41-trk[data-sp="swim"]{background:linear-gradient(180deg,rgba(10,60,90,.5),rgba(4,16,34,.9)),repeating-linear-gradient(180deg,rgba(120,200,255,.09) 0 2px,transparent 2px 16px)}
+.w41-trk[data-sp="cycling"]{background:linear-gradient(180deg,rgba(70,40,10,.45),rgba(8,10,20,.88)),repeating-linear-gradient(90deg,rgba(255,170,80,.06) 0 4px,transparent 4px 36px)}
+.w41-trk .fin{position:absolute;left:9px;top:5px;bottom:5px;width:5px;border-radius:3px;z-index:2;
+  background:repeating-linear-gradient(45deg,#fff 0 5px,#151515 5px 10px);box-shadow:0 0 14px rgba(255,255,255,.4)}
+.w41-trk .lane{flex:1;position:relative;background:rgba(255,255,255,.035);border-radius:10px;border:1px solid rgba(255,255,255,.05)}
+.w41-trk .lane.me{background:linear-gradient(270deg,rgba(255,204,0,.16),rgba(255,204,0,.02));border-color:rgba(255,204,0,.3)}
+.w41-trk .lane.me .pc{color:#ffe08a}
+.w41-trk .lane.r .ath{opacity:.78}
+.w41-trk .ath{position:absolute;top:50%;right:2%;transform:translateY(-50%);font-size:23px;line-height:1;
+  filter:drop-shadow(0 3px 5px rgba(0,0,0,.65));transition:right .11s linear;will-change:right;z-index:1}
+.w41-trk .lane.me .ath{font-size:27px;filter:drop-shadow(0 0 9px rgba(255,204,0,.55)) drop-shadow(0 3px 5px rgba(0,0,0,.6))}
+.w41-trk .pc{position:absolute;top:2px;left:9px;font-size:10.5px;font-weight:950;color:#dfe9f7;direction:ltr}
+.w41-trk .nm{position:absolute;bottom:2px;left:9px;font-size:8px;font-weight:800;color:#8fa8c8;max-width:52%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+/* صحنه‌ی راند‌ها (خانواده B) — نورافکن مرکزی + سنجه‌ی ریسک */
+.w41-spot{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;position:relative;
+  border-radius:16px;border:1px solid rgba(255,255,255,.1);overflow:hidden;min-height:170px;
+  background:radial-gradient(circle at 50% 32%,rgba(255,220,120,.14),transparent 55%),linear-gradient(180deg,rgba(10,22,44,.5),rgba(4,10,22,.85))}
+.w41-spot .ring{width:112px;height:112px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;
+  background:conic-gradient(from 0deg,rgba(255,204,0,.35),rgba(255,255,255,.05),rgba(255,107,143,.3),rgba(255,204,0,.35));
+  box-shadow:0 0 34px rgba(255,190,0,.22),inset 0 0 22px rgba(0,0,0,.55);transition:box-shadow .3s}
+.w41-spot .ring::before{content:'';position:absolute;inset:5px;border-radius:50%;background:radial-gradient(circle at 34% 28%,rgba(30,50,90,.95),rgba(6,12,26,.98));border:1px solid rgba(255,255,255,.14)}
+.w41-spot .core{position:relative;z-index:1;font-size:52px;font-style:normal;line-height:1;filter:drop-shadow(0 6px 12px rgba(0,0,0,.6))}
+.w41-spot.win .core{animation:w42pop .6s ease}
+.w41-spot.win .ring{box-shadow:0 0 46px rgba(125,255,158,.5),inset 0 0 22px rgba(0,0,0,.55)}
+.w41-spot.fail .core{animation:w42shake .45s ease}
+.w41-spot.fail .ring{box-shadow:0 0 42px rgba(255,80,110,.5),inset 0 0 22px rgba(0,0,0,.55)}
+@keyframes w42pop{0%{transform:scale(1)}40%{transform:scale(1.28) rotate(-6deg)}100%{transform:scale(1)}}
+@keyframes w42shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}50%{transform:translateX(6px)}75%{transform:translateX(-4px)}}
+.w41-spot .meter{width:min(72%,240px);height:9px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.w41-spot .meter i{display:block;height:100%;width:0;border-radius:6px;transition:width .4s ease;background:linear-gradient(90deg,#7dff6a,#ffe08a 55%,#ff5f7e)}
+.w41-spot .dist{font-size:15px;font-weight:950;color:#ffe08a;text-shadow:0 0 14px rgba(255,204,0,.5);min-height:20px;text-align:center}
+.w41-spot .rnd{position:absolute;top:9px;right:11px;font-size:9.5px;font-weight:900;color:#9fb6d4;background:rgba(0,0,0,.4);padding:3px 8px;border-radius:99px;border:1px solid rgba(255,255,255,.1)}
+/* صحنه‌ی رویارویی (خانواده C) — دوئل چهره‌به‌چهره */
+.w41-duel{flex:1;display:flex;align-items:center;justify-content:space-between;position:relative;border-radius:16px;
+  border:1px solid rgba(255,255,255,.1);overflow:hidden;min-height:170px;padding:0 7%;
+  background:radial-gradient(ellipse 60% 46% at 50% 108%,rgba(255,204,0,.16),transparent 60%),linear-gradient(180deg,rgba(12,24,48,.5),rgba(4,10,22,.88))}
+.w41-duel .side{display:flex;flex-direction:column;align-items:center;gap:7px;z-index:1}
+.w41-duel .fig{width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;font-style:normal;
+  background:radial-gradient(circle at 34% 28%,rgba(56,120,255,.3),rgba(8,14,30,.95));border:2px solid rgba(120,180,255,.5);
+  box-shadow:0 0 18px rgba(77,163,255,.35),inset 0 0 14px rgba(0,0,0,.5);transition:transform .18s ease}
+.w41-duel .side.me .fig{border-color:rgba(255,204,0,.65);background:radial-gradient(circle at 34% 28%,rgba(255,190,0,.3),rgba(20,14,4,.95));box-shadow:0 0 20px rgba(255,190,0,.4),inset 0 0 14px rgba(0,0,0,.5)}
+.w41-duel .side .sn{font-size:9px;font-weight:900;color:#cdd7e8;max-width:86px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.w41-duel .pips{display:flex;gap:4px}
+.w41-duel .pips i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2)}
+.w41-duel .pips i.on{background:#ffd75e;box-shadow:0 0 8px #ffd75e;border-color:#ffd75e}
+.w41-duel .obj{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-size:33px;z-index:2;
+  filter:drop-shadow(0 6px 10px rgba(0,0,0,.6));animation:w42bounce 1.5s ease-in-out infinite}
+@keyframes w42bounce{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-50%,-62%)}}
+.w41-duel .obj.hit{animation:w42objhit .5s ease}
+@keyframes w42objhit{0%{transform:translate(-50%,-50%) scale(1)}35%{transform:translate(-50%,-80%) scale(1.45) rotate(18deg)}100%{transform:translate(-50%,-50%) scale(1)}}
+.w41-duel .side.hitL .fig{transform:translateX(-15px) scale(1.14)}
+.w41-duel .side.hitR .fig{transform:translateX(15px) scale(1.14)}
+.w41-duel .side.hurt .fig{animation:w42shake .4s ease}
+.w41-duel .verdict{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:950;color:#fff;z-index:3;
+  background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.16);padding:4px 12px;border-radius:99px;opacity:0;transition:opacity .25s;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+.w41-duel .verdict.on{opacity:1}
 </style>
 
 <script id="v41-sim">
@@ -12817,13 +12919,19 @@ function frame(el,o){
     H.feed.scrollTop=H.feed.scrollHeight};
   H.speak=(txt,cls)=>{const d=D.createElement('div');d.className='w41-line '+(cls||'');d.innerHTML='<i></i><span>'+txt+'</span>';H.feed.appendChild(d);H.feed.scrollTop=H.feed.scrollHeight};
   H.ask=(title,opts,note)=>new Promise(res=>{
+    /* V42: تاکتیک حرفه‌ای — نوارهای اثر (⚔/🛡/⚠…) + ستاره‌ی پیشنهاد کادر فنی */
+    const optHtml=opts.map(op=>{
+      const bars=op.bars?Object.entries(op.bars).map(([k,v])=>'<div class="wb"><span>'+k+'</span><div class="wb-t"><i class="'+(v>=.7?'':'d')+'" style="width:'+Math.round(Math.max(.06,Math.min(1,v))*100)+'%"></i></div></div>').join(''):'';
+      return '<button data-k="'+esc(op.k||'')+'" class="'+(op.rec?'rec':'')+'">'+(op.rec?'<span class="rectag">⭐ پیشنهاد کادر فنی</span>':'')+
+        '<span class="ic">'+op.ic+'</span><span class="lb">'+esc(op.label)+'</span>'+(op.desc?'<small>'+esc(op.desc)+'</small>':'')+bars+'</button>'}).join('');
     H.decide.innerHTML='<div class="w41-ask"><div class="h">'+esc(title)+(note?'<small>'+esc(note)+'</small>':'')+'</div>'+
-      '<div class="w41-opts">'+opts.map((op,i)=>'<button data-i="'+i+'"><span class="ic">'+op.ic+'</span><span class="lb">'+esc(op.label)+'</span><small>'+esc(op.desc||'')+'</small></button>').join('')+'</div></div>';
+      '<div class="w41-opts">'+optHtml+'</div></div>';
     H.decide.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
       if(H.decide.dataset.lock==='1')return;H.decide.dataset.lock='1';
       H.decide.querySelectorAll('button').forEach(x=>x.classList.remove('picked'));
       b.classList.add('picked');sndK('click');
-      setTimeout(()=>{H.decide.dataset.lock='0';H.decide.innerHTML='';res(opts[Number(b.getAttribute('data-i'))])},240)}))});
+      const k=b.getAttribute('data-k');
+      setTimeout(()=>{H.decide.dataset.lock='0';H.decide.innerHTML='';res(opts.find(o=>(o.k||'')===k)||opts[0])},240)}))});
   H.arenaHTML=h=>{H.arena.innerHTML=h;return H.arena.firstChild};
   H.close=()=>{H.done=true};
   return H;
@@ -12855,14 +12963,19 @@ function gFootball(el,done){
     weak:['بال چپ','وسط دفاع','بال راست'][Math.floor(R()*3)],pow:.5+R()*.36};
   H.say('📋 اسکاوت: '+rival+' با <b>'+scout.form+'</b> — نقطه‌ی ضعف: <b>'+scout.weak+'</b>','sys');
   (async()=>{
+    /* V42: توصیه‌ی کادر فنی بر پایه‌ی اسکاوت + نوارهای اثر واقعی هر آرایش */
+    const pow=Number(scout.pow||.6);
+    const recForm=pow>.76?'def':(scout.weak==='وسط دفاع'?'atk':'bal');
+    const recStyle=pow>.76?'counter':'poss';
     const form=await H.ask('آرایش تیم را انتخاب کن',[
-      {ic:'⚖️',k:'bal',label:'۴-۴-۲ متعادل',desc:'تعادل دفاع/حمله'},
-      {ic:'🔥',k:'atk',label:'۴-۳-۳ تهاجمی',desc:'حمله‌ی سنگین'},
-      {ic:'🛡️',k:'def',label:'۵-۳-۲ دفاعی',desc:'مهار + ضدحمله'}],'نقطه‌ی ضعف حریف: '+scout.weak);
+      {ic:'⚖️',k:'bal',label:'۴-۴-۲ متعادل',desc:'تعادل دفاع/حمله',rec:recForm==='bal',bars:{'⚔':.62,'🛡':.6}},
+      {ic:'🔥',k:'atk',label:'۴-۳-۳ تهاجمی',desc:'حمله‌ی سنگین',rec:recForm==='atk',bars:{'⚔':.84,'🛡':.36}},
+      {ic:'🛡️',k:'def',label:'۵-۳-۲ دفاعی',desc:'مهار + ضدحمله',rec:recForm==='def',bars:{'⚔':.36,'🛡':.86}}],
+      'اسکاوت: حریف '+Math.round(pow*100)+'٪ قدرت — ضعف: '+scout.weak);
     const style=await H.ask('سبک بازی',[
-      {ic:'🎯',k:'poss',label:'مالکیت توپ',desc:'ساخت آهسته و دقیق'},
-      {ic:'⚡',k:'counter',label:'ضدحمله',desc:'سرعت در فضای خالی'},
-      {ic:'💪',k:'press',label:'پرس بالا',desc:'فشار از دقیقه‌ی اول'}],'آرایش: '+form.label);
+      {ic:'🎯',k:'poss',label:'مالکیت توپ',desc:'ساخت آهسته و دقیق',rec:recStyle==='poss',bars:{'⚔':.55,'🛡':.62,'🎮':.74}},
+      {ic:'⚡',k:'counter',label:'ضدحمله',desc:'سرعت در فضای خالی',rec:recStyle==='counter',bars:{'⚔':.72,'🛡':.58,'🎮':.5}},
+      {ic:'💪',k:'press',label:'پرس بالا',desc:'فشار از دقیقه‌ی اول',rec:recStyle==='press',bars:{'⚔':.8,'🛡':.44,'🎮':.44}}],'آرایش: '+form.label);
     H.say('🗣️ گزارشگر: «'+form.label+' و '+style.label+' — ورزشگاه منفجر شد!»');
     const tac={atk:{bal:.58,atk:.84,def:.36}[form.k],def:{bal:.6,atk:.4,def:.86}[form.k],
       poss:{poss:.74,counter:.52,press:.62}[style.k]};
@@ -12870,7 +12983,7 @@ function gFootball(el,done){
     if(scout.weak==='وسط دفاع'&&form.k==='atk')tac.atk=Math.min(1,tac.atk+.06);
     const st={g1:0,g2:0,poss:0,sh1:0,sh2:0};
     let minute=0,boost=0,condDown=false,condUp=false;
-    H.stat('مالکیت ٪',50,100,'#7fd8ff');H.stat('شوت‌های من',0,16,'#ffe08a');H.stat('شوت حریف',0,14,'#ff8ba0');
+    H.stat('مالکیت ٪',50,100,'#7fd8ff');H.stat('شوت‌های من',0,16,'#ffe08a');H.stat('شوت حریف',0,14,'#ff8ba0');H.stat('شانس برد ٪',50,100,'#7dff9e');
     const total=90,stepMs=420;let paused=false;
     const timer=setInterval(async()=>{
       if(H.done){clearInterval(timer);return}
@@ -12889,6 +13002,7 @@ function gFootball(el,done){
           H.say(narr('😣 دقیقه‌ی {t}: ضدحمله‌ی {op} — گل شد',{t:faN(minute),op:rival}),'bad')}}
       H.stat('مالکیت ٪',Math.round(st.poss/Math.max(1,minute)),100,'#7fd8ff');
       H.stat('شوت‌های من',st.sh1,16,'#ffe08a');H.stat('شوت حریف',st.sh2,14,'#ff8ba0');
+      H.stat('شانس برد ٪',Math.max(5,Math.min(95,Math.round(50+(st.g1-st.g2)*13+(tac.atk-.55)*26+(B-.5)*16))),100,'#7dff9e');
       if(minute>55&&st.g1<st.g2&&!condDown){condDown=true;boost+=.22;
         H.say('🚨 دستور وضعیتی: «عقب افتادیم — همه‌به‌سوی حمله»','sys')}
       if(minute>72&&st.g1>st.g2+1&&!condUp){condUp=true;boost-=.08;
@@ -12896,9 +13010,10 @@ function gFootball(el,done){
       if(minute===45){paused=true;
         H.say('⏸️ پایان نیمه‌ی اول — نتیجه: '+faN(st.g1)+' - '+faN(st.g2),'sys');
         const t2=await H.ask('تغییر تاکتیک نیمه‌ی دوم؟',[
-          {ic:'🔥',k:'up',label:'فشار بیشتر',desc:'+حمله، ریسک دفاع'},
-          {ic:'🛡️',k:'hold',label:'مهار و کنترل',desc:'حفظ نتیجه'},
-          {ic:'♻️',k:'same',label:'همین روال',desc:'بدون تغییر'}]);
+          {ic:'🔥',k:'up',label:'فشار بیشتر',desc:'+حمله، ریسک دفاع',rec:st.g1<st.g2},
+          {ic:'🛡️',k:'hold',label:'مهار و کنترل',desc:'حفظ نتیجه',rec:st.g1>st.g2},
+          {ic:'♻️',k:'same',label:'همین روال',desc:'بدون تغییر',rec:st.g1===st.g2}],
+          'نتیجه: '+faN(st.g1)+' - '+faN(st.g2)+(st.g1<st.g2?' — عقب هستی، کادر فنی حمله را توصیه می‌کند':st.g1>st.g2?' — جلو هستی، نتیجه را حفظ کن':' — تساوی؛ فرصت برای جسارت'));
         if(t2.k==='up'){tac.atk=Math.min(1,tac.atk+.16);tac.def=Math.max(.2,tac.def-.1);boost+=.14}
         if(t2.k==='hold'){tac.def=Math.min(1,tac.def+.16);tac.atk=Math.max(.25,tac.atk-.08);boost-=.04}
         H.say('🔁 تاکتیک نیمه‌ی دوم: '+t2.label,'sys');paused=false}
@@ -12929,8 +13044,8 @@ function gRace(el,done,cfg){
     H.say('🗣️ گزارشگر: «'+plan.label+' — استراتژی جسورانه‌ای است!»');
     const planK={even:1,fast:1.2,neg:.94,allout:1.32}[plan.k];
     const fatigueK={even:.999,fast:.968,neg:1,allout:.945}[plan.k];
-    H.arenaHTML('<div class="w41-lanes">'+[0,1,2,3].map(i=>'<div class="ln"><span class="who">'+(i?'🔵':'🔴')+' '+(i?esc(rivals[i-1].n):'تو')+'</span><div class="tr"><i class="p" data-i="'+i+'"></i></div><b class="pc" data-i="'+i+'">۰٪</b></div>').join('')+'</div>');
-    const bars=H.arena.querySelectorAll('.p'),pcs=H.arena.querySelectorAll('.pc');
+    H.arenaHTML('<div class="w41-trk" data-sp="'+(cfg.sp||'')+'"><div class="fin"></div>'+[0,1,2,3].map(i=>'<div class="lane '+(i?'r':'me')+'"><i class="ath">'+cfg.ath+'</i><b class="pc" data-i="'+i+'">۰٪</b><span class="nm">'+(i?esc(rivals[i-1].n):'تو')+'</span></div>').join('')+'</div>');
+    const athEls=H.arena.querySelectorAll('.ath'),pcs=H.arena.querySelectorAll('.pc');
     const prog={you:0,r0:0,r1:0,r2:0};
     let t=0,boost=1,fatigue=1,decisionUsed=0,deciding=false;
     const dur=cfg.dur;
@@ -12941,12 +13056,14 @@ function gRace(el,done,cfg){
       fatigue*=fatigueK;
       prog.you=Math.min(100,prog.you+(100/dur)*planK*boost*fatigue);
       rivals.forEach((rv,i)=>{prog['r'+i]=Math.min(100,prog['r'+i]+(100/dur)*rv.p*(.85+R()*.4))});
-      bars.forEach((b,i)=>{const v=i?prog['r'+(i-1)]:prog.you;b.style.width=v+'%';pcs[i].textContent=faN(Math.round(v))+'٪'});
+      [prog.you,prog.r0,prog.r1,prog.r2].forEach((v,i)=>{athEls[i].style.right=(98-v*.92)+'%';pcs[i].textContent=faN(Math.round(v))+'٪'});
       if(decisionUsed<2&&p>(decisionUsed===0?.36:.68)){decisionUsed++;deciding=true;
+        const ahead=Math.max(prog.you,prog.r0,prog.r1,prog.r2)===prog.you;
         const c=await H.ask('لحظه‌ی تصمیم — چه می‌کنی؟',[
-          {ic:'💥',k:'push',label:'حمله! ضربه بزن',desc:'+سرعت شدید، انرژی −'},
-          {ic:'🧘',k:'hold',label:'در چرخ بمان',desc:'انرژی ذخیره'},
-          {ic:'👀',k:'read',label:'حریف را بخوان',desc:'ریسک کم'}]);
+          {ic:'💥',k:'push',label:'حمله! ضربه بزن',desc:'+سرعت شدید، انرژی −',rec:!ahead},
+          {ic:'🧘',k:'hold',label:'در چرخ بمان',desc:'انرژی ذخیره',rec:ahead},
+          {ic:'👀',k:'read',label:'حریف را بخوان',desc:'ریسک کم'}],
+          ahead?'جلو هستی — کادر فنی می‌گوید ریتم را حفظ کن':'عقب هستی — لحظه‌ی حمله است!');
         if(c.k==='push'){boost*=1.5;fatigue*=.93;fx.shake();sndK('crowd');H.say('⚡ حمله زدی — گروه جا ماند!','goal')}
         else if(c.k==='hold'){boost*=1.06;H.say('🧘 ریتم را نگه داشتی')}
         else{boost*=1+B*.55;H.say('👀 حرکت حریف را خواندی','sys')}
@@ -12975,18 +13092,29 @@ function gRounds(el,done,cfg){
   const rivalPicks=cfg.rounds.map(()=>cfg.opts[Math.floor(R()*cfg.opts.length)]);
   H.say('📋 '+cfg.intro+' — حریف: <b>'+cfg.rival+'</b>','sys');
   H.stat('امتیاز من',0,cfg.max,'#ffe08a');H.stat('امتیاز حریف',0,cfg.max,'#ff8ba0');
+  /* V42: صحنه‌ی نورافکن — سنجه‌ی ریسک + نتیجه‌ی ملموس هر راند */
+  H.arenaHTML('<div class="w41-spot"><span class="rnd" id="w41-rnd"></span><div class="ring"><i class="core">'+cfg.ic+'</i></div><div class="meter"><i id="w41-risk"></i></div><b class="dist" id="w41-dist">آماده…</b></div>');
+  const spot=H.arena.querySelector('.w41-spot'),riskI=H.arena.querySelector('#w41-risk'),distEl=H.arena.querySelector('#w41-dist'),rndL=H.arena.querySelector('#w41-rnd');
   (async()=>{
     for(let i=0;i<cfg.rounds.length;i++){
       H.clockSet('راند '+faN(i+1)+' / '+faN(cfg.rounds.length));
       H.time(i/cfg.rounds.length);
-      const pick=await H.ask(cfg.rounds[i],cfg.opts);
+      if(rndL)rndL.textContent=cfg.rounds[i];
+      /* V42: توصیه‌ی وضعیتی — عقب = ریسک، جلو = امن */
+      const recK=i===0?'mid':(my<op?'gamble':(my>op+cfg.max*.18?'safe':'mid'));
+      const pick=await H.ask(cfg.rounds[i],cfg.opts.map(o=>({...o,rec:o.k===recK})),
+        i===0?'':(my<op?'عقب هستی — کادر فنی می‌گوید ریسک کن':my>op+cfg.max*.18?'جلو هستی — امن بازی کن':'چسبیده‌ای — ریسک حساب‌شده'));
       const oOpt=rivalPicks[i];const rr=R();
       const p=chance(pick.w,1.15-pick.risk/150,B,rr);
-      const fail=rr>(0.4+pick.risk/170);
+      /* V42 فیکس توازن: ریسک بالاتر واقعاً ریسکِ بیشتر — شانس شکست با ریسک بالا می‌رود */
+      const fail=rr>(1-pick.risk/135);
       const myGain=fail?Math.round(cfg.max*pick.risk/100*.1):Math.round(cfg.max*pick.risk/100*p*.66);
       const opGain=Math.round(cfg.max*(oOpt.risk/100)*(.4+R()*.42));
       my+=myGain;op+=opGain;
       H.stat('امتیاز من',my,cfg.max);H.stat('امتیاز حریف',op,cfg.max);
+      if(riskI)riskI.style.width=pick.risk+'%';
+      if(spot){spot.classList.remove('win','fail');void spot.offsetWidth;spot.classList.add(fail?'fail':'win')}
+      if(distEl)distEl.textContent=cfg.distFn?cfg.distFn(pick,fail,R):'';
       if(fail){sndK('alert');H.say(narr(cfg.failTxt,{t:faN(i+1),m:pick.label}),'bad')}
       else{sndK('coin');fx.shake();H.say(narr(cfg.okTxt,{t:faN(i+1),m:pick.label,g:faN(myGain)}),'goal')}
       H.say(narr('حریف: {a} — {g} امتیاز',{a:oOpt.label,g:faN(opGain)}));
@@ -13005,20 +13133,41 @@ function gRounds(el,done,cfg){
 function gDuel(el,done,cfg){
   const B=baseStrength(),seed=nextSeed(),R=rng(seed);
   const H=frame(el,{me:'تو',op:cfg.rival,vs:cfg.ic,clock0:''});
-  let mw=0,ow=0,ex=0;
+  let mw=0,ow=0,ex=0,revealed=false;
   const actsK=['agg','def','trick'];
-  H.say('📋 '+cfg.intro+' — سبک حریف: <b>'+cfg.tend.label+'</b>','sys');
+  H.say('📋 '+cfg.intro+' — الگوی حریف را کشف کن!','sys');
   H.stat('بردهای من',0,cfg.need,'#ffe08a');H.stat('بردهای حریف',0,cfg.need,'#ff8ba0');
+  /* V42: صحنه‌ی دوئل چهره‌به‌چهره + شمارنده‌ی برد */
+  H.arenaHTML('<div class="w41-duel"><div class="verdict" id="w41-vd"></div>'+
+    '<div class="side me"><i class="fig">'+(cfg.figMe||'🦸')+'</i><b class="sn">تو</b><div class="pips" id="w41-pm">'+Array(cfg.need).fill('<i></i>').join('')+'</div></div>'+
+    '<i class="obj">'+cfg.ic+'</i>'+
+    '<div class="side op"><i class="fig">'+(cfg.figOp||'🥷')+'</i><b class="sn">'+esc(cfg.rival)+'</b><div class="pips" id="w41-po">'+Array(cfg.need).fill('<i></i>').join('')+'</div></div></div>');
+  const vd=H.arena.querySelector('#w41-vd'),pm=H.arena.querySelector('#w41-pm'),po=H.arena.querySelector('#w41-po'),
+    sideMe=H.arena.querySelector('.side.me'),sideOp=H.arena.querySelector('.side.op'),obj=H.arena.querySelector('.obj');
   (async()=>{
     while(mw<cfg.need&&ow<cfg.need&&ex<cfg.maxEx){
       ex++;H.clockSet('تبادل '+faN(ex));H.time(ex/cfg.maxEx);
-      const pick=await H.ask(cfg.q,cfg.acts);
+      const counterK={agg:'trick',def:'agg',trick:'def'}[cfg.tend.fav]||'trick';
+      const pick=await H.ask(cfg.q,cfg.acts.map(a=>({...a,rec:revealed&&a.k===counterK})),
+        revealed?'کادر فنی: حریف عاشق «'+cfg.tend.label+'» است — ضدّش را بزن':'اولین تبادل — سبک حریف را کاوش کن');
       const rivalAct=cfg.acts[actsK.indexOf(cfg.tend.fav)>-1&&R()<.45?actsK.indexOf(cfg.tend.fav):Math.floor(R()*3)];
       const beats={agg:'def',def:'trick',trick:'agg'}[pick.k];
       const goodPick=beats===rivalAct.k;
       const winE=R()<chance(goodPick?1.3:.8,cfg.tend.w,B,R());
-      if(winE){mw++;sndK('coin');fx.shake();H.say(narr(cfg.winTxt,{t:faN(ex),m:pick.label,a:rivalAct.label}),'goal')}
-      else{ow++;sndK('alert');H.say(narr(cfg.loseTxt,{t:faN(ex),m:pick.label,a:rivalAct.label}),'bad')}
+      if(winE){mw++;sndK('coin');fx.shake();
+        if(sideMe){sideMe.classList.add('hitL');sideOp.classList.add('hurt')}
+        if(obj){obj.classList.remove('hit');void obj.offsetWidth;obj.classList.add('hit')}
+        if(vd){vd.textContent='✔ '+pick.label;vd.classList.add('on')}
+        H.say(narr(cfg.winTxt,{t:faN(ex),m:pick.label,a:rivalAct.label}),'goal')}
+      else{ow++;sndK('alert');
+        if(sideOp){sideOp.classList.add('hitR');sideMe.classList.add('hurt')}
+        if(vd){vd.textContent='✘ '+rivalAct.label;vd.classList.add('on')}
+        H.say(narr(cfg.loseTxt,{t:faN(ex),m:pick.label,a:rivalAct.label}),'bad')}
+      if(pm)[...pm.children].forEach((el,i)=>el.classList.toggle('on',i<mw));
+      if(po)[...po.children].forEach((el,i)=>el.classList.toggle('on',i<ow));
+      setTimeout(()=>{sideMe&&sideMe.classList.remove('hitL','hurt');sideOp&&sideOp.classList.remove('hitR','hurt');vd&&vd.classList.remove('on')},750);
+      if(!revealed){revealed=true;
+        H.say('🔎 کادر فنی: حریف عاشق «'+cfg.tend.label+'» است — ضدّش را آماده کن','sys')}
       H.stat('بردهای من',mw,cfg.need);H.stat('بردهای حریف',ow,cfg.need);
     }
     const win=mw>ow,draw=mw===ow;
@@ -13034,39 +13183,117 @@ function gDuel(el,done,cfg){
 /* ---------- ۵) سوار کردن بازی‌های تاکتیکی روی GAMES ---------- */
 const G=API.GAMES||{};
 G.football=(el,done)=>gFootball(el,done);
-G.sprint=(el,done)=>gRace(el,done,{ic:'🏃',name:'دو ۱۰۰ متر',rival:'برق‌آسا',dur:110,durReal:11,cond:'پیست استادیوم ملی — باد ملایم'});
-G.swim=(el,done)=>gRace(el,done,{ic:'🏊',name:'شنا ۱۰۰ متر',rival:'دلفین',dur:120,durReal:12,cond:'استخر المپیک — لاین ۴'});
-G.cycling=(el,done)=>gRace(el,done,{ic:'🚴',name:'دوچرخه‌سواری جاده',rival:'کوهنورد',dur:150,durReal:15,cond:'جاده‌ی کوهستان — شیب در کیلومتر آخر'});
+G.sprint=(el,done)=>gRace(el,done,{ic:'🏃',ath:'🏃',sp:'sprint',name:'دو ۱۰۰ متر',rival:'برق‌آسا',dur:110,durReal:11,cond:'پیست استادیوم ملی — باد ملایم'});
+G.swim=(el,done)=>gRace(el,done,{ic:'🏊',ath:'🏊',sp:'swim',name:'شنا ۱۰۰ متر',rival:'دلفین',dur:120,durReal:12,cond:'استخر المپیک — لاین ۴'});
+G.cycling=(el,done)=>gRace(el,done,{ic:'🚴',ath:'🚴',sp:'cycling',name:'دوچرخه‌سواری جاده',rival:'کوهنورد',dur:150,durReal:15,cond:'جاده‌ی کوهستان — شیب در کیلومتر آخر'});
 G.weight=(el,done)=>gRounds(el,done,{ic:'🏋️',name:'وزنه‌برداری',rival:'خرس کوهستان',max:1000,
   intro:'سه حرکت — هرچه وزنه سنگین‌تر، ریسک و امتیاز بیشتر',
   rounds:['حرکت اول — وزنه پایه؟','حرکت دوم — حریف گرم شده؟','حرکت سوم — رکورد روی میز است؟'],
-  opts:[{ic:'🟢',k:'safe',label:'محافظه‌کار',desc:'وزنه مطمئن',risk:24,w:1.16},{ic:'🟡',k:'mid',label:'متعادل',desc:'وزنه هدف',risk:5,w:.96},{ic:'🔴',k:'gamble',label:'ریسکی',desc:'وزنه رکورد',risk:78,w:.82}],
+  opts:[{ic:'🟢',k:'safe',label:'محافظه‌کار',desc:'وزنه مطمئن',risk:28,w:1.16,bars:{'🏅':.28,'⚠️':.21}},{ic:'🟡',k:'mid',label:'متعادل',desc:'وزنه هدف',risk:56,w:.96,bars:{'🏅':.56,'⚠️':.41}},{ic:'🔴',k:'gamble',label:'ریسکی',desc:'وزنه رکورد',risk:84,w:.82,bars:{'🏅':.84,'⚠️':.62}}],
+  distFn:(p,f,R)=>f?'مهار شد!':faN(60+p.risk+Math.round(R()*6))+' کیلوگرم',
   okTxt:'🏋️ راند {t}: {m} — بالا رفت تمیز! {g} امتیاز',failTxt:'💢 راند {t}: {m} — میله زمین خورد'});
 G.archery=(el,done)=>gRounds(el,done,{ic:'🎯',name:'تیراندازی با کمان',rival:'شاهین چشم',max:900,
   intro:'سه تیر پیاپی — مرکز هدف = امتیاز بیشتر',
   rounds:['تیر ۱ — فاصله ۷۰ متر','تیر ۲ — باد تند شد','تیر ۳ — تیر طلایی آخر'],
-  opts:[{ic:'🟢',k:'safe',label:'مرکز امن',desc:'امتیاز مطمئن',risk:26,w:1.15},{ic:'🟡',k:'mid',label:'هدف میانی',desc:'ریسک متوسط',risk:5,w:.96},{ic:'🔴',k:'gamble',label:'شیار ده',desc:'حداکثر امتیاز',risk:74,w:.8}],
+  opts:[{ic:'🟢',k:'safe',label:'مرکز امن',desc:'امتیاز مطمئن',risk:28,w:1.15,bars:{'🏅':.28,'⚠️':.21}},{ic:'🟡',k:'mid',label:'هدف میانی',desc:'ریسک متوسط',risk:56,w:.96,bars:{'🏅':.56,'⚠️':.41}},{ic:'🔴',k:'gamble',label:'شیار ده',desc:'حداکثر امتیاز',risk:84,w:.8,bars:{'🏅':.84,'⚠️':.62}}],
+  distFn:(p,f,R)=>f?'تیر در باد گم شد':'حلقه‌ی '+faN(Math.round(p.risk/8.4))+' از ۱۰',
   okTxt:'🎯 راند {t}: {m} — شلیک فرود آمد! {g} امتیاز',failTxt:'🌬️ راند {t}: {m} — باد تیر را برد'});
 G.gym=(el,done)=>gRounds(el,done,{ic:'🤸',name:'ژیمناستیک',rival:'برق‌و‌بالا',max:900,
   intro:'سه حرکت — سختی حرکت = ضریب امتیاز',
   rounds:['حرکت اول — پایه؟','حرکت دوم — ترکیبی؟','حرکت سوم — حرکت امضایی؟'],
-  opts:[{ic:'🟢',k:'safe',label:'ساده و تمیز',desc:'اجرای مطمئن',risk:24,w:1.16},{ic:'🟡',k:'mid',label:'متوسط',desc:'چند آکروبات',risk:5,w:.96},{ic:'🔴',k:'gamble',label:'بسیار سخت',desc:'دبل‌بک با پیچ',risk:76,w:.8}],
+  opts:[{ic:'🟢',k:'safe',label:'ساده و تمیز',desc:'اجرای مطمئن',risk:28,w:1.16,bars:{'🏅':.28,'⚠️':.21}},{ic:'🟡',k:'mid',label:'متوسط',desc:'چند آکروبات',risk:56,w:.96,bars:{'🏅':.56,'⚠️':.41}},{ic:'🔴',k:'gamble',label:'بسیار سخت',desc:'دبل‌بک با پیچ',risk:84,w:.8,bars:{'🏅':.84,'⚠️':.62}}],
+  distFn:(p,f,R)=>f?'فرود لرزید!':'ضریب '+(2+p.risk/25).toFixed(1).replace('.','٫'),
   okTxt:'🤸 راند {t}: {m} — فرود مثل گربه! {g} امتیاز',failTxt:'🤕 راند {t}: {m} — فرود لرزید'});
-G.volley=(el,done)=>gDuel(el,done,{ic:'🏐',name:'والیبال ساحلی',rival:'موج‌سوار',need:3,maxEx:6,
+G.lj=(el,done)=>gRounds(el,done,{ic:'🦘',name:'پرش طول',rival:'آهوی دشت',max:900,
+  intro:'سه پرش — تخته‌ی پرش خط قرمز دارد؛ سرعت بیشتر = پرش دورتر',
+  rounds:['پرش اول — گرم‌کردن','پرش دوم — باد موافق +۰.۹','پرش سوم — رکورد روی خط است'],
+  opts:[{ic:'🟢',k:'safe',label:'استارت مطمئن',desc:'پرش امن',risk:28,w:1.15,bars:{'🏅':.28,'⚠️':.21}},{ic:'🟡',k:'mid',label:'برد متعادل',desc:'تعادل سرعت/کنترل',risk:56,w:.96,bars:{'🏅':.56,'⚠️':.41}},{ic:'🔴',k:'gamble',label:'پرواز رکورد',desc:'حداکثر سرعت',risk:84,w:.8,bars:{'🏅':.84,'⚠️':.62}}],
+  distFn:(p,f,R)=>f?'خطا — پا به تخته خورد!':(6.8+p.risk/100*2.3+R()*.25).toFixed(2).replace('.','٫')+' متر',
+  okTxt:'🦘 پرش {t}: {m} — فرود در شنی! {g} امتیاز',failTxt:'👟 پرش {t}: {m} — پرش نامعتبر'});
+G.volley=(el,done)=>gDuel(el,done,{ic:'🏐',name:'والیبال ساحلی',rival:'موج‌سوار',need:3,maxEx:6,figMe:'🤾',figOp:'🏄',
   intro:'رالی به رالی — الگوی حریف را بشکن',q:'این رالی را چطور بازی کن؟',tend:{label:'دریافت کوتاه‌کن',w:.9,fav:'def'},
-  acts:[{ic:'💥',k:'agg',label:'اسپایک سنگین',desc:'مستقیم و قدرتی'},{ic:'🛡️',k:'def',label:'دریافت و پاس',desc:'ساخت مجدد'},{ic:'🎭',k:'trick',label:'فینت کوتاه',desc:'غافلگیری'}],
+  acts:[{ic:'💥',k:'agg',label:'اسپایک سنگین',desc:'مستقیم و قدرتی',bars:{'⚔':.9,'🛡':.25}},{ic:'🛡️',k:'def',label:'دریافت و پاس',desc:'ساخت مجدد',bars:{'⚔':.25,'🛡':.9}},{ic:'🎭',k:'trick',label:'فینت کوتاه',desc:'غافلگیری',bars:{'⚔':.6,'🛡':.5,'🎭':.85}}],
   winTxt:'🏐 رالی {t}: {m} روی {a} — زمین بلرزید!',loseTxt:'💔 رالی {t}: {m} توسط {a} برگشت'});
-G.wrestle=(el,done)=>gDuel(el,done,{ic:'🥋',name:'کشتی آزاد',rival:'صخره',need:2,maxEx:4,
+G.wrestle=(el,done)=>gDuel(el,done,{ic:'🥋',name:'کشتی آزاد',rival:'صخره',need:2,maxEx:4,figMe:'🦸',figOp:'🦍',
   intro:'گیری به گیری — هر گیری یک امتیاز',q:'این گیری را چطور بچینی؟',tend:{label:'دفاع بسته',w:.86,fav:'def'},
-  acts:[{ic:'💥',k:'agg',label:'حمله پای',desc:'دابل‌لگ قدرتی'},{ic:'🛡️',k:'def',label:'کمرگیری',desc:'صبر و کنترل'},{ic:'🎭',k:'trick',label:'فینت سرشانه',desc:'غافلگیری'}],
+  acts:[{ic:'💥',k:'agg',label:'حمله پای',desc:'دابل‌لگ قدرتی',bars:{'⚔':.9,'🛡':.25}},{ic:'🛡️',k:'def',label:'کمرگیری',desc:'صبر و کنترل',bars:{'⚔':.25,'🛡':.9}},{ic:'🎭',k:'trick',label:'فینت سرشانه',desc:'غافلگیری',bars:{'⚔':.6,'🛡':.5,'🎭':.85}}],
   winTxt:'🥋 گیری {t}: {m} روی {a} — تشک به صدا درآمد!',loseTxt:'💪 گیری {t}: {m} خنثی شد توسط {a}'});
-G.chess=(el,done)=>gDuel(el,done,{ic:'♟️',name:'شطرنج',rival:'استاد سیاه',need:2,maxEx:4,
+G.chess=(el,done)=>gDuel(el,done,{ic:'♟️',name:'شطرنج',rival:'استاد سیاه',need:2,maxEx:4,figMe:'🧙',figOp:'🕴️',
   intro:'سیزیون‌های سرنوشت‌ساز — هر حرکت یک تصمیم',q:'حرکت سرنوشت‌ساز؟',tend:{label:'بازی محکم',w:.95,fav:'def'},
-  acts:[{ic:'⚔️',k:'agg',label:'قربانی حمله',desc:'ریسک برای ابتکار'},{ic:'🏰',k:'def',label:'محکم‌سازی',desc:'ساخت پوزیسیون'},{ic:'🎭',k:'trick',label:'تله‌گذاری',desc:'حریف را وسوسه کن'}],
+  acts:[{ic:'⚔️',k:'agg',label:'قربانی حمله',desc:'ریسک برای ابتکار',bars:{'⚔':.9,'🛡':.25}},{ic:'🏰',k:'def',label:'محکم‌سازی',desc:'ساخت پوزیسیون',bars:{'⚔':.25,'🛡':.9}},{ic:'🎭',k:'trick',label:'تله‌گذاری',desc:'حریف را وسوسه کن',bars:{'⚔':.6,'🛡':.5,'🎭':.85}}],
   winTxt:'♟️ سیزیون {t}: {m} در برابر {a} — برتری تعیین شد!',loseTxt:'♟️ سیزیون {t}: {m} را استاد خواند و پاسخ داد'});
 })();
 </script>
 
+<style id="v42-hud-css">
+/* ============ V42: کارت‌های منابع — براق، توپُر، سینمایی (بدون تداخل هندسی) ============ */
+.res-card{overflow:visible!important;
+  background:linear-gradient(160deg,rgba(26,56,98,.97),rgba(7,18,38,.97)),radial-gradient(circle at 28% -8%,rgba(255,255,255,.22),transparent 46%)!important;
+  border:1px solid rgba(255,255,255,.15)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 4px 14px rgba(0,0,0,.5)!important;
+  transition:box-shadow .35s ease}
+.res-card.gain{box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 0 22px var(--rc,#ffcc00),0 4px 14px rgba(0,0,0,.5)!important}
+.res-card span{display:flex;align-items:center;gap:3px}
+.res-card span i{width:21px;height:21px;line-height:21px;font-size:11.5px;text-align:center;border-radius:50%;flex:0 0 auto;
+  background:radial-gradient(circle at 32% 26%,rgba(255,255,255,.55),var(--rc,#ffcc00) 48%,rgba(0,0,0,.55) 135%);
+  box-shadow:0 0 10px var(--rc),inset 0 1px 1px rgba(255,255,255,.65),0 2px 5px rgba(0,0,0,.55)}
+.res-card b{font-variant-numeric:tabular-nums}
+.wd42-delta{position:absolute;top:-13px;left:50%;font-size:9.5px;font-weight:950;padding:2px 7px;border-radius:99px;
+  pointer-events:none;z-index:6;direction:ltr;white-space:nowrap;animation:wd42delta 1.05s ease forwards}
+.wd42-delta.up{background:linear-gradient(135deg,#8dffab,#2fdc66);color:#03210e;box-shadow:0 0 12px rgba(80,255,140,.65)}
+.wd42-delta.dn{background:linear-gradient(135deg,#ff8ba0,#ff3355);color:#fff;box-shadow:0 0 12px rgba(255,80,110,.6)}
+@keyframes wd42delta{0%{opacity:0;transform:translate(-50%,7px) scale(.7)}16%{opacity:1;transform:translate(-50%,0) scale(1.05)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-15px) scale(.96)}}
+/* V42: توست‌ها و خطاها پایین صفحه — هیچ‌وقت جلوی آیکون‌های بالا نمی‌روند */
+#toast-container{top:auto!important;bottom:78px!important;left:10px!important;right:10px!important}
+.toast{animation:toastInUp .22s ease,toastOut .3s ease 2.2s forwards!important}
+@keyframes toastInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+/* V42: موبایل — عنوان برند کنار می‌رود تا ۴ کارت منبع نفس بکشند (پایان تداخل) */
+@media(max-width:600px){
+  .top-bar .brand{display:none!important}
+  .top-bar{padding:0 6px!important}
+  .resource-group{width:100%;justify-content:space-evenly!important;gap:4px!important}
+  .res-card{min-width:60px!important}
+  .res-card b{font-size:11.5px!important}
+}
+</style>
+<script id="v42-hud">
+/* ============ V42: عددهای زنده — شمارش نرم + دلتای (+/−) روی کارت‌های طلا/غذا/نفت/قدرت ============ */
+(function(){
+'use strict';
+const faNum0=window.faNum||function(s){return String(s).replace(/[0-9]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[+d]})};
+const ID_OK={'r-gold':1,'r-food':1,'r-oil':1,'r-army':1};
+const anim={};
+function grp(n){return faNum0(String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'٬'))}
+function spawnDelta(card,diff){
+  try{
+    const d=document.createElement('span');
+    d.className='wd42-delta '+(diff>0?'up':'dn');
+    d.textContent=(diff>0?'+':'−')+grp(Math.abs(diff));
+    card.appendChild(d);
+    setTimeout(()=>{try{d.remove()}catch(e){}},1100);
+  }catch(e){}
+}
+window.__wd42num=function(el,from,to){
+  try{
+    if(!el||!ID_OK[el.id])return false;
+    const card=el.closest?el.closest('.res-card'):null;if(!card)return false;
+    if(from===to){el.textContent=grp(to);return true}
+    /* دلتا: درآمد همیشه نشان بده؛ افت فقط وقتی محسوس است (ضد اسپم مصرف) */
+    if(to>from)spawnDelta(card,to-from);
+    else if(from-to>=Math.max(120,Math.abs(from)*.03))spawnDelta(card,to-from);
+    if(to>from){card.classList.remove('gain');void card.offsetWidth;card.classList.add('gain');
+      setTimeout(()=>{try{card.classList.remove('gain')}catch(e){}},720)}
+    if(anim[el.id])try{cancelAnimationFrame(anim[el.id].raf)}catch(e){}
+    const t0=performance.now(),dur=480,f0=Math.max(0,from);
+    const step=t=>{const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+      try{el.textContent=grp(f0+(to-f0)*e)}catch(e){}
+      if(p<1&&anim[el.id])anim[el.id].raf=requestAnimationFrame(step)};
+    anim[el.id]={raf:requestAnimationFrame(step)};
+    return true;
+  }catch(e){return false}
+};
+})();
+</script>
 
 </body>
 </html>

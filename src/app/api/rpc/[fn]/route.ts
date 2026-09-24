@@ -235,8 +235,8 @@ const ED_LEN = 30 * 86400000
 const ED_REG = 15 * 86400000
 const ED_OPEN = 24 * 86400000
 const ED_CLOSE = 29 * 86400000
-const GD_DAY: Record<string, number> = { sprint: 0, archery: 0, swim: 1, gym: 1, weight: 2, cycling: 2, chess: 3, volley: 3, football: 4, wrestle: 4 }
-const GD_MAX: Record<string, number> = { sprint: 1000, archery: 1000, swim: 1000, gym: 1000, weight: 1000, cycling: 1000, chess: 1000, volley: 1000, football: 1000, wrestle: 1000 }
+const GD_DAY: Record<string, number> = { sprint: 0, archery: 0, swim: 1, gym: 1, weight: 2, cycling: 2, chess: 3, volley: 3, lj: 4, wrestle: 4, football: 4 }
+const GD_MAX: Record<string, number> = { sprint: 1000, archery: 1000, swim: 1000, gym: 1000, weight: 1000, cycling: 1000, chess: 1000, volley: 1000, lj: 1000, wrestle: 1000, football: 1000 }
 const HOSTS: { c: string; n: string; f: string }[] = [
   { c: 'توکیو', n: 'ژاپن', f: 'jp' }, { c: 'پاریس', n: 'فرانسه', f: 'fr' }, { c: 'لس‌آنجلس', n: 'آمریکا', f: 'us' },
   { c: 'لندن', n: 'بریتانیا', f: 'gb' }, { c: 'ریودوژانیرو', n: 'برزیل', f: 'br' }, { c: 'پکن', n: 'چین', f: 'cn' },
