@@ -748,3 +748,29 @@ Stage Summary:
 - پکیج انتشار کامل است: APK امضاشده + آیکون/بنر/۵ اسکرین‌شات + متن فروشگاه + privacy لایو + README (فنی/فرآیندی/بکاپ keystore)
 - نکات بحرانی: keystore را کاربر باید فوراً بکاپ بگیرد؛ رمز دیتابیس Render هنوز ریست نشده؛ ثبت‌نام پنل‌ها باید همین امروز شروع شود
 - آینده: بعد از رسیدن دامنه .ir → اتصال به Vercel و انتشار v1.0.1 با GAME_URL جدید (تغییر یک ثابت + bash scripts/build-apk.sh)
+
+---
+Task ID: V44-perf-bugfix
+Agent: Super Z (main)
+Task: رفع باگ‌های گزارشی کاربر: کشورهای سیاه نقشه، لگ وحشتناک، آموزش زیر آیتم‌ها، حذف چیپ آغازگر
+
+Work Log:
+- ریشه‌یابی با grep/Read روی public/game/index.html (14k خط):
+  1) کشورهای سیاه = «مه جنگ» V30 (fogVisible شعاع ۱۵ درجه، fillStyle #0a1424 opacity .9) — کشورهای دور از قلمرو بازیکن تقریباً سیاه دیده می‌شدند
+  2) چیپ آغازگر = #wd-lvlchip در hud-strip با setInterval 2s
+  3) آموزش = #wd43-tut z-index 9987 که زیر hud-strip(9988)/acc-chip(9997)/dock(9998) بود
+  4) لگ = ۱۱۹ انیمیشن CSS بی‌نهایت (floaty+drop-shadow روی res-card/nav-btn، sweep، drift و...) + backdrop-filter blur(6px) روی همه .modal + ۹۲ setInterval
+- پچ‌ها:
+  1) FOG پیش‌فرض خاموش (localStorage 'wd30fog'==='on' به‌جای !=='off')، استایل مه سبک (#16283f/.5 بدون dash)، شعاع ۱۵→۲۰، گارد FOG.on روی interval 9s — toggle پنل دست‌نخورده
+  2) حذف ایجاد wd-lvlchip + interval آن (renderLvlChip no-op می‌ماند)
+  3) #wd43-tut z=10005، #wd43-spot z=10004 + گارد tutShow: اگر modal.active است آموزش نشان نده (تعارض با مشاور خودکار اول بازی حل شد)
+  4) style#wd44-perf قبل از </body>: قطع انیمیشن/فیلتر همیشه‌مرئی‌ها با glow ایستا (text-shadow)، modal بدون backdrop-filter با bg .9، و @media(pointer:coarse){ *{animation-duration:.001s!important;animation-iteration-count:1!important} } — روی موبایل/APK همه‌ی انیمیشن‌ها به وضعیت پایانی می‌رسند و متوقف می‌شوند (fill-mode سالیم است)
+- اعتبارسنجی: node --check روی هر ۷۰ بلاک inline script (۰ خطا) + توازن براکت CSS (۲۷۰۸/۲۷۰۸)
+- تست: سرور لوکال next start:3210 با SQLite + Playwright (موبایل isMobile/hasTouch + دسکتاپ): fogOn=false، lvlchip حذف، tutZ=10005 و tut روشن بعد از بستن مشاور، navAnim 0s، resFilter none، صفر pageerror؛ اسکرین‌شات نقشه = همه کشورها رنگی
+- مشکل git: push rejected (apk-build/tools شامل jdk17.tar.gz 184MB در کامیت خودکار d64cd09) → filter-branch روی origin/main..main برای حذف apk-build/tools از تاریخچه پوش‌نشده + .gitignore جدید → push موفق (70e8f41)
+- دیپلوی: Vercel live تأیید شد (۴ نشانگر V44 در فایل لایو، HTTP 200)
+
+Stage Summary:
+- هر ۴ خواسته‌ی کاربر رفع و روی production است: نقشه کاملاً رنگی، لگ شدیداً کمتر (مخصوصاً موبایل/APK)، آموزش بالای همه‌چیز و بعد از بستن مودال‌ها، چیپ آغازگر حذف
+- نکته: toggle «مه جنگ» در پنل هنوز فعال است (حالت سبک جدید)؛ دسکتاپ انیمیشن‌های سینمایی را دارد، فقط HUD ایستا شد
+- اسکریپت‌های تست: scripts/smoke-v44.mjs و scripts/smoke-v44-map.mjs (قابل اجرا مجدد با WD_BASE)
