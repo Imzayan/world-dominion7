@@ -1789,6 +1789,8 @@ function lose(f){Object.values(ARMY_UNITS).forEach(u=>{const k=u.count*(1-f);u.c
 // ---- harder, multi-round battle ----
 async function attackTarget(n){
   if(battleBusy)return;
+  if(window.__wd51nat&&Date.now()-(window.__wd51natAt||0)<60000){showToast('⏳ نبرد قبلی هنوز در جریان است','lose');return}
+  window.__wd51nat=true;window.__wd51natAt=Date.now();
   if(!myCountryName){showToast("❌ اول باید یک پایتخت انتخاب کنید!","lose");return}
   let power=Math.round(calculateTotalAttack()*(window.__ovs?ovsMult():1));
   if(power<=0){showToast("❌ شما هیچ نیروی نظامی ندارید!","lose");return}
@@ -1802,8 +1804,9 @@ async function attackTarget(n){
   const bar=$("battle-progress-bar"),txt=$("battle-result-text");bar.style.transition="none";bar.style.width=occ+"%";
   txt.textContent="🚢 نیروها در حال اعزام به جبهه...";$("battle-close-btn").style.display="none";
   $("country-drawer").classList.remove("open");openModal("m-battle");updateUI();
+  try{window.wd51BattleArm&&window.wd51BattleArm()}catch(e){}
   const g=getG(n);if(map&&g)map.flyToBounds([[g.s,g.w],[g.n,g.e]],{maxZoom:4,duration:1.2,paddingBottomRight:[0,220]});
-  await sleep(800);const line=atkLine(n),def0=t.def*1.25*(window.__wdDebuff&&window.__wdDebuff[n]&&window.__wdDebuff[n].until>Date.now()?(1-window.__wdDebuff[n].pct):1);
+  await sleep(650);const line=atkLine(n),def0=t.def*1.25*(window.__wdDebuff&&window.__wdDebuff[n]&&window.__wdDebuff[n].until>Date.now()?(1-window.__wdDebuff[n].pct):1);
   for(let r=1;r<=5;r++){
     txt.textContent=`⚔️ دور ${r} از ۵ — درگیری سنگین در خط مقدم`;
     const defNow=Math.max(def0*(1-occ/100*.75),def0*.2),ratio=power*(.8+Math.random()*.4)/defNow;
@@ -1812,7 +1815,7 @@ async function attackTarget(n){
     bar.style.transition="width 1.2s ease";bar.style.width=occ+"%";$("battle-pct-label").textContent=Math.round(occ)+"%";
     setHatch(n,occ,true,prev);blasts(n,5);
     lose(Math.min(.1,.03+.03/Math.max(ratio,.2)));power=Math.round(calculateTotalAttack()*(window.__ovs?ovsMult():1));updateUI();
-    await sleep(850);if(power<=0){txt.textContent="💀 ارتش شما نابود شد!";break}
+    await sleep(700);if(power<=0){txt.textContent="💀 ارتش شما نابود شد!";break}
   }
   if(line)line.remove();
   occupationPct[n]=occ;if(occ<=0)delete occupationPct[n];
@@ -1823,7 +1826,7 @@ async function attackTarget(n){
   else if(occ>start){txt.innerHTML=`⚔️ <b style="color:var(--gold-glow)">${Math.round(occ-start)}٪ پیشروی</b> — کل تصرف: ${Math.round(occ)}٪<br>تلفات: ${lostPct}٪ — پیشروی حفظ می‌شود؛ ادامه بده تا فتح کامل.`;showToast(`⚔️ ${Math.round(occ-start)}٪ پیشروی در ${t.fa}`,"win")}
   else{const cback=Math.min(15,start);if(cback>0){occupationPct[n]=Math.max(0,start-cback);setHatch(n,occupationPct[n],false,start);/* V41: ضدحمله‌ی مدافع — تنها راه عقب‌نشانی پیشروی */}
     txt.innerHTML=(power<=0?'💀 ارتش شما نابود شد!<br>':'')+`🛡️ <b style="color:var(--red-glow)">حمله دفع شد!</b> مدافعان ضدحمله زدند${cback>0?' و '+cback+'٪ از پیشروی را عقب راندند':''}.<br>تلفات: ${lostPct}٪`;showToast(`🛡️ حمله به ${t.fa} شکست خورد${cback>0?' — ضدحمله‌ی مدافع':''}`,"lose")}
-  applyCountryColor(n);updateUI();$("battle-close-btn").style.display="block";battleBusy=false;
+  applyCountryColor(n);updateUI();$("battle-close-btn").style.display="block";battleBusy=false;window.__wd51nat=false;
   /* V50: صفحه‌ی نبرد چند ثانیه بعد خودش جمع می‌شود — بازیباز نمی‌ماند */
   setTimeout(()=>{try{const mb=$("m-battle");if(mb&&mb.classList.contains('active')&&!battleBusy)closeModal("m-battle")}catch(e){}},5200);
   if(activeEngName===n)onCountryClick({properties:{name:n}},layersByName[n])}
@@ -2375,7 +2378,7 @@ async function spendGem(it){
   if(GEMS<it.c){showToast('❌ Gem کافی نداری','lose');return}
   gemBusy=true;
   try{const r=await sb.rpc('spend_gems',{p_item:it.k});   /* the server checks the balance and takes the gems */
-    if(r.error||!r.data||!r.data.ok){showToast(r.data&&r.data.error==='funds'?'❌ Gem کافی نداری':'❌ خرید انجام نشد؛ دوباره امتحان کن','lose')}
+    if(r.error||!r.data||!r.data.ok){showToast(r.data&&r.data.error==='funds'?'❌ Gem کافی نداری':(r.data&&r.data.error==='item'?'❌ این آیتم هنوز در سرور فعال نیست — بازی را یک‌بار ببند و باز کن':'❌ خرید انجام نشد؛ دوباره امتحان کن'),'lose')}
     else{GEMS=Number(r.data.gems)||0;if(r.data.boost_until)BOOST=Date.parse(r.data.boost_until);
       if(it.k!=='boost')it.f();showToast('💎 '+it.t,'win');if(typeof saveNow==='function')saveNow()}}
   catch(e){console.log(e);showToast('❌ اتصال به سرور برقرار نشد','lose')}
@@ -2694,7 +2697,7 @@ addEventListener('load',()=>{const s=S$('hud-strip');if(!s)return;
   const t2=el('div','🏴 0','hchip');t2.id='hud-t2';s.append(t2);
   const info=document.createElement('div');info.id='hud-info';document.body.appendChild(info);
   const d=S$('hud-date');if(d)info.append(d);const tb=S$('tn-bar');if(tb&&tb.parentNode)info.append(tb.parentNode);
-  setInterval(renderSrvChip,2000)});
+  setInterval(function(){if(!document.hidden)renderSrvChip()},4000)});
    </script>
    <script>
     /* ===== Admin panel: sends resource GRANTS. The database decides who is admin (public.is_admin); the player receives the grant on his next sync ===== */
@@ -4295,6 +4298,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
     const o=(typeof OTH!=='undefined')?OTH[country]:null;
     if(!o)return;
     if(battleBusy)return;
+    if(window.__wd39inflight&&Date.now()-(window.__wd39inflightAt||0)<45000){showToast('⏳ حمله‌ی قبلی هنوز در جریان است — چند لحظه صبر کن یا ✕ سینما را بزن','lose');return}
     if(!myCountryName){showToast('❌ اول باید پایتخت خودت را انتخاب کنی.','lose');return}
 
     /* ---------- فاز ۱: بریفینگ عملیات ---------- */
@@ -4353,7 +4357,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
   async function wd39War(country,o,target){
     const escB=v=>String(v==null?'':v).replace(/[<>&]/g,'');
     const fmt=v=>Number(v||0).toLocaleString();
-    battleBusy=true;
+    battleBusy=true;window.__wd39inflight=true;window.__wd39inflightAt=Date.now();
     const warOff=()=>{try{const wf=document.getElementById('wd-warfx');if(wf)wf.classList.remove('on')}catch(e){}};
     const faN=n=>String(n).replace(/\d/g,d=>'\u06F0\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u06F7\u06F8\u06F9'[d]);
     window.__warLaunched=false;window.__war30=true;document.body.classList.add('wd-war');
@@ -4387,11 +4391,12 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
     document.getElementById("battle-close-btn").style.display="none";
     const modal=document.getElementById("m-battle");modal.classList.add('wg39-cine');
     openModal("m-battle");
+    try{window.wd51BattleArm&&window.wd51BattleArm()}catch(e){}
     /* V50: واچ‌داگ ضد قفل — اگر هر چیزی گیر کرد، ۳۰ ثانیه بعد همه‌چیز اجباری آزاد می‌شود */
     setTimeout(function(){try{
       if(battleBusy&&document.getElementById("m-battle").classList.contains('active')){
         battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();closeModal("m-battle");
-        showToast('⏱️ نبرد معطل ماند — صفحه بسته شد، دوباره حمله کن','lose')}}catch(e){}},30000);
+        showToast('⏱️ نبرد معطل ماند — صفحه بسته شد، دوباره حمله کن','lose')}}catch(e){}},18000);
     const gTgt=typeof getG==='function'?getG(country):null;
     if(map&&gTgt)map.flyToBounds([[gTgt.s,gTgt.w],[gTgt.n,gTgt.e]],{maxZoom:4,duration:1.2,paddingBottomRight:[0,220]});
     await sleep(700); /* V50: سینما سریع‌تر شد — قبلاً ۱.۳ثانیه معطلی اول بود */
@@ -4439,6 +4444,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
         log.innerHTML='<span class="wd39-round">🕊️ آتش‌بس</span><div class="wd39-narr">در طول بازی‌های المپیک جنگ ممنوع است — اما دوئر رسمی استثناست: از مرکز اجتماعی یا کشوی کشور، حریف را به دوئر دعوت کن.</div>';
         document.getElementById("battle-close-btn").textContent="باشه";
         document.getElementById("battle-close-btn").style.display="block";
+        window.__wd39inflight=false;
         document.getElementById("battle-close-btn").onclick=()=>{battleBusy=false;closeModal("m-battle")};
         return;
       }
@@ -4465,7 +4471,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
           if(typeof setHatch==='function')setHatch(country,occ,true,occPlan[r-1]);
           if(typeof blasts==='function')blasts(country,2);
         }
-        await sleep(r===4?950:760); /* V50: هر دور کوتاه‌تر — کل نبرد حدود ۵ ثانیه، نه ۱۲ ثانیه قفل */
+        await sleep(r===4?820:650); /* V51: سینما سریع‌تر — کل نبرد زیر ۴.۵ ثانیه */
       }
 
       const occ=win?100:Math.max(0,Number(x.occupation||0));
@@ -4495,6 +4501,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
       }
 
       setTimeout(async()=>{try{
+        window.__wd39inflight=false;
         if(pvpLine){pvpLine.remove();pvpLine=null}
         applyBattleLosses(lossFraction);
         updateUI();
@@ -4552,9 +4559,9 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
           cb3.style.display="block";cb3.textContent="باشه";
           cb3.onclick=()=>{battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();closeModal("m-battle")};
         }catch(e51){}
-      }},1200);
+      }},900);
     }catch(e){
-      console.log(e);
+      console.log(e);window.__wd39inflight=false;
       if(pvpLine){pvpLine.remove();pvpLine=null}
       hpBox.style.display='none';
       log.innerHTML='❌ <b>عملیات انجام نشد</b><br>'+escB(e.message||'خطای سرور');
@@ -4775,8 +4782,8 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
  radial-gradient(ellipse at 18% 75%,rgba(155,92,255,.08),transparent 42%),
  linear-gradient(180deg,rgba(2,4,14,.12),transparent 30%,rgba(2,3,10,.26)),
  repeating-linear-gradient(0deg,rgba(0,246,233,.018) 0 1px,transparent 1px 5px)!important;
- background-size:100% 100%!important;animation:wd10Ocean 18s ease-in-out infinite alternate!important;pointer-events:none!important}
-#map::after{content:"";position:absolute;inset:0;z-index:801;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.48) 100%);mix-blend-mode:multiply}
+ background-size:100% 100%!important;animation:none!important;opacity:.75!important;pointer-events:none!important}
+#map::after{content:"";position:absolute;inset:0;z-index:801;pointer-events:none;background:radial-gradient(ellipse at center,transparent 42%,rgba(0,0,0,.40) 100%);mix-blend-mode:normal}
 @keyframes wd10Ocean{from{opacity:.58}to{opacity:.9}}
 .leaflet-container{background:#020712!important}
 /* Country borders: crisp and prestigious, but avoid expensive filters */
@@ -4784,7 +4791,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
 .leaflet-overlay-pane path.leaflet-interactive:hover{stroke:var(--wd10-c)!important;stroke-width:2.1px!important;fill-opacity:1!important}
 .leaflet-overlay-pane path.leaflet-interactive:focus{outline:none}
 /* Make selected/owned country stand out when the existing engine adds classes */
-.own-wrap,.own{filter:drop-shadow(0 2px 4px rgba(0,0,0,.7))}
+@media(pointer:fine){.own-wrap,.own{filter:drop-shadow(0 2px 4px rgba(0,0,0,.7))}}
 /* Top HUD */
 .top-bar{height:58px!important;padding:0 10px!important;background:linear-gradient(180deg,rgba(2,6,16,.96),rgba(4,9,20,.83))!important;border-bottom:1px solid rgba(0,246,233,.3)!important;box-shadow:0 8px 30px rgba(0,0,0,.45),0 1px 18px rgba(0,246,233,.08)!important;backdrop-filter:blur(12px)!important}
 .brand{font-size:11px!important;letter-spacing:1.3px!important;text-shadow:0 0 16px rgba(0,246,233,.45)}
@@ -7319,7 +7326,7 @@ function guardAll(){try{D.querySelectorAll(CHIP_SEL).forEach(function(e){guardCh
   }catch(e){}
 }
 try{D.querySelectorAll(CHIP_SEL).forEach(function(e){guardChip(e)})}catch(e){}
-setInterval(guardAll,4000);
+setInterval(function(){if(!document.hidden)guardAll()},4000);
 /* رندر سطح چیپ‌ها: فقط وقتی مقدار واقعی عوض شود DOM لمس می‌شود */
 var _srvChip=null;
 window.renderSrvChip=function(){var c=S$('hud-srv'),t=S$('hud-t2');if(c){var txt=(typeof MP_OK!=='undefined'&&MP_OK===true)?'🖥️ '+(typeof SRV!=='undefined'?SRV:'')+' ('+(typeof taken==='function'?taken(SRV):0)+'/'+(typeof SRV_CAP!=='undefined'?SRV_CAP:80)+')':'🖥️ …';if(c.__wd28v!==txt){c.__wd28v=txt;c.textContent=txt;c.style.opacity=(typeof MP_OK!=='undefined'&&MP_OK===true)?'1':'.55'}}if(t){var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var tt='🏴 '+n;if(t.__wd28v!==tt){t.__wd28v=tt;t.textContent=tt}}};
@@ -7565,7 +7572,7 @@ async function pollLight(){
   }catch(e){}
 }
 /* menu badge refresh hook (menu is rebuilt each open) */
-setInterval(badge,3000);
+setInterval(function(){if(!document.hidden)badge()},3000);
 })();
 </script>
 <script id="v28-advisor-rank">
@@ -9219,7 +9226,7 @@ const sndSafe=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 /* V31 fix: SRV is a top-level `let`, so window.SRV never existed and V30 broadcast/goal/specials
    were scoped to server 1 — mirror the real SRV onto window for all consumers */
-setInterval(()=>{try{window.SRV=srvN()}catch(e){}},2000);try{window.SRV=srvN()}catch(e){}
+setInterval(()=>{try{if(!document.hidden)window.SRV=srvN()}catch(e){}},5000);try{window.SRV=srvN()}catch(e){}
 
 /* ---------- full-screen page scaffold ---------- */
 const openStack=[];
@@ -9489,7 +9496,7 @@ window.addEventListener('load',()=>{setTimeout(()=>{try{
   if(old&&!old.__wd31){const neo=old.cloneNode(false);neo.textContent=old.textContent;neo.title='شناسنامه‌ی سینمایی سرور';neo.style.cursor='pointer';
     neo.addEventListener('click',window.WD31_SERVER);old.replaceWith(neo);neo.__wd31=1}
   wdolFabPlace();
-  setInterval(wdolFabPlace,4000) /* strip wrap-count can change after fonts/late chips load */
+  setInterval(function(){if(!document.hidden)wdolFabPlace()},4000) /* strip wrap-count can change after fonts/late chips load */
 }catch(e){}},400)});
 (function(){try{
   const mo=new MutationObserver(()=>{try{const p=H('lobby-panel-sp');
@@ -10269,7 +10276,7 @@ function checkCeremonies(d){
       const rec=(d.archive||[]).find(a=>a.edition===g.edition);
       /* V40: پرچم حتی بدون قهرمان هم ست می‌شود — قبلاً دوره‌های بدون مدال برای همیشه «بسته‌نشده» می‌ماندند */
       localStorage.setItem('wd33close_'+g.edition,'1');
-      if(rec&&rec.champion_country)setTimeout(()=>{try{window.WD33_CLOSE_CEREMONY(d)}catch(e){}},1200)}
+      if(rec)setTimeout(()=>{try{window.WD33_CLOSE_CEREMONY(d)}catch(e){}},1200)}
   }catch(e){}
 }
 /* ---------- truce (آتش‌بس) — client-side guard on the attack chain ---------- */
@@ -12225,7 +12232,7 @@ function srvStart(){
   var n=0,iv=setInterval(function(){if(srvBoot()||++n>40)clearInterval(iv)},500);
 }
 if(D.readyState==='complete')srvStart();else window.addEventListener('load',srvStart);
-setInterval(srvUpd,2000);
+setInterval(function(){if(!D.hidden)srvUpd()},4000);
 /* keep the chip positioned right before the (hidden) legacy chip even if late scripts reorder the strip */
 setInterval(function(){try{
   if(srvChip&&srvChip.parentNode){
@@ -12584,7 +12591,7 @@ function drawerWatch(){
     return true;
   }catch(e){return false}
 }
-if(!drawerWatch())setInterval(drawerWatch,2500);
+if(!drawerWatch())setInterval(function(){if(!document.hidden)drawerWatch()},2500);
 })();
 </script>
 <script id="v40-perf">
@@ -12603,7 +12610,7 @@ function ovState(){
   D.body.classList.toggle('wg-ov',!!fs||modal);
 }
 try{let _ovP=false;new MutationObserver(()=>{if(_ovP)return;_ovP=true;requestAnimationFrame(()=>{_ovP=false;ovState()})}).observe(D.body,{attributes:true,subtree:true,attributeFilter:['class']})}catch(e){}
-setInterval(ovState,2000);ovState();
+setInterval(function(){if(!document.hidden)ovState()},2000);ovState();
 D.addEventListener('visibilitychange',()=>{try{D.body.classList.toggle('idle',D.hidden)}catch(e){}});
 })();
 </script>
@@ -14631,11 +14638,33 @@ var PATS=[
    +"<path d='M32 0L48 16 32 32 16 16z' fill='hsla("+h+",72%,40%,.55)'/>"
    +"<path d='M16 0L32 16 16 32 0 16z' fill='hsla("+h+",80%,50%,.55)'/>"
    +"<path d='M16 7L25 16 16 25 7 16z' fill='none' stroke='hsla(45,92%,64%,.85)' stroke-width='1.5'/>"
-   +"<circle cx='16' cy='16' r='1.8' fill='hsla(45,96%,76%,.95)'/>"}}
+   +"<circle cx='16' cy='16' r='1.8' fill='hsla(45,96%,76%,.95)'/>"}},
+ {id:'aurora',n:'شفق قطبی',s:56,def:function(h){return "<rect width='56' height='56' fill='hsl("+h+",55%,15%)'/>"
+   +"<path d='M0 46 Q14 32 28 40 T56 32 V56 H0 Z' fill='hsla("+h+",70%,40%,.28)'/>"
+   +"<path d='M0 36 Q18 20 34 30 T56 20' stroke='hsla(150,90%,58%,.55)' stroke-width='6' fill='none'/>"
+   +"<path d='M0 27 Q18 11 34 21 T56 11' stroke='hsla(190,95%,64%,.45)' stroke-width='4' fill='none'/>"
+   +"<path d='M0 18 Q18 2 34 12 T56 2' stroke='hsla(280,90%,70%,.35)' stroke-width='3' fill='none'/>"
+   +"<circle cx='10' cy='9' r='1.1' fill='#fff'/><circle cx='44' cy='16' r='1.3' fill='#fff'/><circle cx='27' cy='5' r='.9' fill='#fff'/>"}},
+ {id:'kashi',n:'کاشی ایرانی',s:48,def:function(h){return "<rect width='48' height='48' fill='hsl("+h+",62%,22%)'/>"
+   +"<path d='M24 4 L44 24 L24 44 L4 24 Z' fill='none' stroke='hsla(45,90%,66%,.8)' stroke-width='2'/>"
+   +"<path d='M24 12 L36 24 L24 36 L12 24 Z' fill='hsla("+h+",80%,46%,.5)' stroke='hsla("+h+",95%,70%,.9)' stroke-width='1.6'/>"
+   +"<circle cx='24' cy='24' r='3.4' fill='hsla(45,95%,72%,.95)'/>"
+   +"<path d='M0 0 L8 8 M48 0 L40 8 M0 48 L8 40 M48 48 L40 40' stroke='hsla("+h+",85%,60%,.6)' stroke-width='2'/>"
+   +"<circle cx='0' cy='0' r='2.4' fill='hsla("+h+",95%,68%,.8)'/><circle cx='48' cy='0' r='2.4' fill='hsla("+h+",95%,68%,.8)'/><circle cx='0' cy='48' r='2.4' fill='hsla("+h+",95%,68%,.8)'/><circle cx='48' cy='48' r='2.4' fill='hsla("+h+",95%,68%,.8)'/>"}},
+ {id:'circuit',n:'مدار دیجیتال',s:44,def:function(h){return "<rect width='44' height='44' fill='hsl("+h+",45%,13%)'/>"
+   +"<path d='M8 0 V14 H22 V0 M22 44 V30 H36 V44 M0 22 H14 V36 M44 22 H30 V8' stroke='hsla("+h+",85%,55%,.75)' stroke-width='2' fill='none'/>"
+   +"<circle cx='22' cy='14' r='2.2' fill='hsla(45,95%,66%,.95)'/><circle cx='30' cy='8' r='2.2' fill='hsla(45,95%,66%,.95)'/><circle cx='14' cy='36' r='2.2' fill='hsla("+h+",95%,68%,.9)'/><circle cx='36' cy='30' r='2.2' fill='hsla(45,95%,66%,.95)'/>"
+   +"<rect x='18' y='18' width='8' height='8' fill='none' stroke='hsla("+h+",90%,60%,.9)' stroke-width='1.6'/>"}},
+ {id:'lava',n:'گدازه',s:40,def:function(h){return "<rect width='40' height='40' fill='hsl("+h+",45%,12%)'/>"
+   +"<path d='M-6 30 Q6 22 12 28 Q20 36 28 26 Q34 20 46 26 V40 H-6 Z' fill='hsla(16,95%,46%,.85)'/>"
+   +"<path d='M-6 33 Q8 26 16 31 Q26 37 34 29 Q40 24 46 29' stroke='hsla(45,100%,60%,.9)' stroke-width='2.4' fill='none'/>"
+   +"<path d='M-6 24 Q10 16 20 22 Q30 28 46 18' stroke='hsla(16,90%,55%,.5)' stroke-width='3' fill='none'/>"
+   +"<circle cx='10' cy='10' r='1.6' fill='hsla(30,100%,60%,.8)'/><circle cx='30' cy='8' r='1.2' fill='hsla(30,100%,65%,.7)'/>"}}
 ];
 var PATMAP={};PATS.forEach(function(p){PATMAP[p.id]=p});
 
-function patDefStr(p,h,pid){return "<pattern id='"+pid+"' width='"+p.s+"' height='"+(p.id==='hex'?26:p.s)+"' patternUnits='userSpaceOnUse'>"+p.def(h)+"</pattern>"}
+function patTileURI(p,h){var hh=(p.id==='hex')?26:p.s;var svg="<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='"+p.s+"' height='"+hh+"' viewBox='0 0 "+p.s+" "+hh+"'>"+p.def(h)+"</svg>";return "data:image/svg+xml,"+encodeURIComponent(svg).replace(/'/g,'%27')}
+function patDefStr(p,h,pid){var hh=(p.id==='hex')?26:p.s;var u=patTileURI(p,h);return "<pattern id='"+pid+"' width='"+p.s+"' height='"+hh+"' patternUnits='userSpaceOnUse'><image href=\""+u+"\" xlink:href=\""+u+"\" width='"+p.s+"' height='"+hh+"'/></pattern>"}
 function wdPatURI(p,h){
   var hh=(p.id==='hex')?26:p.s;
   var svg="<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 "+p.s+" "+hh+"'>"+patDefStr(p,h,'pv')+"<rect width='"+p.s+"' height='"+hh+"' fill='url(#pv)'/></svg>";
@@ -14683,7 +14712,7 @@ function patOv_rebuild(force){
         if(statusOf(n)==='neutral')return;
         var l=(typeof layersByName!=='undefined')?layersByName[n]:null;
         if(!l||!l.getLatLngs)return;
-        var m=L.polygon(l.getLatLngs(),{renderer:patR,interactive:false,keyboard:false,stroke:false,fill:true,fillColor:url,fillOpacity:.75,className:'wd-pat-ov',bubblingMouseEvents:false}).addTo(map);
+        var m=L.polygon(l.getLatLngs(),{renderer:patR,interactive:false,keyboard:false,stroke:false,fill:true,fillColor:url,fillOpacity:.75,className:'wd-pat-ov',bubblingMouseEvents:false,smoothFactor:3,noClip:true}).addTo(map);
         patOv[n]=m;
       }catch(e){}
     });
@@ -14692,7 +14721,7 @@ function patOv_rebuild(force){
 window.wdPatOvRebuild=patOv_rebuild;
 /* بعد از آماده‌شدن نقشه + هر تغییر مالکیت/رنگ (سیگنچک) بازسازی */
 var patBoot=setInterval(function(){try{if(typeof map==='undefined'||!map)return;var n=0;try{n=Object.keys(layersByName).length}catch(e){}if(n>50){clearInterval(patBoot);patOv_rebuild(true)}}catch(e){}},1200);
-setInterval(function(){try{patOv_rebuild(false)}catch(e){}},3000);
+setInterval(function(){try{if(!document.hidden)patOv_rebuild(false)}catch(e){}},3000);
 /* بعد از فتح جدید هم فوری بازسازی */
 try{
   var _ac50w=window.applyCountryColor;
@@ -14759,7 +14788,9 @@ var EMST=[
  {id:'dragon',n:'اژدها',     c:40,d:'فلس سبز زمردی با تپش نفس اژدها'},
  {id:'royal', n:'سلطنتی',    c:35,d:'نگین ارغوانی با رینگ طلایی — برای امپراتورها'},
  {id:'shadow',n:'سایه',      c:30,d:'ریشه‌ی تیره با گل سرخ درون — مرموز و خطرناک'},
- {id:'neon',  n:'نئون',      c:45,d:'رینگ رنگین‌کمان چرخان — کمیاب‌ترین طرح'}
+ {id:'neon',  n:'نئون',      c:45,d:'رینگ رنگین‌کمان چرخان — کمیاب‌ترین طرح'},
+ {id:'phoenix',n:'ققنوس',    c:35,d:'پرنده‌ی آتشین با اوج‌گرفتن زنده — نشان تولد دوباره'},
+ {id:'orbit', n:'مدار',      c:50,d:'سیاره با ماهواره‌ی در گردش — کمیاب‌ترین نشان جهان'}
 ];
 window.EMST=EMST;
 window.wd50EmTag=function(em,id){
@@ -14848,5 +14879,160 @@ function pollSpecial(){
 pollSpecial();setInterval(pollSpecial,30000);
 })();
 </script>
+   <style id="v51-css">
+/* ===== V51: دکمه‌ی ضربدر سینما + حالت خودکار سبک + نشان‌های جدید ===== */
+#wd51-skip{position:fixed;top:10px;left:10px;z-index:100500;display:none;align-items:center;gap:6px;
+  background:rgba(8,2,2,.92);border:1.5px solid #ff5470;color:#fff;font-weight:900;font-size:12.5px;
+  padding:8px 12px;border-radius:14px;cursor:pointer;box-shadow:0 6px 22px rgba(0,0,0,.6);font-family:inherit}
+#wd51-skip b{font-size:15px;line-height:1;color:#ff8ba0}
+#wd51-skip small{font-size:9px;font-weight:700;color:#ffb3c2;display:block;margin-top:1px}
+#wd51-skip:active{transform:scale(.94)}
+/* حالت سبکِ خودکار — فقط وقتی FPS پایین است روشن می‌شود */
+body.wd-autolite #map::before,body.wd-autolite #map::after{display:none!important}
+body.wd-autolite #vignette,body.wd-autolite #v12-map-fx{display:none!important}
+body.wd-autolite #ticker span{animation:none!important}
+body.wd-autolite .own-wrap,body.wd-autolite .own{filter:none!important}
+body.wd-autolite .hchip,body.wd-autolite .res-card,body.wd-autolite .nav-btn{box-shadow:none!important}
+body.wd-autolite .leaflet-marker-icon img{box-shadow:none!important}
+body.wd-autolite .leaflet-overlay-pane path{transition:none!important}
+body.wd-autolite .wd-em{animation:none!important}
+/* نوار دکمه‌ی مراسم المپیک داخل هاب */
+#wd51-cerbar{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);z-index:100002;display:none;gap:8px}
+#wd51-cerbar .wd51-cerb{background:linear-gradient(135deg,rgba(20,40,70,.96),rgba(30,16,60,.96));border:1.5px solid #ffd75e;
+  color:#ffe9a8;font-weight:900;font-size:11.5px;padding:9px 14px;border-radius:14px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.55);font-family:inherit}
+#wd51-cerbar .wd51-cerb.alt{border-color:#7fd7ff;color:#c9ecff}
+#wd51-cerbar .wd51-cerb:active{transform:scale(.95)}
+/* نشان‌های V51 */
+.wd-em-phoenix{background:radial-gradient(circle at 34% 30%,#ffe3b0,#ff6a2a 45%,#8a1a05 78%,#2a0600);border-color:#ffb35e;box-shadow:0 0 10px rgba(255,120,40,.85),inset 0 0 6px rgba(255,230,170,.55);animation:wd51rise 2.4s ease-in-out infinite}
+@keyframes wd51rise{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
+.wd-em-orbit{background:radial-gradient(circle at 36% 32%,#bfe3ff,#1d4f8a 45%,#04122b 80%);border-color:#7fc3ff;box-shadow:0 0 10px rgba(90,167,255,.8),inset 0 0 6px rgba(190,230,255,.5);overflow:visible}
+.wd-em-orbit::before{content:'';position:absolute;inset:-3px;border-radius:50%;border:1px dashed rgba(140,200,255,.85);animation:wd50spin 3.6s linear infinite}
+.wd-em-orbit::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:radial-gradient(circle at 50% 0%,#eaf6ff 0 2px,transparent 2.5px);animation:wd50spin 3.6s linear infinite}
+   </style>
+   <script id="v51-core">
+(function(){
+'use strict';
+var D=document;
+/* ================= ۱) ضربدر سینمای نبرد — همیشه کار می‌کند =================
+   چیپ روی body سوار می‌شود (بیرون از مودال) و با observer به active بودن #m-battle وصل است.
+   کلیک = بستن فوری سینما + آزادکردن قفل؛ خود نبرد در پس‌زمینه ادامه دارد و نتیجه‌اش
+   از روی نقشه (هاشور/انفجار) و اعلان‌ها دیده می‌شود. */
+var chip=null;
+function ensureChip(){
+  if(chip&&chip.isConnected)return;
+  chip=D.createElement('button');chip.id='wd51-skip';chip.type='button';
+  chip.innerHTML='<b>✕</b><span>بستن سینما<small>نبرد از روی نقشه ادامه دارد</small></span>';
+  chip.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();wd51DoSkip()});
+  D.body.appendChild(chip);
+}
+function syncChip(){
+  try{var m=D.getElementById('m-battle');if(!m||!chip)return;
+    chip.style.display=m.classList.contains('active')?'flex':'none'}catch(e){}
+}
+window.wd51BattleArm=function(){try{ensureChip();syncChip()}catch(e){}};
+function wd51DoSkip(){
+  try{
+    if(typeof battleBusy!=='undefined')battleBusy=false;
+    window.__war30=false;
+    D.body.classList.remove('wd-war');
+    var wf=D.getElementById('wd-warfx');if(wf)wf.classList.remove('on');
+    if(typeof closeModal==='function')closeModal('m-battle');
+    if(chip)chip.style.display='none';
+    if(typeof showToast==='function')showToast('🔴 سینما بسته شد — نبرد واقعی ادامه دارد؛ نتیجه را از نقشه و اعلان‌ها دنبال کن','win');
+  }catch(e){try{if(typeof closeModal==='function')closeModal('m-battle')}catch(e2){}}
+}
+window.wd51DoSkip=wd51DoSkip;
+/* واتچ‌داگ ضدگیر: اگر مودال نبرد بیش از ۱۵ ثانیه باز ماند و قفل هم فعال بود، اجباری بسته می‌شود
+   — هیچ جریان حمله‌ای (PvP یا خنثی) دیگر نمی‌تواند بازی را قفل کند */
+try{
+  setInterval(function(){
+    try{
+      var m=D.getElementById('m-battle');
+      if(!m||!m.classList.contains('active')){window.__wd51openAt=0;return}
+      if(typeof battleBusy!=='undefined'&&battleBusy){
+        if(!window.__wd51openAt)window.__wd51openAt=Date.now();
+        else if(Date.now()-window.__wd51openAt>15000){
+          window.__wd51openAt=0;wd51DoSkip();
+          try{showToast('⏱️ نبرد بیش از حد طول کشید — صفحه بسته شد؛ نتیجه از روی نقشه معلوم می‌شود','win')}catch(e){}
+        }
+      }else{window.__wd51openAt=0}
+    }catch(e){}
+  },1000);
+}catch(e){}
+try{ensureChip();
+  var bmo=new MutationObserver(syncChip);
+  var armB=function(){var m=D.getElementById('m-battle');if(m){bmo.observe(m,{attributes:true,attributeFilter:['class']});syncChip();return true}return false};
+  if(!armB()){var biv=setInterval(function(){if(armB())clearInterval(biv)},800);setTimeout(function(){clearInterval(biv)},30000)}
+  D.addEventListener('keydown',function(ev){if(ev&&ev.key==='Escape'&&chip&&chip.style.display==='flex'){try{var m=D.getElementById('m-battle');if(m&&m.classList.contains('active'))wd51DoSkip()}catch(e){}}});
+}catch(e){}
+
+/* ================= ۲) واتچ‌داگ FPS — کیفیت خودکار =================
+   هر ۲۵ ثانیه ۴ ثانیه FPS نمونه‌برداری می‌شود؛ زیر ۲۶ → بدنه wd-autolite
+   (حذف جوّ نقشه، سایه‌ها و انیمیشن‌های تزئینی)؛ بالای ۴۴ → برگشت به حالت کامل. */
+(function(){
+  var checking=false;
+  function sample(){return new Promise(function(res){
+    if(D.hidden)return res(0);
+    var n=0,t0=performance.now();
+    (function f(){n++;var t=performance.now();
+      if(t-t0<4000)requestAnimationFrame(f);else res(n/((t-t0)/1000))})();
+  })}
+  function cyc(){
+    setTimeout(function(){
+      if(checking){cyc();return}
+      checking=true;
+      sample().then(function(f){
+        checking=false;
+        try{
+          if(f>0&&f<26&&!D.body.classList.contains('wd-autolite'))D.body.classList.add('wd-autolite');
+          else if(f>44&&D.body.classList.contains('wd-autolite'))D.body.classList.remove('wd-autolite');
+        }catch(e){}
+        cyc();
+      });
+    },25000);
+  }
+  setTimeout(cyc,9000);
+})();
+
+/* ================= ۳) المپیک: پخش دوباره‌ی مراسم + اجرای دوباره‌ی امن ================= */
+(function(){
+  function wrapCer(fn){
+    return function(d){
+      try{
+        var el=D.getElementById('wd33-cer');
+        if(el&&el.classList.contains('on'))return; /* مراسم در حال پخش است — اجرای دوباره ممنوع */
+        clearTimeout(window.__wd51cerT);
+        window.__wd51cerT=setTimeout(function(){try{var e2=D.getElementById('wd33-cer');if(e2)e2.classList.remove('on')}catch(e){}},42000);
+      }catch(e){}
+      return fn(d);
+    };
+  }
+  try{if(typeof window.WD33_OPEN_CEREMONY==='function')window.WD33_OPEN_CEREMONY=wrapCer(window.WD33_OPEN_CEREMONY)}catch(e){}
+  try{if(typeof window.WD33_CLOSE_CEREMONY==='function')window.WD33_CLOSE_CEREMONY=wrapCer(window.WD33_CLOSE_CEREMONY)}catch(e){}
+  /* نوار «پخش مراسم» داخل هاب المپیک — در همه‌ی فازها */
+  var bar=null,mo=null;
+  function ensureBar(){
+    try{
+      var wrap=D.getElementById('wg33-wrap');var page=D.getElementById('wd-games');
+      if(!wrap||!page||!page.classList.contains('on')){if(bar)bar.style.display='none';return}
+      if(!bar){bar=D.createElement('div');bar.id='wd51-cerbar';
+        var b1=D.createElement('button');b1.className='wd51-cerb';b1.textContent='🎬 مراسم افتتاحیه';
+        var b2=D.createElement('button');b2.className='wd51-cerb alt';b2.textContent='🏁 مراسم اختتامیه';
+        b1.addEventListener('click',function(){try{window.WD33_OPEN_CEREMONY(window.__wg33data||null)}catch(e){}});
+        b2.addEventListener('click',function(){try{window.WD33_CLOSE_CEREMONY(window.__wg33data||null)}catch(e){}});
+        bar.appendChild(b1);bar.appendChild(b2);
+        wrap.parentNode.appendChild(bar);
+        if(!mo){mo=new MutationObserver(function(){setTimeout(ensureBar,80)});
+          try{mo.observe(wrap,{childList:true})}catch(e){}}}
+      bar.style.display='flex';
+    }catch(e){}
+  }
+  try{
+    setTimeout(ensureBar,3500);
+    var iv=setInterval(function(){try{var p=D.getElementById('wd-games');if(p&&p.classList.contains('on'))ensureBar()}catch(e){}},5000);
+  }catch(e){}
+})();
+})();
+   </script>
 </body>
 </html>

@@ -23,6 +23,12 @@ const GEM_COSTS: Record<string, number> = {
   /* V43 — زینتی‌های سینمایی جدید (اولویت کاربر: سرود امپراتوری + قاب پروفایل پویا) */
   anthem: 35, frame: 30, entrance: 25, announce: 22
 }
+/* V51 — نشان‌های ویژه (emst_*) : قیمت باید با EMST سمت کلاینت یکی باشد.
+   قبلاً این کلیدها در GEM_COSTS نبودند → سرور error:'item' برمی‌گرداند و خرید نشان ارور می‌داد. */
+const EMST_COSTS: Record<string, number> = {
+  gold: 25, fire: 30, ice: 30, galaxy: 35, dragon: 40,
+  royal: 35, shadow: 30, neon: 45, phoenix: 35, orbit: 50,
+}
 const WEEKLY_REWARDS: Record<number, number> = { 1: 5000, 2: 2500, 3: 1000 }
 const WEEKLY_CATEGORIES = ['score', 'kills', 'economy', 'recruits'] as const
 
@@ -745,7 +751,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       }
       case 'spend_gems': {
         const item = String(args.p_item || '')
-        const cost = GEM_COSTS[item]
+        /* V51: emst_<id> — نشان‌های ویژه با قیمت از EMST_COSTS */
+        const cost = GEM_COSTS[item] ?? (item.startsWith('emst_') ? EMST_COSTS[item.slice(5)] : undefined)
         if (!cost) return R({ ok: false, error: 'item' })
         /* atomic conditional decrement — no read-modify-write race, no double-spend */
         const dec = await db.wallet.updateMany({ where: { userId: user.id, gems: { gte: cost } }, data: { gems: { decrement: cost } } })
