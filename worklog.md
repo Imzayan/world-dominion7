@@ -853,3 +853,23 @@ Work Log:
 Stage Summary:
 - نام بازی در همه سطوح انگلیسی شد: زیر آیکون گوشی + اسپلش + privacy
 - APK جدید: download/apk/WorldDominion-v1.0.3.apk + لینک https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.3.apk
+
+---
+Task ID: V48-shop-rank-map
+Agent: Super Z (main)
+Task: درخواست کاربر (۴ اسکرین‌شات): فروشگاه رنگ سینمایی + نشان‌های خوشگل + حذف پیام دو دستگاه + رنکینگ زنده + آیکون خروج + اسم بازیکن روی نقشه + توضیح کودتا/شهاب
+
+Work Log:
+- کشف کلیدی ۱: رنگ‌هایی که کاربر می‌بیند «چرخ رنگ V28» است (openPick28 با MutationObserver جایگزین cos-pick می‌شود) — استایل قبلی .cos27-sw مسیر مرده بود. فیکس: wd28-sw2 با var(--h) → گوی سیاره‌ای سه‌بعدی (radial ۵لایه + خطوط جغرافیایی repeating-gradient + برق + هاله) + wd28-prev-chip درخشان. پیش‌نمایش: scripts/shot-color.png
+- کشف کلیدی ۲: رنکینگ واقعی renderRank35 است (rankOnlineBy سه بار override شده: 3255 → 7705 → 11972). رفرش زنده ۶ثانیه‌ای + نوت «🔄 زنده» به renderRank35 اضافه شد (نسخه اول به rankOnlineBy قدیمی پچ شده بود که dead path بود — برگردانده شد)
+- نشان‌ها: .cos27-em مدال گرد با هاله‌ی رنگی اختصاصی (--eh = idx*137+20) + رینگ طلایی و تیک ✓ برای انتخاب‌شده. emojiهای خود نشان‌ها دست نخوردند (COS.emblem ذخیره‌شده نمی‌شکند)
+- رنکینگ قاب: .wd43-frame قبلاً display:inline-block + inset:-4px -7px + z-index:-1 داشت → ریتم ردیف‌ها به هم می‌ریخت. فیکس: حاشیه‌ی گرادیانی چرخان با mask-composite + @supports fallback + ✦ بالا وسط. تست: ارتفاع ردیف دقیقاً ثابت ماند
+- خروج: acc-chip بازطراحی شد (showChip ساختاری: .wd-av آواتار + .wd-nick نام + .wd-out دکمه‌ی پاور SVG قرمز درخشان). سه نقطه‌ی مصرف هماهنگ شد: showChip hook 7021 (بجای textContent کل، .wd-nick آپدیت می‌کند) + refreshChip + rankFrame/titleShine (host=.wd-nick)
+- چنددستگاهی: پیام «این حساب روی دستگاه دیگری...» حذف شد — conflict حالا بی‌صدا ver تازه می‌گیرد و چرخه‌ی بعدی سیو (۸ثانیه) دوباره می‌نویسد (آخرین دستگاه برنده). saveBlocked که هیچ‌جا خوانده نمی‌شد حذف شد
+- نقشه: (۱) labels مالک در همه‌ی زوم‌ها دیده می‌شوند (قبلاً :not(.z3) display:none بود — دلیل «باید زوم کنی») (۲) کشورهای بی‌مالک: baseStyle saturation 52%→26% و lightness 48-54% (درس V45 حفظ شد) (۳) کشورهای دیگران: satur 60→68 + border ضخیم‌تر
+- تست: scripts/smoke-v48.mjs — 21/21 PASS (CSS استاتیک + بوت مهمان صفر pageerror + پیکرها با کلیک واقعی UI + قاب ارتفاع ثابت + نوت زنده) + اسکرین‌شات‌های رنگ/نشان/چیپ
+- انتشار: commit V48 + push → لایو تأیید شد (۴ مارکر V48 + صفر مورد «دستگاه دیگری»)
+
+Stage Summary:
+- هر ۶ خواسته روی production لایو است؛ APK نیازی به نصب مجدد ندارد (HTML از سرور لود می‌شود و SW های V5 هم fresh-first است)
+- کودتا = ۱۰۰جم: ۱۸٪ خاک بدون جنگ + مدافع ۶ساعت ۱۵٪ ضعیف | شهاب‌سنگ = ۸۰جم: دفاع هدف ۳۰دقیقه ۱۳٪ ضعیف (۳بار در هفته)
