@@ -5541,13 +5541,8 @@ function renderLvlChip(){
   chip.innerHTML='<span>'+r[1]+'</span><small>🏴 '+n+' کشور'+(next?(' → '+next[1].replace(/^[^ ]+ /,'')+' در '+next[0]):'')+'</small>';
 }
 setTimeout(function(){
-  var strip=D.getElementById('hud-strip');
-  if(strip){
-    var c=D.createElement('div');c.id='wd-lvlchip';c.title='رتبه و لقب شما در جهان';
-    c.onclick=function(){try{document.getElementById('btn-m-rank').click();}catch(e){}};
-    strip.appendChild(c);
-    setInterval(renderLvlChip,2000);renderLvlChip();
-  }
+  /* V44: چیپ «آغازگر» حذف شد — اضافی بود؛ رتبه در پنل رتبه‌بندی دیده می‌شود */
+  void 0;
   /* bottom-nav ready badges (tax / un aid) */
   setInterval(function(){
     try{
@@ -8776,8 +8771,9 @@ pollGoal();setInterval(()=>{if(!document.hidden)pollGoal()},90000);
 try{fetch('/api/db/server_stats',{cache:'no-store'}).then(r=>r.json()).then(j=>{window.__srvStats=j&&j.data?j.data:j;pollGoal()}).catch(()=>{})}catch(e){}
 
 /* ---------- 8) fog of war (مه جنگ — بصری، غیرقفل‌کننده) ---------- */
-const FOG={on:true,revealed:{},MK:{}};
-try{FOG.on=!(localStorage.getItem('wd30fog')==='off')}catch(e){}
+/* V44: پیش‌فرض مه خاموش — نقشه همیشه رنگی و شفاف؛ فعال‌سازی فقط از پنل */
+const FOG={on:false,revealed:{},MK:{}};
+try{FOG.on=(localStorage.getItem('wd30fog')==='on')}catch(e){}
 function fogCenter(n){const g=getG(n);return g?g.c:null}
 function fogVisible(n){if(!FOG.on)return true;if(FOG.revealed[n]>Date.now())return true;
   if(conqueredCountries.has(n)||n===myCountryName)return true;
@@ -8788,16 +8784,16 @@ function fogVisible(n){if(!FOG.on)return true;if(FOG.revealed[n]>Date.now())retu
   if(!mine.length)return true;
   mine.forEach(m=>{const mc=fogCenter(m);if(!mc)return;const dx=(mc[0]-c[0]),dy=(mc[1]-c[1])*Math.cos(c[0]*Math.PI/180);
     best=Math.min(best,Math.hypot(dx,dy))});
-  return best<15}
+  return best<20}
 function applyFogOne(n){const l=layersByName[n];if(!l)return;
   if(fogVisible(n)){if(l._fogged){l._fogged=false;try{applyCountryColor(n)}catch(e){}}}
-  else{if(!l._fogged){l._fogged=true;l.setStyle({fillColor:'#0a1424',fillOpacity:.9,color:'#22354f',weight:.7,dashArray:'3 4'})}}}
+  else{if(!l._fogged){l._fogged=true;l.setStyle({fillColor:'#16283f',fillOpacity:.5,color:'#3f5a7d',weight:.7})}}}
 let fogBusy=false;
 function computeFog(){if(fogBusy)return;fogBusy=true;setTimeout(()=>{fogBusy=false;
   try{Object.keys(layersByName).forEach(applyFogOne)}catch(e){}},50)}
 window.WD30_FOG={get on(){return FOG.on},set on(v){FOG.on=v;localStorage.setItem('wd30fog',v?'on':'off');if(v){computeFog()}else{Object.keys(layersByName).forEach(n=>{if(layersByName[n]._fogged){layersByName[n]._fogged=false;try{applyCountryColor(n)}catch(e){}}})}},
   reveal(list,min){list.forEach(n=>FOG.revealed[n]=Date.now()+(min||10)*60000);computeFog()},compute:computeFog};
-window.addEventListener('load',()=>{setTimeout(computeFog,4000);setInterval(computeFog,9000)});
+window.addEventListener('load',()=>{setTimeout(function(){if(FOG.on)computeFog()},4000);setInterval(function(){if(FOG.on)computeFog()},9000)});
 
 /* ---------- 9) special ops: کودتا + رگبار شهاب ---------- */
 window.__wdDebuff=window.__wdDebuff||{};window.__wdUnrest=window.__wdUnrest||{};
@@ -13342,9 +13338,9 @@ window.__wd42num=function(el,from,to){
 [data-k="wrestle"]{--kac:#e05299;--ksof:rgba(224,82,153,.35)}
 
 /* ---------- 3) آموزش بازیکن جدید ---------- */
-#wd43-spot{position:fixed;z-index:9986;pointer-events:none;border:2px solid #ffd84d;border-radius:14px;box-shadow:0 0 0 4000px rgba(2,8,20,.72),0 0 22px rgba(255,216,77,.5);opacity:0;transform:scale(.96);transition:top .45s cubic-bezier(.3,1.4,.4,1),left .45s cubic-bezier(.3,1.4,.4,1),width .45s,height .45s,opacity .3s,transform .3s}
+#wd43-spot{position:fixed;z-index:10004;pointer-events:none;border:2px solid #ffd84d;border-radius:14px;box-shadow:0 0 0 4000px rgba(2,8,20,.72),0 0 22px rgba(255,216,77,.5);opacity:0;transform:scale(.96);transition:top .45s cubic-bezier(.3,1.4,.4,1),left .45s cubic-bezier(.3,1.4,.4,1),width .45s,height .45s,opacity .3s,transform .3s}
 #wd43-spot.on{opacity:1;transform:scale(1)}
-#wd43-tut{position:fixed;top:104px;left:50%;transform:translate(-50%,-12px);z-index:9987;width:min(340px,calc(100vw - 20px));background:linear-gradient(160deg,rgba(10,26,52,.97),rgba(6,16,34,.97));border:1px solid rgba(255,216,77,.45);border-radius:16px;padding:13px 14px;box-shadow:0 12px 34px rgba(0,0,0,.5),0 0 18px rgba(255,216,77,.14);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s}
+#wd43-tut{position:fixed;top:104px;left:50%;transform:translate(-50%,-12px);z-index:10005;width:min(340px,calc(100vw - 20px));background:linear-gradient(160deg,rgba(10,26,52,.97),rgba(6,16,34,.97));border:1px solid rgba(255,216,77,.45);border-radius:16px;padding:13px 14px;box-shadow:0 12px 34px rgba(0,0,0,.5),0 0 18px rgba(255,216,77,.14);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s}
 #wd43-tut.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
 #wd43-tut .h{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;color:#ffd84d}
 #wd43-tut .h small{margin-inline-start:auto;color:#8fa3c0;font-weight:700}
@@ -13619,6 +13615,7 @@ function tutSpot(tg){var sp=S$('wd43-spot');if(!sp)return;try{if(!tg){sp.classLi
  var r=tg.getBoundingClientRect();if(r.width<4){sp.classList.remove('on');return}
  sp.style.top=(r.top-6)+'px';sp.style.left=(r.left-6)+'px';sp.style.width=(r.width+12)+'px';sp.style.height=(r.height+12)+'px';sp.classList.add('on')}catch(e){}}
 function tutShow(){try{if(tutState.done||tutState.skipped||tutState.i>=TUT.length){tutHide();return}
+ if(D.querySelector('.modal.active'))return; /* V44: تا مودال باز است آموزش نشان نده — بعد از بستن خودش می‌آید */
  var st=TUT[tutState.i];if(!st)return;if(st.id==='capital'&&typeof GAME==='undefined')return; /* قبل از آماده‌شدن بازی نرو */
  var t=tutEl();t.querySelector('.h').textContent='';t.querySelector('.h').append(el('span',st.ic+' '),el('span',st.fa),el('small',(faN(tutState.i+1)+' / '+faN(TUT.length))));
  t.querySelector('.d').textContent=st.d;t.querySelector('.rw').textContent='🎁 جایزه‌ی این قدم: '+grp(st.rw)+' طلا';
@@ -14061,6 +14058,27 @@ setTimeout(function(){try{WD43._t={propRender:propRender,propModalEnsure:propMod
 
 
 </script>
+<style id="wd44-perf">
+/* ================= V44 PERF PATCH =================
+   حذف انیمیشن‌های بی‌نهایتِ پرهزینه از عناصر همیشه‌مرئی (هزینه‌ی هر-فریم صفر)
+   گراف درخشان با text-shadow ایستا حفظ می‌شود — ظاهر همان، سرعت چندهباردیگر */
+.res-card i{animation:none!important;filter:none!important;text-shadow:0 0 6px var(--rc,transparent),0 0 14px var(--rc,transparent)}
+.res-card::after{animation:none!important;content:none!important}
+.nav-btn span:first-child{animation:none!important;filter:none!important;text-shadow:0 0 8px var(--cyan-glow,transparent)}
+.bic-icon{animation:none!important;filter:none!important;text-shadow:0 0 8px #ff3366}
+.action-btn::after{animation:none!important;content:none!important}
+#waves::before,#waves::after{animation:none!important}
+.wd31-live i,.wd34-live i,.wd40-live-hd i,#wd33-strip .live33 i{animation:none!important;box-shadow:0 0 8px #ff3366}
+.wd-unrest{animation:none!important}
+.veh .cg{animation:none!important}
+#wd-target-hint{animation:none!important}
+/* مودال‌ها: blur تمام‌صفحه‌ی گران حذف شد — پس‌زمینه‌ی تیره‌ی یکنواخت */
+.modal{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(1,3,10,.9)!important}
+/* موبایل/لمسی (APK): هر انیمیشن بی‌نهایت در ۱میلی‌ثانیه به وضعیت پایانی می‌رسد و متوقف می‌شود
+   — انیمیشن‌های ورودی سالیم‌اند (fill-mode وضعیت نهایی را نگه می‌دارد) */
+@media (pointer:coarse){
+  *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important}
+}
+</style>
 </body>
 </html>
-
