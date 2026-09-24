@@ -947,3 +947,11 @@ Stage Summary:
 - هر ۵ خواسته پیاده و تست شد؛ کاربران 1.0.5 آپدیت خودکار v1.0.6 را می‌گیرند
 - APK: https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.6.apk
 - درس: «گیر کردن» کاربر فقط باگ JS نبود — فاز انتظار RPC بدون هیچ دکمه‌ای بود؛ حالا ✕ همیشه هست و ۱۵ثانیه هم اتوکلوک دارد
+
+--- 
+Task ID: V51-perf-emblembuy-skip-olympics (appendix)
+Agent: Super Z (main)
+Work Log:
+- push به GitHub انجام نشد: هیچ توکن/credential در این session موجود نیست (git credential fill خطای no-username؛ vercel CLI هم logged out؛ .ssh خالی). remote/main هنوز روی f3b9d0b (V50) است
+- کد V51 به‌صورت local commit شد: 983558a — آماده‌ی push
+- انتشار نهایی با یک دستور بعد از دسترسی کاربر: git push origin main  → Vercel خودش deploy می‌کند → آپدیت‌کننده‌ی داخل اپ v1.0.6 را توزیع می‌کند
