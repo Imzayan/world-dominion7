@@ -41,7 +41,7 @@ import java.security.MessageDigest;
 public class MainActivity extends Activity {
 
     /* V49: پارامتر نسخه → WebView هرگز HTML قدیمی کش‌شده را سرو نمی‌کند */
-    private static final int GAME_VER = 52;
+    private static final int GAME_VER = 53;
     private static final String GAME_URL = "https://world-dominion7.vercel.app/game/index.html?v=" + GAME_VER;
     private static final String GAME_HOST = "world-dominion7.vercel.app";
     private static final String ERROR_URL = "file:///android_asset/error.html";

@@ -1,0 +1,2 @@
+apk-build/build/gen/com/worlddominion/game/R.java
+apk-build/app/java/com/worlddominion/game/MainActivity.java

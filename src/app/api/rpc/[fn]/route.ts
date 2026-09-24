@@ -411,10 +411,36 @@ const olNow = () => Date.now() + (Number(process.env.OL_OFFSET || 0) || 0)
 const hashEd = (e: number) => { let h = (e * 2654435761) >>> 0; h ^= h >>> 13; h = Math.imul(h, 1274126177) >>> 0; return h >>> 0 }
 const hostOf = (edition: number) => HOSTS[hashEd(edition) % HOSTS.length]
 
+/* ============ V53 — کنترل ادمین المپیک + مزایده‌ی میزبانی بازیکن با جم ============
+   بدون تغییر اسکیما: شیفت برنامه در GameSetting('oly_shift')، مزایده در GameSetting('oly_host_e<edition>').
+   gamesPhase سینک می‌ماند (مسیر داغ PvP)؛ حافظه با تاخیر حداکثر ۱۵ ثانیه از DB تازه می‌شود. */
+let olyShiftMem: { edition?: number; openAt?: number; closeAt?: number } = {}
+let olyShiftAt = 0
+async function olyShiftRefresh(force = false) {
+  if (!force && Date.now() - olyShiftAt < 15000) return
+  try {
+    const v = await getSetting<{ edition?: number; openAt?: number; closeAt?: number } | null>('oly_shift', null)
+    olyShiftMem = v || {}
+    olyShiftAt = Date.now()
+  } catch (e) { console.log('olyshift', e) }
+}
+let olyHostCache: { ed: number; v: { uid: string; nick: string; amount: number; city: string; country: string } | null; at: number } | null = null
+async function olyHostGet(ed: number) {
+  if (olyHostCache && olyHostCache.ed === ed && Date.now() - olyHostCache.at < 15000) return olyHostCache.v
+  let v: { uid: string; nick: string; amount: number; city: string; country: string } | null = null
+  try { v = await getSetting<typeof v>('oly_host_e' + ed, null) } catch (e) { console.log('olyhost', e) }
+  olyHostCache = { ed, v, at: Date.now() }
+  return v
+}
+
 function gamesPhase(now = olNow()) {
   const edition = Math.floor((now - ED_ANCHOR) / ED_LEN) + 1
   const start = ED_ANCHOR + (edition - 1) * ED_LEN
-  const regAt = start + ED_REG, openAt = start + ED_OPEN, closeAt = start + ED_CLOSE
+  const regAt = start + ED_REG
+  /* V53: شیفت ادمین فقط برای همان دوره اعمال می‌شود — شروع فوری (openAt=now) یا پایان فوری (closeAt=now) */
+  const sh = (olyShiftMem && olyShiftMem.edition === edition) ? olyShiftMem : {}
+  const openAt = (typeof sh.openAt === 'number' && sh.openAt > 0) ? sh.openAt : start + ED_OPEN
+  const closeAt = (typeof sh.closeAt === 'number' && sh.closeAt > 0) ? Math.max(sh.closeAt, openAt + 60000) : start + ED_CLOSE
   const nextReg = start + ED_LEN + ED_REG
   let phase: 'pre' | 'reg' | 'live' | 'after' = 'pre'
   if (now >= closeAt) phase = 'after'
@@ -513,6 +539,14 @@ async function closeGamesEdition(edition: number) {
     if (c === 'P2002') return await db.olympicArchive.findUnique({ where: { edition } })
     console.log('arch', e)
   }
+  /* V53: جایزه‌ی میزبان دوره در اختتامیه — برنده‌ی مزایده ۵۰ جم هدیه می‌گیرد (فقط یک‌بار، مسیر برنده‌ی بستن) */
+  try {
+    const hst = await getSetting<{ uid: string; nick: string; amount: number } | null>('oly_host_e' + edition, null)
+    if (hst && hst.uid) {
+      const hw = await db.wallet.updateMany({ where: { userId: hst.uid }, data: { gems: { increment: 50 } } })
+      if (hw.count === 0) console.log('olyhostpay-miss')
+    }
+  } catch (e) { console.log('olyhostpay', e) }
   /* ---- rewards: only the close-winner reaches this line ---- */
   if (champ) {
     const u = await db.user.findFirst({ where: { nickLower: champ.nick.toLowerCase() } })
@@ -1136,6 +1170,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       /* ---------------- V31/V32 olympics: disciplines + medal table + crowned champion ---------------- */
       case 'olympics': {
         const server = Math.max(1, Number(args.p_server || 1))
+        await olyShiftRefresh()
         /* V32: lazy weekly crowning — also runs here so page viewers trigger it */
         let champRow: Awaited<ReturnType<typeof latestChampion>> = null
         champRow = await latestChampion(server)
@@ -1164,7 +1199,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           events: evs,
           games: {
             phase: g.phase, edition: g.edition, game_day: g.gameDay, today: g.today,
-            host: g.host, truce: g.phase === 'live' && evs.olympic !== false,
+            host: g.host, host_player: await olyHostGet(g.edition), truce: g.phase === 'live' && evs.olympic !== false,
             reg_at: new Date(g.regAt).toISOString(), open_at: new Date(g.openAt).toISOString(),
             close_at: new Date(g.closeAt).toISOString(), next_reg: new Date(g.nextReg).toISOString(),
           },
@@ -1173,6 +1208,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
 
       /* ---------------- V33 olympic_games: full hub payload (state, schedule, table, records, archive) ---------------- */
       case 'olympic_games': {
+        await olyShiftRefresh()
         try { await ensureGamesClosed() } catch (e) { console.log('olgames', e) }
         if (!(await evOn('olympic'))) {
           /* V38: disabled payload carries records+archive so the "disabled" hub page still shows history */
@@ -1238,6 +1274,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const live_feed = feedRows.map((f) => ({ nick: f.nick, discipline: f.discipline, best: f.best, countryFa: f.countryFa || f.country || '', at: f.lastAt.toISOString() }))
         return R({
           edition, phase: g.phase, game_day: g.gameDay, today: g.today, host: g.host,
+          host_player: await olyHostGet(edition),
           reg_at: new Date(g.regAt).toISOString(), open_at: new Date(g.openAt).toISOString(),
           close_at: new Date(g.closeAt).toISOString(), next_reg: new Date(g.nextReg).toISOString(),
           truce: g.phase === 'live',
@@ -1292,11 +1329,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* V33.1: attempts + 8s rate gate atomically (concurrent submits can't exceed 5).
            lastAt is NOT NULL in the schema (default now()), so a plain lte covers it. */
         const rateCut = new Date(Date.now() - 8000)
+        /* V53: میزبان دوره یک تلاش اضافه در هر رشته دارد (۵ ← ۶) */
+        const _h53 = await olyHostGet(g.edition)
+        const hostMax = (_h53 && _h53.uid === user.id) ? 6 : 5
         const gate = await db.olympicEntry.updateMany({
-          where: { id: ent.id, attempts: { lt: 5 }, lastAt: { lte: rateCut } },
+          where: { id: ent.id, attempts: { lt: hostMax }, lastAt: { lte: rateCut } },
           data: { attempts: { increment: 1 }, lastAt: new Date() },
         })
-        if (gate.count === 0) return R({ ok: false, reason: ent.attempts >= 5 ? 'attempts' : 'rate' })
+        if (gate.count === 0) return R({ ok: false, reason: ent.attempts >= hostMax ? 'attempts' : 'rate' })
         const cfa = ent.countryFa || ent.country || null
         const record = await db.olympicRecord.findUnique({ where: { discipline: key } })
         let recordBroken = false
@@ -1333,6 +1373,66 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         })
         EV_CACHE = { at: 0, map: {} }
         return R({ ok: true, key: k, on })
+      }
+
+      /* ============ V53 — کنترل ادمین المپیک: شروع فوری / پایان فوری / بازگشت به برنامه ============ */
+      case 'oly_admin_shift': {
+        if (!user.isAdmin) return R({ ok: false, reason: 'admin' })
+        await olyShiftRefresh(true)
+        const mode = String(args.p_mode || '')
+        const g0 = gamesPhase()
+        if (mode === 'reset') {
+          await setSetting('oly_shift', null)
+          olyShiftMem = {}; olyShiftAt = Date.now()
+          const g = gamesPhase()
+          return R({ ok: true, phase: g.phase, edition: g.edition })
+        }
+        if (mode === 'open') {
+          if (g0.phase === 'live' || g0.phase === 'after') return R({ ok: false, reason: 'phase' })
+          await setSetting('oly_shift', { edition: g0.edition, openAt: olNow(), closeAt: null })
+          olyShiftMem = { edition: g0.edition, openAt: olNow() }; olyShiftAt = Date.now()
+        } else if (mode === 'close') {
+          if (g0.phase !== 'live') return R({ ok: false, reason: 'phase' })
+          /* پایان فوری باید بلافاصله اثر کند — اگر شروع چند ثانیه قبل بوده، بازه‌ی live به حداقل ۶۰ ثانیه فشرده می‌شود */
+          const cAt = olNow()
+          const oAt = Math.min((typeof olyShiftMem.openAt === 'number' && olyShiftMem.openAt > 0) ? olyShiftMem.openAt : cAt - 86400000, cAt - 60000)
+          await setSetting('oly_shift', { edition: g0.edition, openAt: oAt, closeAt: cAt })
+          olyShiftMem = { edition: g0.edition, openAt: oAt, closeAt: cAt }; olyShiftAt = Date.now()
+        } else return R({ ok: false, reason: 'mode' })
+        try { await ensureGamesClosed() } catch (e) { console.log('olyshiftclose', e) }
+        const g = gamesPhase()
+        return R({ ok: true, phase: g.phase, edition: g.edition })
+      }
+
+      /* ============ V53 — مزایده‌ی میزبانی المپیک با جم (هر دوره جدا) ============
+         پیشنهاد = افزایش روی بالاترین پیشنهاد؛ پیشنهاددهنده‌ی قبلی کامل پس گرفته می‌شود؛
+         برداشت با گارد موجودی اتمی است. در فاز live برنده میزبان رسمی دوره است. */
+      case 'oly_host_state': {
+        const g0 = gamesPhase()
+        const cur = await olyHostGet(g0.edition)
+        return R({ ok: true, edition: g0.edition, phase: g0.phase, auction_open: g0.phase === 'pre' || g0.phase === 'reg', host: cur ? { uid: cur.uid, nick: cur.nick, amount: cur.amount } : null, min_next: (cur ? cur.amount : 0) + 5 })
+      }
+      case 'oly_host_bid': {
+        const g0 = gamesPhase()
+        if (g0.phase !== 'pre' && g0.phase !== 'reg') return R({ ok: false, reason: 'window' })
+        const delta = Math.round(Number(args.p_delta) || 0)
+        if (!(delta > 0 && delta <= 100000)) return R({ ok: false, reason: 'delta' })
+        const key = 'oly_host_e' + g0.edition
+        const cur = await getSetting<{ uid: string; nick: string; amount: number; city: string; country: string } | null>(key, null)
+        const prevUid = cur && cur.amount > 0 ? cur.uid : null
+        const prevAmt = cur ? cur.amount : 0
+        if (prevUid) { try { await db.wallet.update({ where: { userId: prevUid }, data: { gems: { increment: prevAmt } } }) } catch (e) { console.log('olyhostref', e) } }
+        const dec = await db.wallet.updateMany({ where: { userId: user.id, gems: { gte: delta } }, data: { gems: { decrement: delta } } })
+        if (dec.count === 0) {
+          if (prevUid) { try { await db.wallet.update({ where: { userId: prevUid }, data: { gems: { decrement: prevAmt } } }) } catch (e) { console.log('olyhostback', e) } }
+          const w = await ensureWallet(user.id)
+          return R({ ok: false, reason: 'funds', gems: w.gems, need: prevAmt + 5 })
+        }
+        const next = { uid: user.id, nick: user.nick, amount: prevAmt + delta, city: g0.host.c, country: g0.host.n }
+        await setSetting(key, next)
+        olyHostCache = { ed: g0.edition, v: next, at: Date.now() }
+        const nw = await ensureWallet(user.id)
+        return R({ ok: true, top: { nick: next.nick, amount: next.amount }, gems: nw.gems })
       }
 
       /* ============ V36 — per-discipline leaderboard with MY progress ============

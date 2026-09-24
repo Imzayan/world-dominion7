@@ -1,27 +1,34 @@
-#!/usr/bin/env node
-/* Syntax-check every inline <script> block of public/game/index.html with vm.Script */
+// Validate every inline <script> block of the game HTML with node --check
+// Usage: node scripts/check-html-js.js <path-to-html>
 const fs = require('fs');
-const vm = require('vm');
-const path = process.argv[2] || 'public/game/index.html';
-const html = fs.readFileSync(path, 'utf8');
-const re = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
-let m, i = 0, bad = 0, skipped = 0;
-while ((m = re.exec(html))) {
+const os = require('os');
+const path = require('path');
+const { execFileSync } = require('child_process');
+
+const file = process.argv[2];
+if (!file) { console.error('usage: node check-html-js.js <html>'); process.exit(2); }
+const html = fs.readFileSync(file, 'utf8');
+
+const re = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+let m, i = 0, bad = 0, checked = 0;
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wdjs-'));
+while ((m = re.exec(html)) !== null) {
+  const attrs = m[1] || '';
+  const body = m[2] || '';
+  if (!body.trim()) continue;
+  if (/\bsrc\s*=/i.test(attrs)) continue; // external script, skip
   i++;
-  const src = m[1];
-  if (!src.trim()) { skipped++; continue; }
+  const p = path.join(tmp, `blk${i}.js`);
+  fs.writeFileSync(p, body);
+  checked++;
   try {
-    new vm.Script(src, { filename: `${path}#block-${i}` });
+    execFileSync(process.execPath, ['--check', p], { stdio: 'pipe' });
   } catch (e) {
     bad++;
-    const line = (e.stack || '').split('\n')[0];
-    console.log(`❌ block ${i}: ${e.message}`);
-    const ln = /:(\d+)$/.exec((e.stack || '').split('\n')[1] || '');
-    if (ln) {
-      const n = parseInt(ln[1], 10);
-      console.log('   context:', src.split('\n').slice(Math.max(0, n - 3), n + 2).map((l, k) => `${n - 2 + k}: ${l}`).join('\n   '));
-    }
+    const err = String(e.stderr || e.message || '').split('\n').slice(0, 6).join('\n');
+    console.error(`BLOCK ${i} SYNTAX ERROR:\n${err}\n`);
   }
 }
-console.log(`checked=${i} empty=${skipped} errors=${bad}`);
+console.log(`checked=${checked} errors=${bad}`);
+fs.rmSync(tmp, { recursive: true, force: true });
 process.exit(bad ? 1 : 0);
