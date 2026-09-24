@@ -833,3 +833,23 @@ Stage Summary:
 - آپدیت خودکار: از این به بعد هر نسخه جدید APK خودش پیام آپدیت می‌دهد؛ کد بازی (HTML) هم بدون نصب آپدیت می‌شود (چون از سرور لود می‌شود)
 - همه ۵ خواسته کاربر: کادر قرمز حذف، پنل حمله کشیدنی/جمع‌شونده/قابل‌بستن، فروشگاه و آیکون‌ها سینمایی، باگ warOff ریشه‌ای فیکس، صفر pageerror در تست production
 - APK جدید: download/apk/WorldDominion-v1.0.2.apk + لینک https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.2.apk
+
+---
+Task ID: V47-english-name
+Agent: Super Z (main)
+Task: درخواست کاربر «اسم بازی فارسیه انگلیسی کن» — انگلیسی‌کردن نام بازی در همه‌جا
+
+Work Log:
+- ریشه‌یابی: نام فارسی در ۳ جای بازی دیده می‌شد: (۱) لیبل لانچر APK در strings.xml = «ورلد دامین» (زیر آیکون گوشی)، (۲) زیرنویس اسپلش sp-fa = «تسلط بر جهان»، (۳) privacy.html = «ورلد دامینین». تایتل بزرگ اسپلش و tab از قبل انگلیسی بودند
+- strings.xml: app_name → World Dominion
+- اسپلش: sp-fa → «CONQUER THE WORLD» + CSS اصلاح شد (direction:ltr + letter-spacing:3px + فونت کوچکتر clamp 15-21px) تا زیر لوگوی انیمیشنی WORLD DOMINION سینمایی دیده شود؛ تگ‌لاین فارسی (sp-tag) دست نخورد چون UI بازی فارسی است
+- privacy.html: h1 → «🌍 World Dominion»
+- AndroidManifest: versionCode 3→4 / versionName 1.0.2→1.0.3 (نکته: بار اول بیلد فراموش شد و badging هنوز vc=3 می‌داد — manifest جدا از متغیرهای build-apk.sh هاردکد است)
+- MainActivity: GAME_URL ?v=46 → ?v=47 ( bust کش WebView برای HTML جدید)
+- بیلد v1.0.3: همان keystore (SHA-256 981f75f8...) → نصب مستقیم روی 1.0.2 بدون حذف. badging تأیید: versionCode=4, versionName=1.0.3, application-label:'World Dominion'
+- latest.json: versionCode 4 + url جدید + sha256 (48d187d2...) + notes فارسی → آپدیت‌کننده داخل برنامه به کاربران 1.0.2 پیام آپدیت می‌دهد
+- انتشار: commit V47 + push → لایو تأیید شد: latest.json=vc4، APK 200، HTML شامل CONQUER THE WORLD و صفر مورد «تسلط بر جهان»
+
+Stage Summary:
+- نام بازی در همه سطوح انگلیسی شد: زیر آیکون گوشی + اسپلش + privacy
+- APK جدید: download/apk/WorldDominion-v1.0.3.apk + لینک https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.3.apk
