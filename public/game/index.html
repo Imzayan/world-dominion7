@@ -8688,7 +8688,10 @@ function warfxEnsure(){if(!warfx){warfx=D.createElement('div');warfx.id='wd-warf
 function warBar(msg,lose){warfxEnsure();warbar.textContent=msg;warbar.classList.toggle('lose',!!lose);warbar.classList.add('on');clearTimeout(warbarT);warbarT=setTimeout(()=>warbar.classList.remove('on'),3400)}
 function stamp(txt,win){warfxEnsure();stampEl.textContent=txt;stampEl.className=win?'win':'fail';void stampEl.offsetWidth;stampEl.classList.add('go');snd('stamp');setTimeout(()=>stampEl.classList.remove('go'),1800)}
 /* V39: اتصال سینمای جنگ به بلوک‌های بیرونی (اتاق فرماندهی PvP) */
-window.WD30_WARFX={ensure:warfxEnsure,bar:warBar,stamp:stamp};
+window.WD30_WARFX={ensure:warfxEnsure,bar:warBar,stamp:stamp,off:warOff};
+/* V46 فیکس باگ جدی: warOff در این اسکوپ تعریف نشده بود → بعد از هر حمله ReferenceError
+   و ثبت تاریخچه‌ی جنگ (stamp/WD30HIST) هیچ‌وقت اجرا نمی‌شد */
+function warOff(){try{if(warfx)warfx.classList.remove('on')}catch(e){}}
 /* during battle: center toasts are silenced → routed to the bottom war bar */
 const _st30=showToast;showToast=function(m,k){if(window.__war30){warBar(m,k==='lose');snd(k==='lose'?'alert':'coin')}else _st30(m,k)};
 /* wrap the whole attack chain (outermost — V28 logistics/border checks stay intact) */
@@ -14158,6 +14161,260 @@ try{
     if(document.hidden)return;
     setTimeout(function(){try{if(window.map&&typeof map.invalidateSize==='function')map.invalidateSize({pan:false})}catch(e){}},120);
   });
+}catch(e){}
+})();
+</script>
+<style id="wd46-css">
+/* ================= V46 ================= */
+/* ---- 1) حذف کامل «کادر قرمز حمله»: ویگنت قرمز + بنر ⚔ + لرزش نقشه + روبان عملیات + ویگنت V30 (کاهش داغی) ---- */
+#wd-war-vig,#wd-war-banner,#wd-warfx{display:none!important}
+.wd-shake,.wd-shockwrap{animation:none!important}
+@keyframes wdShake{from{transform:none}to{transform:none}}
+/* ---- 2) پنل نبرد: باریک‌تر، کشیدنی، جمع‌شونده ---- */
+#m-battle .modal-card{max-width:min(340px,92vw)!important}
+#wd46-bmin{color:#ffd84d;font-weight:900;font-size:20px;padding:0 4px;line-height:1;cursor:pointer;user-select:none}
+#wd46-bpill{position:fixed;left:12px;top:64px;z-index:100600;display:none;align-items:center;gap:7px;
+  background:linear-gradient(135deg,rgba(24,10,28,.96),rgba(46,12,20,.96));border:1px solid rgba(255,60,80,.65);border-radius:999px;
+  padding:8px 13px;color:#fff;font-size:13px;font-weight:800;box-shadow:0 6px 18px rgba(0,0,0,.5),0 0 14px rgba(255,40,60,.35);
+  touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;max-width:78vw}
+#wd46-bpill .pp{color:#ffd84d;min-width:36px;text-align:center;text-shadow:0 0 8px rgba(255,216,77,.5)}
+#wd46-bpill .ph{font-size:10px;color:#9fadc4;font-weight:600}
+#wd46-bpill:active{cursor:grabbing}
+/* کارت در حالت کشیدنی — حتی وسط فاز سینمایی wd-war هم قفل نمی‌شود (specificity بالاتر از body.wd-war) */
+body #m-battle.wd46-free .modal-card{position:fixed!important;left:var(--wd46x,16px)!important;top:var(--wd46y,80px)!important;right:auto!important;bottom:auto!important;transform:none!important;width:min(300px,88vw)!important;max-height:46vh!important;overflow:auto!important;animation:none!important;margin:0!important;z-index:100500!important}
+/* ---- 3) فروشگاه سینمایی: کارت گرادیانی + درخشش + آیکون SVG ---- */
+#m-shop .modal-card{background:linear-gradient(180deg,#0b1a34 0%,#071022 100%)!important;border-color:rgba(255,216,77,.4)!important}
+.cos27-bal{background:linear-gradient(135deg,rgba(255,216,77,.22),rgba(57,230,208,.12))!important;border-color:rgba(255,216,77,.5)!important;box-shadow:0 4px 16px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.12)!important}
+.cos27-bal b{text-shadow:0 0 12px rgba(255,216,77,.55)}
+.cos27-tab{border-radius:14px!important;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03))!important}
+.cos27-tab.on{background:linear-gradient(135deg,#ffd84d,#ff9f2e)!important;color:#241500!important;box-shadow:0 6px 20px rgba(255,180,50,.4)!important}
+.cos27-card{position:relative;overflow:hidden;background:linear-gradient(140deg,rgba(30,50,92,.75),rgba(12,20,42,.92))!important;border:1px solid rgba(120,180,255,.25)!important;border-radius:18px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 5px 16px rgba(0,0,0,.4)!important}
+.cos27-card::before{content:'';position:absolute;left:-45%;top:-70%;width:70%;height:240%;transform:rotate(24deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.09),transparent);pointer-events:none}
+.cos27-card::after{content:'';position:absolute;inset:0;border-radius:18px;pointer-events:none;background:radial-gradient(ellipse at 88% -12%,rgba(255,216,77,.16),transparent 55%)}
+.cos27-ico{width:50px;height:50px;flex:0 0 50px;border-radius:15px!important;background:linear-gradient(135deg,rgba(255,216,77,.24),rgba(255,110,40,.1))!important;border:1px solid rgba(255,216,77,.5)!important;box-shadow:0 0 16px rgba(255,190,60,.3),inset 0 0 14px rgba(255,216,77,.16)!important}
+.cos27-ico svg{width:34px;height:34px;display:block;filter:drop-shadow(0 1px 4px rgba(0,0,0,.5))}
+.cos27-tx b{font-size:13.5px!important;text-shadow:0 0 10px rgba(0,240,255,.22)}
+.cos27-buy{position:relative;border-radius:13px!important;padding:9px 14px!important;font-size:12.5px!important;background:linear-gradient(135deg,#ffd84d 0%,#ff9d2e 100%)!important;color:#241500!important;box-shadow:0 4px 14px rgba(255,160,40,.45),inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 0 rgba(120,60,0,.25)!important;text-shadow:0 1px 0 rgba(255,255,255,.35)}
+.cos27-buy:active{transform:scale(.95)}
+.cos27-buy.alt{background:linear-gradient(135deg,#39e6d0 0%,#2b8cff 100%)!important;color:#01242b!important;box-shadow:0 4px 14px rgba(40,180,255,.45),inset 0 1px 0 rgba(255,255,255,.45)!important;text-shadow:0 1px 0 rgba(255,255,255,.3)}
+.cos27-buy.own{background:rgba(62,232,165,.15)!important;box-shadow:none!important;border:1px solid rgba(62,232,165,.4)!important;color:#3ee8a5!important;text-shadow:none}
+.cos27-buy.off{background:rgba(255,255,255,.09)!important;box-shadow:none!important}
+/* پوسته‌ی رنگی هر آیتم (گرادیان آیکون + حاشیه هم‌رنگ) */
+.cos27-card.t-gold{border-color:rgba(255,205,60,.55)!important}.cos27-card.t-gold .cos27-ico{background:linear-gradient(135deg,rgba(255,200,60,.32),rgba(255,140,20,.14))!important}
+.cos27-card.t-gem{border-color:rgba(170,120,255,.55)!important}.cos27-card.t-gem .cos27-ico{background:linear-gradient(135deg,rgba(170,120,255,.32),rgba(70,40,160,.16))!important;border-color:rgba(190,140,255,.6)!important;box-shadow:0 0 20px rgba(150,100,255,.4),inset 0 0 14px rgba(190,140,255,.2)!important}
+.cos27-card.t-boost{border-color:rgba(255,240,90,.55)!important}.cos27-card.t-boost .cos27-ico{background:linear-gradient(135deg,rgba(255,240,100,.32),rgba(255,180,20,.14))!important;border-color:rgba(255,240,110,.6)!important;box-shadow:0 0 20px rgba(255,235,90,.4)!important}
+.cos27-card.t-oil{border-color:rgba(80,165,255,.5)!important}.cos27-card.t-oil .cos27-ico{background:linear-gradient(135deg,rgba(60,145,255,.3),rgba(20,60,140,.16))!important;border-color:rgba(95,175,255,.55)!important;box-shadow:0 0 18px rgba(60,150,255,.35)!important}
+.cos27-card.t-peace{border-color:rgba(160,220,255,.5)!important}.cos27-card.t-peace .cos27-ico{background:linear-gradient(135deg,rgba(180,225,255,.28),rgba(80,150,220,.14))!important;border-color:rgba(190,230,255,.55)!important;box-shadow:0 0 16px rgba(150,210,255,.35)!important}
+.cos27-card.t-tax{border-color:rgba(110,240,170,.5)!important}.cos27-card.t-tax .cos27-ico{background:linear-gradient(135deg,rgba(110,240,170,.28),rgba(20,150,90,.14))!important;border-color:rgba(120,245,180,.55)!important;box-shadow:0 0 16px rgba(80,230,150,.35)!important}
+.cos27-card.t-vip{border-color:rgba(255,216,77,.6)!important}.cos27-card.t-vip .cos27-ico{background:linear-gradient(135deg,rgba(255,216,77,.35),rgba(160,60,255,.16))!important;box-shadow:0 0 22px rgba(255,200,70,.45),inset 0 0 16px rgba(255,216,77,.22)!important}
+.cos27-card.t-spark{border-color:rgba(120,235,255,.55)!important}.cos27-card.t-spark .cos27-ico{background:linear-gradient(135deg,rgba(120,235,255,.3),rgba(30,120,255,.14))!important;border-color:rgba(140,240,255,.6)!important;box-shadow:0 0 18px rgba(100,220,255,.4)!important}
+.cos27-card.t-fx{border-color:rgba(255,130,220,.55)!important}.cos27-card.t-fx .cos27-ico{background:linear-gradient(135deg,rgba(255,130,220,.3),rgba(160,30,200,.15))!important;border-color:rgba(255,150,230,.6)!important;box-shadow:0 0 18px rgba(255,110,210,.4)!important}
+.cos27-card.t-gift{border-color:rgba(255,120,120,.55)!important}.cos27-card.t-gift .cos27-ico{background:linear-gradient(135deg,rgba(255,120,120,.3),rgba(200,30,60,.15))!important;border-color:rgba(255,140,140,.6)!important;box-shadow:0 0 18px rgba(255,110,110,.4)!important}
+.cos27-card.t-medal{border-color:rgba(255,205,60,.6)!important}.cos27-card.t-medal .cos27-ico{background:linear-gradient(135deg,rgba(255,215,90,.35),rgba(200,120,10,.16))!important;box-shadow:0 0 20px rgba(255,190,50,.45)!important}
+.cos27-card.t-radar{border-color:rgba(255,160,70,.55)!important}.cos27-card.t-radar .cos27-ico{background:linear-gradient(135deg,rgba(255,160,70,.3),rgba(220,80,20,.15))!important;border-color:rgba(255,175,90,.6)!important;box-shadow:0 0 18px rgba(255,150,60,.4)!important}
+.cos27-card.t-stats{border-color:rgba(110,180,255,.55)!important}.cos27-card.t-stats .cos27-ico{background:linear-gradient(135deg,rgba(110,180,255,.3),rgba(30,80,220,.15))!important;border-color:rgba(130,190,255,.6)!important;box-shadow:0 0 16px rgba(90,160,255,.4)!important}
+.cos27-card.t-art{border-color:rgba(255,140,230,.5)!important}.cos27-card.t-art .cos27-ico{background:conic-gradient(from 210deg,rgba(255,90,120,.35),rgba(255,200,60,.35),rgba(80,240,140,.32),rgba(80,180,255,.35),rgba(220,110,255,.35))!important;border-color:rgba(255,170,240,.6)!important;box-shadow:0 0 20px rgba(255,140,220,.4)!important}
+.cos27-card.t-flag{border-color:rgba(130,170,255,.5)!important}.cos27-card.t-flag .cos27-ico{background:linear-gradient(135deg,rgba(90,140,255,.3),rgba(255,90,90,.18))!important;border-color:rgba(140,180,255,.55)!important;box-shadow:0 0 16px rgba(110,150,255,.35)!important}
+/* انتخاب رنگ: گویهای براق سه‌بعدی + اسلایدر رنگین‌کمانی */
+.cos27-sw{width:44px!important;height:44px!important;border:3px solid rgba(255,255,255,.22)!important;box-shadow:inset 0 -7px 10px rgba(0,0,0,.4),inset 0 5px 8px rgba(255,255,255,.5),0 4px 10px rgba(0,0,0,.5)!important;position:relative;transition:transform .15s}
+.cos27-sw::after{content:'';position:absolute;left:20%;top:10%;width:36%;height:28%;border-radius:50%;background:radial-gradient(ellipse at 35% 35%,rgba(255,255,255,.95),rgba(255,255,255,0) 70%);pointer-events:none}
+.cos27-sw:hover{transform:scale(1.08)}
+.cos27-sw.on{border-color:#fff!important;box-shadow:0 0 0 3px #39e6d0,0 0 20px rgba(57,230,208,.65),inset 0 -7px 10px rgba(0,0,0,.4)!important}
+.cos27-slider{-webkit-appearance:none;appearance:none;height:14px!important;border-radius:8px!important;border:1px solid rgba(255,255,255,.3)!important;background:linear-gradient(90deg,hsl(0,85%,55%),hsl(60,85%,55%),hsl(120,85%,50%),hsl(180,85%,50%),hsl(240,85%,58%),hsl(300,85%,55%),hsl(360,85%,55%))!important;box-shadow:inset 0 1px 3px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.4)!important;accent-color:#ffd84d;margin:12px 0!important}
+.cos27-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#d7e2f2 55%,#93a7c2);border:2px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.65);cursor:pointer}
+.cos27-em{width:50px!important;height:50px!important;font-size:24px!important;background:linear-gradient(160deg,rgba(255,255,255,.1),rgba(255,255,255,.03))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 3px 10px rgba(0,0,0,.4)!important}
+.cos27-em.on{border-color:#ffd84d!important;background:linear-gradient(160deg,rgba(255,216,77,.25),rgba(255,140,40,.1))!important;box-shadow:0 0 16px rgba(255,200,60,.45)!important}
+.cos27-chip{background:linear-gradient(135deg,rgba(255,216,77,.14),rgba(57,230,208,.08))!important;border-color:rgba(255,216,77,.35)!important}
+.cos27-h{text-shadow:0 0 12px rgba(255,216,77,.35)}
+/* ---- 4) ریزه‌کاری لگ: سایه‌ی سبک‌تر کشوی کشور ---- */
+.country-drawer{box-shadow:0 -4px 18px rgba(0,0,0,.7)!important}
+</style>
+<script id="wd46-js">
+/* ================= V46: پنل نبرد کشیدنی + جمع‌شونده ================= */
+(function(){
+'use strict';
+var D=document;
+function init(){
+  var mb=D.getElementById('m-battle');if(!mb)return;
+  var card=mb.querySelector('.modal-card');if(!card||card.dataset.wd46)return;card.dataset.wd46='1';
+  var titleRow=card.querySelector('.modal-title-row');if(!titleRow)return;
+
+  /* --- دکمه‌ی جمع‌کردن (قبل از ✕) --- */
+  var minBtn=D.createElement('span');
+  minBtn.id='wd46-bmin';minBtn.textContent='▾';minBtn.title='جمع کردن';
+  titleRow.insertBefore(minBtn,titleRow.children[titleRow.children.length-1]);
+
+  var pill=null,dragged=false;
+
+  function ensurePill(){
+    if(pill)return;
+    pill=D.createElement('div');pill.id='wd46-bpill';
+    pill.innerHTML='<span>⚔️</span><b class="pp">0%</b><span class="ph">باز کردن ▴</span>';
+    D.body.appendChild(pill);
+    var lbl=D.getElementById('battle-pct-label');
+    if(lbl){
+      try{
+        var mo=new MutationObserver(function(){
+          if(!pill)return;
+          var p=pill.querySelector('.pp');
+          if(p)p.textContent=(lbl.textContent||'0%');
+        });
+        mo.observe(lbl,{childList:true,characterData:true,subtree:true});
+      }catch(e){}
+    }
+    dragify(pill);
+    pill.addEventListener('click',function(){
+      if(pill.dataset.dragged==='1')return;
+      expand();
+    });
+  }
+  function collapse(){ensurePill();card.style.display='none';pill.style.display='flex'}
+  function expand(){card.style.display='';pill.style.display='none'}
+  minBtn.addEventListener('click',function(e){e.stopPropagation();collapse()});
+
+  /* --- درگ (لمسی + موس) --- */
+  function dragify(el){
+    var on=false,moved=false,sx=0,sy=0,ox=0,oy=0;
+    function down(e){
+      if(e.target.closest&&e.target.closest('#wd46-bmin,.close-modal,button'))return;
+      var t=(e.touches&&e.touches[0])||e;
+      on=true;moved=false;sx=t.clientX;sy=t.clientY;
+      var r=el.getBoundingClientRect();ox=r.left;oy=r.top;
+    }
+    function move(e){
+      if(!on)return;
+      var t=(e.touches&&e.touches[0])||e;
+      var dx=t.clientX-sx,dy=t.clientY-sy;
+      if(!moved){
+        if(Math.abs(dx)+Math.abs(dy)<8)return;
+        moved=true;
+        if(el===card&&!dragged){
+          dragged=true;
+          var r=card.getBoundingClientRect();
+          el.style.setProperty('--wd46x',Math.round(r.left)+'px');
+          el.style.setProperty('--wd46y',Math.round(r.top)+'px');
+          mb.classList.add('wd46-free');
+        }
+      }
+      var nx=Math.round(ox+dx),ny=Math.round(oy+dy);
+      el.style.left=nx+'px';el.style.top=ny+'px';
+      if(el===card){el.style.setProperty('--wd46x',nx+'px');el.style.setProperty('--wd46y',ny+'px')}
+      if(e.cancelable)e.preventDefault();
+    }
+    function up(){
+      if(!on)return;on=false;
+      if(el===pill){
+        pill.dataset.dragged=moved?'1':'0';
+        setTimeout(function(){if(pill)pill.dataset.dragged='0'},80);
+      }
+    }
+    el.addEventListener('touchstart',down,{passive:true});
+    D.addEventListener('touchmove',move,{passive:false});
+    D.addEventListener('touchend',up);
+    D.addEventListener('touchcancel',up);
+    el.addEventListener('mousedown',down);
+    D.addEventListener('mousemove',move);
+    D.addEventListener('mouseup',up);
+  }
+  dragify(card);
+  titleRow.style.cursor='move';titleRow.style.touchAction='none';
+
+  /* --- وقتی مودال بسته شد: پیل محو، کارت به جای پیش‌فرض --- */
+  try{
+    new MutationObserver(function(){
+      if(mb.classList.contains('active'))return;
+      if(pill)pill.style.display='none';
+      card.style.display='';
+      card.style.position='';card.style.left='';card.style.top='';
+      card.style.right='';card.style.bottom='';card.style.margin='';card.style.width='';
+      card.style.removeProperty('--wd46x');card.style.removeProperty('--wd46y');
+      mb.classList.remove('wd46-free');dragged=false;
+    }).observe(mb,{attributes:true,attributeFilter:['class']});
+  }catch(e){}
+}
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',init);else init();
+})();
+/* ================= V46: فروشگاه سینمایی — آیکون‌های SVG گرادیانی + پوسته رنگی ================= */
+(function(){
+'use strict';
+var D=document;
+/* گرادیان‌های مشترک (یک‌بار در سند) */
+var DEFS='<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>'+
+'<linearGradient id="wg46-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe07a"/><stop offset="1" stop-color="#ff9d2e"/></linearGradient>'+
+'<linearGradient id="wg46-goldD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f5b73d"/><stop offset="1" stop-color="#a85f00"/></linearGradient>'+
+'<linearGradient id="wg46-silver" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f5f9ff"/><stop offset="1" stop-color="#9fb2c8"/></linearGradient>'+
+'<linearGradient id="wg46-cyan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7de8ff"/><stop offset="1" stop-color="#1f8fff"/></linearGradient>'+
+'<linearGradient id="wg46-violet" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c99bff"/><stop offset="1" stop-color="#7a3cff"/></linearGradient>'+
+'<linearGradient id="wg46-green" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8dffb0"/><stop offset="1" stop-color="#1fbf6b"/></linearGradient>'+
+'<linearGradient id="wg46-red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a8d"/><stop offset="1" stop-color="#d9342e"/></linearGradient>'+
+'<linearGradient id="wg46-orange" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffcf6e"/><stop offset="1" stop-color="#ff7a1f"/></linearGradient>'+
+'<linearGradient id="wg46-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfd8e6"/><stop offset="1" stop-color="#64748b"/></linearGradient>'+
+'<linearGradient id="wg46-blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ab4ff"/><stop offset="1" stop-color="#2456d8"/></linearGradient>'+
+'<linearGradient id="wg46-white" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#cfe0f5"/></linearGradient>'+
+'</defs></svg>';
+/* آیکون‌ها (کلید = ایموجی بدون variation selector) */
+var I={};
+I['⚡']='<svg viewBox="0 0 48 48"><circle cx="24" cy="26" r="17" fill="rgba(255,220,80,.15)"/><path d="M27 4 13 27h8.6L19 44l17-25h-9.6L31 4z" fill="url(#wg46-gold)" stroke="#8a5600" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+I['💰']='<svg viewBox="0 0 48 48"><ellipse cx="24" cy="37" rx="15" ry="6.5" fill="url(#wg46-goldD)"/><ellipse cx="24" cy="32" rx="15" ry="6.5" fill="url(#wg46-gold)" stroke="#a85f00" stroke-width="1"/><ellipse cx="24" cy="27" rx="15" ry="6.5" fill="url(#wg46-goldD)"/><ellipse cx="24" cy="21" rx="15" ry="6.5" fill="url(#wg46-gold)" stroke="#a85f00" stroke-width="1"/><path d="M24 16.5l1.7 3.4 3.8.6-2.7 2.7.6 3.8-3.4-1.8-3.4 1.8.6-3.8-2.7-2.7 3.8-.6z" fill="#fff6d8"/></svg>';
+I['🛢']='<svg viewBox="0 0 48 48"><path d="M13 10c0-2.2 5-4 11-4s11 1.8 11 4v28c0 2.2-5 4-11 4s-11-1.8-11-4z" fill="url(#wg46-steel)"/><rect x="13" y="16" width="22" height="3.4" fill="rgba(20,40,70,.35)"/><rect x="13" y="29" width="22" height="3.4" fill="rgba(20,40,70,.35)"/><path d="M24 18c2.8 3.4 4.6 5.9 4.6 8.2A4.6 4.6 0 0 1 24 30.8a4.6 4.6 0 0 1-4.6-4.6c0-2.3 1.8-4.8 4.6-8.2z" fill="url(#wg46-blue)"/></svg>';
+I['🕊']='<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="17" fill="rgba(190,230,255,.12)" stroke="url(#wg46-white)" stroke-width="4"/><path d="M24 7v34M24 24 12.5 35.5M24 24l11.5 11.5" stroke="url(#wg46-white)" stroke-width="4" stroke-linecap="round" fill="none"/><circle cx="24" cy="24" r="3" fill="#fff"/></svg>';
+I['⏩']='<svg viewBox="0 0 48 48"><circle cx="24" cy="25" r="16" fill="rgba(110,240,170,.12)" stroke="url(#wg46-green)" stroke-width="3.4"/><path d="M24 15v10l7.5 4.8" stroke="url(#wg46-green)" stroke-width="3.4" fill="none" stroke-linecap="round"/><path d="M14 8l6-3M34 8l-6-3" stroke="url(#wg46-green)" stroke-width="3" stroke-linecap="round"/></svg>';
+I['💎']='<svg viewBox="0 0 48 48"><path d="M15 7h18l9 13-18 22L6 20z" fill="url(#wg46-cyan)"/><path d="M6 20h36M15 7l5 13 4-13 4 13 5-13M20 20l4 21 4-21" stroke="rgba(255,255,255,.8)" stroke-width="1.5" fill="none"/><path d="M15 7h18l9 13H6z" fill="rgba(255,255,255,.18)"/></svg>';
+I['🎨']='<svg viewBox="0 0 48 48"><path d="M24 6c11.6 0 20 7.6 20 16.8 0 6.4-5.2 8.8-9.4 8.8h-4.2c-2.3 0-3.8 2.5-2.4 4.4 1.6 2.3.2 5.2-2.6 5.2C14.2 41.2 4 34.4 4 24 4 13.6 12.4 6 24 6z" fill="url(#wg46-violet)" opacity=".92"/><circle cx="15" cy="17" r="3.1" fill="#ff6b6b"/><circle cx="25" cy="13" r="3.1" fill="#ffd84d"/><circle cx="34" cy="18" r="3.1" fill="#3ee8a5"/><circle cx="13" cy="28" r="3.1" fill="#39c6ff"/></svg>';
+I['🏳']='<svg viewBox="0 0 48 48"><rect x="10" y="5" width="2.8" height="38" rx="1.4" fill="url(#wg46-silver)"/><path d="M14 8h24l-6 7.5 6 7.5H14z" fill="url(#wg46-blue)"/><path d="M25 10.5l1.6 3.2 3.5.5-2.5 2.5.6 3.5-3.2-1.7-3.2 1.7.6-3.5-2.5-2.5 3.5-.5z" fill="#fff"/></svg>';
+I['👑']='<svg viewBox="0 0 48 48"><path d="M8 33 5.5 13.5 15 20.5 24 7l9 13.5 9.5-7L40 33z" fill="url(#wg46-gold)" stroke="#8a5600" stroke-width="1.3" stroke-linejoin="round"/><rect x="8" y="33" width="32" height="6" rx="2.2" fill="url(#wg46-goldD)"/><circle cx="24" cy="26" r="2.4" fill="#ff5f7a"/><circle cx="15.5" cy="27" r="2" fill="#39c6ff"/><circle cx="32.5" cy="27" r="2" fill="#3ee8a5"/></svg>';
+I['✨']='<svg viewBox="0 0 48 48"><path d="M19 5l3.2 9.3 9.3 3.2-9.3 3.2L19 30l-3.2-9.3L6.5 17.5l9.3-3.2z" fill="url(#wg46-cyan)"/><path d="M35 24l2.2 6.3 6.3 2.2-6.3 2.2L35 41l-2.2-6.3-6.3-2.2 6.3-2.2z" fill="url(#wg46-gold)"/><circle cx="12" cy="36" r="2.6" fill="url(#wg46-white)"/></svg>';
+I['🎆']='<svg viewBox="0 0 48 48"><g stroke="url(#wg46-pink)" stroke-width="2.6" stroke-linecap="round"><path d="M24 23V7M24 23l11.3-11.3M24 23l11.3 11.3M24 23v16M24 23 12.7 34.3M24 23 12.7 11.7"/></g><circle cx="24" cy="5" r="2.6" fill="#ffd84d"/><circle cx="37" cy="10" r="2.2" fill="#39e6d0"/><circle cx="37.5" cy="35.5" r="2.2" fill="#7dff9e"/><circle cx="24" cy="41" r="2.4" fill="#ff9ad5"/><circle cx="10.5" cy="35.5" r="2.2" fill="#8ab4ff"/><circle cx="10.5" cy="10" r="2.2" fill="#fff"/><circle cx="24" cy="23" r="3.4" fill="#fff"/></svg>';
+I['🎁']='<svg viewBox="0 0 48 48"><rect x="8" y="20" width="32" height="21" rx="3" fill="url(#wg46-red)"/><rect x="6" y="13.5" width="36" height="7" rx="2.4" fill="#ff6b6b"/><rect x="21.2" y="13.5" width="5.6" height="27.5" fill="url(#wg46-gold)"/><path d="M24 12.5c-6.5 1.2-10-2-8.8-5.2 3-2.3 7.4.2 8.8 5.2zm0 0c6.5 1.2 10-2 8.8-5.2-3-2.3-7.4.2-8.8 5.2z" fill="none" stroke="url(#wg46-gold)" stroke-width="2.6"/></svg>';
+I['🏆']='<svg viewBox="0 0 48 48"><path d="M17 4l6.2 11-5.8 4L11 8.6z" fill="url(#wg46-blue)"/><path d="M31 4l-6.2 11 5.8 4L37 8.6z" fill="url(#wg46-red)"/><circle cx="24" cy="30" r="11.5" fill="url(#wg46-gold)" stroke="#8a5600" stroke-width="1.4"/><circle cx="24" cy="30" r="8" fill="none" stroke="rgba(138,86,0,.5)" stroke-width="1.2"/><path d="M24 24.5l1.8 3.6 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4-2.9-2.8 4-.6z" fill="#7a4a00" opacity=".85"/></svg>';
+I['📅']='<svg viewBox="0 0 48 48"><rect x="6" y="10" width="36" height="31" rx="4.5" fill="url(#wg46-white)"/><path d="M6 14.5A4.5 4.5 0 0 1 10.5 10h27A4.5 4.5 0 0 1 42 14.5V19H6z" fill="url(#wg46-red)"/><rect x="12.5" y="5" width="4.2" height="9" rx="2.1" fill="url(#wg46-steel)"/><rect x="31.3" y="5" width="4.2" height="9" rx="2.1" fill="url(#wg46-steel)"/><path d="M15 31.5l3.2 3.2 4.3-5.4 4.3 5.4 3.2-3.2v6.2H15z" fill="url(#wg46-gold)"/><g fill="#8fa3bd"><circle cx="14" cy="24" r="1.7"/><circle cx="24" cy="24" r="1.7"/><circle cx="34" cy="24" r="1.7"/></g></svg>';
+I['🔔']='<svg viewBox="0 0 48 48"><path d="M24 6c8 0 13 5.8 13 13.8V27l4 6.2H7L11 27v-7.2C11 11.8 16 6 24 6z" fill="url(#wg46-orange)" stroke="#93400a" stroke-width="1.2"/><path d="M19.5 36.5a4.5 4.5 0 0 0 9 0z" fill="url(#wg46-orange)" stroke="#93400a" stroke-width="1.2"/><circle cx="24" cy="4.6" r="2.8" fill="url(#wg46-gold)"/><path d="M38 10a19 19 0 0 1 4 6.5" stroke="url(#wg46-cyan)" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>';
+I['📊']='<svg viewBox="0 0 48 48"><path d="M7 41h36" stroke="url(#wg46-silver)" stroke-width="2.6" stroke-linecap="round"/><rect x="10" y="26" width="7.5" height="12" rx="2" fill="url(#wg46-blue)"/><rect x="20.5" y="18" width="7.5" height="20" rx="2" fill="url(#wg46-cyan)"/><rect x="31" y="9" width="7.5" height="29" rx="2" fill="url(#wg46-green)"/></svg>';
+I['📈']='<svg viewBox="0 0 48 48"><path d="M7 41h36M7 41V7" stroke="url(#wg46-silver)" stroke-width="2.6" stroke-linecap="round"/><path d="M11.5 33.5l8.5-8.5 6 5 12-13.5" stroke="url(#wg46-green)" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M30.5 14.5H38v7.5" stroke="url(#wg46-green)" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+I['📦']='<svg viewBox="0 0 48 48"><rect x="7" y="15" width="34" height="27" rx="3.5" fill="url(#wg46-violet)" opacity=".92"/><rect x="5" y="9" width="38" height="7" rx="2.4" fill="#a875ff"/><path d="M24 9v33" stroke="rgba(255,255,255,.45)" stroke-width="3.2"/><path d="M24 21l2.6 5.2 5.7.8-4.1 4 1 5.7-5.2-2.7-5.2 2.7 1-5.7-4.1-4 5.7-.8z" fill="url(#wg46-gold)"/></svg>';
+I['🎺']='<svg viewBox="0 0 48 48"><path d="M17 35V13l20-4.5V31" fill="none" stroke="url(#wg46-gold)" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="13" cy="35" rx="5" ry="4" fill="url(#wg46-gold)"/><ellipse cx="33" cy="31" rx="5" ry="4" fill="url(#wg46-gold)"/><circle cx="37" cy="6" r="2.2" fill="#ff9ad5"/></svg>';
+I['🖼']='<svg viewBox="0 0 48 48"><rect x="8" y="10" width="32" height="28" rx="3" fill="none" stroke="url(#wg46-gold)" stroke-width="4"/><path d="M13 30l7-8 5 5 4-6 6 9z" fill="url(#wg46-cyan)"/><circle cx="18" cy="18" r="2.6" fill="#ffd84d"/></svg>';
+I['🎬']='<svg viewBox="0 0 48 48"><rect x="7" y="19" width="34" height="21" rx="3" fill="url(#wg46-steel)"/><path d="M7 19l3.5-9.5L44 7.5 41 18z" fill="url(#wg46-silver)"/><path d="M15 10.5l2.6 7.6M24 9.2l2.6 8M33 8.2l2.6 8" stroke="#243244" stroke-width="2.8"/></svg>';
+I['🔊']='<svg viewBox="0 0 48 48"><path d="M8 19h7l9-8v26l-9-8H8z" fill="url(#wg46-white)"/><path d="M30 17a10 10 0 0 1 0 14M35.5 13a17 17 0 0 1 0 22" stroke="url(#wg46-orange)" stroke-width="3" fill="none" stroke-linecap="round"/></svg>';
+I['🌋']='<svg viewBox="0 0 48 48"><path d="M6 40L20 14h8l14 26z" fill="url(#wg46-steel)"/><path d="M20 14h8l-2.5 6h-3z" fill="url(#wg46-red)"/><circle cx="24" cy="8.5" r="3" fill="url(#wg46-orange)"/><circle cx="30" cy="6.5" r="2" fill="#ffd84d"/><circle cx="18.5" cy="6.5" r="1.8" fill="#ff9ad5"/></svg>';
+I['⚔']='<svg viewBox="0 0 48 48"><path d="M12 36 36 12" stroke="url(#wg46-silver)" stroke-width="3.6" stroke-linecap="round"/><path d="M36 36 12 12" stroke="url(#wg46-silver)" stroke-width="3.6" stroke-linecap="round"/><path d="M9 33l6 6M33 39l6-6M9 15l6-6M33 9l6 6" stroke="url(#wg46-gold)" stroke-width="3.4" stroke-linecap="round"/></svg>';
+var THEME={'💎':'t-gem','⚡':'t-boost','💰':'t-gold','🛢':'t-oil','🕊':'t-peace','⏩':'t-tax','🎨':'t-art','🏳':'t-flag','👑':'t-vip','✨':'t-spark','🎆':'t-fx','🎁':'t-gift','🏆':'t-medal','📅':'t-vip','🔔':'t-radar','📊':'t-stats','📈':'t-stats','📦':'t-vip','🎺':'t-fx','🖼':'t-vip','🎬':'t-flag','🔊':'t-radar','🌋':'t-fx','⚔':'t-gold'};
+/* همچنین یک گرادیان pink برای آتش‌بازی به defs اضافه شود */
+function upgrade(){
+  try{
+    if(!D.getElementById('wg46-gold')){
+      var w=D.createElement('div');w.style.cssText='position:absolute;width:0;height:0;overflow:hidden';
+      w.innerHTML=DEFS;D.body.appendChild(w);
+    }
+    if(!D.getElementById('wg46-pink')){
+      var defs2=D.createElementNS('http://www.w3.org/2000/svg','svg');
+      defs2.setAttribute('width','0');defs2.setAttribute('height','0');defs2.style.position='absolute';
+      defs2.innerHTML='<defs><linearGradient id="wg46-pink" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9ad5"/><stop offset="1" stop-color="#d829a0"/></linearGradient></defs>';
+      D.body.appendChild(defs2);
+    }
+    var cards=D.querySelectorAll('.cos27-card');
+    for(var i=0;i<cards.length;i++){
+      var c=cards[i],ico=c.querySelector('.cos27-ico');
+      if(!ico||ico.dataset.wd46)continue;
+      var t=(ico.textContent||'').replace(/\uFE0F/g,'').trim();
+      var th=null;
+      for(var k in THEME){if(t.indexOf(k)>-1){th=THEME[k];break}}
+      if(th)c.classList.add(th);
+      if(t&&I[t])ico.innerHTML=I[t];
+      ico.dataset.wd46='1';
+    }
+  }catch(e){}
+}
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',function(){setTimeout(upgrade,60)});else setTimeout(upgrade,60);
+var _rs=window.renderShop;
+if(typeof _rs==='function'){
+  window.renderShop=function(){var r=_rs.apply(this,arguments);setTimeout(upgrade,0);return r};
+}
+/* هر رندر مجدد shop-body (تغییر تب و…) همیشه آپدیت آیکون را اجرا می‌کند */
+try{
+  var _sb=null,_ob=new MutationObserver(function(){setTimeout(upgrade,20)});
+  var _armShop=function(){var b=D.getElementById('shop-body');if(b&&b!==_sb){_sb=b;_ob.disconnect();_ob.observe(b,{childList:true,subtree:true});return true}return false};
+  if(!_armShop()){var _siv=setInterval(function(){if(_armShop())clearInterval(_siv)},1000)}
 }catch(e){}
 })();
 </script>

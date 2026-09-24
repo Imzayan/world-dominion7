@@ -1,6 +1,8 @@
 package com.worlddominion.game;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -15,12 +17,23 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
 public class MainActivity extends Activity {
 
-    /* V45: پارامتر نسخه → WebView هرگز HTML قدیمی کش‌شده را سرو نمی‌کند (رفع باگ‌های نسخه‌های قبلی روی گوشی کاربر) */
-    private static final String GAME_URL = "https://world-dominion7.vercel.app/game/index.html?v=45";
+    /* V46: پارامتر نسخه → WebView هرگز HTML قدیمی کش‌شده را سرو نمی‌کند */
+    private static final String GAME_URL = "https://world-dominion7.vercel.app/game/index.html?v=46";
     private static final String GAME_HOST = "world-dominion7.vercel.app";
     private static final String ERROR_URL = "file:///android_asset/error.html";
+
+    /* V46: آپدیت خودکار داخل برنامه — این ثابت باید با هر بیلد جدید دستی به‌روز شود */
+    private static final int CURRENT_VC = 3;
+    private static final String UPDATE_JSON = "https://world-dominion7.vercel.app/apk/latest.json";
 
     private WebView web;
     private FrameLayout root;
@@ -40,14 +53,22 @@ public class MainActivity extends Activity {
 
         if (savedInstanceState != null) {
             web.restoreState(savedInstanceState);
-            /* V45: اگر state قدیمی URL بدون پارامتر نسخه را نگه داشته بود، به نسخه‌ی تازه هدایت کن */
+            /* اگر state قدیمی با پارامتر نسخه‌ی دیگر بود، به نسخه‌ی تازه هدایت کن */
             String u = web.getUrl();
-            if (u == null || !u.contains("?v=45")) {
+            if (u == null || !u.contains("?v=46")) {
                 web.loadUrl(GAME_URL);
             }
         } else {
             web.loadUrl(GAME_URL);
         }
+
+        /* V46: بررسی نسخه‌ی جدید ۴ ثانیه بعد از باز شدن بازی (بدون مزاحمت برای لود اولیه) */
+        web.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                checkUpdate();
+            }
+        }, 4000);
     }
 
     private WebView createWebView() {
@@ -97,6 +118,59 @@ public class MainActivity extends Activity {
             }
         });
         return w;
+    }
+
+    /* ============ V46: آپدیت خودکار داخل برنامه ============
+       سرور: /apk/latest.json → {versionCode, versionName, url}
+       اگر نسخه‌ی جدید بود، دیالوگ فارسی نشان داده می‌شود؛ دکمه‌ی دانلود،
+       فایل APK را در مرورگر باز می‌کند (نصب از «منابع ناشناس» توسط خود کاربر تایید می‌شود). */
+    private void checkUpdate() {
+        if (errored) return;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    HttpURLConnection c = (HttpURLConnection) new URL(UPDATE_JSON).openConnection();
+                    c.setConnectTimeout(8000);
+                    c.setReadTimeout(8000);
+                    c.setRequestProperty("Cache-Control", "no-cache");
+                    int code = c.getResponseCode();
+                    if (code != 200) return;
+                    BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = r.readLine()) != null) sb.append(line);
+                    r.close();
+                    JSONObject o = new JSONObject(sb.toString());
+                    final int vc = o.optInt("versionCode", 0);
+                    final String vn = o.optString("versionName", "");
+                    final String url = o.optString("url", "");
+                    if (vc > CURRENT_VC && url.length() > 0) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    if (isFinishing()) return;
+                                    new AlertDialog.Builder(MainActivity.this)
+                                            .setTitle("⬆️ به‌روزرسانی جدید")
+                                            .setMessage("نسخه‌ی " + vn + " بازی آماده‌ی دانلود است.\n\nبا نصب نسخه‌ی جدید، آخرین بهینه‌سازی‌های سرعت و رفع باگ‌ها را خواهی داشت. (کد فعلی: " + CURRENT_VC + " ← جدید: " + vc + ")")
+                                            .setPositiveButton(" دانلود و نصب ", new DialogInterface.OnClickListener() {
+                                                @Override
+                                                public void onClick(DialogInterface d, int w) {
+                                                    try {
+                                                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                                                    } catch (Exception ignored) { }
+                                                }
+                                            })
+                                            .setNegativeButton("بعداً", null)
+                                            .show();
+                                } catch (Exception ignored) { }
+                            }
+                        });
+                    }
+                } catch (Exception ignored) { }
+            }
+        }).start();
     }
 
     private void showOffline() {
