@@ -971,3 +971,19 @@ Work Log:
 
 Stage Summary:
 - انتشار فقط به یک توکن GitHub (scope: repo) گره خورده است؛ به‌محض دریافت توکن از کاربر: bash scripts/release-v51.sh <TOKEN>
+
+---
+Task ID: V51-release-final
+Agent: Super Z (main)
+Task: انتشار نهایی V51 با توکن ارائه‌شده از سوی کاربر
+
+Work Log:
+- push موفق: f3b9d0b..a44e5f9 main -> main (کامیت V51 + worklog)
+- ورسل در ~۶۰ ثانیه build کرد؛ لایو versionCode: 6 → 7
+- راستی‌آزمایی لایو: latest.json = v1.0.6/vc7 با sha256 درست (56aef7cb...)، APK روی لایو HTTP 200، HTML لایو ۳۱ مارکر wd51 = دقیقاً برابر محلی
+- توکن بلافاصله از remote URL پاک شد (git remote set-url به URL بدون توکن)
+- توصیه‌ی امنیتی به کاربر: حذف/ریووک توکن از github.com/settings/tokens چون در چت کپی شده
+
+Stage Summary:
+- V51 کامل روی پروداکشن لایو است؛ آپدیت‌کننده‌ی درون‌اپی نسخه 1.0.6 را خودکار برای همه‌ی کاربران 1.0.5 (و قدیمی‌تر) توزیع می‌کند
+- لینک‌ها: https://world-dominion7.vercel.app/game/index.html?v=51 + /apk/WorldDominion-v1.0.6.apk
