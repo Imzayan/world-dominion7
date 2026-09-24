@@ -29,6 +29,8 @@ model User {
   grants      AdminGrant[]
   weeklyClaims WeeklyClaim[]
   chatMessages WorldChat[]
+  passes       SeasonPass[]
+  abuseReports AbuseReport[] @relation("AbuseReports")
 
   @@map("users")
 }
@@ -435,4 +437,37 @@ model GameSetting {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("game_settings")
+}
+
+/* V43 — مسیر فصلی (Battle Pass اخلاقی): XP با بازی کردن جمع می‌شود، پله‌ها جایزه می‌دهند */
+model SeasonPass {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  season    String   /* 'S2026-09' — ماه میلادی */
+  xp        Int      @default(0)
+  claimed   Int      @default(0)    /* bitmask پله‌های گرفته‌شده */
+  dlog      String   @default("{}") /* شمارنده‌ی روزانه‌ی ماموریت‌ها {date:{key:count}} */
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, season])
+  @@map("season_pass")
+}
+
+/* V43 — ضدتقلب: گزارش تخلف توسط بازیکن‌ها + بررسی ادمین */
+model AbuseReport {
+  id         Int      @id @default(autoincrement())
+  server     Int      @default(1)
+  reporterId String   @map("reporter_id")
+  targetNick String   @map("target_nick")
+  reason     String
+  status     String   @default("open") /* open|cleared|actioned */
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  reporter User @relation("AbuseReports", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([targetNick, status])
+  @@index([reporterId, createdAt])
+  @@map("abuse_reports")
 }

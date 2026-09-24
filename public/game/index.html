@@ -9787,16 +9787,16 @@ const srvN=()=>{try{return Math.max(1,Number(window.SRV)||1)}catch(e){return 1}}
 const sndK=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
 const ANCHOR=Date.UTC(2026,0,1),EDM=30*864e5,REGO=15*864e5,OPENO=24*864e5,CLOSEO=29*864e5;
 /* V41: هر ۱۰ رشته بازگشت — بازیکن هر ۶ رشته را برای المپیک انتخاب می‌کند */
-const GD33={sprint:{d:0,ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه هرچه می‌توانی تند بزن — سرعت خالص!'},
- archery:{d:0,ic:'🎯',fa:'تیراندازی با کمان',tip:'در بهترین لحظه شلیک کن — هرچه مرکزی‌تر، امتیاز بیشتر'},
- swim:{d:1,ic:'🏊',fa:'شنا',tip:'ضربه‌ها را یکی‌درمیان چپ و راست بزن — ریتم متقارن'},
- gym:{d:1,ic:'🤸',fa:'ژیمناستیک',tip:'توالی جهت‌ها را به‌ترتیب و به‌موقع لمس کن'},
- weight:{d:2,ic:'🏋️',fa:'وزنه‌برداری',tip:'دقیقاً وقتی مارکر در ناحیه‌ی طلایی است بزن'},
- cycling:{d:2,ic:'🚴',fa:'دوچرخه‌سواری',tip:'ریتم یکنواخت ~نیم‌ثانیه — ثبات مهم‌تر از سرعت است'},
- chess:{d:3,ic:'♟️',fa:'شطرنج',tip:'کیش‌ومات یک‌حرکتی — بهترین حرکت را قبل از پایان زمان انتخاب کن'},
- volley:{d:3,ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — رالی را بلندتر کن'},
- lj:{d:4,ic:'🦘',fa:'پرش طول',tip:'سرعت دویدن و لحظه‌ی پرواز — ریسک بیشتر، پرش دورتر'},
- wrestle:{d:4,ic:'🥋',fa:'کشتی',tip:'طناب‌کشی — تند و پیوسته بزن تا مارکر از خطت رد شود'}};
+const GD33={sprint:{col:'#ff4d6d',d:0,ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه هرچه می‌توانی تند بزن — سرعت خالص!'},
+ archery:{col:'#ffb02e',d:0,ic:'🎯',fa:'تیراندازی با کمان',tip:'در بهترین لحظه شلیک کن — هرچه مرکزی‌تر، امتیاز بیشتر'},
+ swim:{col:'#2bb8ff',d:1,ic:'🏊',fa:'شنا',tip:'ضربه‌ها را یکی‌درمیان چپ و راست بزن — ریتم متقارن'},
+ gym:{col:'#b06bff',d:1,ic:'🤸',fa:'ژیمناستیک',tip:'توالی جهت‌ها را به‌ترتیب و به‌موقع لمس کن'},
+ weight:{col:'#ff7847',d:2,ic:'🏋️',fa:'وزنه‌برداری',tip:'دقیقاً وقتی مارکر در ناحیه‌ی طلایی است بزن'},
+ cycling:{col:'#3ee86e',d:2,ic:'🚴',fa:'دوچرخه‌سواری',tip:'ریتم یکنواخت ~نیم‌ثانیه — ثبات مهم‌تر از سرعت است'},
+ chess:{col:'#9fb6e8',d:3,ic:'♟️',fa:'شطرنج',tip:'کیش‌ومات یک‌حرکتی — بهترین حرکت را قبل از پایان زمان انتخاب کن'},
+ volley:{col:'#ffd84d',d:3,ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — رالی را بلندتر کن'},
+ lj:{col:'#4de3c0',d:4,ic:'🦘',fa:'پرش طول',tip:'سرعت دویدن و لحظه‌ی پرواز — ریسک بیشتر، پرش دورتر'},
+ wrestle:{col:'#e05299',d:4,ic:'🥋',fa:'کشتی',tip:'طناب‌کشی — تند و پیوسته بزن تا مارکر از خطت رد شود'}};
 const GD_KEYS=Object.keys(GD33);
 const SCHED33=[['sprint','archery'],['swim','gym'],['weight','cycling'],['chess','volley'],['lj','wrestle']];
 const HOSTS33=[{c:'توکیو',n:'ژاپن',f:'jp'},{c:'پاریس',n:'فرانسه',f:'fr'},{c:'لس‌آنجلس',n:'آمریکا',f:'us'},{c:'لندن',n:'بریتانیا',f:'gb'},{c:'ریودوژانیرو',n:'برزیل',f:'br'},{c:'پکن',n:'چین',f:'cn'},{c:'آتن',n:'یونان',f:'gr'},{c:'سیدنی',n:'استرالیا',f:'au'},{c:'بارسلونا',n:'اسپانیا',f:'es'},{c:'سئول',n:'کره‌ی جنوبی',f:'kr'},{c:'مسکو',n:'روسیه',f:'ru'},{c:'مونترال',n:'کانادا',f:'ca'},{c:'مونیخ',n:'آلمان',f:'de'},{c:'مکزیکوسیتی',n:'مکزیک',f:'mx'},{c:'رم',n:'ایتالیا',f:'it'},{c:'هلزینکی',n:'فنلاند',f:'fi'},{c:'آمستردام',n:'هلند',f:'nl'},{c:'استکهلم',n:'سوئد',f:'se'},{c:'استانبول',n:'ترکیه',f:'tr'},{c:'قاهره',n:'مصر',f:'eg'},{c:'دهلی‌نو',n:'هند',f:'in'},{c:'بوئنوس‌آیرس',n:'آرژانتین',f:'ar'},{c:'نایروبی',n:'کنیا',f:'ke'},{c:'دبی',n:'امارات',f:'ae'},{c:'سنگاپور',n:'سنگاپور',f:'sg'},{c:'کیپ‌تاون',n:'آفریقای جنوبی',f:'za'},{c:'لیما',n:'پرو',f:'pe'},{c:'ورشو',n:'لهستان',f:'pl'},{c:'لیسبون',n:'پرتغال',f:'pt'},{c:'لاگوس',n:'نیجریه',f:'ng'},{c:'کوالالامپور',n:'مالزی',f:'my'},{c:'دوحه',n:'قطر',f:'qa'}];
@@ -10507,16 +10507,16 @@ return{ctx,rivalFor,venueFor,storyCard,epilogue,say,META}
 'use strict';
 const D=document;
 const faN=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
-const GD33={sprint:{ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه هرچه می‌توانی تند بزن!'},
- archery:{ic:'🎯',fa:'تیراندازی با کمان',tip:'در بهترین لحظه شلیک کن — مرکز = ۱۰ امتیاز'},
- swim:{ic:'🏊',fa:'شنا',tip:'یکی‌درمیان چپ و راست بزن — ۱۰ ثانیه'},
- gym:{ic:'🤸',fa:'ژیمناستیک',tip:'توالی جهت‌ها را به‌ترتیب و به‌موقع لمس کن'},
- weight:{ic:'🏋️',fa:'وزنه‌برداری',tip:'مارکر را در ناحیه‌ی طلایی شکار کن — ۵ حرکت'},
- cycling:{ic:'🚴',fa:'دوچرخه‌سواری',tip:'ریتم ~نیم‌ثانیه — ثبات مهم‌تر از سرعت — ۲۰ ثانیه'},
- chess:{ic:'♟️',fa:'شطرنج',tip:'۴ صفحه‌ی کیش‌ومات — حرکت برنده را انتخاب کن'},
- volley:{ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — ۳ سرویس داری'},
- lj:{ic:'🦘',fa:'پرش طول',tip:'سه پرش — سرعت بیشتر = پرش دورتر ولی ریسک خطا'},
- wrestle:{ic:'🥋',fa:'کشتی',tip:'۳ دیدار طناب‌کشی — تند و پیوسته بزن'}};
+const GD33={sprint:{col:'#ff4d6d',ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه هرچه می‌توانی تند بزن!'},
+ archery:{col:'#ffb02e',ic:'🎯',fa:'تیراندازی با کمان',tip:'در بهترین لحظه شلیک کن — مرکز = ۱۰ امتیاز'},
+ swim:{col:'#2bb8ff',ic:'🏊',fa:'شنا',tip:'یکی‌درمیان چپ و راست بزن — ۱۰ ثانیه'},
+ gym:{col:'#b06bff',ic:'🤸',fa:'ژیمناستیک',tip:'توالی جهت‌ها را به‌ترتیب و به‌موقع لمس کن'},
+ weight:{col:'#ff7847',ic:'🏋️',fa:'وزنه‌برداری',tip:'مارکر را در ناحیه‌ی طلایی شکار کن — ۵ حرکت'},
+ cycling:{col:'#3ee86e',ic:'🚴',fa:'دوچرخه‌سواری',tip:'ریتم ~نیم‌ثانیه — ثبات مهم‌تر از سرعت — ۲۰ ثانیه'},
+ chess:{col:'#9fb6e8',ic:'♟️',fa:'شطرنج',tip:'۴ صفحه‌ی کیش‌ومات — حرکت برنده را انتخاب کن'},
+ volley:{col:'#ffd84d',ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — ۳ سرویس داری'},
+ lj:{col:'#4de3c0',ic:'🦘',fa:'پرش طول',tip:'سه پرش — سرعت بیشتر = پرش دورتر ولی ریسک خطا'},
+ wrestle:{col:'#e05299',ic:'🥋',fa:'کشتی',tip:'۳ دیدار طناب‌کشی — تند و پیوسته بزن'}};
 const sndK2=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rpcG=async fn=>{try{const r=await sb.rpc(fn);if(r&&r.error)return null;return r?r.data:null}catch(e){return null}};
@@ -13295,6 +13295,772 @@ window.__wd42num=function(el,from,to){
 })();
 </script>
 
+
+
+
+
+
+
+<style id="wd43-css">
+/* ============ V43 — رنگ اختصاصی هر ورزش + سینمایی‌سازی زینتی + آموزش + مسیر فصل ============ */
+/* ---------- 1) رنگ هر رشته روی صحنه (data-g37 توسط dress() ست می‌شود) ---------- */
+#wd33-stage[data-g37="sprint"]{--gd-ac:#ff4d6d;--gd-soft:rgba(255,77,109,.16)}
+#wd33-stage[data-g37="archery"]{--gd-ac:#ffb02e;--gd-soft:rgba(255,176,46,.16)}
+#wd33-stage[data-g37="swim"]{--gd-ac:#2bb8ff;--gd-soft:rgba(43,184,255,.16)}
+#wd33-stage[data-g37="gym"]{--gd-ac:#b06bff;--gd-soft:rgba(176,107,255,.16)}
+#wd33-stage[data-g37="weight"]{--gd-ac:#ff7847;--gd-soft:rgba(255,120,71,.16)}
+#wd33-stage[data-g37="cycling"]{--gd-ac:#3ee86e;--gd-soft:rgba(62,232,110,.16)}
+#wd33-stage[data-g37="chess"]{--gd-ac:#9fb6e8;--gd-soft:rgba(159,182,232,.16)}
+#wd33-stage[data-g37="volley"]{--gd-ac:#ffd84d;--gd-soft:rgba(255,216,77,.16)}
+#wd33-stage[data-g37="lj"]{--gd-ac:#4de3c0;--gd-soft:rgba(77,227,192,.16)}
+#wd33-stage[data-g37="wrestle"]{--gd-ac:#e05299;--gd-soft:rgba(224,82,153,.16)}
+/* پاشش رنگ ورزش روی اجزای صحنه — فقط border/shadow/color (بدون لایه‌ی اضافه) */
+#wd33-stage[data-g37] .w41-decide{border-top:2px solid var(--gd-ac);box-shadow:0 -8px 24px var(--gd-soft)}
+#wd33-stage[data-g37] .w41-opts button{border:1px solid var(--gd-soft);transition:border-color .2s,box-shadow .2s,transform .15s}
+#wd33-stage[data-g37] .w41-opts button:hover{border-color:var(--gd-ac);box-shadow:0 0 14px var(--gd-soft);transform:translateY(-1px)}
+#wd33-stage[data-g37] .w41-clock{color:var(--gd-ac);text-shadow:0 0 12px var(--gd-soft)}
+#wd33-stage[data-g37] .w41-tl i,#wd33-stage[data-g37] .w41-tl b{background:var(--gd-ac)}
+#wd33-stage[data-g37] .w41-feed .t{color:var(--gd-ac)}
+#wd33-stage[data-g37] .w41-arena{box-shadow:inset 0 0 60px var(--gd-soft)}
+#wd33-stage[data-g37] .w41-ask .tag{background:var(--gd-ac);color:#06121f}
+#wd33-stage[data-g37] .w41-stats .bar i{background:linear-gradient(90deg,var(--gd-soft),var(--gd-ac))}
+#wd33-stage[data-g37] .wg37-horizon{background:linear-gradient(90deg,transparent,var(--gd-ac),transparent);opacity:.55}
+#wd33-stage[data-g37] .wg37-spot{opacity:.5;mix-blend-mode:screen}
+#wd33-stage[data-g37] .gm33-score b,#wd33-stage[data-g37] .gm33-timer{color:var(--gd-ac)}
+/* ---------- 2) رنگ کارت‌های هاب و چیپ‌های برنامه (data-k) ---------- */
+.wg33-disc[data-k]{border-top:3px solid var(--kac,transparent);box-shadow:0 4px 18px -8px var(--ksof,transparent)}
+.wg33-disc[data-k] .ic{filter:drop-shadow(0 0 8px var(--ksof,transparent))}
+[data-k="sprint"]{--kac:#ff4d6d;--ksof:rgba(255,77,109,.35)}
+[data-k="archery"]{--kac:#ffb02e;--ksof:rgba(255,176,46,.35)}
+[data-k="swim"]{--kac:#2bb8ff;--ksof:rgba(43,184,255,.35)}
+[data-k="gym"]{--kac:#b06bff;--ksof:rgba(176,107,255,.35)}
+[data-k="weight"]{--kac:#ff7847;--ksof:rgba(255,120,71,.35)}
+[data-k="cycling"]{--kac:#3ee86e;--ksof:rgba(62,232,110,.35)}
+[data-k="chess"]{--kac:#9fb6e8;--ksof:rgba(159,182,232,.35)}
+[data-k="volley"]{--kac:#ffd84d;--ksof:rgba(255,216,77,.35)}
+[data-k="lj"]{--kac:#4de3c0;--ksof:rgba(77,227,192,.35)}
+[data-k="wrestle"]{--kac:#e05299;--ksof:rgba(224,82,153,.35)}
+
+/* ---------- 3) آموزش بازیکن جدید ---------- */
+#wd43-spot{position:fixed;z-index:9986;pointer-events:none;border:2px solid #ffd84d;border-radius:14px;box-shadow:0 0 0 4000px rgba(2,8,20,.72),0 0 22px rgba(255,216,77,.5);opacity:0;transform:scale(.96);transition:top .45s cubic-bezier(.3,1.4,.4,1),left .45s cubic-bezier(.3,1.4,.4,1),width .45s,height .45s,opacity .3s,transform .3s}
+#wd43-spot.on{opacity:1;transform:scale(1)}
+#wd43-tut{position:fixed;top:104px;left:50%;transform:translate(-50%,-12px);z-index:9987;width:min(340px,calc(100vw - 20px));background:linear-gradient(160deg,rgba(10,26,52,.97),rgba(6,16,34,.97));border:1px solid rgba(255,216,77,.45);border-radius:16px;padding:13px 14px;box-shadow:0 12px 34px rgba(0,0,0,.5),0 0 18px rgba(255,216,77,.14);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s}
+#wd43-tut.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#wd43-tut .h{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:800;color:#ffd84d}
+#wd43-tut .h small{margin-inline-start:auto;color:#8fa3c0;font-weight:700}
+#wd43-tut .d{font-size:11.5px;color:#cdd9ec;line-height:1.8;margin:7px 0 10px}
+#wd43-tut .rw{font-size:11px;color:#3ee8a5;margin-bottom:9px}
+#wd43-tut .btns{display:flex;gap:7px}
+#wd43-tut .btns button{flex:1;border:0;border-radius:11px;padding:9px 6px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;transition:transform .15s,opacity .2s}
+#wd43-tut .btns button:active{transform:scale(.97)}
+#wd43-tut .go{background:linear-gradient(135deg,#ffd84d,#ffb02e);color:#201500}
+#wd43-tut .sk{background:rgba(255,255,255,.07);color:#9fadc4}
+#wd43-tut .x{position:absolute;top:6px;inset-inline-end:9px;background:none;border:0;color:#71809a;font-size:14px;cursor:pointer}
+#wd43-tut .st{display:flex;gap:4px;margin-top:9px;direction:ltr;justify-content:center}
+#wd43-tut .st i{width:16px;height:4px;border-radius:3px;background:rgba(255,255,255,.14);transition:background .3s}
+#wd43-tut .st i.on{background:#ffd84d;box-shadow:0 0 6px rgba(255,216,77,.6)}
+
+/* ---------- 4) مسیر فصل (Battle Pass) ---------- */
+.w43-pass-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.w43-season{font-size:13px;font-weight:800;color:#ffd84d;text-shadow:0 0 10px rgba(255,216,77,.35)}
+.w43-xpbar{height:10px;border-radius:7px;background:rgba(255,255,255,.08);overflow:hidden;position:relative;margin:4px 0 12px}
+.w43-xpbar i{position:absolute;inset:0 auto 0 0;width:0;border-radius:7px;background:linear-gradient(90deg,#39e6d0,#ffd84d);box-shadow:0 0 10px rgba(57,230,208,.5);transition:width .8s cubic-bezier(.3,1,.3,1)}
+.w43-xpbar u{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.6);text-decoration:none}
+.w43-track{display:flex;gap:7px;overflow-x:auto;padding:4px 2px 10px;scroll-behavior:smooth}
+.w43-tier{flex:0 0 74px;border-radius:14px;padding:9px 6px;text-align:center;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);position:relative;overflow:hidden;transition:transform .2s}
+.w43-tier .n{font-size:10px;color:#8fa3c0;font-weight:800}
+.w43-tier .r{font-size:15px;margin:5px 0 3px}
+.w43-tier .fa{font-size:9px;color:#cdd9ec;line-height:1.5;min-height:26px}
+.w43-tier.lk{opacity:.45}
+.w43-tier.rd{border-color:rgba(255,216,77,.55);box-shadow:0 0 14px rgba(255,216,77,.18);animation:w43rdy 2.2s ease-in-out infinite}
+@keyframes w43rdy{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.w43-tier .cl{margin-top:5px;border:0;border-radius:9px;width:100%;padding:5px 2px;font-family:inherit;font-size:10px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#ffd84d,#ffb02e);color:#201500}
+.w43-tier .cl.off{background:rgba(255,255,255,.08);color:#7d8aa0;cursor:default}
+.w43-tier.dn{border-color:rgba(62,232,165,.4)}
+.w43-tier.dn::after{content:'✓';position:absolute;top:4px;left:6px;font-size:11px;color:#3ee8a5;font-weight:900}
+.w43-ms{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);border-radius:13px;padding:9px 11px;margin-bottom:7px}
+.w43-ms .ic{font-size:19px}
+.w43-ms .tx{flex:1;min-width:0}
+.w43-ms .tx b{display:block;font-size:11.5px}
+.w43-ms .tx small{color:#8fa3c0;font-size:9.5px}
+.w43-ms .xp{font-size:10.5px;color:#39e6d0;font-weight:800;white-space:nowrap}
+.w43-ms .dn{font-size:10px;color:#3ee8a5;font-weight:800}
+.w43-tools{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px}
+.w43-tools button{flex:1;min-width:104px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#cdd9ec;border-radius:11px;padding:8px 4px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;transition:.18s}
+.w43-tools button:hover{border-color:rgba(255,216,77,.5);color:#ffd84d}
+
+/* ---------- 5) ساعت آخرالزمان + بحران (HUD) ---------- */
+#hud-doom{cursor:pointer}
+#hud-doom .w43-dbar{width:56px;height:7px;border-radius:5px;background:rgba(255,255,255,.1);overflow:hidden;display:inline-block;vertical-align:middle;margin-inline-start:5px}
+#hud-doom .w43-dbar i{display:block;height:100%;width:100%;border-radius:5px;background:#3ee86e;transition:width 1s,background 1s}
+#hud-doom.mid .w43-dbar i{background:#ffd84d}
+#hud-doom.low .w43-dbar i{background:#ff4d6d;animation:w43doom 1s ease-in-out infinite}
+@keyframes w43doom{0%,100%{opacity:1}50%{opacity:.45}}
+#hud-crisis{cursor:pointer;background:linear-gradient(135deg,rgba(255,77,77,.2),rgba(255,176,46,.14));border:1px solid rgba(255,120,71,.45);color:#ffb9a3;animation:w43crs 2.4s ease-in-out infinite}
+@keyframes w43crs{0%,100%{box-shadow:0 0 4px rgba(255,120,71,.25)}50%{box-shadow:0 0 14px rgba(255,120,71,.55)}}
+.w43-ape{position:fixed;inset:0;z-index:9970;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(255,40,40,.28));animation:w43ape 2.6s ease-out forwards}
+@keyframes w43ape{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
+
+/* ---------- 6) روایت جهان / کتاب تاریخ ---------- */
+.w43-story{font-size:12px;color:#dbe6f5;line-height:2.05;column-gap:18px}
+.w43-story p{margin:0 0 11px;text-align:justify}
+.w43-story p::first-letter{color:#ffd84d;font-size:15px;font-weight:800}
+.w43-story h4{color:#ffd84d;font-size:13px;margin:2px 0 9px;text-shadow:0 0 10px rgba(255,216,77,.3)}
+.w43-story .src{font-size:9.5px;color:#71809a;border-top:1px dashed rgba(255,255,255,.14);padding-top:7px;margin-top:4px}
+.w43-tabs{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.w43-tabs button{flex:1;min-width:86px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#cdd9ec;border-radius:11px;padding:8px 4px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.w43-tabs button.on{background:linear-gradient(135deg,#ffd84d,#39e6d0);color:#081426;border-color:transparent}
+.w43-cp{border:0;border-radius:10px;padding:8px 14px;font-family:inherit;font-weight:800;font-size:11.5px;cursor:pointer;background:linear-gradient(135deg,#39e6d0,#2bb8ff);color:#00231f}
+
+/* ---------- 7) ضدتقلب ---------- */
+.w43-rsn{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.w43-rsn button{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#cdd9ec;border-radius:20px;padding:6px 12px;font-family:inherit;font-size:11px;cursor:pointer}
+.w43-rsn button.on{background:rgba(255,216,77,.16);border-color:rgba(255,216,77,.55);color:#ffd84d}
+.w43-ab-row{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:9px 11px;margin-bottom:7px;font-size:11px}
+.w43-ab-row .fl{color:#ff8f8f;font-size:10px;margin-top:3px}
+.w43-ab-row .btns{display:flex;gap:6px;margin-top:7px}
+.w43-ab-row .btns button{flex:1;border:0;border-radius:9px;padding:6px;font-family:inherit;font-size:10.5px;font-weight:800;cursor:pointer}
+.w43-ab-row .ok{background:rgba(62,232,165,.14);color:#3ee8a5}
+.w43-ab-row .ac{background:rgba(255,120,71,.16);color:#ffb9a3}
+.w43-inp{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(43,184,255,.4);background:#061226;color:#fff;font-family:inherit;font-size:12px;text-align:right}
+
+/* ---------- 8) مهاجرت جمعیت (ذره‌ی متحرک روی نقشه) ---------- */
+.w43-mig{position:fixed;z-index:640;pointer-events:none;font-size:13px;filter:drop-shadow(0 0 5px rgba(255,216,77,.7));transition:transform 1.9s cubic-bezier(.45,.05,.55,.95),opacity 1.9s;will-change:transform,opacity}
+
+/* ---------- 9) رادیو / تبلیغات ---------- */
+.w43-pp{display:flex;gap:10px;align-items:center;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:11px;margin-bottom:8px}
+.w43-pp .ic{width:42px;height:42px;flex:0 0 42px;display:flex;align-items:center;justify-content:center;font-size:21px;background:rgba(255,216,77,.1);border:1px solid rgba(255,216,77,.22);border-radius:12px}
+.w43-pp .tx{flex:1}.w43-pp .tx b{display:block;font-size:12px}.w43-pp .tx small{color:#8fa3c0;font-size:10px;line-height:1.6;display:block;margin-top:2px}
+.w43-pp button{border:0;border-radius:11px;padding:8px 12px;font-family:inherit;font-weight:800;font-size:11.5px;cursor:pointer;background:linear-gradient(135deg,#ffd84d,#ffb02e);color:#201500;white-space:nowrap}
+.w43-pp button:disabled{background:rgba(255,255,255,.08);color:#7d8aa0;cursor:default}
+
+/* ---------- 10) سینمایی‌سازی زینتی (استاندارد V43) ---------- */
+/* درجه‌ها — رنگ‌ها همه‌جا یکسان: نقره=معمولی، آبی=کمیاب، طلایی=افسانه‌ای، رنگین=اسطوره‌ای */
+.cos27-card{position:relative;overflow:hidden}
+.cos27-card::after{content:'';position:absolute;top:0;bottom:0;width:34%;left:-45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.13),transparent);transform:skewX(-18deg);animation:w43sweep 5.2s ease-in-out infinite;pointer-events:none}
+@keyframes w43sweep{0%{left:-45%}55%,100%{left:130%}}
+.cos27-card[data-rar="rare"]{border-color:rgba(43,184,255,.4)}
+.cos27-card[data-rar="rare"]::before{content:'کمیاب';position:absolute;top:7px;left:9px;font-size:8.5px;color:#2bb8ff;border:1px solid rgba(43,184,255,.4);border-radius:7px;padding:1px 6px;font-weight:800}
+.cos27-card[data-rar="leg"]{border-color:rgba(255,216,77,.42);background:linear-gradient(135deg,rgba(255,216,77,.09),rgba(255,176,46,.05),rgba(57,230,208,.06))}
+.cos27-card[data-rar="leg"]::before{content:'افسانه‌ای';position:absolute;top:7px;left:9px;font-size:8.5px;color:#ffd84d;border:1px solid rgba(255,216,77,.45);border-radius:7px;padding:1px 6px;font-weight:800}
+.cos27-card[data-rar="myth"]{border:1px solid transparent;background:linear-gradient(135deg,rgba(255,77,109,.1),rgba(255,216,77,.1),rgba(57,230,208,.1)) padding-box,linear-gradient(120deg,#ff4d6d,#ffd84d,#39e6d0,#2bb8ff,#ff4d6d) border-box;background-size:auto,300% 300%;animation:w43rb 5s linear infinite}
+@keyframes w43rb{0%{background-position:0 0,0% 50%}100%{background-position:0 0,300% 50%}}
+.cos27-card[data-rar="myth"]::before{content:'اسطوره‌ای';position:absolute;top:7px;left:9px;font-size:8.5px;color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:7px;padding:1px 6px;font-weight:800;text-shadow:0 0 6px rgba(255,255,255,.6);animation:w43myth 3s ease-in-out infinite}
+@keyframes w43myth{0%,100%{filter:hue-rotate(0)}50%{filter:hue-rotate(60deg)}}
+.cos27-card.w43-in{animation:w43in .5s cubic-bezier(.3,1.5,.4,1) backwards}
+@keyframes w43in{from{opacity:0;transform:scale(.9) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.cos27-card[data-rar="leg"] .cos27-ico,.cos27-card[data-rar="myth"] .cos27-ico{animation:w43brth 3.4s ease-in-out infinite}
+@keyframes w43brth{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+/* انتخاب‌گرها: ورود چرخشی + رنگ امپراتوری پخش‌شونده */
+.cos27-sw.w43-pop,.cos27-em.w43-pop{animation:w43rot .55s cubic-bezier(.3,1.4,.4,1) backwards}
+@keyframes w43rot{from{opacity:0;transform:rotateY(70deg) scale(.7)}to{opacity:1;transform:rotateY(0) scale(1)}}
+.wd43-ink{position:absolute;inset:-6px;border-radius:50%;pointer-events:none;background:radial-gradient(circle,var(--wd43-hc,#ffd84d) 0%,transparent 62%);opacity:.75;transform:scale(.2);animation:w43ink 1.15s ease-out forwards}
+@keyframes w43ink{to{transform:scale(2.6);opacity:0}}
+/* لقب شاین دوره‌ای */
+.wd43-title-shine{background:linear-gradient(120deg,#ffd84d 25%,#fff6c9 50%,#ffd84d 75%);background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:w43shn 2.8s linear infinite}
+@keyframes w43shn{to{background-position:-200% center}}
+/* مرز درخشان متحرک روی مسیر SVG قلمروها */
+path.wd43-flow{stroke-dasharray:7 5;animation:w43dash 1.6s linear infinite}
+@keyframes w43dash{to{stroke-dashoffset:-12}}
+/* هاله‌ی مدال فصل + رینگ رادار دور پایتخت */
+.wd43-halo::after{content:'';position:absolute;inset:-9px;border-radius:50%;border:2px solid rgba(255,216,77,.75);animation:w43halo 2.2s ease-out infinite;pointer-events:none}
+@keyframes w43halo{0%{transform:scale(.55);opacity:.9}100%{transform:scale(1.65);opacity:0}}
+.wd43-ring::before{content:'';position:absolute;inset:-6px;border-radius:50%;border:2px dashed rgba(43,184,255,.8);animation:w43rng 3.4s linear infinite;pointer-events:none}
+@keyframes w43rng{to{transform:rotate(360deg)}}
+/* قاب پروفایل پویا (افسانه‌ای) — رینگ چرخان + دو ذره */
+.wd43-frame{position:relative;display:inline-block}
+.wd43-frame::before{content:'';position:absolute;inset:-4px -7px;border-radius:12px;background:conic-gradient(from var(--fa,0deg),#ffd84d,#ff4d6d,#39e6d0,#ffd84d);z-index:-1;animation:w43spin 3.2s linear infinite;opacity:.85;filter:blur(.4px)}
+@keyframes w43spin{to{--fa:360deg}}
+.wd43-frame::after{content:'✦';position:absolute;top:-9px;right:-4px;font-size:9px;color:#ffd84d;animation:w43orb 2.6s ease-in-out infinite;text-shadow:0 0 6px rgba(255,216,77,.9)}
+@keyframes w43orb{0%,100%{transform:translate(0,0) scale(1);opacity:.9}50%{transform:translate(-3px,-4px) scale(1.25);opacity:.5}}
+@property --fa{syntax:'<angle>';initial-value:0deg;inherits:false}
+/* نمودار آمار پیشرفته — گرادینت زیر خط */
+.wd43-chartgrad{position:relative;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,rgba(57,230,208,.12),rgba(43,184,255,.04) 60%,transparent)}
+.wd43-chartgrad::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.09) 50%,transparent 70%);transform:translateX(-100%);animation:w43draw 2.6s ease-out 1}
+@keyframes w43draw{to{transform:translateX(100%)}}
+/* صحنه‌های سینمایی: فتح ۳فازی + ورود + لاکی‌باکس */
+.w43-fx{position:fixed;inset:0;z-index:9950;pointer-events:none}
+.w43-fx .g{position:absolute;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle,#fff6c9,#ffd84d 55%,transparent 72%);box-shadow:0 0 16px rgba(255,216,77,.9);animation:w43gath .75s cubic-bezier(.5,0,.8,.4) forwards}
+@keyframes w43gath{to{transform:translate(var(--gx),var(--gy)) scale(.4);opacity:.9}}
+.w43-fx .burst{position:absolute;left:50%;top:44%;width:16px;height:16px;margin:-8px;border-radius:50%;background:radial-gradient(circle,#fff,#ffd84d 45%,rgba(255,120,71,.6) 70%,transparent 75%);animation:w43burst .95s cubic-bezier(.2,.9,.3,1) forwards}
+@keyframes w43burst{0%{transform:scale(.3);opacity:1}70%{transform:scale(26);opacity:.5}100%{transform:scale(38);opacity:0}}
+.w43-fx .emb{position:absolute;width:7px;height:7px;border-radius:50%;background:#ffd84d;box-shadow:0 0 8px rgba(255,216,77,.8);animation:w43emb 2.1s ease-in forwards}
+@keyframes w43emb{0%{transform:translate(0,0) scale(1);opacity:.95}100%{transform:translate(var(--ex),var(--ey)) scale(.4);opacity:0}}
+.w43-ent{position:fixed;inset:0;z-index:9955;pointer-events:none;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;background:radial-gradient(ellipse at center,rgba(2,8,20,.55),rgba(2,8,20,.85));animation:w43entbg 2.7s ease forwards}
+@keyframes w43entbg{0%{opacity:0}12%{opacity:1}82%{opacity:1}100%{opacity:0}}
+.w43-ent .fl{font-size:74px;filter:drop-shadow(0 6px 22px rgba(0,0,0,.6));animation:w43fl 1.4s cubic-bezier(.3,1.5,.4,1) backwards}
+@keyframes w43fl{from{transform:translateY(-60px) scale(.5);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.w43-ent .sl{font-size:19px;font-weight:900;color:#ffd84d;letter-spacing:.5px;text-shadow:0 2px 14px rgba(255,216,77,.45),0 0 30px rgba(255,120,71,.3);animation:w43sl 1.5s .35s cubic-bezier(.2,1.4,.4,1) backwards}
+@keyframes w43sl{from{opacity:0;transform:translateY(26px) scale(.85)}to{opacity:1;transform:translateY(0) scale(1)}}
+.w43-ent .nm{font-size:12px;color:#cdd9ec;animation:w43sl 1.4s .55s cubic-bezier(.2,1.4,.4,1) backwards}
+.w43-lucky-ov{position:fixed;inset:0;z-index:9956;background:rgba(2,8,20,.82);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;animation:w43fadein .3s ease}
+@keyframes w43fadein{from{opacity:0}to{opacity:1}}
+.w43-lucky-ov .bx{font-size:88px;animation:w43shk .14s linear infinite;filter:drop-shadow(0 0 26px rgba(255,216,77,.5))}
+@keyframes w43shk{0%{transform:rotate(-4deg) scale(1)}50%{transform:rotate(4deg) scale(1.05)}100%{transform:rotate(-4deg) scale(1)}}
+.w43-lucky-ov .lt{color:#ffd84d;font-size:13px;font-weight:800}
+.w43-lucky-ov.done .bx{animation:w43pop .6s cubic-bezier(.3,1.6,.4,1) forwards}
+@keyframes w43pop{40%{transform:scale(1.35) rotate(8deg);filter:drop-shadow(0 0 40px #ffd84d) brightness(1.6)}100%{transform:scale(0);opacity:0}}
+/* آیکون سرود روی HUD */
+#hud-anthem{cursor:pointer}
+#hud-anthem .w43-wv{display:inline-flex;gap:1.5px;align-items:flex-end;height:11px;margin-inline-start:4px}
+#hud-anthem .w43-wv i{width:2.5px;background:#ffd84d;border-radius:2px;height:30%;box-shadow:0 0 5px rgba(255,216,77,.7)}
+#hud-anthem.play .w43-wv i{animation:w43wv .7s ease-in-out infinite}
+#hud-anthem.play .w43-wv i:nth-child(2){animation-delay:.15s}
+#hud-anthem.play .w43-wv i:nth-child(3){animation-delay:.3s}
+@keyframes w43wv{0%,100%{height:25%}50%{height:100%}}
+/* توقف همه‌ی انیمیشن‌های V43 در حالت idle/تب مخفی — قانون بهینه‌سازی */
+body.idle .cos27-card::after,body.idle .cos27-card[data-rar="myth"],body.idle .wd43-frame::before,body.idle .wd43-frame::after,body.idle .wd43-halo::after,body.idle .wd43-ring::before,body.idle #hud-crisis,body.idle #hud-doom.low .w43-dbar i{animation-play-state:paused!important}
+/* هاله‌ی نفس‌کش مرز درخشان روی پرچم قلمرو (وقتی مسیر SVG در دسترس نیست) */
+.wd43-glow{animation:w43glow 2.4s ease-in-out infinite}
+@keyframes w43glow{0%,100%{filter:drop-shadow(0 0 3px rgba(255,216,77,.55))}50%{filter:drop-shadow(0 0 9px rgba(255,216,77,.95))}}
+
+</style>
+<script id="wd43-js">
+/* ================= V43 — جهان زنده + آموزش + مسیر فصل + ضدتقلب + سینمایی زینتی ================= */
+(function(){
+'use strict';
+if(window.WD43)return;
+var D=document;
+function S$(id){return D.getElementById(id)}
+function el(t,x,c,f){var e=D.createElement(t);if(x)e.textContent=x;if(c)e.className=c;if(f)e.addEventListener('click',f);return e}
+function faN(n){try{return faNum(n)}catch(e){return String(n)}}
+function grp(n){try{return Number(n||0).toLocaleString('fa-IR')}catch(e){return String(n)}}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function log(m){try{console.log('%c[V43]'+m,'color:#ffd84d')}catch(e){}}
+
+var WD43=window.WD43={ver:'43',crisis:null,doom:100,apocSeen:false,lastCq:-1,cqSnap:{},pwBase:0,taxClk:false,olyClk:false,passSeen:false,
+ popLoss:{},propDay:'',propN:0,migT:0,anthemPlay:false,wsReady:false,tutRan:false,admin:null,_t:{}};
+
+/* ---------- RPC ---------- */
+async function rpc43(fn,args){try{if(typeof sb==='undefined'||!sb||!sb.rpc)return null;var r=await sb.rpc(fn,args||{});if(r&&r.error)return null;return r?r.data:null}catch(e){return null}}
+function walletRefresh(){try{if(typeof loadWallet==='function')loadWallet()}catch(e){}}
+
+/* ================= 1) صداهای اختصاصی هر آیتم (قانون صدا) ================= */
+var WA=null;function wa(){try{WA=WA||new(window.AudioContext||window.webkitAudioContext)();if(WA.state==='suspended')WA.resume();return WA}catch(e){return null}}
+function hashS(s){var h=0;s=String(s);for(var i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0}return h}
+var SCALE=[523.25,587.33,659.25,783.99,880,1046.5,1174.7,1318.5];
+function jingle(k,fast){try{var ac=wa();if(!ac)return;var h=hashS(k);var t=ac.currentTime;var n=fast?3:4;
+ for(var i=0;i<n;i++){var f=SCALE[(h>>(i*3))%SCALE.length]*(i===n-1?2:1);
+  var o=ac.createOscillator(),g=ac.createGain();o.type=(h>>i)%2?'triangle':'sine';o.frequency.value=f;
+  g.gain.setValueAtTime(0,t+i*.09);g.gain.linearRampToValueAtTime(.14,t+i*.09+.02);g.gain.exponentialRampToValueAtTime(.001,t+i*.09+.5);
+  o.connect(g).connect(ac.destination);o.start(t+i*.09);o.stop(t+i*.09+.55)}}catch(e){}}
+/* رادیو: نویز + بلیپ */
+function radioSfx(){try{var ac=wa();if(!ac)return;var t=ac.currentTime;var b=ac.createBuffer(1,ac.sampleRate*.5,ac.sampleRate);var d=b.getChannelData(0);
+ for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*.06*(1-i/d.length);
+ var s=ac.createBufferSource();s.buffer=b;var g=ac.createGain();g.gain.value=.5;s.connect(g).connect(ac.destination);s.start(t);
+ for(var j=0;j<3;j++){var o=ac.createOscillator(),g2=ac.createGain();o.type='square';o.frequency.value=660+j*180;
+  g2.gain.setValueAtTime(0,t+.15+j*.14);g2.gain.linearRampToValueAtTime(.05,t+.15+j*.14+.02);g2.gain.exponentialRampToValueAtTime(.001,t+.15+j*.14+.12);
+  o.connect(g2).connect(ac.destination);o.start(t+.15+j*.14);o.stop(t+.3+j*.14)}}catch(e){}}
+
+/* ================= 2) سرود امپراتوری (WebAudio، fade-in) ================= */
+var ANTHEMS={hero:{fa:'حماسی',notes:[[392,.5],[523.25,.4],[587.33,.4],[783.99,.9],[659.25,.4],[523.25,.4],[783.99,1.4]],
+      bass:[98,1.9,130.8,1.9,98,1.9,196,1.9]},
+ calm:{fa:'آرام',notes:[[523.25,.7],[659.25,.7],[783.99,.9],[880,1.1],[783.99,.7],[659.25,.7],[523.25,1.5]],
+      bass:[130.8,2.2,98,2.2,110,2.2,98,2.2]},
+ sacred:{fa:'کهن',notes:[[440,.6],[415.3,.4],[392,.8],[349.2,.6],[392,.5],[440,.5],[523.25,1.5]],
+      bass:[110,2,110,2,87.3,2,110,2]}};
+function stopAnthem(){try{if(WD43._anG){WD43._anG.gain.cancelScheduledValues(WA.currentTime);WD43._anG.gain.linearRampToValueAtTime(.0001,WA.currentTime+.6)}var c=S$('hud-anthem');if(c)c.classList.remove('play');WD43.anthemPlay=false}catch(e){}}
+function playAnthem(k,short){try{if(!cosOwn('anthem'))return;var a=ANTHEMS[k]||ANTHEMS.hero;var ac=wa();if(!ac)return;
+ if(WD43.anthemPlay)stopAnthem();WD43.anthemPlay=true;var t=ac.currentTime+.05,master=ac.createGain();
+ master.gain.setValueAtTime(.0001,t);master.gain.linearRampToValueAtTime(.16,t+1.2);master.connect(ac.destination);
+ WD43._anG=master;var end=t+2;
+ a.notes.forEach(function(n,i){if(short&&i>3)return;var o=ac.createOscillator(),g=ac.createGain();o.type='triangle';o.frequency.value=n[0];
+  g.gain.setValueAtTime(0,t+end);g.gain.linearRampToValueAtTime(.5,t+end+.03);g.gain.exponentialRampToValueAtTime(.001,t+end+n[1]*.95);
+  o.connect(g).connect(master);o.start(t+end);o.stop(t+end+n[1]);end+=n[1]*.72});
+ var bd=t+.2;var bs=a.bass||[];
+ for(var bi=0;bi+1<bs.length;bi+=2){(function(fq,dur){try{var o2=ac.createOscillator(),g2=ac.createGain();o2.type='sine';o2.frequency.value=fq;
+  g2.gain.setValueAtTime(.12,t+bd);g2.gain.linearRampToValueAtTime(.0001,t+bd+dur);o2.connect(g2).connect(master);o2.start(t+bd);o2.stop(t+bd+dur+.1);bd+=dur*.95}catch(e){}})(bs[bi],bs[bi+1])}
+ var c=S$('hud-anthem');if(c)c.classList.add('play');setTimeout(function(){c&&c.classList.remove('play');WD43.anthemPlay=false},short?2600:7200)}catch(e){log('anthem '+e)}}
+
+/* ================= 3) ابزار زینتی ================= */
+function cosOwn(k){try{var C=window.COS||window.COS27;return C&&C.owned&&C.owned.indexOf(k)>-1}catch(e){return false}}
+function cosSet(k,v){try{var C=window.COS||window.COS27;if(C)C[k]=v}catch(e){}}
+function cosOwnedPush(k){try{var C=window.COS||window.COS27;if(C&&C.owned&&C.owned.indexOf(k)<0)C.owned.push(k)}catch(e){}}
+function saveN(){try{if(typeof saveNow==='function')saveNow()}catch(e){}}
+
+/* ================= 4) رنگ هر ورزش — صحنه (CSS data-g37) + پشتیبان JS + هاب ================= */
+var SPORT_COL={sprint:'#ff4d6d',archery:'#ffb02e',swim:'#2bb8ff',gym:'#b06bff',weight:'#ff7847',cycling:'#3ee86e',chess:'#9fb6e8',volley:'#ffd84d',lj:'#4de3c0',wrestle:'#e05299'};
+var SPORT_FA={'دو ۱۰۰ متر':'sprint','تیراندازی با کمان':'archery','شنا':'swim','ژیمناستیک':'gym','وزنه‌برداری':'weight','دوچرخه‌سواری':'cycling','شطرنج':'chess','والیبال ساحلی':'volley','پرش طول':'lj','کشتی':'wrestle'};
+function stageTint(){try{var st=S$('wd33-stage');if(!st||!st.classList.contains('on'))return;
+ if(!st.getAttribute('data-g37')){var txt=st.textContent||'';for(var fa in SPORT_FA){if(txt.indexOf(fa)>-1){var k2=SPORT_FA[fa];st.style.setProperty('--gd-ac',SPORT_COL[k2]);st.style.setProperty('--gd-soft',SPORT_COL[k2]+'29');break}}}}catch(e){}}
+function hubTint(){try{var cs=D.querySelectorAll('#wd-games [data-k]');for(var i=0;i<cs.length;i++){var k=cs[i].getAttribute('data-k');if(SPORT_COL[k])cs[i].style.setProperty('--kac',SPORT_COL[k])}}catch(e){}}
+
+/* ================= 5) آموزش بازیکن جدید (زنجیره‌ی ماموریت + جایزه) ================= */
+var TUT=[
+ {id:'capital',ic:'🏰',fa:'انتخاب پایتخت',d:'روی نقشه یک کشور خاکستری بزن و «اینجا پایتخت من شود» را بزن. امپراتوری تو از همین نقطه شروع می‌شود!',rw:300,
+  chk:function(){try{return typeof myCountryName!=='undefined'&&!!myCountryName}catch(e){return false}}},
+ {id:'tax',ic:'💰',fa:'جمع‌آوری مالیات',d:'روی دکمه‌ی «جمع‌آوری مالیات» بزن — ۱۰۰ غذا خرج می‌شود و طلا بر اساس جمعیت قلمروهایت می‌گیری. مالیات، موتور اقتصاد توست!',rw:500,tg:'#act-tax',
+  chk:function(){return WD43.taxClk}},
+ {id:'army',ic:'⚔️',fa:'ساخت ارتش',d:'پنل «ارتش» را باز کن و چند سرباز تازه‌نفس ثبت‌نام کن. بدون قدرت هجومی، هیچ کشوری فتح نمی‌شود!',rw:400,
+  chk:function(){try{return typeof calculateTotalAttack==='function'&&calculateTotalAttack()>WD43.pwBase+15}catch(e){return false}}},
+ {id:'conquer',ic:'🏴',fa:'اولین فتح!',d:'یک کشور هم‌مرزِ ضعیف را انتخاب و «حمله» را بزن. پیشروی را تا ۱۰۰٪ برسان — هر کشور شکست‌خورده به امپراتوری‌ات اضافه می‌شود!',rw:800,
+  chk:function(){try{return conqueredCountries.size>=2}catch(e){return false}}},
+ {id:'olympic',ic:'🏅',fa:'المپیک جهانی',d:'دکمه‌ی 🏅 بالای صفحه را بزن — رشته‌هایت را انتخاب کن و در مسابقات جهانی مدال بگیر. شهرت امپراتوری‌ات از همین‌جا شروع می‌شود!',rw:500,tg:'#hud-olympic',
+  chk:function(){var p=S$('wd-games');return !!(p&&p.classList.contains('on'))}},
+ {id:'pass',ic:'🎖️',fa:'مسیر فصل',d:'آخرین قدم: پنل «مسیر فصل» را باز کن! هر روز بازی کن، XP بگیر، پله‌ها را باز کن — طلا، جم رایگان و آیتم‌های زینتی منتظرت است.',rw:500,tg:'#wd43-nav',
+  chk:function(){return WD43.passSeen}}
+];
+var tutState={i:0,done:false,skipped:false,v:1};
+try{var _ts=null;try{_ts=JSON.parse(localStorage.getItem('wd43tut')||'null')}catch(e){}
+ if(_ts&&_ts.v===1)tutState=_ts}catch(e){}
+function tutSave(){try{localStorage.setItem('wd43tut',JSON.stringify(tutState))}catch(e){}}
+function tutSkipIfVet(){try{if(tutState.done||tutState.skipped)return;var cq=0;try{cq=conqueredCountries.size}catch(e){}
+ /* ⚠️ GAME.days هر ثانیه‌ی واقعی +۱ جلو می‌رود — معیار روز مطلقاً استفاده نمی‌شود */
+ if(cq>=2){tutState.skipped=true;tutSave();tutHide()}}catch(e){}}
+function tutEl(){var t=S$('wd43-tut');if(!t){t=el('div');t.id='wd43-tut';D.body.appendChild(t);
+  var x=el('button','✕','',function(){tutState.skipped=true;tutSave();tutHide()});x.className='x';t.appendChild(x);
+  t.appendChild(el('div','','h'));t.appendChild(el('div','','d'));t.appendChild(el('div','','rw'));
+  var bs=el('div','','btns');var go=el('button','رفتم!','go',function(){try{var st=TUT[tutState.i];if(st&&st.tg){var e2=D.querySelector(st.tg);if(e2)e2.click()}}catch(e){}});bs.appendChild(go);
+  bs.appendChild(el('button','رد شدن','sk',function(){tutState.skipped=true;tutSave();tutHide()}));t.appendChild(bs);
+  var dots=el('div','','st');for(var i=0;i<TUT.length;i++)dots.appendChild(el('i'));t.appendChild(dots);
+  var sp=el('div');sp.id='wd43-spot';D.body.appendChild(sp)}
+ return t}
+function tutSpot(tg){var sp=S$('wd43-spot');if(!sp)return;try{if(!tg){sp.classList.remove('on');return}
+ var r=tg.getBoundingClientRect();if(r.width<4){sp.classList.remove('on');return}
+ sp.style.top=(r.top-6)+'px';sp.style.left=(r.left-6)+'px';sp.style.width=(r.width+12)+'px';sp.style.height=(r.height+12)+'px';sp.classList.add('on')}catch(e){}}
+function tutShow(){try{if(tutState.done||tutState.skipped||tutState.i>=TUT.length){tutHide();return}
+ var st=TUT[tutState.i];if(!st)return;if(st.id==='capital'&&typeof GAME==='undefined')return; /* قبل از آماده‌شدن بازی نرو */
+ var t=tutEl();t.querySelector('.h').textContent='';t.querySelector('.h').append(el('span',st.ic+' '),el('span',st.fa),el('small',(faN(tutState.i+1)+' / '+faN(TUT.length))));
+ t.querySelector('.d').textContent=st.d;t.querySelector('.rw').textContent='🎁 جایزه‌ی این قدم: '+grp(st.rw)+' طلا';
+ var dots=t.querySelectorAll('.st i');for(var i=0;i<dots.length;i++)dots[i].className=(i<tutState.i?'on':'');
+ t.classList.add('on');var tg=st.tg?D.querySelector(st.tg):null;tutSpot(tg)}catch(e){log('tutShow '+e)}}
+function tutHide(){try{var t=S$('wd43-tut');if(t)t.classList.remove('on');tutSpot(null)}catch(e){}}
+function tutAdvance(){try{var st=TUT[tutState.i];if(!st)return;tutState.i++;tutSave();
+ if(tutState.i>=TUT.length){tutState.done=true;tutSave();tutHide();
+  try{if(typeof playerRes!=='undefined')playerRes.gold+=1000;showToast('🎓 آموزش تمام شد! +۱٬۰۰۰ طلا هدیه‌ی فارغ‌التحصیلی — امپراتوری دست خودت است','win');snd('win')}catch(e){}
+  return}
+ var done=st;try{if(typeof playerRes!=='undefined'){playerRes.gold+=done.rw}showToast('✅ ماموریت «'+done.fa+'» انجام شد — +'+grp(done.rw)+' طلا','win');snd('win')}catch(e){}
+ setTimeout(tutShow,600)}catch(e){}}
+function tutTick(){try{if(tutState.done||tutState.skipped)return;
+ var st=TUT[tutState.i];if(!st)return;
+ if(st.chk&&st.chk()){tutAdvance();return}
+ var t=S$('wd43-tut');if(!t||!t.classList.contains('on'))tutShow();
+ else if(st.tg){var tg=D.querySelector(st.tg);if(tg)tutSpot(tg)}}catch(e){}}
+
+/* ================= 6) مسیر فصلی (Battle Pass اخلاقی) ================= */
+var PASS=null;
+function passOpen(){WD43.passSeen=true;var m=S$('m-w43');if(m)openModal('m-w43');
+ passLoad().then(function(ok){passRender()});passRender();}
+async function passLoad(){var r=await rpc43('pass_state');if(r&&r.ok){PASS=r;return true}return false}
+function passTierOf(xp){return Math.floor((xp||0)/100)}
+function passRender(){
+ try{var b=S$('w43-body');if(!b)return;b.textContent='';
+  var tabs=el('div','','w43-tabs');
+  [['pass','🎖️ مسیر فصل'],['story','🌍 روایت جهان'],['book','📕 کتاب تاریخ'],['report','🛡️ گزارش تخلف']].forEach(function(x){
+   var bt=el('button',x[1],((window._w43tab||'pass')===x[0]?'on':''),function(){W43tab(x[0])});tabs.appendChild(bt)});
+  b.appendChild(tabs);
+  var tab=(window._w43tab)||'pass';
+  if(tab==='pass')passTab(b);else if(tab==='story')storyTab(b);else if(tab==='book')bookTab(b);else reportTab(b);
+ }catch(e){log('passRender '+e)}}
+function W43tab(n){window._w43tab=n;passRender()}
+function passTab(b){
+ if(!PASS){b.appendChild(el('div','در حال بارگذاری مسیر فصل…','sites-info'));passLoad().then(function(ok){if(ok&&window._w43tab==='pass')passTab(S$('w43-body'))});return}
+ var hd=el('div','','w43-pass-hd');
+ try{var s=season27()}catch(e){var s={fa:'فصل جاری',daysLeft:0}}
+ hd.appendChild(el('span','🎖️ '+s.fa+' — '+faN(s.daysLeft)+' روز مانده','w43-season'));
+ hd.appendChild(el('span','XP: '+grp(PASS.xp),'sites-info'));
+ b.appendChild(hd);
+ var myT=passTierOf(PASS.xp),inT=PASS.xp-myT*100;
+ var bar=el('div','','w43-xpbar');var fi=el('i');fi.style.width=Math.min(100,inT)+'%';bar.appendChild(fi);
+ bar.appendChild(el('u',grp(inT)+' / ۱۰۰ XP — پله‌ی '+faN(myT)+' از ۲۰'));
+ b.appendChild(bar);
+ var tr=el('div','','w43-track');
+ (PASS.tiers||[]).forEach(function(rw,i){
+  var t=el('div','','w43-tier'+(i>myT?' lk':'')+(i<myT||((PASS.claimed>>i)&1)?' dn':'')+((i===myT&&!(PASS.claimed>>i&1))?' rd':''));
+  t.appendChild(el('div','پله‌ی '+faN(i+1),'n'));
+  t.appendChild(el('div',rw.g?'🪙':rw.gem?'💎':'🎁','r'));
+  t.appendChild(el('div',rw.fa||'','fa'));
+  if(i<=myT){var cl=(PASS.claimed>>i)&1;
+   t.appendChild(el('button',cl?'گرفته شد':'دریافت','cl'+(cl?' off':''),cl?null:function(){passClaim(i,t)}))}
+  else t.appendChild(el('button','🔒 قفل','cl off'));
+  tr.appendChild(t)});
+ b.appendChild(tr);
+ b.appendChild(el('div','📡 ماموریت‌های امروز (XP فقط با بازی کردن — بدون پول)','cos27-h'));
+ var defs=PASS.mission_defs||{};var cnt=PASS.missions||{};
+ for(var k in defs){var m=defs[k];var c=cnt[k]||0;
+  var row=el('div','','w43-ms');row.appendChild(el('span',m.ic,'ic'));
+  var tx=el('div','','tx');tx.appendChild(el('b',m.fa));tx.appendChild(el('small','سقف روزانه: '+faN(m.cap)+' بار'));
+  row.appendChild(tx);
+  if(c>=m.cap)row.appendChild(el('span','✓ امروز کامل شد','dn'));
+  else row.appendChild(el('span','+'+faN(m.xp)+' XP','xp'));
+  b.appendChild(row)}
+ var tools=el('div','','w43-tools');
+ tools.appendChild(el('button','📻 رادیو و تبلیغات',null,function(){propModalEnsure();openModal('m-prop');propRender()}));
+ tools.appendChild(el('button','✨ فروشگاه زینتی سینمایی',null,function(){closeModal('m-w43');try{if(typeof renderShop==='function')renderShop()}catch(e){}openModal('m-shop')}));
+ b.appendChild(tools);
+}
+async function passClaim(i,btn){try{if(btn){btn.textContent='…';btn.disabled=true}
+ var r=await rpc43('pass_claim',{p_tier:i});
+ if(r&&r.ok){var rw=r.reward||{};var parts=[];
+  if(rw.g&&typeof playerRes!=='undefined'){playerRes.gold+=rw.g;parts.push(grp(rw.g)+' طلا')}
+  if(rw.f&&typeof playerRes!=='undefined'){playerRes.food+=rw.f;parts.push(grp(rw.f)+' غذا')}
+  if(r.gems_added){parts.push(faN(r.gems_added)+' جم');walletRefresh()}
+  if(rw.cos){cosOwnedPush(rw.cos);parts.push('آیتم زینتی')}
+  jingle('claim'+i);showToast('🎖️ پله‌ی '+faN(i+1)+' باز شد: '+(parts.join(' + ')||rw.fa),'win');saveN();
+  if(rw.cos==='anthem'){var c= anthemChip();if(c)c.style.display='';playAnthem((window.COS&&COS.anthemK)||'hero')}
+  passLoad().then(function(){if(window._w43tab==='pass')passTab(S$('w43-body'))});updateUI&&updateUI()}
+ else{showToast(r&&r.error==='locked'?'❌ هنوز به این پله نرسیدی':'❌ دریافت نشد','lose');passLoad().then(function(){if(window._w43tab==='pass')passTab(S$('w43-body'))})}}catch(e){log('passClaim '+e)}}
+
+/* ================= 7) روایت زنده‌ی جهان + کتاب تاریخ ================= */
+function dayFa(){try{return S$('hud-date')?S$('hud-date').textContent.replace('📅 ',''):''}catch(e){return''}}
+function worldStory(){
+ try{var ps=[];var c=WD43.crisis;var dm=WD43.doom;
+  var p1='در '+dayFa()+'، جهان در ';ps.push('');
+  var mood=dm>70?'آرامی نسبی به سر می‌برد':dm>40?'تعادلی شکننده میان قدرت‌ها می‌گذرد':'آستانه‌ی یک فاجعه‌ی جهانی نفس می‌کشد';
+  ps[0]='مؤرخان دربار، امروز را چنین ثبت می‌کنند: جهان '+mood+'. ساعت آخرالزمان مشترک روی '+faN(Math.round(dm))+' از ۱۰۰ ایستاده است'+(dm<40?' و هر نبرد بزرگ، عقربه را به صفر نزدیک‌تر می‌کند.':'. دوره‌های آرامش، عقربه را دوباره پر می‌کند.');
+  if(c)ps.push(c.ic+' «'+c.fa+'» سراسر جهان را در بر گرفته است: '+c.d+'. دیوان‌سالاران می‌گویند تا رفع بحران، اقتصاد امپراتوری‌ها باید چابک‌تر از همیشه عمل کند.');
+  else ps.push('خبرگان صلح گزارش می‌دهند که هیچ بحران جهانی فعال نیست؛ فرصتی طلایی برای بازسازی، تجارت و توسعه‌ی آرام.');
+  try{var g=gPhase33();var ph={pre:'دوره‌ی آماده‌سازی المپیک '+g.host.c+' جریان دارد و کشورها ورزشکارانشان را برمی‌گزینند',reg:'ثبت‌نام المپیک '+g.host.c+' آغاز شده؛ میزبان این دوره '+g.host.n+' است',live:'المپیک '+g.host.c+' برپاست! امروز '+((GD33[g.today&&g.today[0]]||{}).fa||'رقابت‌های اصلی')+' روی تابلوست',after:'المپیک '+g.host.c+' به پایان رسید؛ جهان چشم‌به‌دوره‌ی بعدی دوخته است'}[g.phase];
+   if(ph)ps.push('🏅 '+ph+'.')}
+  catch(e){}
+  try{var tn=Math.round(typeof tension!=='undefined'?tension:0);
+   ps.push(tn>=70?'🌡️ تنش جهانی به '+faN(tn)+'٪ رسیده — دیپلمات‌ها از آستانه‌ی تحریم می‌گویند.':tn>=35?'🌡️ تنش جهانی '+faN(tn)+'٪ است؛ تعادل دشوار اما برقرار.':'🌡️ تنش جهانی تنها '+faN(tn)+'٪ است؛ هوای تجارت روایت می‌شود.')}catch(e){}
+  if(typeof myCountryName!=='undefined'&&myCountryName){try{var n=conqueredCountries.size;
+   ps.push('و در این میان، امپراتوری «'+myCountryName+'» با '+faN(n)+' قلمرو '+((typeof calculateTotalAttack==='function')?'و قدرتی روزافزون ':'')+'در حال نوشتن فصل تازه‌ای از تاریخ است.')}catch(e){}}
+  var html='<h4>🌍 روایت زنده‌ی جهان</h4>';for(var i=0;i<ps.length;i++)html+='<p>'+esc(ps[i])+'</p>';
+  html+='<div class="src">تدوین خودکار از داده‌های زنده‌ی سرور — روزنامه‌ی جهانی V43</div>';
+  return html}catch(e){return '<p>روایت امروز در دست تدوین است…</p>'}}
+function bookStory(){
+ try{var ps=[];var n=1;try{n=conqueredCountries.size}catch(e){}
+  var days=(typeof GAME!=='undefined')?GAME.days:0;var C=window.COS||window.COS27;var medals=(C&&C.medals)||[];
+  ps.push('این است سند تاریخ: در روز '+faN(days)+' از عصر جدید، پرچم '+esc((typeof myCountryName!=='undefined'&&myCountryName)||'امپراتوری من')+' برافراشته شد و داستانی آغاز شد که هنوز به پایانش نرسیده است.');
+  ps.push(n>1?'فتح، امضای این سلسله است: '+faN(n-1)+' کشور زیر این پرچم یکی شد. '+((function(){var u=0,c2=0;try{conqueredCountries.forEach(function(k){if(k!==myCountryName){u+=(unrest[k]||25);c2++}})}catch(e){}return c2?('ملت‌های تازه‌پیوسته با میانگین ناآرامی '+faN(Math.round(u/c2))+'٪ نفس تازه می‌کشند — عدالت یا اقتدار، آینده‌اش را رعیت رقم می‌زنند.'):'ملت با آرامش کامل نفس می‌کشد.'})()):'امپراتوری هنوز جوان است؛ نخستین لشکرکشی هنوز در افق پنهان می‌ماند.');
+  ps.push(medals.length?('افتخار ورزشی نیز سهم این خاندان شد: '+faN(medals.length)+' مدال فصل در گنجینه، آویزه‌ی نام فرمانروایان این سرزمین است.'):'گنجینه‌ی مدال هنوز خالی است؛ مورخان می‌نویسند المپیک هنوز فرصت خودنمایی به این سلسله نداده است.');
+  if(PASS)ps.push('و در مسیر فصل '+esc(PASS.season)+'، این امپراتوری تا پله‌ی '+faN(passTierOf(PASS.xp))+' از بیست پله‌ی افتخار پیش رفته است.');
+  var html='<h4>📕 کتاب تاریخ امپراتوری</h4>';for(var i=0;i<ps.length;i++)html+='<p>'+esc(ps[i])+'</p>';
+  html+='<div class="src">تولید خودکار از تاریخچه‌ی واقعی بازیکن — قابل اشتراک‌گذاری</div>';
+  return html}catch(e){return '<p>کتاب تاریخ در دست نوشتن است…</p>'}}
+function storyTab(b){b.appendChild(el('div','در حال تدوین روایت…','sites-info'));setTimeout(function(){b.textContent='';b.innerHTML=worldStory();var cp=el('button','📋 کپی برای اشتراک','w43-cp',function(){try{var t=D.createElement('textarea');t.value=(worldStory().replace(/<[^>]+>/g,'\n'));D.body.appendChild(t);t.select();D.execCommand('copy');D.body.removeChild(t);showToast('📋 روایت جهان کپی شد','win')}catch(e){}});b.appendChild(cp)},60)}
+function bookTab(b){b.appendChild(el('div','در حال نوشتن تاریخ…','sites-info'));setTimeout(function(){b.textContent='';b.innerHTML=bookStory();var cp=el('button','📋 کپی کتاب تاریخ','w43-cp',function(){try{var t=D.createElement('textarea');t.value=(bookStory().replace(/<[^>]+>/g,'\n'));D.body.appendChild(t);t.select();D.execCommand('copy');D.body.removeChild(t);showToast('📕 کتاب تاریخ کپی شد','win')}catch(e){}});b.appendChild(cp)},60)}
+
+/* ================= 8) ضدتقلب — گزارش تخلف + پنل ادمین ================= */
+var REPORT_REASONS=['تقلب/اسکرول نامشروع','حساب‌های چندگانه','سوءاستفاده از باگ','تبلیغ و اسپم','رفتار نامناسب'];
+function reportTab(b){
+ b.textContent='';
+ b.appendChild(el('div','اگر بازیکنی تقلب می‌کند گزارش بده — گزارش‌ها بررسی می‌شود و بازیکن‌های خاطی از مسیر مسابقات حذف می‌شوند. گزارش ناروا زده‌شدن خودت را لو می‌دهد!','sites-info'));
+ var inp=el('input');inp.className='w43-inp';inp.placeholder='نام بازیکن مقصر (نیک‌نیم)';inp.dir='rtl';b.appendChild(inp);
+ var rs=el('div','','w43-rsn');var sel=-1;
+ REPORT_REASONS.forEach(function(r,i){var bt=el('button',r,null,function(){sel=i;rs.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});bt.classList.add('on')});rs.appendChild(bt)});
+ b.appendChild(rs);
+ b.appendChild(el('button','🛡️ ارسال گزارش','w43-cp',async function(){
+  var t=(inp.value||'').trim();if(!t){showToast('❌ نام بازیکن را بنویس','lose');return}
+  if(sel<0){showToast('❌ دلیل گزارش را انتخاب کن','lose');return}
+  var r=await rpc43('abuse_report',{p_target:t,p_reason:REPORT_REASONS[sel],p_server:(typeof SRV!=='undefined')?SRV:1});
+  if(r&&r.ok){jingle('report');showToast('🛡️ گزارش ثبت شد — ممنون که بازی را منصف نگه می‌داری','win');inp.value='';rs.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});sel=-1}
+  else showToast(r&&r.error==='rate'?'❌ سقف ۵ گزارش در روز':r&&r.error==='no_user'?'❌ بازیکنی با این نام پیدا نشد':r&&r.error==='dup'?'❌ همین امروز این بازیکن را گزارش کرده‌ای':'❌ ارسال نشد','lose')}));
+ /* پنل ادمین */
+ rpc43('is_admin').then(function(a){if(!a)return;
+  b.appendChild(el('div','⚖️ پنل داوری (ادمین)','cos27-h'));
+  var box=el('div');b.appendChild(box);
+  rpc43('abuse_list').then(function(l){if(!l||!l.ok){box.appendChild(el('div','—','sites-info'));return}
+   if(!l.reports.length){box.appendChild(el('div','گزارش بازی نوشته‌ای وجود ندارد','sites-info'));return}
+   l.reports.forEach(function(r){var row=el('div','','w43-ab-row');
+    row.appendChild(el('b','👤 '+r.target+' — '+faN(r.count)+' گزارش'));
+    row.appendChild(el('div',esc(r.reason)));
+    if(r.flags&&r.flags.length)r.flags.forEach(function(f){row.appendChild(el('div','🚩 '+esc(f),'fl'))});
+    var btns=el('div','','btns');
+    btns.appendChild(el('button','پاک‌سازی (بی‌گناه)','ok',async function(){await rpc43('abuse_resolve',{p_id:r.id,p_action:'clear'});row.remove()}));
+    btns.appendChild(el('button','تایید تخلف','ac',async function(){await rpc43('abuse_resolve',{p_id:r.id,p_action:'actioned'});row.remove()}));
+    row.appendChild(btns);box.appendChild(row)})})});
+}
+function W43modal(){
+ try{if(S$('m-w43'))return;var m=el('div');m.id='m-w43';m.className='modal';
+  m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span>🎖️ مرکز جهان زنده — V43</span><span class="close-modal" style="cursor:pointer;font-size:18px">✕</span></div><div id="w43-body"></div></div>';
+  D.body.appendChild(m);m.querySelector('.close-modal').addEventListener('click',function(){closeModal('m-w43')})}catch(e){}}
+
+/* ================= 9) ساعت آخرالزمان + بحران فصلی (کلاینت) ================= */
+function doomChipEnsure(){try{var s=S$('hud-strip');if(!s)return false;
+ if(!S$('hud-doom')){var d=el('div','⏳','hchip');d.id='hud-doom';d.title='ساعت آخرالزمان مشترک — جنگ‌ها عقربه را جلو می‌برند، صلح برمی‌گرداند';
+  var bar=el('div','','w43-dbar');var fi=el('i');bar.appendChild(fi);d.appendChild(bar);
+  d.addEventListener('click',function(){W43modal();window._w43tab='story';passRender();openModal('m-w43')});
+  s.appendChild(d)}
+ if(!S$('hud-crisis')){var c=el('div','☣️ بحران','hchip');c.id='hud-crisis';c.style.display='none';
+  c.addEventListener('click',function(){W43modal();window._w43tab='story';passRender();openModal('m-w43')});s.appendChild(c)}
+ if(!S$('hud-anthem')){var a=el('div','🎺','hchip');a.id='hud-anthem';a.style.display='none';a.title='سرود امپراتوری';
+  var wv=el('span','','w43-wv');wv.appendChild(el('i'));wv.appendChild(el('i'));wv.appendChild(el('i'));a.appendChild(wv);
+  a.addEventListener('click',function(){WD43.anthemPlay?stopAnthem():playAnthem((window.COS&&COS.anthemK)||'hero')});s.appendChild(a)}
+ if(cosOwn('anthem'))S$('hud-anthem').style.display='';
+ return true}catch(e){return false}}
+function applyDoom(){try{var d=S$('hud-doom');if(!d)return;var fi=d.querySelector('.w43-dbar i');if(fi){fi.style.width=Math.max(2,Math.min(100,WD43.doom))+'%'}
+ d.className='hchip'+(WD43.domCls?' '+WD43.domCls:'');
+ var c=S$('hud-crisis');if(c){var cr=WD43.crisis;
+  if(cr){c.style.display='';c.textContent=cr.ic+' '+cr.fa}else c.style.display='none'}}catch(e){}}
+async function wsFetch(){try{var r=await rpc43('world_state');if(!r)return;
+ var wasFired=WD43.apocSeen;WD43.doom=r.doom||100;WD43.crisis=r.crisis||null;
+ WD43.domCls=WD43.doom<=33?'low':WD43.doom<=66?'mid':'';
+ applyDoom();
+ if(r.fired&&!wasFired){WD43.apocSeen=true;
+  try{var v=el('div');v.className='w43-ape';D.body.appendChild(v);setTimeout(function(){v.remove()},2800);
+   news('☄️ ساعت آخرالزمان مشترک به صفر رسید! فاجعه‌ی جهانی آغاز شد: تولید همه‌ی منابع ۱۵٪ افت می‌کند','lose')}catch(e){}}
+ else if(!r.fired)WD43.apocSeen=false;
+ if(!WD43.wsReady){WD43.wsReady=true;log('world_state ok doom='+WD43.doom)}}catch(e){log('ws '+e)}}
+
+/* ---------- اعمال اثر بحران‌ها (هر ۴ ثانیه، فقط تولید — نه دارایی) ---------- */
+function crisisTick(){try{if(!(typeof myCountryName!=='undefined'&&myCountryName)||!WD43.crisis)return;var terr=1;try{terr=conqueredCountries.size}catch(e){}
+ var k=WD43.crisis.k;
+ if(k==='oil'&&typeof oilPerTick==='function'){var dr=oilPerTick()*terr*.25;if(dr>0)playerRes.oil=Math.max(0,playerRes.oil-dr)}
+ else if(k==='drought'){var df=(4+3*terr)*.25;playerRes.food=Math.max(0,playerRes.food-df)}
+ else if(k==='diplomat'){tension=Math.min(100,(typeof tension!=='undefined'?tension:0)+.5)}
+ else if(k==='unrest'){try{conqueredCountries.forEach(function(n){if(n!==myCountryName)unrest[n]=Math.min(99,(unrest[n]||25)+.3)})}catch(e){}}
+ else if(k==='recession'&&typeof taxAmount==='function'&&!WD43._taxW){WD43._taxW=1}
+ if(k==='apocalypse'){if(typeof oilPerTick==='function')playerRes.oil=Math.max(0,playerRes.oil-oilPerTick()*terr*.15);
+  playerRes.food=Math.max(0,playerRes.food-(4+3*terr)*.15)}
+ updateUI&&updateUI()}catch(e){}}
+/* رکود: مالیات ۲۰٪ کمتر تا پایان بحران */
+(function(){function tryWrap(){try{if(typeof taxAmount==='function'&&!window._wd43taxWrapped){window._wd43taxWrapped=1;var _ta=taxAmount;
+ window.taxAmount=function(){var v=_ta.apply(this,arguments);try{if(WD43.crisis&&(WD43.crisis.k==='recession'))v*=.8;if(WD43.crisis&&WD43.crisis.k==='apocalypse')v*=.85}catch(e){}return v}
+ /* مهاجرت جمعیت: افت پایه‌ی مالیات بر اثر خروج جمعیت */
+ var base=_ta;window.taxAmount=(function(prev){return function(){var v=prev.apply(this,arguments);try{var loss=0;for(var k in WD43.popLoss)loss+=WD43.popLoss[k];v*=Math.max(.92,1-Math.min(.08,loss))}catch(e){}return v}})(window.taxAmount);return 1}}catch(e){return 1}return 0}
+ if(!tryWrap()){var iv=setInterval(function(){if(tryWrap())clearInterval(iv)},2000)}})();
+
+/* ================= 10) مهاجرت جمعیت روی نقشه ================= */
+function migrationTick(){try{if(!(typeof myCountryName!=='undefined'&&myCountryName)||typeof map==='undefined'||!map||WD43.migT>0)return;
+ if(((typeof tension!=='undefined')?tension:0)<65)return;if(Math.random()>.05)return;
+ var worst=null,wu=0;try{conqueredCountries.forEach(function(n){if(n===myCountryName)return;var u=unrest[n]||25;if(u>wu){wu=u;worst=n}})}catch(e){}
+ if(!worst||wu<55)return;
+ var src=(typeof FL!=='undefined')&&FL[worst];if(!src||!src.el||!src.el.isConnected)return;
+ /* مقصد: نزدیک‌ترین کشور غیرفتح‌شده */
+ var best=null,bd=1e18;var r1=src.el.getBoundingClientRect();var x1=r1.left+r1.width/2,y1=r1.top+r1.height/2;
+ try{for(var n in FL){if(typeof statusOf==='function'&&statusOf(n)==='conquered')continue;var e2=FL[n].el;if(!e2||!e2.isConnected)continue;var r2=e2.getBoundingClientRect();if(r2.width<2)continue;
+  var dx=r2.left+r2.width/2-x1,dy=r2.top+r2.height/2-y1,dd=dx*dx+dy*dy;if(dd<bd){bd=dd;best=e2}}}catch(e){}
+ if(!best)return;
+ WD43.migT=8;
+ var dot=el('div','👥','w43-mig');dot.style.left=x1+'px';dot.style.top=y1+'px';D.body.appendChild(dot);
+ requestAnimationFrame(function(){requestAnimationFrame(function(){var r3=best.getBoundingClientRect();
+  dot.style.transform='translate('+(r3.left+r3.width/2-x1)+'px,'+(r3.top+r3.height/2-y1)+'px)';dot.style.opacity='0'})});
+ setTimeout(function(){dot.remove()},2000);WD43.migT=0;
+ try{unrest[worst]=Math.max(18,wu-7);WD43.popLoss[worst]=Math.min(.08,(WD43.popLoss[worst]||0)+.015);
+  news('🚶 '+faN(Math.round(80+Math.random()*120))+' هزار نفر از '+getCountryData(worst).fa+' به سرزمین‌های آرام‌تر کوچیدند (مالیات این قلمرو موقتاً کم می‌شود)','lose')}catch(e){}
+ }catch(e){WD43.migT=0}}
+
+/* ================= 11) رادیو و تبلیغات سیاسی ================= */
+function propModalEnsure(){try{if(S$('m-prop'))return;var m=el('div');m.id='m-prop';m.className='modal';
+ m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span>📻 رادیو و تبلیغات سیاسی</span><span class="close-modal" style="cursor:pointer;font-size:18px">✕</span></div><div id="prop-body"></div></div>';
+ D.body.appendChild(m);m.querySelector('.close-modal').addEventListener('click',function(){closeModal('m-prop')})}catch(e){}}
+function propRender(){try{var b=S$('prop-body');if(!b)return;b.textContent='';
+ var cd=0;try{cd=Math.max(0,(+localStorage.getItem('wd43propcd')||0)-Date.now())}catch(e){}
+ var defs=[
+  {k:'speech',ic:'🎙️',t:'سخنرانی ملی',d:'«ما قله را فتح خواهیم کرد!» — روحیه‌ی ملت بالا می‌رود و تنش جهانی ۸ واحد کم می‌شود.',c:250,f:function(){tension=Math.max(0,(typeof tension!=='undefined'?tension:0)-8);news('🎙️ سخنرانی رهبر روی آنتن رفت: ملت امیدوار شد (تنش -8)','win')}},
+  {k:'peace',ic:'🕊️',t:'رادیو صلح',d:'کمپین دیپلماسی عمومی — تحریم‌ها ۸ روز زودتر لغو می‌شود (یا تنش -۴).',c:200,f:function(){if(typeof sanction!=='undefined'&&sanction>0){sanction=Math.max(0,sanction-8);news('🕊️ کمپین صلح جهانی: تحریم‌ها زودتر لغو می‌شود','win')}else{tension=Math.max(0,(typeof tension!=='undefined'?tension:0)-4);news('🕊️ رادیو صلح پخش شد (تنش -۴)','win')}}},
+  {k:'war',ic:'🥁',t:'رادیو جنگی',d:'ضرب‌آهنگ طبل‌ها روحیه‌ی جبهه‌های خودی را بالا می‌برد — ناآرامی همه‌ی قلمروها ۱۰ واحد کم می‌شود.',c:300,f:function(){try{conqueredCountries.forEach(function(n){if(n!==myCountryName)unrest[n]=Math.max(5,(unrest[n]||25)-10)});news('🥁 رادیو جنگی: جبهه‌ها سرود وحدت سر دادند (ناآرامی -۱۰)','win')}catch(e){}}},
+  {k:'press',ic:'📣',t:'مصاحبه‌ی مطبوعاتی',d:'رسانه‌های جهان از امپراتوری تو می‌نویسند — درآمد تبلیغاتی ۹۰۰ طلا (سود خالص ۴۰۰).',c:500,f:function(){setTimeout(function(){try{playerRes.gold+=900;updateUI&&updateUI();news('📣 درآمد تبلیغات مصاحبه‌ی مطبوعاتی به خزانه رسید (+۹۰۰)','win')}catch(e){}},1500)}}];
+ defs.forEach(function(d){var row=el('div','','w43-pp');
+  row.appendChild(el('span',d.ic,'ic'));
+  var tx=el('div','','tx');tx.appendChild(el('b',d.t));tx.appendChild(el('small',d.d));row.appendChild(tx);
+  var bt=el('button','💰 '+grp(d.c),null,function(){
+   if(cd>0){showToast('⏳ فرستنده‌ی رادیو در حال استراحت است — '+faN(Math.ceil(cd/60000))+' دقیقه دیگر','lose');return}
+   if(typeof playerRes==='undefined'||playerRes.gold<d.c){showToast('❌ طلای کافی نیست','lose');return}
+   playerRes.gold-=d.c;radioSfx();d.f();jingle('prop'+d.k);
+   try{localStorage.setItem('wd43propcd',String(Date.now()+30*60000))}catch(e){}
+   rpc43('pass_xp',{p_mission:'prop'});updateUI&&updateUI();propRender()});
+  if(cd>0)bt.disabled=true;
+  row.appendChild(bt);b.appendChild(row)});
+ if(cd>0)b.appendChild(el('div','⏳ کول‌داون مشترک رادیو: '+faN(Math.ceil(cd/60000))+' دقیقه','sites-info'))}catch(e){}}
+
+/* ================= 12) افکت فتح سینمایی ۳ فازی + صحنه‌ی ورود + اعلام گوینده ================= */
+function fxGather(color){try{var f=el('div');f.className='w43-fx';D.body.appendChild(f);
+ var cx=window.innerWidth/2,cy=window.innerHeight*.44;
+ for(var i=0;i<6;i++){var g=el('span');g.className='g';var ang=(i/6)*Math.PI*2,R=Math.max(220,window.innerWidth*.32);
+  g.style.left=(cx+Math.cos(ang)*R)+'px';g.style.top=(cy+Math.sin(ang)*R*.6)+'px';
+  g.style.setProperty('--gx',(cx-(cx+Math.cos(ang)*R))+'px');g.style.setProperty('--gy',(cy-(cy+Math.sin(ang)*R*.6))+'px');
+  f.appendChild(g)}
+ setTimeout(function(){var b=el('span');b.className='burst';f.appendChild(b);
+  for(var j=0;j<12;j++){var e2=el('span');e2.className='emb';e2.style.left=cx+'px';e2.style.top=cy+'px';
+   e2.style.setProperty('--ex',((Math.random()-.5)*340)+'px');e2.style.setProperty('--ey',(120+Math.random()*260)+'px');
+   e2.style.animationDelay=(.1+Math.random()*.3)+'s';f.appendChild(e2)}
+  setTimeout(function(){f.remove()},2300)},780)}catch(e){}}
+function entranceScene(countryFa,flagIc){try{var o=el('div');o.className='w43-ent';
+ var fl=el('span',flagIc||'🏳️','fl');o.appendChild(fl);
+ o.appendChild(el('span',(window.COS&&COS.slogan)||'امپراتوری در حال گسترش است!','sl'));
+ o.appendChild(el('span','⚔️ فتح '+esc(countryFa)+' توسط '+esc(((typeof ACC!=='undefined'&&ACC&&ACC.nick)||'امپراتور')),'nm'));
+ D.body.appendChild(o);setTimeout(function(){o.remove()},2800)}catch(e){}}
+function announceSay(countryFa){try{if(!window.speechSynthesis)return jingle('announce',true);
+ var u=new SpeechSynthesisUtterance('فتح '+countryFa+' توسط امپراتوری '+(((typeof ACC!=='undefined')&&ACC&&ACC.nick)||'شما')+'!');
+ var vs=speechSynthesis.getVoices()||[];for(var i=0;i<vs.length;i++)if(/fa|persian|farsi/i.test(vs[i].lang)){u.voice=vs[i];break}
+ u.lang='fa-IR';u.rate=1;u.pitch=1.05;u.volume=.9;speechSynthesis.speak(u)}catch(e){jingle('announce',true)}}
+function conquestCinema(countryFa){try{
+ var C=window.COS||window.COS27;
+ if(cosOwn('fx_conq'))fxGather();
+ if(cosOwn('entrance')){var flag='🏳️';try{var code=null;for(var n in window.FL){if(n===countryFa){break}}var cd2=FL[myCountryName]&&FL[myCountryName].code;flag='🏴'}catch(e){}
+  entranceScene(countryFa,'🏴')}
+ if(cosOwn('announce'))announceSay(countryFa);
+ if(cosOwn('anthem'))playAnthem((C&&C.anthemK)||'hero',true)}catch(e){}}
+
+/* ================= 13) زینتی‌های جدید (سرود/قاب/ورود/گوینده) — کاتالوگ محلی + تزریق DOM در فروشگاه
+   (CAT/cosBuy داخل IIFE هستند؛ همه‌چیز با MutationObserver و عنوان کارت‌ها کار می‌کند) ================= */
+var NEWCAT={
+ anthem:{i:'🎺',t:'سرود اختصاصی امپراتوری',d:'ملودی ورود و فتح — سه ملودی با fade-in و آیکون موج روی HUD.',c:35,rar:'myth'},
+ frame:{i:'🖼️',t:'قاب پروفایل پویا',d:'حلقه‌ی نورانی چرخان و ذره‌ی طلایی دور نام تو در رتبه‌بندی.',c:30,rar:'leg'},
+ entrance:{i:'🎬',t:'صحنه‌ی ورود سینمایی',d:'با هر فتح، پرچم با شعار اختصاصی تو سینمایی وارد می‌شود.',c:25,rar:'leg'},
+ announce:{i:'🔊',t:'صدای اعلام‌کننده',d:'گوینده با هر فتح اعلام می‌کند: «فتح [کشور] توسط امپراتوری شما!»',c:22,rar:'rare'}};
+var RAR_OLD={'رنگ اختصاصی امپراتوری':'myth','نشان اختصاصی':'rare','لقب اختصاصی':'leg','مرز درخشان متحرک':'leg','افکت فتح اختصاصی':'rare','باکس شانسی روزانه':'com','مدال فصل':'myth','پک VIP هفتگی':'myth','رادار حمله (۷ روز)':'rare','آمار و تحلیل پیشرفته':'com'};
+function decorateShop(){try{var b=S$('shop-body');if(!b)return;
+ var cards=b.querySelectorAll('.cos27-card');var i=0;
+ cards.forEach(function(c){var tl=c.querySelector('.cos27-tx b');if(!tl)return;var t=tl.textContent||'';
+  var rar=RAR_OLD[t]||(NEWCAT[["anthem","frame","entrance","announce"].filter(function(k){return NEWCAT[k].t===t})[0]||'']||{}).rar;
+  if(rar&&!c.getAttribute('data-rar')){c.setAttribute('data-rar',rar);c.classList.add('w43-in');c.style.animationDelay=(i*.05)+'s'}i++});
+ /* بخش V43: زینتی‌های جدید (فقط یک‌بار در هر رندر) */
+ if(!b.querySelector('[data-w43sec]')){
+  var sec=el('div');sec.setAttribute('data-w43sec','1');
+  sec.appendChild(el('div','🎁 زینتی‌های سینمایی V43','cos27-h'));
+  for(var k in NEWCAT){(function(k){var it=NEWCAT[k];
+   var r=el('div','','cos27-card');r.setAttribute('data-rar',it.rar);r.classList.add('w43-in');
+   r.appendChild(el('div',it.i,'cos27-ico'));
+   var tx=el('div','','cos27-tx');tx.appendChild(el('b',it.t));tx.appendChild(el('small',it.d));r.appendChild(tx);
+   r.appendChild(el('button','💎 '+grp(it.c),'cos27-buy',function(){buyNew(k)}));
+   sec.appendChild(r)})(k)}
+  b.appendChild(sec)}}catch(e){log('decorateShop '+e)}}
+function shopWatch(){try{var b=S$('shop-body');if(!b)return;
+ new MutationObserver(function(){setTimeout(decorateShop,30)}).observe(b,{childList:true})}catch(e){}}
+function buyNew(k){try{var it=NEWCAT[k];if(!it)return;
+ if(cosOwn(k)){newPick(k);return}
+ jingle('buy'+k);
+ spendGem({k:k,c:it.c,t:it.t,f:function(){cosOwnedPush(k);
+  if(k==='anthem'){cosSet('anthemOn',true);cosSet('anthemK','hero');doomChipEnsure();playAnthem('hero')}
+  if(k==='frame')showToast('🖼️ قاب پروفایل پویا فعال شد — رتبه‌بندی را باز کن!','win');
+  if(k==='entrance'){cosSet('slogan','امپراتوری در حال گسترش است!');newPick('entrance')}
+  if(k==='announce')cosSet('announceOn',true);
+  saveN()}})}catch(e){log('buyNew '+e)}}
+function newPick(k){try{var it=NEWCAT[k];if(!it)return;
+ var ov=el('div');ov.className='modal active';ov.id='m-w43pick';ov.style.zIndex=21000;
+ var card=el('div');card.className='modal-card';
+ var hd=el('div');hd.className='modal-title-row';hd.appendChild(el('span',(it.i+' تنظیم '+it.t)));hd.appendChild(el('span','✕','close-modal',function(){ov.remove()}));hd.querySelector('span.close-modal').style.cursor='pointer';hd.querySelector('span.close-modal').style.fontSize='18px';
+ card.appendChild(hd);
+ if(k==='anthem'){card.appendChild(el('div','ملودی سرودت را انتخاب کن (با fade-in پخش می‌شود):','sites-info'));
+  var ans=[['hero','🎺 حماسی'],['calm','🎻 آرام'],['sacred','🏛️ کهن']];
+  for(var ai=0;ai<ans.length;ai++)(function(m){
+   card.appendChild(el('button','▶️ '+m[1],'w43-cp',function(){cosSet('anthemK',m[0]);playAnthem(m[0]);saveN()}))
+  })(ans[ai])}
+ else if(k==='entrance'){card.appendChild(el('div','شعار اختصاصی‌ات را بنویس — با هر فتح سینمایی نمایش داده می‌شود:','sites-info'));
+  var inp=el('input');inp.className='w43-inp';inp.value=(window.COS&&COS.slogan)||'';card.appendChild(inp);
+  card.appendChild(el('button','💾 ذخیره شعار','w43-cp',function(){cosSet('slogan',inp.value.slice(0,60)||'امپراتوری در حال گسترش است!');saveN();ov.remove();showToast('🎬 شعار ذخیره شد','win')}));
+  card.appendChild(el('button','▶️ پیش‌نمایش صحنه','w43-cp',function(){entranceScene('کشور نمونه','🏴')}))}
+ else if(k==='announce'){card.appendChild(el('div','اعلام فتح با صدای گوینده:','sites-info'));
+  card.appendChild(el('button','▶️ تست صدا','w43-cp',function(){announceSay('کشور نمونه')}));
+  card.appendChild(el('button',(window.COS&&COS.announceOn===false)?'🔇 خاموش':'🔊 روشن','w43-cp',function(){cosSet('announceOn',!(window.COS&&COS.announceOn===false));saveN();ov.remove();showToast('🔊 تنظیم شد','win')}))}
+ else{card.appendChild(el('div','این آیتم خودکار فعال می‌شود:','sites-info'));
+  card.appendChild(el('div',k==='frame'?'🖼️ در رتبه‌بندی و پروفایل، دور نامت حلقه‌ی نورانی چرخان و ذره‌ی طلایی ظاهر می‌شود.':'✨ فعال شد!','sites-info'))}
+ ov.appendChild(card);D.body.appendChild(ov);
+ card.querySelector('.close-modal').addEventListener('click',function(){ov.remove()})}catch(e){log('newPick '+e)}}
+function wrapCosBuy(){try{if(window._wd43cb)return;var _cb=window.cosBuy;if(typeof _cb!=='function')return;window._wd43cb=1;
+ window.cosBuy=function(k){if(['anthem','frame','entrance','announce'].indexOf(k)>-1){buyNew(k);return}return _cb.apply(this,arguments)}}catch(e){}}
+function wrapSpendGem(){try{if(window._wd43sg)return;var _sg=window.spendGem;if(typeof _sg!=='function')return;window._wd43sg=1;
+ window.spendGem=function(it){var p=_sg.apply(this,arguments);
+  try{Promise.resolve(p).then(function(r){if(r&&r.ok)jingle('buy'+(it&&it.k))})}catch(e){}
+  return p}}catch(e){}}
+
+/* ================= 14) دکورهای زنده: قاب رتبه، شاین لقب، مرز جاری، هاله‌ی مدال، رینگ رادار، گرادینت آمار ================= */
+function rankFrame(){try{if(!cosOwn('frame'))return;
+ var nick=((typeof ACC!=='undefined')&&ACC&&ACC.nick)||'';
+ var boxes=D.querySelectorAll('.modal.active');
+ boxes.forEach(function(bx){if(bx.id==='m-w43'||bx.id==='m-w43pick'||bx.id==='auth')return;
+  var rows=bx.querySelectorAll('div,span,tr');
+  for(var i=0;i<rows.length&&i<400;i++){var r=rows[i];if(r.classList.contains('wd43-frame'))continue;
+   var t=(r.textContent||'').trim();
+   if(nick&&t&&t.length<60&&t.indexOf(nick)>-1&&r.children.length<8){r.classList.add('wd43-frame');break}}});
+ var chip=S$('acc-chip');if(chip&&chip.textContent.indexOf('خروج')>-1)chip.classList.add('wd43-frame')}catch(e){}}
+function titleShine(){try{var C=window.COS||window.COS27;if(!C||!C.title)return;var chip=S$('acc-chip');if(!chip)return;
+ if(chip.getAttribute('data-w43t'))return;var tn=chip.childNodes;
+ for(var i=0;i<tn.length;i++){var nd=tn[i];if(nd.nodeType===3&&nd.textContent.indexOf('«'+C.title+'»')>-1){
+  var parts=nd.textContent.split('«'+C.title+'»');if(parts.length<2)break;
+  var sp=D.createElement('span');sp.className='wd43-title-shine';sp.textContent='«'+C.title+'»';
+  chip.insertBefore(D.createTextNode(parts[0]),nd);chip.insertBefore(sp,nd);chip.insertBefore(D.createTextNode(parts[1]),nd);chip.removeChild(nd);
+  chip.setAttribute('data-w43t','1');break}}}catch(e){}}
+function mapDress(){try{if(typeof FL==='undefined')return;
+ var my=(typeof myCountryName!=='undefined')?myCountryName:null;
+ var medal=false;try{medal=typeof hasMedal==='function'&&hasMedal(season27().slug)}catch(e){}
+ var rad=typeof radarActive==='function'&&radarActive();
+ var glow=cosOwn('border_glow');
+ for(var n in FL){var f=FL[n];if(!f||!f.el)continue;
+  var isMine=false;try{isMine=(n===my)||(conqueredCountries.has(n))}catch(e){}
+  /* هاله‌ی مدال + رینگ رادار فقط پایتخت من */
+  if(n===my&&f.el.isConnected){
+   if(medal)f.el.classList.add('wd43-halo');else f.el.classList.remove('wd43-halo');
+   if(rad)f.el.classList.add('wd43-ring');else f.el.classList.remove('wd43-ring')}
+  /* مرز جاری: اگر مسیر SVG بود dash جاری، وگرنه هاله‌ی نفس‌کش روی پرچم */
+  try{var p=f.g&&f.g._path;if(p&&p.classList){
+   if(glow&&isMine)p.classList.add('wd43-flow');else p.classList.remove('wd43-flow')}}catch(e){}
+  try{if(glow&&isMine&&f.el&&f.el.isConnected)f.el.classList.add('wd43-glow');
+   else if(f.el)f.el.classList.remove('wd43-glow')}catch(e){}}}catch(e){}}
+function wrapShowStats(){try{if(window._wd43st)return;var _ss=window.showStats;if(typeof _ss!=='function')return;window._wd43st=1;
+ window.showStats=function(){var r=_ss.apply(this,arguments);
+  setTimeout(function(){try{var cs=D.querySelectorAll('canvas');var c=cs[cs.length-1];
+   if(c&&c.parentElement&&!c.parentElement.classList.contains('wd43-chartgrad'))c.parentElement.classList.add('wd43-chartgrad')}catch(e){}},80);
+  return r}}catch(e){}}
+function wrapLucky(){try{if(window._wd43lk)return;var _lo=window.luckyOpen;if(typeof _lo!=='function')return;window._wd43lk=1;
+ window.luckyOpen=function(){try{
+  var ov=el('div');ov.className='w43-lucky-ov';var bx=el('span','🎁','bx');ov.appendChild(bx);
+  ov.appendChild(el('span','🎁 باکس شانسی باز می‌شود…','lt'));D.body.appendChild(ov);
+  setTimeout(function(){ov.classList.add('done');jingle('lucky')},1200);
+  setTimeout(function(){ov.remove();_lo.apply(this,arguments)},1850)}catch(e){return _lo.apply(this,arguments)}}}catch(e){}}
+function wrapApplyColor(){try{if(window._wd43ac)return;var _ac=window.applyCountryColor;if(typeof _ac!=='function')return;window._wd43ac=1;
+ window.applyCountryColor=function(n){var r=_ac.apply(this,arguments);
+  try{var C=window.COS||window.COS27;if(C&&C.hue!=null&&typeof FL!=='undefined'&&FL[n]&&FL[n].el&&FL[n].el.isConnected){
+   var ink=el('span');ink.className='wd43-ink';ink.style.setProperty('--wd43-hc','hsl('+C.hue+',85%,60%)');
+   ink.style.position='absolute';ink.style.left='50%';ink.style.top='50%';
+   if(!getComputedStyle(FL[n].el).position||getComputedStyle(FL[n].el).position==='static')FL[n].el.style.position='relative';
+   FL[n].el.appendChild(ink);setTimeout(function(){ink.remove()},1250)}}catch(e){}
+  return r}}catch(e){}}
+function wrapRenderShop(){try{if(window._wd43rs)return;var _rs=window.renderShop;if(typeof _rs!=='function')return;window._wd43rs=1;
+ window.renderShop=function(){var r=_rs.apply(this,arguments);setTimeout(decorateShop,40);return r}}catch(e){}}
+function wrapRanks(){try{if(window._wd43rk)return;var a=window.renderRank,b2=window.renderRank28,got=0;
+ if(typeof a==='function'){window.renderRank=function(){var r=a.apply(this,arguments);setTimeout(rankFrame,120);return r};got++}
+ if(typeof b2==='function'){window.renderRank28=function(){var r=b2.apply(this,arguments);setTimeout(rankFrame,120);return r};got++}
+ if(got)window._wd43rk=1}catch(e){}}
+function anthemChip(){try{return S$('hud-anthem')}catch(e){return null}}
+
+/* ================= 15) هوک‌های ماموریت + حلقه‌های اصلی ================= */
+function hooks(){try{
+ /* مالیات: کلیک → آموزش + XP مسیر فصل */
+ D.addEventListener('click',function(ev){var t=ev.target;
+  if(t&&t.id==='act-tax'){WD43.taxClk=true;rpc43('pass_xp',{p_mission:'tax'})}
+ },true);
+ /* نبرد المپیک ثبت‌نام → XP از سمت سرور هندل می‌شود؛ این‌جا فقط باز شدن صفحه */
+ var nav=D.querySelector('.bottom-nav');
+ if(nav&&!S$('wd43-nav')){var nb=el('button','','nav-btn',function(){W43modal();window._w43tab='pass';passOpen()});
+  nb.id='wd43-nav';nb.appendChild(el('span','🎖️'));nb.appendChild(el('span','مسیر'));
+  var shopB=S$('btn-m-shop');if(shopB&&shopB.parentNode)shopB.parentNode.insertBefore(nb,shopB);else nav.appendChild(nb)}
+}catch(e){}}
+function conquestWatch(){try{var n=0;try{n=conqueredCountries.size}catch(e){return}
+ if(WD43.lastCq<0){WD43.lastCq=n;
+  try{conqueredCountries.forEach(function(k){WD43.cqSnap[k]=1})}catch(e){}
+  if(typeof myCountryName!=='undefined'&&myCountryName&&typeof calculateTotalAttack==='function')WD43.pwBase=calculateTotalAttack();return}
+ if(n>WD43.lastCq){var newC=null;
+  try{conqueredCountries.forEach(function(k){if(!WD43.cqSnap[k])newC=k})}catch(e){}
+  WD43.lastCq=n;try{conqueredCountries.forEach(function(k){WD43.cqSnap[k]=1})}catch(e){}
+  if(newC){var fa='کشور جدید';try{fa=getCountryData(newC).fa}catch(e){}
+   log('conquest '+newC);
+   conquestCinema(fa);rpc43('pass_xp',{p_mission:'conquest'})}}
+ else if(n<WD43.lastCq){WD43.lastCq=n;WD43.cqSnap={};try{conqueredCountries.forEach(function(k){WD43.cqSnap[k]=1})}catch(e){}}
+ if(typeof myCountryName!=='undefined'&&myCountryName&&typeof calculateTotalAttack==='function'&&WD43.pwBase===0)WD43.pwBase=calculateTotalAttack();
+}catch(e){}}
+function bootLoops(){
+ setInterval(function(){if(D.hidden)return;try{tutSkipIfVet();tutTick();conquestWatch();stageTint()}catch(e){}},1000);
+ setInterval(function(){if(D.hidden)return;try{crisisTick();migrationTick()}catch(e){}},4000);
+ setInterval(function(){if(D.hidden)return;try{hubTint();mapDress();titleShine();rankFrame();
+  var ac=S$('hud-anthem');if(ac)ac.style.display=cosOwn('anthem')?'':'none'}catch(e){}},2500);
+ wsFetch();setInterval(function(){wsFetch()},600000);
+}
+function boot(){try{
+ wrapSpendGem();wrapShowStats();wrapLucky();wrapApplyColor();wrapRanks();shopWatch();propModalEnsure();
+ W43modal();hooks();
+ var tries=0;var iv=setInterval(function(){tries++;if(doomChipEnsure()||tries>20)clearInterval(iv)},900);
+ /* ورود روزانه: XP مسیر فصل */
+ var lg=setInterval(function(){if(typeof sb!=='undefined'&&sb&&sb.rpc&&typeof ACC!=='undefined'&&ACC&&ACC.uid){clearInterval(lg);
+  rpc43('pass_xp',{p_mission:'login'});
+  passLoad().then(function(ok){if(ok&&cosOwn('anthem')){var hc=S$('hud-anthem');if(hc)hc.style.display=''}});
+  /* سرود آغاز جلسه — حداکثر هر ۱۲ ساعت */
+  try{var at=+localStorage.getItem('wd43anthem')||0;if(cosOwn('anthem')&&Date.now()-at>432e5){localStorage.setItem('wd43anthem',String(Date.now()));setTimeout(function(){playAnthem((window.COS&&COS.anthemK)||'hero')},2500)}}catch(e){}
+ }},3000);
+ setTimeout(bootLoops,1200);
+ log('ready — جهان زنده فعال شد')}catch(e){log('boot '+e)}}
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',boot);else boot();
+/* پل تست/دیباگ — توابع داخلی برای E2E و کنسول */
+setTimeout(function(){try{WD43._t={propRender:propRender,propModalEnsure:propModalEnsure,passRender:passRender,passLoad:passLoad,cosOwn:cosOwn,decorateShop:decorateShop,tutShow:tutShow,tutForce:function(){try{tutState.done=false;tutState.skipped=false;tutState.i=0;tutSave()}catch(e){}tutShow()},wsFetch:wsFetch,playAnthem:playAnthem,conquestCinema:conquestCinema,newPick:newPick,buyNew:buyNew}}catch(e){}},300);
+})();
+
+
+</script>
 </body>
 </html>
 

@@ -19,7 +19,9 @@ const GEM_COSTS: Record<string, number> = {
   boost: 20, gold: 15, oil: 15, peace: 12, tax: 6,
   /* V27 — cosmetics & services: visuals / convenience / collection only, zero combat power (anti-P2W rule) */
   col_pack: 25, emblem: 20, title: 25, border_glow: 30, fx_conq: 20,
-  lucky: 10, medal_s1: 40, vip7: 45, radar: 30, stats: 15, bundle_cos: 100
+  lucky: 10, medal_s1: 40, vip7: 45, radar: 30, stats: 15, bundle_cos: 100,
+  /* V43 — زینتی‌های سینمایی جدید (اولویت کاربر: سرود امپراتوری + قاب پروفایل پویا) */
+  anthem: 35, frame: 30, entrance: 25, announce: 22
 }
 const WEEKLY_REWARDS: Record<number, number> = { 1: 5000, 2: 2500, 3: 1000 }
 const WEEKLY_CATEGORIES = ['score', 'kills', 'economy', 'recruits'] as const
@@ -64,6 +66,154 @@ async function dailyBonus(userId: string) {
   return { w, granted: upd.count > 0 ? 20 : 0 }
 }
 
+/* ============================================================
+   V43 — جهان زنده: ساعت آخرالزمان مشترک + بحران فصلی
+   - doom: متغیر سراسری سرور در GameSetting('doom_v43')
+     جنگ‌ها کم می‌کنند، آرامش ساعتی جبران می‌کند؛ رسیدن به صفر
+     = ۴۸ ساعت بحران سراسری (افت تولید، نه حذف دارایی) و ریست.
+   - crisis: هر پنجره‌ی ۱۰ روزه به‌صورت قطعی (بدون تایمر) از تاریخ
+     مشتق می‌شود؛ ۴ روز فعال، ۶ روز آرامش.
+   ============================================================ */
+const DOOM_KEY = 'doom_v43'
+type DoomState = { value: number; firedAt: number | null; ts: number }
+const DOOM_HIT_MIN = 5 * 60_000 /* دست‌کم ۵ دقیقه فاصله بین دو کسر — ضد اسپم */
+
+async function getSetting<T>(key: string, def: T): Promise<T> {
+  try {
+    const r = await db.gameSetting.findUnique({ where: { key } })
+    return r ? (JSON.parse(r.value) as T) : def
+  } catch { return def }
+}
+async function setSetting(key: string, val: unknown) {
+  await db.gameSetting.upsert({ where: { key }, create: { key, value: JSON.stringify(val) }, update: { value: JSON.stringify(val) } })
+}
+
+const CRISIS_KINDS = [
+  { k: 'oil', fa: 'بحران نفت', d: 'بازار جهانی نفت را خالی کرده — تولید نفت ۲۵٪ افت می‌کند', ic: '🛢️' },
+  { k: 'drought', fa: 'خشکسالی جهانی', d: 'مزارع می‌سوزند — تولید غذا ۲۵٪ افت می‌کند', ic: '🌾' },
+  { k: 'recession', fa: 'رکود جهانی', d: 'بازارها ریزش کرده‌اند — درآمد طلا ۲۰٪ افت می‌کند', ic: '📉' },
+  { k: 'diplomat', fa: 'بحران دیپلماتیک', d: 'تنش جهانی بالا می‌رود — تحریم نزدیک‌تر است', ic: '⚔️' },
+  { k: 'unrest', fa: 'موج ناآرامی', d: 'شورش در سراسر جهان — ناآرامی قلمروها تندتر رشد می‌کند', ic: '🔥' },
+]
+const CRISIS_PERIOD_MS = 10 * 864e5
+const CRISIS_ACTIVE_MS = 4 * 864e5
+const CRISIS_ANCHOR = Date.UTC(2026, 0, 1)
+
+async function doomHit(amount: number) {
+  try {
+    const s = await getSetting<DoomState>(DOOM_KEY, { value: 100, firedAt: null, ts: Date.now() })
+    const now = Date.now()
+    if (s.firedAt && now - s.firedAt < 48 * 3600_000) return /* در فاجعه‌ی فعال» ضربه بی‌اثر */
+    if (now - (s.ts || 0) < DOOM_HIT_MIN) return /* ضد اسپم */
+    const v = Math.max(0, s.value - amount)
+    if (v <= 0) {
+      await setSetting(DOOM_KEY, { value: 100, firedAt: now, ts: now } satisfies DoomState)
+      await db.gameSetting.upsert({
+        where: { key: 'apocalypse_v43' }, create: { key: 'apocalypse_v43', value: String(now) }, update: { value: String(now) },
+      }).catch(() => {})
+    } else {
+      await setSetting(DOOM_KEY, { value: v, firedAt: s.firedAt, ts: now } satisfies DoomState)
+    }
+  } catch (e) { console.log('doomHit', e) }
+}
+
+function crisisFor(now = Date.now()) {
+  const into = now - CRISIS_ANCHOR
+  if (into < 0) return null
+  const win = Math.floor(into / CRISIS_PERIOD_MS)
+  const dayIn = into - win * CRISIS_PERIOD_MS
+  if (dayIn >= CRISIS_ACTIVE_MS) return null
+  const c = CRISIS_KINDS[win % CRISIS_KINDS.length]
+  return { ...c, until: CRISIS_ANCHOR + win * CRISIS_PERIOD_MS + CRISIS_ACTIVE_MS }
+}
+
+async function worldState() {
+  const now = Date.now()
+  let s = await getSetting<DoomState>(DOOM_KEY, { value: 100, firedAt: null, ts: now })
+  const hours = Math.max(0, (now - (s.ts || now)) / 3600_000)
+  let value = Math.min(100, s.value + hours * 2) /* آرامش: +۲ در ساعت */
+  let firedAt = s.firedAt
+  if (firedAt && now - firedAt > 48 * 3600_000) firedAt = null /* فاجعه تمام شد */
+  const fired = !!firedAt && now - firedAt <= 48 * 3600_000
+  if (Math.abs(value - s.value) > 0.5 || firedAt !== s.firedAt) {
+    s = { value, firedAt, ts: now }
+    await setSetting(DOOM_KEY, s).catch(() => {})
+  }
+  const crisis = fired
+    ? { k: 'apocalypse', fa: 'ساعت آخرالزمان صفر شد', d: 'فاجعه‌ی جهانی: تولید همه‌ی منابع ۱۵٪ افت می‌کند تا ۴۸ ساعت', ic: '☄️', until: firedAt! + 48 * 3600_000 }
+    : crisisFor(now)
+  return { doom: Math.round(value), fired: fired, crisis, server_time: now }
+}
+
+/* ============================================================
+   V43 — مسیر فصلی (Battle Pass اخلاقی)
+   XP فقط با بازی کردن: ورود روزانه/مالیات/فتح/المپیک/تبلیغ/تجارت.
+   سقف روزانه سرور-محور (ضد تقلب). ۲۰ پله × ۱۰۰XP.
+   جایزه‌ها: طلا/غذا (داخل Save سرور-محور) + جم کوچک (کیف پول)
+   + آیتم زینتی (کلاینت بعد از تایید سرور باز می‌کند).
+   ============================================================ */
+const seasonKey = () => 'S' + new Date().toISOString().slice(0, 7)
+const PASS_TIER_XP = 100
+const PASS_TIERS: { g?: number; f?: number; gem?: number; cos?: string; fa?: string }[] = [
+  { g: 2000, fa: '۲٬۰۰۰ طلا' },
+  { g: 3000, f: 800, fa: '۳٬۰۰۰ طلا + ۸۰۰ غذا' },
+  { gem: 2, fa: '۲ جم' },
+  { g: 5000, fa: '۵٬۰۰۰ طلا' },
+  { cos: 'announce', fa: '🎁 صدای اعلام‌کننده‌ی اختصاصی' },
+  { g: 6000, f: 1500, fa: '۶٬۰۰۰ طلا + ۱٬۵۰۰ غذا' },
+  { gem: 3, fa: '۳ جم' },
+  { g: 8000, fa: '۸٬۰۰۰ طلا' },
+  { gem: 4, fa: '۴ جم' },
+  { cos: 'entrance', fa: '🎁 صحنه‌ی ورود سینمایی' },
+  { g: 12000, f: 2500, fa: '۱۲٬۰۰۰ طلا + ۲٬۵۰۰ غذا' },
+  { gem: 5, fa: '۵ جم' },
+  { g: 15000, fa: '۱۵٬۰۰۰ طلا' },
+  { gem: 6, fa: '۶ جم' },
+  { g: 20000, f: 4000, fa: '۲۰٬۰۰۰ طلا + ۴٬۰۰۰ غذا' },
+  { gem: 8, fa: '۸ جم' },
+  { g: 30000, fa: '۳۰٬۰۰۰ طلا' },
+  { gem: 12, fa: '۱۲ جم' },
+  { g: 50000, f: 8000, fa: '۵۰٬۰۰۰ طلا + ۸٬۰۰۰ غذا' },
+  { cos: 'frame', fa: '🖼️ قاب پروفایل پویا (افسانه‌ای)' },
+]
+const PASS_MISSIONS: Record<string, { xp: number; cap: number; fa: string; ic: string }> = {
+  login: { xp: 10, cap: 1, fa: 'ورود روزانه به بازی', ic: '📅' },
+  tax: { xp: 5, cap: 3, fa: 'جمع‌آوری مالیات (۳ بار در روز)', ic: '💰' },
+  conquest: { xp: 25, cap: 4, fa: 'فتح کشور جدید', ic: '🏴' },
+  olympic: { xp: 40, cap: 1, fa: 'شرکت در یک رشته‌ی المپیک', ic: '🏅' },
+  prop: { xp: 10, cap: 2, fa: 'سخنرانی رادیویی (۲ بار در روز)', ic: '📻' },
+  trade: { xp: 15, cap: 2, fa: 'انجام معامله‌ی تجاری', ic: '🤝' },
+}
+type PassDlog = { d?: string; c?: Record<string, number> }
+
+async function ensurePass(userId: string) {
+  const season = seasonKey()
+  let row = await db.seasonPass.findUnique({ where: { userId_season: { userId, season } } })
+  if (!row) {
+    try { row = await db.seasonPass.create({ data: { userId, season } }) } catch (e) {
+      row = await db.seasonPass.findUnique({ where: { userId_season: { userId, season } } })
+    }
+  }
+  return row!
+}
+
+async function passAddXp(userId: string, mission: string) {
+  const m = PASS_MISSIONS[mission]
+  if (!m) return null
+  const row = await ensurePass(userId)
+  const today = new Date().toISOString().slice(0, 10)
+  let dlog: PassDlog = {}
+  try { dlog = JSON.parse(row.dlog || '{}') || {} } catch { dlog = {} }
+  if (dlog.d !== today) dlog = { d: today, c: {} }
+  const cnt = dlog.c || {}
+  if ((cnt[mission] || 0) >= m.cap) return { ok: false, reason: 'cap', xp: row.xp, claimed: row.claimed, gain: 0 }
+  cnt[mission] = (cnt[mission] || 0) + 1
+  const xp = row.xp + m.xp
+  const upd = await db.seasonPass.updateMany({ where: { userId, season: seasonKey(), xp: row.xp }, data: { xp, dlog: JSON.stringify({ d: today, c: cnt }) } })
+  if (upd.count === 0) return { ok: false, reason: 'race', xp: row.xp, claimed: row.claimed, gain: 0 }
+  return { ok: true, xp, tier: Math.floor(xp / PASS_TIER_XP), gain: m.xp, mission, fa: m.fa }
+}
+
 /* ---------- capture transfer shared by pvp_attack success & pvp_capture_territory ---------- */
 const lastCapture = new Map<string, number>()
 let lastReleaseRun = 0
@@ -87,6 +237,7 @@ async function transferTerritory(server: number, country: string, uid: string, n
     update: { taken, players: rows.length },
   })
   await addNews(server, 'pvp_capture', country, nick, t.nick)
+  await doomHit(4) /* V43: هر فتح بزرگ ساعت آخرالزمان مشترک را ۴ واحد جلو می‌برد */
   return { ok: true, prevOwner }
 }
 
@@ -934,6 +1085,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           return R({ ok: false, reason: 'apply' })
         }
         await addNews(off.server, 'trade', null, user.nick, off.ownerNick)
+        passAddXp(user.id, 'trade').catch(() => {})
+        passAddXp(off.ownerUid, 'trade').catch(() => {})
         return R({ ok: true, got: acceptorGot, fee, give_res: off.giveRes })
       }
       case 'trade_offer_mine': {
@@ -1130,6 +1283,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         const best = Math.max(ent.best, score)
         await db.olympicEntry.update({ where: { id: ent.id }, data: { best } })
+        passAddXp(user.id, 'olympic').catch(() => {}) /* V43: مسیر فصلی — XP المپیک */
         const better = await db.olympicEntry.count({ where: { edition: g.edition, discipline: key, best: { gt: best } } })
         return R({ ok: true, best, attempts: ent.attempts + 1, rank: better + 1, record_broken: recordBroken })
       }
@@ -1583,6 +1737,100 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             storage: num(infra.storage),
           },
         })
+      }
+
+      /* ---------------- V43: جهان زنده + مسیر فصلی + ضدتقلب ---------------- */
+      case 'world_state':
+        return R(await worldState())
+
+      case 'pass_state': {
+        const row = await ensurePass(user.id)
+        let dlog: PassDlog = {}
+        try { dlog = JSON.parse(row.dlog || '{}') || {} } catch { dlog = {} }
+        const today = new Date().toISOString().slice(0, 10)
+        const counts = dlog.d === today ? (dlog.c || {}) : {}
+        return R({
+          ok: true, season: row.season, xp: row.xp, tier: Math.floor(row.xp / PASS_TIER_XP),
+          tier_xp: PASS_TIER_XP, claimed: row.claimed, missions: counts, mission_defs: PASS_MISSIONS, tiers: PASS_TIERS,
+        })
+      }
+
+      case 'pass_xp': {
+        const m = String(args.p_mission || '')
+        const r = await passAddXp(user.id, m)
+        if (!r) return R({ ok: false, error: 'mission' })
+        return R(r)
+      }
+
+      case 'pass_claim': {
+        const tier = Math.max(0, Math.min(PASS_TIERS.length - 1, Number(args.p_tier) || 0))
+        const row = await ensurePass(user.id)
+        const myTier = Math.floor(row.xp / PASS_TIER_XP)
+        if (tier > myTier) return R({ ok: false, error: 'locked' })
+        const bit = 1 << tier
+        if (row.claimed & bit) return R({ ok: false, error: 'claimed' })
+        /* atomic: only one claimer wins the bit flip */
+        const upd = await db.seasonPass.updateMany({ where: { userId: user.id, season: seasonKey(), claimed: row.claimed }, data: { claimed: row.claimed | bit } })
+        if (upd.count === 0) return R({ ok: false, error: 'race' })
+        const rw = PASS_TIERS[tier]
+        let gems = 0
+        if (rw.gem) {
+          await ensureWallet(user.id)
+          await db.wallet.updateMany({ where: { userId: user.id }, data: { gems: { increment: rw.gem } } })
+          gems = rw.gem
+        }
+        if (rw.g || rw.f) {
+          await tradeApply(user.id, (r2) => {
+            if (rw.g) r2.gold = resNum(r2.gold) + rw.g
+            if (rw.f) r2.food = resNum(r2.food) + rw.f
+          }).catch(() => {})
+        }
+        return R({ ok: true, tier, reward: rw, gems_added: gems })
+      }
+
+      case 'abuse_report': {
+        const target = String(args.p_target || '').trim().slice(0, 32)
+        const reason = String(args.p_reason || '').trim().slice(0, 300) || 'unspecified'
+        if (!target || target.toLowerCase() === String(user.nick || '').toLowerCase()) return R({ ok: false, error: 'target' })
+        const since = new Date(Date.now() - 24 * 3600_000)
+        const mine = await db.abuseReport.count({ where: { reporterId: user.id, createdAt: { gte: since } } })
+        if (mine >= 5) return R({ ok: false, error: 'rate' })
+        const dup = await db.abuseReport.findFirst({ where: { reporterId: user.id, targetNick: { equals: target }, createdAt: { gte: since } } })
+        if (dup) return R({ ok: false, error: 'dup' })
+        const exists = await db.user.findFirst({ where: { nickLower: target.toLowerCase() }, select: { id: true } })
+        if (!exists) return R({ ok: false, error: 'no_user' })
+        const rep = await db.abuseReport.create({ data: { server: Math.max(1, Number(args.p_server) || 1), reporterId: user.id, targetNick: target, reason } })
+        return R({ ok: true, id: rep.id })
+      }
+
+      case 'abuse_list': {
+        if (!user.isAdmin) return R(null)
+        const open = await db.abuseReport.findMany({ where: { status: 'open' }, orderBy: { createdAt: 'desc' }, take: 60 })
+        const byTarget: Record<string, number> = {}
+        for (const r of open) byTarget[r.targetNick] = (byTarget[r.targetNick] || 0) + 1
+        const flagged: Record<string, string[]> = {}
+        for (const nick of Object.keys(byTarget)) {
+          if (byTarget[nick] < 2) continue
+          const u = await db.user.findFirst({
+            where: { nickLower: nick.toLowerCase() }, select: { id: true, createdAt: true, score: { select: { conquered: true, score: true } }, wallet: { select: { gems: true } } },
+          })
+          if (!u) continue
+          const days = Math.max(1, (Date.now() - u.createdAt.getTime()) / 864e5)
+          const fl: string[] = []
+          if ((u.score?.conquered || 0) > (days + 2) * 8) fl.push('growth: ' + (u.score?.conquered || 0) + ' کشور در ' + Math.round(days) + ' روز')
+          if ((u.score?.score || 0) > days * 25000) fl.push('power-spike')
+          flagged[nick] = fl
+        }
+        return R({ ok: true, total: open.length, reports: open.map((r) => ({ id: r.id, target: r.targetNick, reason: r.reason, at: r.createdAt, count: byTarget[r.targetNick], flags: flagged[r.targetNick] || [] })) })
+      }
+
+      case 'abuse_resolve': {
+        if (!user.isAdmin) return R(null)
+        const id = Number(args.p_id) || 0
+        const action = String(args.p_action || '') /* clear | actioned */
+        if (!id || ['clear', 'actioned'].indexOf(action) < 0) return R({ ok: false, error: 'args' })
+        await db.abuseReport.updateMany({ where: { id }, data: { status: action === 'clear' ? 'cleared' : 'actioned' } })
+        return R({ ok: true })
       }
 
       default:
