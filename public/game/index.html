@@ -1672,9 +1672,10 @@ addEventListener('unhandledrejection',e=>{try{console.log('wd-rej:',e&&e.reason)
 const $=id=>document.getElementById(id), sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const hueOf=n=>{let h=7;for(const c of n)h=(h*31+c.charCodeAt(0))%360;return h};
 function baseStyle(n){const h=hueOf(String(n||''));
-  /* V45: پالت روشن — hueهای آبی/بنفش با lightness قبلی (45٪) روی صفحه‌ی گوشی شبیه سیاه دیده می‌شدند */
-  const light=55+((h*7919)%9);
-  return{color:`hsla(${h},50%,32%,.55)`,weight:.9,fillColor:`hsl(${h},52%,${light}%)`,fillOpacity:.95,smoothFactor:1.1,noClip:false}}
+  /* V48: کشورهای بی‌مالک خاکستری‌تر شدند تا قلمرو بازیکنان (رنگ زنده + برچسب اسم) واضح فرق کند.
+     V45: روشنایی بالای ۴۶٪ حفظ شد تا hueهای آبی/بنفش روی گوشی سیاه دیده نشوند */
+  const light=48+((h*7919)%7);
+  return{color:`hsla(${h},24%,30%,.5)`,weight:.8,fillColor:`hsl(${h},26%,${light}%)`,fillOpacity:.85,smoothFactor:1.1,noClip:false}}
 
 // ISO codes for flags (Intl names + aliases for geojson spellings)
 const N2C={"united states of america":"us","democratic republic of the congo":"cd","republic of the congo":"cg","united republic of tanzania":"tz","republic of serbia":"rs","macedonia":"mk","ivory coast":"ci","czech republic":"cz","guinea bissau":"gw","the bahamas":"bs","east timor":"tl","swaziland":"sz","myanmar":"mm","turkey":"tr","french southern and antarctic lands":"tf","kosovo":"xk","bosnia and herzegovina":"ba","trinidad and tobago":"tt","west bank":"ps"};
@@ -2277,7 +2278,9 @@ function renderSites(){const b=S$('sites-body'),t=S$('sites-title');if(!b)return
 #waves::before,#waves::after{display:none!important}
 .own-wrap{background:none;border:0}
 .own{position:absolute;left:0;top:0;transform:translate(-50%,13px);white-space:nowrap;font-size:9px;font-weight:900;color:#fff;background:rgba(0,0,0,.68);border:1px solid rgba(255,255,255,.55);border-radius:8px;padding:0 6px;line-height:14px}
-.leaflet-container:not(.z3) .own{display:none}
+/* V48: اسم مالک حالا در «همه‌ی» زوم‌ها دیده می‌شود — دیگر لازم نیست برای دیدن نام بازیکن زوم کنی.
+   در زوم پایین فقط کمی کوچک‌تر می‌شود */
+.leaflet-container:not(.z3) .own{font-size:8px;line-height:12px;padding:0 4px;opacity:.96}
    </style>
    <script>
     /* ===== v3: economy rebalance, Gem shop, real calendar, ownership on the map, more infrastructure ===== */
@@ -2300,7 +2303,7 @@ showDate=function(){const e=H$('hud-date');if(!e)return;let s;const d=new Date()
 addGrid=function(){};addNight=function(){};
 /* ---- natural land colors ---- */
 /* V45: نسخه‌ی روشن — همان فرمول نسخه‌ی پایین؛ hueهای تیره روی گوشی سیاه دیده نمی‌شوند */
-baseStyle=function(n){const h=hueOf(String(n||''));const light=55+((h*7919)%9);return{color:`hsla(${h},50%,32%,.55)`,weight:.9,fillColor:`hsl(${h},52%,${light}%)`,fillOpacity:.95}};
+baseStyle=function(n){const h=hueOf(String(n||''));const light=48+((h*7919)%7);return{color:`hsla(${h},24%,30%,.5)`,weight:.8,fillColor:`hsl(${h},26%,${light}%)`,fillOpacity:.85}};
 /* ---- flags built in small batches (no freeze while the intro plays) ---- */
 buildFlags=function(){const ks=Object.keys(layersByName).filter(n=>N2C[n.toLowerCase()]&&n!=='Antarctica');let i=0;
   (function step(){const end=Math.min(i+20,ks.length);
@@ -2448,7 +2451,12 @@ function restoreState(st){if(!st)return;
     if(![...targets].every(n=>layersByName[n]))return false;
     targets.forEach(n=>{applyCountryColor(n);const o=occupationPct[n];if(o>0&&o<100&&!conqueredCountries.has(n))setHatch(n,o,false)});return true};
   let t=0;const iv=setInterval(()=>{if(paint()||++t>90)clearInterval(iv)},1000)}
-function showChip(nick){const c=A$('acc-chip');c.textContent='👤 '+nick+' ✕ خروج';c.style.display='block'}
+function showChip(nick){const c=A$('acc-chip');c.style.display='flex';c.textContent='';
+  const av=document.createElement('span');av.className='wd-av';av.textContent='👤';
+  const nb=document.createElement('b');nb.className='wd-nick';nb.textContent=nick;
+  const out=document.createElement('span');out.className='wd-out';out.title='خروج از حساب';
+  out.innerHTML='<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M12 3v8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M7.2 6.2a7 7 0 1 0 9.6 0" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
+  c.append(av,nb,out)}
 function fillWorldRank(){const c=A$('world-rank');if(!c)return;c.textContent='';
   const medals=['🥇','🥈','🥉'];
   Object.values(REAL_POWER_DATABASE).sort((a,b)=>b.def-a.def).slice(0,5).forEach((d,i)=>{
@@ -2550,10 +2558,10 @@ async function saveOnline(){const st=snapState(),j=JSON.stringify(st);if(j===ACC
       }else console.log(a.error)}
     if(ok){ACC.ver=now;ACC.last=j;
       /* score/kills/economy are computed on the server from the save (see supabase-security.sql) */}
-    else if(conflict){ /* V39: دیگر ACC.ready را نمی‌کشیم — فقط سیو متوقف می‌شود تا PvP و سینک بینیافته بمیرند */
-      ACC.saveBlocked=true;
-      A$('status-banner').textContent='⚠️ این حساب روی دستگاه دیگری هم بازی شده؛ برای همگام‌سازی صفحه را رفرش کن';
-      showToast('⚠️ این حساب روی دستگاه دیگری هم بازی شده؛ صفحه را رفرش کن','lose')}}
+    else if(conflict){ /* V48: چنددستگاهی مجاز است — هیچ پیام خطایی نمایش داده نمی‌شود. ver تازه گرفته می‌شود و چرخه‌ی بعدی سیو (۸ ثانیه بعد) دوباره می‌نویسد؛ آخرین دستگاه برنده است */
+      try{const ex=await sb.from('saves').select('updated_at').eq('user_id',ACC.uid).maybeSingle();
+        if(ex&&ex.data&&ex.data.updated_at)ACC.ver=ex.data.updated_at}catch(e2){console.log(e2)}
+      ACC.last='__wd48_retry__'}}
   catch(e){console.log(e)}
   ACC.busy=false}
 async function rankOnline(box){box.append(mk('div','🌍 رتبه‌بندی جهانی','lr-h'));
@@ -2615,7 +2623,7 @@ function otherLabel(n,o){const g=getG(n);if(!g)return;const t=(o.cap?'⭐ ':'')+
   OL2[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:480,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
 function paintOther(n){const l=layersByName[n],o=OTH[n];if(!l||!o)return;
   /* V45: رنگ روشن‌تر کشورهای بازیکنان دیگر — قبلاً 42٪ روشنایی روی گوشی تقریباً سیاه بود */
-  l.setStyle({fillColor:`hsl(${nickHue(o.nick)},60%,56%)`,fillOpacity:.9,color:'#fff',weight:o.cap?3:1.6});otherLabel(n,o)}
+  l.setStyle({fillColor:`hsl(${nickHue(o.nick)},68%,56%)`,fillOpacity:.95,color:'#fff',weight:o.cap?3.2:2});otherLabel(n,o)}
 function applyOthers(nw){const old=OTH;OTH=nw;
   Object.keys(old).forEach(n=>{if(!nw[n]){if(OL2[n]){OL2[n].remove();delete OL2[n]}try{applyCountryColor(n)}catch(e){}}});
   Object.keys(nw).forEach(paintOther);renderSrvChip()}
@@ -3045,7 +3053,7 @@ async function checkWeeklyRewards(){
   enterOnline=async function(u,nick){await _enter(u,nick);try{await checkWeeklyRewards()}catch(e){console.log(e)}};
 })();
 
-/* ranking modal: category tabs (کشورگشایی / کشتار نظامی / اقتصاد) */
+/* ranking modal: category tabs (کشورگشایی / کشتار نظامی / اقتصاد) — رندر اصلی در renderRank35 (V35) است که V48 به آن رفرش زنده اضافه کرد */
 async function rankOnlineBy(box,cat){
   box.textContent='';
   box.appendChild(mk('div','🌍 رتبه‌بندی سرور — '+catFa(cat),'lr-h'));
@@ -6881,7 +6889,7 @@ renderShop=function(){try{var b=S$('shop-body');if(!b)return;b.textContent='';
  m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span id="cos-pick-t">انتخاب</span><span class="close-modal" id="cos-pick-x" style="cursor:pointer;font-size:18px">✕</span></div><div id="cos-pick-b"></div></div>';
  D.body.appendChild(m);m.querySelector('#cos-pick-x').onclick=function(){closeModal('cos-pick')};
  m.addEventListener('click',function(e){if(e.target===m)closeModal('cos-pick')})})();
-function refreshChip(){try{var c=A$('acc-chip');if(c&&c.textContent.indexOf('خروج')>-1){var n=(typeof ACC!=='undefined'&&ACC.nick)||'';if(n)c.textContent='👤 '+cosTagText(n)+' ✕ خروج'}}catch(e){}}
+function refreshChip(){try{var c=A$('acc-chip');if(!c||!c.querySelector('.wd-nick'))return;var n=(typeof ACC!=='undefined'&&ACC.nick)||'';if(!n)return;c.querySelector('.wd-nick').textContent=cosTagText(n)}catch(e){}}
 function setColor(h){COS.hue=h;cosRepaint();closeModal('cos-pick');try{if(typeof saveNow==='function')saveNow()}catch(e){}refreshChip();showToast(h==null?'🎨 رنگ پیش‌فرض':'🎨 رنگ امپراتوری عوض شد','win')}
 function setEmblem(e2){COS.emblem=e2;cosRepaint();closeModal('cos-pick');try{if(typeof saveNow==='function')saveNow()}catch(e){}refreshChip();showToast(e2?'🏳️ نشان تو: '+e2:'🏳️ نشان حذف شد','win')}
 function setTitle(t2){COS.title=t2;closeModal('cos-pick');try{if(typeof saveNow==='function')saveNow()}catch(e){}refreshChip();showToast(t2?'👑 لقب تو: «'+t2+'»':'👑 لقب حذف شد','win')}
@@ -6889,7 +6897,7 @@ function setFx(k){COS.fx=k;closeModal('cos-pick');try{if(typeof saveNow==='funct
 function openPick(kind0){var kind=kind0==='fx_conq'?'fx':kind0;var b=S$('cos-pick-b'),t=S$('cos-pick-t');if(!b)return;b.textContent='';
  if(kind==='col_pack'){t.textContent='🎨 رنگ امپراتوری';
   var grid=el('div');grid.style.cssText='display:flex;flex-wrap:wrap;gap:8px;justify-content:center';
-  HUES.forEach(function(h){var s=el('button','','cos27-sw'+(COS.hue===h?' on':''));s.style.background='hsl('+h+',78%,46%)';s.onclick=function(){setColor(h)};grid.append(s)});
+  HUES.forEach(function(h){var s=el('button','','cos27-sw'+(COS.hue===h?' on':''));s.style.setProperty('--h',h);s.title='رنگ امپراتوری';s.onclick=function(){setColor(h)};grid.append(s)});
   b.append(grid);
   b.append(el('div','🎛️ رنگ دلخواه','cos27-h'));
   var sl=el('input');sl.type='range';sl.min='0';sl.max='360';sl.value=COS.hue!=null?COS.hue:210;sl.className='cos27-slider';
@@ -6897,7 +6905,7 @@ function openPick(kind0){var kind=kind0==='fx_conq'?'fx':kind0;var b=S$('cos-pic
   var def=el('button','بازگشت به رنگ پیش‌فرض','cos27-buy off');def.style.cssText='width:100%;margin-top:6px';def.onclick=function(){setColor(null)};b.append(def)}
  else if(kind==='emblem'){t.textContent='🏳️ نشان اختصاصی';
   var g2=el('div');g2.style.cssText='display:flex;flex-wrap:wrap;gap:8px;justify-content:center';
-  EMBLEMS.forEach(function(e3){var s=el('button',e3,'cos27-em'+(COS.emblem===e3?' on':''));s.onclick=function(){setEmblem(e3)};g2.append(s)});
+  EMBLEMS.forEach(function(e3,ix){var s=el('button',e3,'cos27-em'+(COS.emblem===e3?' on':''));s.style.setProperty('--eh',(ix*137+20)%360);s.onclick=function(){setEmblem(e3)};g2.append(s)});
   b.append(g2);
   var rm=el('button','حذف نشان','cos27-buy off');rm.style.cssText='width:100%;margin-top:12px';rm.onclick=function(){setEmblem(null)};b.append(rm)}
  else if(kind==='title'){t.textContent='👑 لقب اختصاصی';
@@ -7004,7 +7012,7 @@ try{var _ac=applyCountryColor;applyCountryColor=function(n){_ac(n);try{cosLabelF
 try{var _rs=restoreState;restoreState=function(st){var r=_rs(st);try{cosArm()}catch(e){}return r}}catch(e){}
 try{var _lw=loadWallet;loadWallet=async function(){var r=await _lw.apply(this,arguments);try{cosVipTick()}catch(e){}return r}}catch(e){}
 try{var _sn=saveNow;saveNow=function(){try{cosRecordStat()}catch(e){}return _sn.apply(this,arguments)}}catch(e){}
-try{var _sc=showChip;showChip=function(n){_sc(n);try{var c=A$('acc-chip');if(c)c.textContent='👤 '+cosTagText(n)+' ✕ خروج'}catch(e){}}}catch(e){}
+try{var _sc=showChip;showChip=function(n){_sc(n);try{var c=A$('acc-chip');if(c){var b=c.querySelector('.wd-nick');if(b)b.textContent=cosTagText(n)}}catch(e){}}}catch(e){}
 /* menuHead/item live inside the V26 IIFE — decorate the ☰ menu reactively instead */
 (function(){var mo=new MutationObserver(function(){try{var nn=A$('wd-menu-nick');if(!nn)return;
  if(typeof ACC==='undefined'||!ACC)return;var nick=ACC.nick||'مهمان';
@@ -7761,7 +7769,7 @@ function openPick28(kind0){
   NAMED.forEach(function(x){
     var s=D.createElement('button');s.className='wd28-sw2'+((window.COS27&&window.COS27.hue===x[0])?' on':'');
     s.title=x[1];
-    s.style.background='linear-gradient(135deg,hsl('+x[0]+',85%,55%),hsl('+x[0]+',78%,36%))';
+    s.style.setProperty('--h',x[0]); /* V48: گوی سینمایی از CSS */
     var sh=D.createElement('span');sh.className='shine';s.append(sh);
     s.onclick=function(){applyHue28(x[0])};
     grid.append(s);
@@ -11900,12 +11908,16 @@ function chart40(rows,valOf,cat,maxVal,uid){
   return w}
 async function renderRank35(box,cat){
   const my=window.__wd35tok=(window.__wd35tok||0)+1;box.textContent='';
+  /* V48: رفرش زنده هر ۶ ثانیه تا امتیازها بلافاصله بعد از حمله/فتح/کودتا عوض شوند (وقتی مودال بسته شود توقف می‌کند) */
+  if(window.__wd35poll)clearTimeout(window.__wd35poll);
+  window.__wd35poll=setTimeout(function(){var m=D.getElementById('m-rank');
+    if(!m||!m.classList.contains('active')||!box||!box.isConnected)return;renderRank35(box,cat)},6000);
   const head=D.createElement('div');head.className='wd35-head';
   head.innerHTML='<div style="flex:1"><div class="t">'+CAT35[cat].fa+'</div><div class="s">در حال دریافت…</div></div>';
   const rf=D.createElement('button');rf.className='rf';rf.textContent='⟳ بروزرسانی';
   rf.addEventListener('click',()=>renderRank35(box,cat));head.appendChild(rf);box.appendChild(head);
   const tip=D.createElement('div');tip.style.cssText='font-size:9px;color:#6f8db0;font-weight:700;margin:-4px 2px 8px';
-  tip.textContent=CAT35[cat].tip;box.appendChild(tip);
+  tip.textContent=CAT35[cat].tip+' • 🔄 زنده — هر ۶ ثانیه خودش به‌روز می‌شود';box.appendChild(tip);
   if(!(window.sb||(typeof sb!=='undefined'&&sb))){const e=D.createElement('div');e.className='lr-row';e.textContent='رتبه‌بندی فقط با حساب آنلاین کار می‌کند';box.appendChild(e);return}
   try{
     const res=await Promise.race([rankQuery35(cat),new Promise((_,no)=>setTimeout(()=>no(new Error('timeout')),15000))]);
@@ -13471,11 +13483,13 @@ path.wd43-flow{stroke-dasharray:7 5;animation:w43dash 1.6s linear infinite}
 @keyframes w43halo{0%{transform:scale(.55);opacity:.9}100%{transform:scale(1.65);opacity:0}}
 .wd43-ring::before{content:'';position:absolute;inset:-6px;border-radius:50%;border:2px dashed rgba(43,184,255,.8);animation:w43rng 3.4s linear infinite;pointer-events:none}
 @keyframes w43rng{to{transform:rotate(360deg)}}
-/* قاب پروفایل پویا (افسانه‌ای) — رینگ چرخان + دو ذره */
-.wd43-frame{position:relative;display:inline-block}
-.wd43-frame::before{content:'';position:absolute;inset:-4px -7px;border-radius:12px;background:conic-gradient(from var(--fa,0deg),#ffd84d,#ff4d6d,#39e6d0,#ffd84d);z-index:-1;animation:w43spin 3.2s linear infinite;opacity:.85;filter:blur(.4px)}
+/* V48: قاب پروفایل — حلقه‌ی نورانی چرخان به‌صورت «حاشیه‌ی گرادیانی» دور ردیف؛ بدون تغییر اندازه و بدون به‌هم‌ریختن ریتم ردیف‌ها */
+.wd43-frame{position:relative}
+.wd43-frame::before{content:'';position:absolute;inset:-2px -3px;border-radius:12px;padding:2px;background:conic-gradient(from var(--fa,0deg),#ffd84d,#ff4d6d,#39e6d0,#ffd84d);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
+  animation:w43spin 3.2s linear infinite;opacity:.95;pointer-events:none;z-index:2}
 @keyframes w43spin{to{--fa:360deg}}
-.wd43-frame::after{content:'✦';position:absolute;top:-9px;right:-4px;font-size:9px;color:#ffd84d;animation:w43orb 2.6s ease-in-out infinite;text-shadow:0 0 6px rgba(255,216,77,.9)}
+.wd43-frame::after{content:'✦';position:absolute;top:-10px;left:50%;margin-left:-6px;font-size:10px;color:#ffd84d;animation:w43orb 2.6s ease-in-out infinite;text-shadow:0 0 6px rgba(255,216,77,.9);pointer-events:none;z-index:2}
 @keyframes w43orb{0%,100%{transform:translate(0,0) scale(1);opacity:.9}50%{transform:translate(-3px,-4px) scale(1.25);opacity:.5}}
 @property --fa{syntax:'<angle>';initial-value:0deg;inherits:false}
 /* نمودار آمار پیشرفته — گرادینت زیر خط */
@@ -13974,13 +13988,13 @@ function rankFrame(){try{if(!cosOwn('frame'))return;
   for(var i=0;i<rows.length&&i<400;i++){var r=rows[i];if(r.classList.contains('wd43-frame'))continue;
    var t=(r.textContent||'').trim();
    if(nick&&t&&t.length<60&&t.indexOf(nick)>-1&&r.children.length<8){r.classList.add('wd43-frame');break}}});
- var chip=S$('acc-chip');if(chip&&chip.textContent.indexOf('خروج')>-1)chip.classList.add('wd43-frame')}catch(e){}}
+ var chip=S$('acc-chip');if(chip&&(chip.querySelector('.wd-av')||chip.textContent.indexOf('خروج')>-1))chip.classList.add('wd43-frame')}catch(e){}}
 function titleShine(){try{var C=window.COS||window.COS27;if(!C||!C.title)return;var chip=S$('acc-chip');if(!chip)return;
- if(chip.getAttribute('data-w43t'))return;var tn=chip.childNodes;
+ if(chip.getAttribute('data-w43t'))return;var host=chip.querySelector('.wd-nick')||chip;var tn=host.childNodes;
  for(var i=0;i<tn.length;i++){var nd=tn[i];if(nd.nodeType===3&&nd.textContent.indexOf('«'+C.title+'»')>-1){
   var parts=nd.textContent.split('«'+C.title+'»');if(parts.length<2)break;
   var sp=D.createElement('span');sp.className='wd43-title-shine';sp.textContent='«'+C.title+'»';
-  chip.insertBefore(D.createTextNode(parts[0]),nd);chip.insertBefore(sp,nd);chip.insertBefore(D.createTextNode(parts[1]),nd);chip.removeChild(nd);
+  host.insertBefore(D.createTextNode(parts[0]),nd);host.insertBefore(sp,nd);host.insertBefore(D.createTextNode(parts[1]),nd);host.removeChild(nd);
   chip.setAttribute('data-w43t','1');break}}}catch(e){}}
 function mapDress(){try{if(typeof FL==='undefined')return;
  var my=(typeof myCountryName!=='undefined')?myCountryName:null;
@@ -14228,6 +14242,73 @@ body #m-battle.wd46-free .modal-card{position:fixed!important;left:var(--wd46x,1
 .cos27-h{text-shadow:0 0 12px rgba(255,216,77,.35)}
 /* ---- 4) ریزه‌کاری لگ: سایه‌ی سبک‌تر کشوی کشور ---- */
 .country-drawer{box-shadow:0 -4px 18px rgba(0,0,0,.7)!important}
+</style>
+<style id="v48-css">
+/* ================= V48: فروشگاه سینمایی + چیپ خروج + ریتم رنکینگ ================= */
+/* ---- 1) گوی‌های رنگ: سیاره‌ی سه‌بعدی با طرح خطوط جغرافیایی + هاله‌ی درخشان ---- */
+.cos27-sw{width:48px!important;height:48px!important;border-radius:50%!important;position:relative;cursor:pointer;
+  border:2px solid hsla(var(--h,210),80%,70%,.4)!important;
+  background:radial-gradient(circle at 32% 26%,hsl(var(--h,210),95%,80%) 0%,hsl(var(--h,210),88%,58%) 26%,hsl(var(--h,210),82%,44%) 52%,hsl(var(--h,210),88%,28%) 78%,hsl(var(--h,210),90%,19%) 100%)!important;
+  box-shadow:0 0 0 1px rgba(0,0,0,.55),0 5px 12px rgba(0,0,0,.55),0 0 18px hsla(var(--h,210),95%,58%,.55),inset 0 -8px 12px rgba(0,0,0,.4),inset 0 6px 10px hsla(var(--h,210),95%,80%,.35)!important;
+  transition:transform .18s cubic-bezier(.3,1.4,.4,1),box-shadow .18s}
+.cos27-sw::before{content:'';position:absolute;inset:3px;border-radius:50%;
+  background:repeating-linear-gradient(115deg,transparent 0 5px,hsla(var(--h,210),95%,88%,.24) 5px 7px,transparent 7px 12px),repeating-linear-gradient(25deg,transparent 0 9px,hsla(var(--h,210),90%,60%,.12) 9px 11px,transparent 11px 18px);
+  mix-blend-mode:screen;pointer-events:none}
+.cos27-sw::after{content:'';position:absolute;left:17%;top:9%;width:36%;height:27%;border-radius:50%;
+  background:radial-gradient(ellipse at 35% 35%,rgba(255,255,255,.95),rgba(255,255,255,0) 72%);pointer-events:none}
+.cos27-sw:hover{transform:scale(1.12) translateY(-2px);box-shadow:0 0 0 1px rgba(0,0,0,.55),0 8px 16px rgba(0,0,0,.6),0 0 26px hsla(var(--h,210),95%,62%,.8),inset 0 -8px 12px rgba(0,0,0,.4)!important}
+.cos27-sw.on{transform:scale(1.16);border-color:#fff!important;
+  box-shadow:0 0 0 3px #39e6d0,0 0 26px rgba(57,230,208,.9),0 0 48px hsla(var(--h,210),95%,60%,.65),inset 0 -8px 12px rgba(0,0,0,.4)!important}
+.cos27-sw.on::before{content:'✓';background:none;mix-blend-mode:normal;color:#fff;font-weight:900;font-size:21px;
+  display:flex;align-items:center;justify-content:center;text-shadow:0 0 10px rgba(0,0,0,.85),0 0 18px rgba(57,230,208,.9)}
+/* ---- 2) نشان‌ها: مدال‌های طلایی با هاله‌ی رنگی اختصاصی ---- */
+.cos27-em{width:54px!important;height:54px!important;font-size:26px!important;line-height:1!important;border-radius:50%!important;cursor:pointer;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 35% 28%,hsl(var(--eh,210),60%,27%),hsl(var(--eh,210),70%,14%) 68%,#05080f)!important;
+  border:2px solid hsla(var(--eh,210),75%,62%,.55)!important;
+  box-shadow:0 0 16px hsla(var(--eh,210),85%,55%,.4),inset 0 0 16px hsla(var(--eh,210),85%,50%,.22),0 4px 10px rgba(0,0,0,.55)!important;
+  text-shadow:0 0 12px hsla(var(--eh,210),95%,70%,.55),0 2px 4px rgba(0,0,0,.6);
+  transition:transform .18s cubic-bezier(.3,1.4,.4,1),box-shadow .18s}
+.cos27-em:hover{transform:scale(1.12) translateY(-2px);box-shadow:0 0 26px hsla(var(--eh,210),90%,60%,.7),inset 0 0 20px hsla(var(--eh,210),85%,50%,.3)!important}
+.cos27-em.on{transform:scale(1.14);border-color:#ffd84d!important;
+  background:radial-gradient(circle at 35% 28%,hsl(var(--eh,42),80%,40%),hsl(var(--eh,42),88%,20%) 68%,#0c0702)!important;
+  box-shadow:0 0 0 2px rgba(255,216,77,.95),0 0 30px rgba(255,200,60,.75),inset 0 0 18px rgba(255,216,77,.28)!important}
+.cos27-em.on::after{content:'✓';position:absolute;bottom:-3px;left:-3px;width:17px;height:17px;border-radius:50%;
+  background:linear-gradient(135deg,#ffe08a,#ffb02e);color:#1a1206;font-size:10px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 0 10px rgba(255,204,0,.85);text-shadow:none}
+/* ---- 3) چیپ حساب: آواتار + نام + دکمه‌ی خروج واقعی (آیکون برق) ---- */
+#acc-chip{align-items:center;gap:6px!important;padding:4px 9px 4px 5px!important;border-radius:15px!important;
+  background:linear-gradient(160deg,rgba(12,24,46,.95),rgba(6,12,26,.95))!important;
+  border:1px solid rgba(77,163,255,.42)!important;box-shadow:0 4px 14px rgba(0,0,0,.5),0 0 14px rgba(77,163,255,.14)!important;cursor:pointer}
+#acc-chip .wd-av{flex:0 0 23px;width:23px;height:23px;border-radius:50%;
+  background:radial-gradient(circle at 32% 28%,#3e7cc9,#173258 78%);display:flex;align-items:center;justify-content:center;font-size:12px;
+  box-shadow:0 0 9px rgba(77,163,255,.5),inset 0 1px 2px rgba(255,255,255,.3)}
+#acc-chip .wd-nick{font-size:10px;font-weight:800;color:#dff6ff;max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#acc-chip .wd-out{flex:0 0 23px;width:23px;height:23px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  color:#ff8ba0;background:linear-gradient(160deg,rgba(255,51,102,.2),rgba(255,51,102,.05));
+  border:1px solid rgba(255,81,122,.5);box-shadow:0 0 9px rgba(255,51,102,.28);transition:.15s}
+#acc-chip:active .wd-out{transform:scale(.9);box-shadow:0 0 15px rgba(255,51,102,.65)}
+/* ---- 4) ریتم رنکینگ: ردیف‌های هم‌اندازه حتی با قاب/تاج ---- */
+#m-rank .lr-row{min-height:34px;align-items:center}
+#m-rank .lr-row.wd43-frame{display:flex;flex-direction:row}
+/* ---- 5) انتخابگر واقعی رنگ (V28): گوی‌های سیاره‌ای با طرح + هاله برای رنگ‌های نام‌دار ---- */
+.wd28-sw2{width:48px!important;height:48px!important;border-radius:50%!important;
+  border:2px solid hsla(var(--h,210),80%,70%,.4)!important;
+  background:radial-gradient(circle at 32% 26%,hsl(var(--h,210),95%,80%) 0%,hsl(var(--h,210),88%,58%) 26%,hsl(var(--h,210),82%,44%) 52%,hsl(var(--h,210),88%,28%) 78%,hsl(var(--h,210),90%,19%) 100%)!important;
+  box-shadow:0 0 0 1px rgba(0,0,0,.55),0 5px 12px rgba(0,0,0,.55),0 0 18px hsla(var(--h,210),95%,58%,.55),inset 0 -8px 12px rgba(0,0,0,.4),inset 0 6px 10px hsla(var(--h,210),95%,80%,.35)!important;
+  transition:transform .18s cubic-bezier(.3,1.4,.4,1),box-shadow .18s}
+.wd28-sw2::before{content:'';position:absolute;inset:3px;border-radius:50%;
+  background:repeating-linear-gradient(115deg,transparent 0 5px,hsla(var(--h,210),95%,88%,.24) 5px 7px,transparent 7px 12px),repeating-linear-gradient(25deg,transparent 0 9px,hsla(var(--h,210),90%,60%,.12) 9px 11px,transparent 11px 18px);
+  mix-blend-mode:screen;pointer-events:none}
+.wd28-sw2 .shine{position:absolute;left:15%;top:8%;width:38%;height:28%;inset:auto;border-radius:50%;
+  background:radial-gradient(ellipse at 35% 35%,rgba(255,255,255,.95),rgba(255,255,255,0) 72%)!important;mix-blend-mode:normal!important;pointer-events:none}
+.wd28-sw2:hover{transform:scale(1.12) translateY(-2px);box-shadow:0 0 0 1px rgba(0,0,0,.55),0 8px 16px rgba(0,0,0,.6),0 0 26px hsla(var(--h,210),95%,62%,.8),inset 0 -8px 12px rgba(0,0,0,.4)!important}
+.wd28-sw2.on{border-color:#fff!important;
+  box-shadow:0 0 0 3px #39e6d0,0 0 26px rgba(57,230,208,.9),0 0 48px hsla(var(--h,210),95%,60%,.65)!important}
+/* پیش‌نمایش امپراتوری: چیپ درخشان */
+.wd28-prev-chip{display:flex;align-items:center;justify-content:center;gap:8px;font-size:10.5px;font-weight:800;color:#dfe9f7;
+  background:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:7px 10px;margin:0 0 10px}
+.wd28-prev-dot{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.5);box-shadow:0 0 12px rgba(255,255,255,.35),inset 0 -4px 6px rgba(0,0,0,.35)}
 </style>
 <script id="wd46-js">
 /* ================= V46: پنل نبرد کشیدنی + جمع‌شونده ================= */
