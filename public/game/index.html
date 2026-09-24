@@ -13611,7 +13611,10 @@ function tutSkipIfVet(){try{if(tutState.done||tutState.skipped)return;var cq=0;t
 function tutEl(){var t=S$('wd43-tut');if(!t){t=el('div');t.id='wd43-tut';D.body.appendChild(t);
   var x=el('button','✕','',function(){tutState.skipped=true;tutSave();tutHide()});x.className='x';t.appendChild(x);
   t.appendChild(el('div','','h'));t.appendChild(el('div','','d'));t.appendChild(el('div','','rw'));
-  var bs=el('div','','btns');var go=el('button','رفتم!','go',function(){try{var st=TUT[tutState.i];if(st&&st.tg){var e2=D.querySelector(st.tg);if(e2)e2.click()}}catch(e){}});bs.appendChild(go);
+  var bs=el('div','','btns');var go=el('button','رفتم!','go',function(){try{
+    /* V45: قبل از پرش به هدف، کشو/پوشش‌های سبک بسته شوند تا دکمه‌ی هدف دیده و قابل لمس باشد */
+    try{var dr=D.getElementById('country-drawer');if(dr)dr.classList.remove('open')}catch(e){}
+    var st=TUT[tutState.i];if(st&&st.tg){var e2=D.querySelector(st.tg);if(e2)e2.click()}}catch(e){}});bs.appendChild(go);
   bs.appendChild(el('button','رد شدن','sk',function(){tutState.skipped=true;tutSave();tutHide()}));t.appendChild(bs);
   var dots=el('div','','st');for(var i=0;i<TUT.length;i++)dots.appendChild(el('i'));t.appendChild(dots);
   var sp=el('div');sp.id='wd43-spot';D.body.appendChild(sp)}
