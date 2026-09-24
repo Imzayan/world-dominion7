@@ -1303,7 +1303,7 @@ function applyCountryColor(engName) {
     layer.setStyle({ fillColor: '#00c2ff', fillOpacity: 0.6, color: '#ffffff', weight: 2 });
   } else if (occ > 0) {
     const t = occ / 100;
-    const fill = lerpColor('#0a2a4a', '#ffcc00', t);
+    const fill = lerpColor('#4a7ab8', '#ffcc00', t); /* V45: پایه‌ی روشن‌تر — قبلاً #0a2a4a تیره بود */
     layer.setStyle({ fillColor: fill, fillOpacity: 0.45 + 0.3 * t, color: '#ffcc00', weight: 2 });
   } else if (engName === activeEngName) {
     layer.setStyle({ fillColor: '#ffcc00', fillOpacity: 0.6, color: '#ffffff', weight: 2 });
@@ -1672,9 +1672,9 @@ addEventListener('unhandledrejection',e=>{try{console.log('wd-rej:',e&&e.reason)
 const $=id=>document.getElementById(id), sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const hueOf=n=>{let h=7;for(const c of n)h=(h*31+c.charCodeAt(0))%360;return h};
 function baseStyle(n){const h=hueOf(String(n||''));
-  /* V22 atlas palette tuned for the bright ocean */
-  const light=40+((h*7919)%9);
-  return{color:`hsla(${h},50%,30%,.5)`,weight:.9,fillColor:`hsl(${h},46%,${light}%)`,fillOpacity:.95,smoothFactor:1.1,noClip:false}}
+  /* V45: پالت روشن — hueهای آبی/بنفش با lightness قبلی (45٪) روی صفحه‌ی گوشی شبیه سیاه دیده می‌شدند */
+  const light=55+((h*7919)%9);
+  return{color:`hsla(${h},50%,32%,.55)`,weight:.9,fillColor:`hsl(${h},52%,${light}%)`,fillOpacity:.95,smoothFactor:1.1,noClip:false}}
 
 // ISO codes for flags (Intl names + aliases for geojson spellings)
 const N2C={"united states of america":"us","democratic republic of the congo":"cd","republic of the congo":"cg","united republic of tanzania":"tz","republic of serbia":"rs","macedonia":"mk","ivory coast":"ci","czech republic":"cz","guinea bissau":"gw","the bahamas":"bs","east timor":"tl","swaziland":"sz","myanmar":"mm","turkey":"tr","french southern and antarctic lands":"tf","kosovo":"xk","bosnia and herzegovina":"ba","trinidad and tobago":"tt","west bank":"ps"};
@@ -2299,7 +2299,8 @@ showDate=function(){const e=H$('hud-date');if(!e)return;let s;const d=new Date()
 /* ---- no radar grid / night overlay ---- */
 addGrid=function(){};addNight=function(){};
 /* ---- natural land colors ---- */
-baseStyle=function(n){const h=hueOf(String(n||''));return{color:`hsl(${h},48%,29%)`,weight:.9,fillColor:`hsl(${h},46%,45%)`,fillOpacity:.95}};
+/* V45: نسخه‌ی روشن — همان فرمول نسخه‌ی پایین؛ hueهای تیره روی گوشی سیاه دیده نمی‌شوند */
+baseStyle=function(n){const h=hueOf(String(n||''));const light=55+((h*7919)%9);return{color:`hsla(${h},50%,32%,.55)`,weight:.9,fillColor:`hsl(${h},52%,${light}%)`,fillOpacity:.95}};
 /* ---- flags built in small batches (no freeze while the intro plays) ---- */
 buildFlags=function(){const ks=Object.keys(layersByName).filter(n=>N2C[n.toLowerCase()]&&n!=='Antarctica');let i=0;
   (function step(){const end=Math.min(i+20,ks.length);
@@ -2613,7 +2614,8 @@ function otherLabel(n,o){const g=getG(n);if(!g)return;const t=(o.cap?'⭐ ':'')+
   const d=document.createElement('div');d.className='own oth';d.textContent=t;d.style.borderColor=`hsl(${nickHue(o.nick)},80%,65%)`;
   OL2[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:480,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
 function paintOther(n){const l=layersByName[n],o=OTH[n];if(!l||!o)return;
-  l.setStyle({fillColor:`hsl(${nickHue(o.nick)},70%,42%)`,fillOpacity:.9,color:'#fff',weight:o.cap?3:1.6});otherLabel(n,o)}
+  /* V45: رنگ روشن‌تر کشورهای بازیکنان دیگر — قبلاً 42٪ روشنایی روی گوشی تقریباً سیاه بود */
+  l.setStyle({fillColor:`hsl(${nickHue(o.nick)},60%,56%)`,fillOpacity:.9,color:'#fff',weight:o.cap?3:1.6});otherLabel(n,o)}
 function applyOthers(nw){const old=OTH;OTH=nw;
   Object.keys(old).forEach(n=>{if(!nw[n]){if(OL2[n]){OL2[n].remove();delete OL2[n]}try{applyCountryColor(n)}catch(e){}}});
   Object.keys(nw).forEach(paintOther);renderSrvChip()}
@@ -8771,9 +8773,11 @@ pollGoal();setInterval(()=>{if(!document.hidden)pollGoal()},90000);
 try{fetch('/api/db/server_stats',{cache:'no-store'}).then(r=>r.json()).then(j=>{window.__srvStats=j&&j.data?j.data:j;pollGoal()}).catch(()=>{})}catch(e){}
 
 /* ---------- 8) fog of war (مه جنگ — بصری، غیرقفل‌کننده) ---------- */
-/* V44: پیش‌فرض مه خاموش — نقشه همیشه رنگی و شفاف؛ فعال‌سازی فقط از پنل */
+/* V45: مه جنگ کلاً حذف شد — اگر در localStorage کاربر روشن مانده بود، پاک می‌شود
+   (این همان منبع «کشورهای سیاه» بود: کشورهای دیده‌نشده با #16283f تیره می‌شدند) */
 const FOG={on:false,revealed:{},MK:{}};
-try{FOG.on=(localStorage.getItem('wd30fog')==='on')}catch(e){}
+try{localStorage.setItem('wd30fog','off')}catch(e){}
+try{FOG.on=false}catch(e){}
 function fogCenter(n){const g=getG(n);return g?g.c:null}
 function fogVisible(n){if(!FOG.on)return true;if(FOG.revealed[n]>Date.now())return true;
   if(conqueredCountries.has(n)||n===myCountryName)return true;
@@ -8906,8 +8910,9 @@ function specialPanel(p){p.textContent='';
   b1.addEventListener('click',()=>WD30TL_OPEN());p.append(b1);
   const h3=D.createElement('div');h3.className='sites-h';h3.style.marginTop='10px';h3.textContent='🗺️ تجربه‌ی نقشه';p.append(h3);
   const fogB=D.createElement('button');fogB.className='action-btn btn-ghost';fogB.style.width='100%';
-  const setFog=()=>{fogB.textContent=window.WD30_FOG.on?'🌫️ مه جنگ: روشن (بزن برای خاموشی)':'🌫️ مه جنگ: خاموش (بزن برای روشنی)'};
-  setFog();fogB.addEventListener('click',()=>{window.WD30_FOG.on=!window.WD30_FOG.on;setFog();snd('click')});p.append(fogB)}
+  /* V45: مه جنگ حذف شده — دکمه فقط وضعیت خاموش را نشان می‌دهد و اطمینان می‌دهد روشن نمانده */
+  const setFog=()=>{fogB.textContent='🌫️ مه جنگ: حذف شد (نقشه همیشه کامل رنگی است)';fogB.disabled=true;fogB.style.opacity='.55'};
+  setFog();fogB.addEventListener('click',()=>{try{window.WD30_FOG.on=false}catch(e){}setFog();try{showToast('🌫️ مه جنگ دیگر وجود ندارد — همه‌ی کشورها همیشه دیده می‌شوند','win')}catch(e){}snd('click')});p.append(fogB)}
 /* inject: 4th tab + world strip on open */
 (function(){const tabs=D.querySelector('#m-lobby .lobby-tabs');if(!tabs)return;
   if(!tabs.querySelector('[data-tab="sp"]')){const b=D.createElement('button');b.className='lobby-tab-btn';b.setAttribute('data-tab','sp');b.textContent='✨ ویژه';tabs.appendChild(b)}
@@ -13614,12 +13619,19 @@ function tutEl(){var t=S$('wd43-tut');if(!t){t=el('div');t.id='wd43-tut';D.body.
 function tutSpot(tg){var sp=S$('wd43-spot');if(!sp)return;try{if(!tg){sp.classList.remove('on');return}
  var r=tg.getBoundingClientRect();if(r.width<4){sp.classList.remove('on');return}
  sp.style.top=(r.top-6)+'px';sp.style.left=(r.left-6)+'px';sp.style.width=(r.width+12)+'px';sp.style.height=(r.height+12)+'px';sp.classList.add('on')}catch(e){}}
+/* V45: اگر هر پوشش تمام‌صفحه‌ای باز است، آموزش نباید دیده شود (روی آن نمی‌نشیند، زیرش هم گیر نمی‌کند) */
+function wd45busy(){try{if(D.querySelector('.modal.active'))return true;
+ var sel=['#wd22-sheet','#wd-menu','#wd7-panel','#wd33-stage','#wd33-cer','#wd5-mini','.cos27-lucky'];
+ for(var i=0;i<sel.length;i++){if(wd45vis(sel[i]))return true}
+ var ps=D.querySelectorAll('.wd31-page');for(var j=0;j<ps.length;j++){if(ps[j].getBoundingClientRect().height>0)return true}
+ return false}catch(e){return false}}
+function wd45vis(sel){try{var e=D.querySelector(sel);return !!(e&&e.getBoundingClientRect().height>0)}catch(e){return false}}
 function tutShow(){try{if(tutState.done||tutState.skipped||tutState.i>=TUT.length){tutHide();return}
- if(D.querySelector('.modal.active'))return; /* V44: تا مودال باز است آموزش نشان نده — بعد از بستن خودش می‌آید */
+ if(wd45busy()){tutHide();return} /* V45: تا پوشش باز است مخفی — بعد از بستن خودش برمی‌گردد */
  var st=TUT[tutState.i];if(!st)return;if(st.id==='capital'&&typeof GAME==='undefined')return; /* قبل از آماده‌شدن بازی نرو */
  var t=tutEl();t.querySelector('.h').textContent='';t.querySelector('.h').append(el('span',st.ic+' '),el('span',st.fa),el('small',(faN(tutState.i+1)+' / '+faN(TUT.length))));
  t.querySelector('.d').textContent=st.d;t.querySelector('.rw').textContent='🎁 جایزه‌ی این قدم: '+grp(st.rw)+' طلا';
- var dots=t.querySelectorAll('.st i');for(var i=0;i<dots.length;i++)dots[i].className=(i<tutState.i?'on':'');
+ var dots=t.querySelectorAll('.st i');for(var i=0;i<dots.length;i++)dots[i].className=(i<tutState.i?'on':(i===tutState.i?'cur':''));
  t.classList.add('on');var tg=st.tg?D.querySelector(st.tg):null;tutSpot(tg)}catch(e){log('tutShow '+e)}}
 function tutHide(){try{var t=S$('wd43-tut');if(t)t.classList.remove('on');tutSpot(null)}catch(e){}}
 function tutAdvance(){try{var st=TUT[tutState.i];if(!st)return;tutState.i++;tutSave();
@@ -13631,6 +13643,7 @@ function tutAdvance(){try{var st=TUT[tutState.i];if(!st)return;tutState.i++;tutS
 function tutTick(){try{if(tutState.done||tutState.skipped)return;
  var st=TUT[tutState.i];if(!st)return;
  if(st.chk&&st.chk()){tutAdvance();return}
+ if(wd45busy()){tutHide();return} /* V45 */
  var t=S$('wd43-tut');if(!t||!t.classList.contains('on'))tutShow();
  else if(st.tg){var tg=D.querySelector(st.tg);if(tg)tutSpot(tg)}}catch(e){}}
 
@@ -14080,5 +14093,70 @@ setTimeout(function(){try{WD43._t={propRender:propRender,propModalEnsure:propMod
   *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important}
 }
 </style>
+<style id="wd45-perf-css">
+/* ================= V45 PERF + UI FIXES ================= */
+/* 1) backdrop-filter روی WebView اندروید گران‌ترین افکت است — همه‌جا خاموش (پس‌زمینه‌های rgba جایگزین شده‌اند) */
+*,*::before,*::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;will-change:auto!important}
+/* 2) هر انیمیشن تزئینی فقط یک‌بار اجرا می‌شود؛ فقط نوار خبر باید بچرخد */
+*{animation-iteration-count:1!important}
+#ticker span{animation-duration:34s!important;animation-iteration-count:infinite!important}
+/* 3) آموزش همیشه روی همه‌چیز (جز پوشش‌های تمام‌صفحه که خودش مخفی می‌شود) */
+#wd43-tut{z-index:200000!important}
+#wd43-spot{z-index:199990!important}
+/* 4) تا کارت آموزش باز است، چیپ‌های گوشه‌ی بالا-چپ مخفی (قبلاً از گوشه‌ی کارت بیرون می‌زدند — همان «آیکون اضافه») */
+body.wd45-tutshow #hud-info{opacity:0!important;pointer-events:none!important;transition:opacity .25s}
+/* 5) نقطه‌ی گام جاری آموزش */
+#wd43-tut .st i.cur{background:#ffd84d;opacity:.45;box-shadow:none}
+/* 6) تغییر اندازه‌ی انیمیشنی چیپ‌ها هنگام عدد فارسی — ری‌لی‌اوت کمتر */
+#r-gold,#r-food,#r-oil,#r-army,#hud-gem,#hud-terr,#hud-date,#hud-t2,#hud-srv{font-variant-numeric:tabular-nums}
+</style>
+<script id="wd45-perf-js">
+(function(){
+'use strict';
+var D=document;
+/* A) showDate: فرمت تاریخ شمسی با ICU هر ثانیه گران است — ۳۰ ثانیه یک‌بار محاسبه شود */
+try{
+  var _sd=window.showDate,_last=0,_cache='';
+  if(typeof _sd==='function'){
+    window.showDate=function(){
+      var e=D.getElementById('hud-date');if(!e)return;
+      var n=Date.now();
+      if(_cache&&n-_last<30000){e.textContent='📅 '+_cache;return}
+      _last=n;_sd();_cache=e.textContent.replace(/^📅\s*/,'');
+    };
+  }
+}catch(e){}
+/* B) mainRing با حافظه — قبلاً در هر moveend/zoomend برای ۱۸۰ کشور از نو همه‌ی رئوس پیموده می‌شد */
+try{
+  var _mr=window.mainRing,_mc={};
+  if(typeof _mr==='function'){
+    window.mainRing=function(l){
+      if(!l)return _mr(l);
+      var id=l._leaflet_id;if(id==null)return _mr(l);
+      var g=_mc[id];if(g)return g;
+      g=_mr(l);_mc[id]=g;return g;
+    };
+  }
+}catch(e){}
+/* C) چیپ قدیمی «آغازگر» اگر از نسخه‌ی کش‌شده‌ای مانده، حذف شود */
+setInterval(function(){try{var c=D.getElementById('wd-lvlchip');if(c)c.remove()}catch(e){}},5000);
+/* D) همگام‌سازی کلاس بدنه با باز/بسته بودن کارت آموزش (برای مخفی‌کردن چیپ‌های زیرش) */
+try{
+  var mo45=new MutationObserver(function(){
+    var t=D.getElementById('wd43-tut');
+    D.body.classList.toggle('wd45-tutshow',!!(t&&t.classList.contains('on')));
+  });
+  var arm45=function(){var t=D.getElementById('wd43-tut');if(t){mo45.observe(t,{attributes:true,attributeFilter:['class']});D.body.classList.toggle('wd45-tutshow',t.classList.contains('on'));return true}return false};
+  if(!arm45()){var iv45=setInterval(function(){if(arm45())clearInterval(iv45)},800);setTimeout(function(){clearInterval(iv45)},30000)}
+}catch(e){}
+/* E) بعد از برگشتن به صفحه، نقشه یک‌بار خودش را ترسیم کند (رفع مشکل canvas خالی بعد از مینیمایز) */
+try{
+  D.addEventListener('visibilitychange',function(){
+    if(document.hidden)return;
+    setTimeout(function(){try{if(window.map&&typeof map.invalidateSize==='function')map.invalidateSize({pan:false})}catch(e){}},120);
+  });
+}catch(e){}
+})();
+</script>
 </body>
 </html>
