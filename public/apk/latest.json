@@ -1,8 +1,8 @@
 {
-  "versionCode": 3,
-  "versionName": "1.0.2",
-  "url": "https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.2.apk",
-  "sha256": "",
-  "notes": "V46: آپدیت خودکار داخل برنامه + حذف کامل کادر قرمز حمله + پنل نبرد کشیدنی و جمع‌شونده + فروشگاه سینمایی با آیکون‌های جدید + فیکس باگ warOff + بهینه‌سازی سرعت",
+  "versionCode": 4,
+  "versionName": "1.0.3",
+  "url": "https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.3.apk",
+  "sha256": "48d187d25901e40b2995fc2c4efc86b71ae213c9fe9069e87459b6a89a6a26f7",
+  "notes": "نام بازی به انگلیسی تغییر کرد: World Dominion (اسم زیر آیکون و صفحه شروع). نصب مستقیم روی نسخه قبلی بدون حذف.",
   "releasedAt": "2026-09-24"
 }
