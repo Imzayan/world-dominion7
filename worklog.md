@@ -813,3 +813,23 @@ Work Log:
 
 Stage Summary:
 - لینک مستقیم دانلود APK برای کاربر فعال است + راهنمای گام‌به‌گام نصب فارسی در چت ارسال شد
+
+---
+Task ID: V46-autoupdate-bugfix
+Agent: Super Z (main)
+Task: آپدیت خودکار داخل APK + حذف کادر قرمز حمله + پنل نبرد کشیدنی/جمع‌شونده + فروشگاه سینمایی + رفع لگ
+
+Work Log:
+- ریشه‌یابی «کادر قرمز بعد حمله»: ۳ منبع داشت — #wd-war-vig (ویگنت قرمز V22)، #wd-war-banner (بنر ⚔)، و مهم‌تر #wd-warfx (روبان «عملیات نظامی» + ویگنت قرمز V30 که کل مدت حمله بالای صفحه می‌ماند) + wd-shake لرزش نقشه
+- 🐛 باگ جدی کشف‌شده با تست خودکار: تابع warOff در اسکوپ V30 سینما تعریف نشده بود → ReferenceError بعد از «هر» حمله → ثبت تاریخچه جنگ (stamp/WD30HIST) هیچ‌وقت اجرا نمی‌شد. فیکس: تعریف warOff در همان اسکوپ + export در WD30_WARFX
+- پنل نبرد (m-battle): کشیدنی با لمس/موس + دکمه ▾ جمع‌شونده → مینی‌پیل «⚔️ ۴۵٪» با درصد زنده (MutationObserver روی battle-pct-label) + بازگشت با تپ. برای غلبه بر قفل !important فاز سینمایی (body.wd-war) از CSS var (--wd46x/y) با specificity (1,2,2) استفاده شد تا درگ حتی وسط حمله کار کند
+- فروشگاه سینمایی: ۱۹ آیکون SVG گرادیانی دست‌ساز (bolt/coin/barrel/peace/clock/gem/palette/flag/crown/spark/firework/gift/medal/calendar/bell/chart/trend/box/notes) با defs مشترک + پوسته رنگی ۱۵تایی هر آیتم (t-gem/t-gold/t-oil/...) + کارت‌های گرادیانی با درخشش استاتیک (صفر هزینه انیمیشن) + گوی‌های براق انتخاب رنگ + اسلایدر رنگین‌کمانی. upgrade با MutationObserver روی shop-body تا تغییر تب‌ها هم پوشش داده شود
+- لگ/داغی: حذف ویگنت‌های قرمز + لرزش نقشه + انیمیشن pulse حمله (w30pulse infinite)؛ باگ warOff قبلاً باعث exception هر حمله بود
+- تست: scripts/smoke-v46.mjs (۴ فاز مستقل با مرورگر تازه — کش حافظه headless را دور می‌زند). نکته: آتش‌بس المپیک سرور با WD33_EV.olympic=false در تست خاموش می‌شود. نتیجه: ۲۱/۲۱ PASS روی production لایو
+- APK v1.0.2 (versionCode 3): MainActivity جدید با checkUpdate() — ۴ثانیه بعد از باز شدن، latest.json را چک می‌کند، اگر versionCode بزرگ‌تر بود دیالوگ فارسی «دانلود و نصب/بعداً» (نصب از مرورگر). javac با -encoding UTF-8. همان keystore (SHA-256 981f75f8...) → آپدیت مستقیم روی 1.0.1 بدون حذف
+- انتشارات: public/apk/{WorldDominion-v1.0.2.apk, latest.json} — کامیت 6e41254 → Vercel لایو تأیید شد (latest.json + APK 200 + HTML دارای پچ V46)
+
+Stage Summary:
+- آپدیت خودکار: از این به بعد هر نسخه جدید APK خودش پیام آپدیت می‌دهد؛ کد بازی (HTML) هم بدون نصب آپدیت می‌شود (چون از سرور لود می‌شود)
+- همه ۵ خواسته کاربر: کادر قرمز حذف، پنل حمله کشیدنی/جمع‌شونده/قابل‌بستن، فروشگاه و آیکون‌ها سینمایی، باگ warOff ریشه‌ای فیکس، صفر pageerror در تست production
+- APK جدید: download/apk/WorldDominion-v1.0.2.apk + لینک https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.2.apk
