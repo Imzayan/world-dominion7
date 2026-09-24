@@ -955,3 +955,19 @@ Work Log:
 - push به GitHub انجام نشد: هیچ توکن/credential در این session موجود نیست (git credential fill خطای no-username؛ vercel CLI هم logged out؛ .ssh خالی). remote/main هنوز روی f3b9d0b (V50) است
 - کد V51 به‌صورت local commit شد: 983558a — آماده‌ی push
 - انتشار نهایی با یک دستور بعد از دسترسی کاربر: git push origin main  → Vercel خودش deploy می‌کند → آپدیت‌کننده‌ی داخل اپ v1.0.6 را توزیع می‌کند
+
+---
+Task ID: V51-release-attempt
+Agent: Super Z (main)
+Task: کاربر گفت «خودت آپدیت رو انجام بده» — تلاش برای انتشار نهایی V51
+
+Work Log:
+- کل زنجیره‌ی انتشار دوباره صحت‌سنجی شد: GAME_VER=51 (MainActivity) + vc=7/1.0.6 (manifest + build-apk.sh) + sha256 APK = 56aef7cb... برابر latest.json (محلی)
+- مارکرهای V51 در HTML تأیید شد: wd51×31، wd-autolite×11، هر ۴ طرح جدید (aurora/kashi/circuit/lava)، نشان‌های phoenix/orbit، مراسم افتتاحیه×۶/اختتامیه×۹، ضربدر×۳
+- فیکس سرور EMST_COSTS در src/app/api/rpc/[fn]/route.ts حاضر است
+- syntax check نهایی: checked=76 errors=0
+- push دوباره امتحان شد: باز هم «could not read Username» — هیچ توکنی در sandbox نیست (env، .git، .config، history، browser profile همگی بررسی شد)
+- اسکریپت یک‌مرحله‌ای scripts/release-v51.sh ساخته شد: توکن → push → پاک‌سازی توکن از remote → انتظار build ورسل → راستی‌آزمایی لایو (vc7 + مارکرهای wd51)
+
+Stage Summary:
+- انتشار فقط به یک توکن GitHub (scope: repo) گره خورده است؛ به‌محض دریافت توکن از کاربر: bash scripts/release-v51.sh <TOKEN>
