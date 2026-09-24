@@ -659,3 +659,30 @@ Stage Summary:
 - هر ۶ درخواست کاربر تحویل شد: تاکتیک حرفه‌ای‌تر (نوار اثر+کادر فنی+شانس برد+خواندن حریف)، بازی کل صفحه (فیکس ریشه‌ای position)، فوتبال بیرون/پرش طول داخل (کلاینت+سرور+داستان+رادار)، ارور بالای صفحه ریشه‌کنی شد (توست پایین+بدون بنر)، آیکون‌های سکه/نفت/غذا/قدرت براق و متحرک و زنده، و بهینه‌سازی (صحنه‌ها فقط transform/opacity، FPS سالم)
 - نکته: «ارور» واقعی که کاربر می‌دید ترکیبی بود از بنر global-error + توست‌های top-84px؛ هر دو مسیر بسته شدند
 - فوتبال به‌صورت ماژول حفظ شد (G.football) برای برنامه‌ی جداگانه‌ی آینده‌ی کاربر
+
+---
+Task ID: 43
+Agent: Super Z (main)
+Task: V43 — جهان زنده: رنگ اختصاصی هر ورزش، آموزش بازیکن جدید، مسیر فصلی (Battle Pass اخلاقی)، ضدتقلب، روایت زنده‌ی جهان (بحران فصلی + ساعت آخرالزمان + کتاب تاریخ + مهاجرت + رادیو)، استاندارد سینمایی زینتی‌ها + ۴ آیتم جدید
+
+Work Log:
+- Schema: دو مدل جدید SeasonPass(userId+season unique, xp, claimed bitmask, dlog روزانه) و AbuseReport(reporter, targetNick, reason, status) + رابطه با User؛ db push و generate موفق
+- route.ts: GEM_COSTS += anthem35/frame30/entrance25/announce22؛ کیس‌های world_state (doom محاسبه‌ی تنبل: +۲/ساعت صلح، fire در صفر → ۴۸h بحران ۱۵٪ تولید)، pass_state/pass_xp (سقف روزانه سرور-محور با dlog)/pass_claim (فلپ اتمیک بیت + طلا/غذا با tradeApply به Save + جم به Wallet)، abuse_report (سقف ۵/روز، dedupe ۲۴h، اعتبارسنجی nickLower)/abuse_list (ادمین + فلگ رشد غیرعادی: conquered > (روز+۲)×۸)/abuse_resolve؛ doomHit(4) در transferTerritory (نقطه‌ی مشترک همه‌ی فتح‌های PvP)؛ XP خودکار olympic_submit و trade_offer_accept
+- کلاینت (بلوک wd43-js + wd43-css، تزریق قبل از </body>):
+  · رنگ ورزش‌ها: col در GD33 دوجا (اسکریپت v43-colors.py — با باگ آفست که v43-fix-colors.py ترمیم کرد) + CSS [data-g37=...] (dress() خودش ست می‌کند) برای تم صحنه + --kac برای کارت‌های wg33-disc
+  · آموزش ۶ قدمی: کپیتال→مالیات→ارتش→فتح→المپیک→مسیر فصل؛ جایزه‌ی هر قدم + ۱۰۰۰ فارغ‌التحصیلی؛ اسپات‌لایت با box-shadow؛ ⚠️ کشف حیاتی: GAME.days هر ثانیه‌ی واقعی +۱ جلو می‌رود — معیار «بازیکن کهنه‌کار» نمی‌تواند روز باشد → فقط cq>=2
+  · مسیر فصل: مودال مرکزی با ۴ تب (مسیر/روایت/کتاب/گزارش)؛ nav 🎖️ مسیر؛ XP از کلاینت برای login/tax/conquest/prop و از سرور برای olympic/trade؛ رفرش در هر باز شدن
+  · ساعت آخرالزمان: چیپ HUD (سبز/کهربایی/قرمز پالس) + بنر ☣️ بحران + وینیت قرمز لحظه‌ی fire؛ بحران‌های فصلی قطعی (پنجره‌ی ۱۰ روزه: ۴ فعال/۶ آرامش) با درن واقعی تولید (نفت oilPerTick×terr×۲۵٪، غذا (۴+۳terr)×۲۵٪، رکود مالیات ×۰.۸ wrap taxAmount، دیپلمات tension+، ناآرامی +۰.۳/tick)
+  · روایت جهان + کتاب تاریخ: متن ۳-۴ پاراگرافی فارسی از داده‌ی زنده + دکمه‌ی کپی
+  · مهاجرت: tension≥65 && unrest>55 → ذره‌ی 👥 از FL[src].el به نزدیک‌ترین کشور آرام (getBoundingClientRect + transform transition)؛ unrest-۷، popLoss ≤۸٪ → wrap دوم taxAmount
+  · رادیو: مودال ۴ قالب با کول‌داون ۳۰دقیقه‌ی مشترک + نویز/بلیپ WebAudio + XP prop
+  · زینتی سینمایی: ۴ درجه (myth رینگ‌بوردر ۵رنگ + leg طلایی + rare آبی + com) با sweep/entrance/breathing؛ جینگل اختصاصی هر آیتم (hash→pentatonic)؛ مشکل: CAT/cosBuy/GD33 داخل IIFE هستند → کل یکپارچگی DOM-محور شد: MutationObserver روی #shop-body + بخش «زینتی‌های سینمایی V43» + تطبیق عنوان کارت‌ها برای RAR_OLD؛ سرود (۳ ملودی WebAudio با fade-in 1.2s + آیکون موج HUD — باگ bass flat-array رفع شد)، قاب پروفایل (conic-gradient + @property --fa)، صحنه‌ی ورود ۳فاز فتح (gather→burst→ember + پرچم/شعار/گوینده TTS fa-IR)، لکی‌باکس سینمایی (shake→pop)، هاله‌ی مدال + رینگ رادار دور پایتخت، شاین طلایی لقب (split text-node در acc-chip)، آمار گرادینت؛ مرز درخشان: SVG path در دسترس نیست (renderer از نوع canvas، g._path=undefined) → fallback هاله‌ی wd43-glow روی پرچم
+  · پل تست WD43._t (۱۳ تابع) — توابع IIFE از console eval قابل دسترس نیستند
+- تست: v43-blocks.js (۷۰ بلاک ۰ خطا + ۲۷/۲۷ مارکر)؛ e2e-v43.sh کامل: pass_state/xp(cap!)/claim(locked/ok/dup)/abuse(self,no_user,ok,admin-gate)/world_state=doom100/فروشگاه ۴کارت/روایت ۳پاراگراف/رادیو ۴قالب/آموزش on→skip/سینما(entrance on, anthem playing, borderflow)/اسکرین‌شات‌ها (hub رنگ‌ها ۲۰/۲۰ tinted، پنل مسیر، فروشگاه، آموزش)
+- درس‌ها: (۱) let/const سراسری از window.X قابل دسترس نیستند — typeof guard الزامی (۲) GAME.days=زمان واقعی، نه روز بازی (۳) CAT/GD33 داخل IIFE → integration فقط DOM-محور (۴) conquredCountries const است — add نه reassign (۵) sed اتصال [m را می‌بلعد — از Read استفاده کن
+- Deploy: 701f92c → push main → Render live تأیید شد (world_state پاسخ 401 auth = کیس موجود است، نه 42883؛ HTML شامل wd43-js)
+
+Stage Summary:
+- هر ۱۰ خواسته‌ی پیام V43 تحویل شد: رنگ هر ورزش، آموزش ۵ دقیقه‌ای، مسیر فصلی اخلاقی (جم رایگان در پله‌ها: ۲/۳/۴/۵/۶/۸/۱۲ + زینتی در ۵/۱۰/۲۰)، ضدتقلب (گزارش + فلگ رشد + پنل ادمین)، روایت زنده (بحران فصلی + آخرالزمان + روزنامه‌ی عمیق)، فاز ۱ کامل (کتاب تاریخ/مهاجرت/رادیو) + زیرساخت فاز ۲/۳
+- ۴ آیتم زینتی جدید با اولویت کاربر (سرود + قاب) + استاندارد سینمایی روی همه‌ی زینتی‌های قدیمی
+- باقی‌مانده برای V44 (طبق فازبندی خود کاربر): دولت در تبعید، دادگاه مردمی (هیئت منصفه)، رهبران AI، ازدواج دیپلماتیک، مسابقه‌ی فضایی، موزه‌ی عمومی
