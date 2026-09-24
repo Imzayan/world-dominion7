@@ -1789,13 +1789,15 @@ function lose(f){Object.values(ARMY_UNITS).forEach(u=>{const k=u.count*(1-f);u.c
 // ---- harder, multi-round battle ----
 async function attackTarget(n){
   if(battleBusy)return;
-  if(window.__wd51nat&&Date.now()-(window.__wd51natAt||0)<60000){showToast('⏳ نبرد قبلی هنوز در جریان است','lose');return}
-  window.__wd51nat=true;window.__wd51natAt=Date.now();
+  /* V52: قفل ضدتکرار فقط بعد از عبور از همه‌ی اعتبارسنجی‌ها ست می‌شود (قبلاً قبل از چک پایتخت/ارتش/لجستیک بود
+     و یک تلاش ناموفق، ۶۰ ثانیه همه‌ی حمله‌های بعدی را می‌بست) + مهلت از ۶۰ به ۱۵ ثانیه کاهش یافت */
+  if(window.__wd51nat&&Date.now()-(window.__wd51natAt||0)<15000){showToast('⏳ نبرد قبلی هنوز در جریان است','lose');return}
   if(!myCountryName){showToast("❌ اول باید یک پایتخت انتخاب کنید!","lose");return}
   let power=Math.round(calculateTotalAttack()*(window.__ovs?ovsMult():1));
   if(power<=0){showToast("❌ شما هیچ نیروی نظامی ندارید!","lose");return}
   const sup=250+Math.round(power*.06);
   if(playerRes.food<sup||playerRes.oil<sup){showToast(`❌ لجستیک ناکافی! این نبرد ${sup} غذا و ${sup} نفت می‌خواهد`,"lose");return}
+  window.__wd51nat=true;window.__wd51natAt=Date.now();
   playerRes.food-=sup;playerRes.oil-=sup;battleBusy=true;window.__warLaunched=true;
   const t=getCountryData(n),start=occupationPct[n]||0,power0=power;let occ=start;
   const uc=$("battle-units");uc.innerHTML="";
@@ -1826,7 +1828,7 @@ async function attackTarget(n){
   else if(occ>start){txt.innerHTML=`⚔️ <b style="color:var(--gold-glow)">${Math.round(occ-start)}٪ پیشروی</b> — کل تصرف: ${Math.round(occ)}٪<br>تلفات: ${lostPct}٪ — پیشروی حفظ می‌شود؛ ادامه بده تا فتح کامل.`;showToast(`⚔️ ${Math.round(occ-start)}٪ پیشروی در ${t.fa}`,"win")}
   else{const cback=Math.min(15,start);if(cback>0){occupationPct[n]=Math.max(0,start-cback);setHatch(n,occupationPct[n],false,start);/* V41: ضدحمله‌ی مدافع — تنها راه عقب‌نشانی پیشروی */}
     txt.innerHTML=(power<=0?'💀 ارتش شما نابود شد!<br>':'')+`🛡️ <b style="color:var(--red-glow)">حمله دفع شد!</b> مدافعان ضدحمله زدند${cback>0?' و '+cback+'٪ از پیشروی را عقب راندند':''}.<br>تلفات: ${lostPct}٪`;showToast(`🛡️ حمله به ${t.fa} شکست خورد${cback>0?' — ضدحمله‌ی مدافع':''}`,"lose")}
-  applyCountryColor(n);updateUI();$("battle-close-btn").style.display="block";battleBusy=false;window.__wd51nat=false;
+  applyCountryColor(n);updateUI();try{saveNow()}catch(e){}$("battle-close-btn").style.display="block";battleBusy=false;window.__wd51nat=false;
   /* V50: صفحه‌ی نبرد چند ثانیه بعد خودش جمع می‌شود — بازیباز نمی‌ماند */
   setTimeout(()=>{try{const mb=$("m-battle");if(mb&&mb.classList.contains('active')&&!battleBusy)closeModal("m-battle")}catch(e){}},5200);
   if(activeEngName===n)onCountryClick({properties:{name:n}},layersByName[n])}
@@ -5968,13 +5970,14 @@ try{
     return _at(n);
   };
 }catch(e){}
-/* battle modal gets the war theme while open (covers normal + PvP arena) */
+/* battle modal gets the war theme while open (covers normal + PvP arena)
+   V52: toggle فقط وقتی واقعاً باید عوض شود — ضدهرینگ با اوبزرورهای دیگر */
 try{
   var mb=document.getElementById('m-battle');
   if(mb&&window.MutationObserver){
     new MutationObserver(function(){
       var open=mb.classList.contains('active')||mb.classList.contains('open');
-      mb.classList.toggle('wd-war',open);
+      if(mb.classList.contains('wd-war')!==open)mb.classList.toggle('wd-war',open);
     }).observe(mb,{attributes:true,attributeFilter:['class']});
   }
 }catch(e){}
@@ -14455,7 +14458,10 @@ function init(){
   dragify(card);
   titleRow.style.cursor='move';titleRow.style.touchAction='none';
 
-  /* --- وقتی مودال بسته شد: پیل محو، کارت به جای پیش‌فرض --- */
+  /* --- وقتی مودال بسته شد: پیل محو، کارت به جای پیش‌فرض ---
+     V52 بحرانی: remove روی کلاسِ حاضر‌نبوده در Chromium باز هم mutation-record می‌سازد →
+     همین اوبزرور خودش دوباره فایر می‌شد → حلقه‌ی بی‌نهایتِ میکروتسک → هنگ کامل بازی
+     هنگام بسته‌شدن هر نبرد. گارد contains این حلقه را می‌شکند. */
   try{
     new MutationObserver(function(){
       if(mb.classList.contains('active'))return;
@@ -14464,7 +14470,8 @@ function init(){
       card.style.position='';card.style.left='';card.style.top='';
       card.style.right='';card.style.bottom='';card.style.margin='';card.style.width='';
       card.style.removeProperty('--wd46x');card.style.removeProperty('--wd46y');
-      mb.classList.remove('wd46-free');dragged=false;
+      if(mb.classList.contains('wd46-free'))mb.classList.remove('wd46-free');
+      dragged=false;
     }).observe(mb,{attributes:true,attributeFilter:['class']});
   }catch(e){}
 }
@@ -14663,11 +14670,13 @@ var PATS=[
 ];
 var PATMAP={};PATS.forEach(function(p){PATMAP[p.id]=p});
 
-function patTileURI(p,h){var hh=(p.id==='hex')?26:p.s;var svg="<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='"+p.s+"' height='"+hh+"' viewBox='0 0 "+p.s+" "+hh+"'>"+p.def(h)+"</svg>";return "data:image/svg+xml,"+encodeURIComponent(svg).replace(/'/g,'%27')}
+/* V52: تایل با رزولوشن ۳× رستر می‌شود (viewBox همان، width/height ۳×) —
+   روی نمایشگرهای DPI-بالا موبایل دیگر محو/سفید دیده نمی‌شود */
+function patTileURI(p,h){var hh=(p.id==='hex')?26:p.s;var k=3;var svg="<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='"+(p.s*k)+"' height='"+(hh*k)+"' viewBox='0 0 "+p.s+" "+hh+"'>"+p.def(h)+"</svg>";return "data:image/svg+xml,"+encodeURIComponent(svg).replace(/'/g,'%27')}
 function patDefStr(p,h,pid){var hh=(p.id==='hex')?26:p.s;var u=patTileURI(p,h);return "<pattern id='"+pid+"' width='"+p.s+"' height='"+hh+"' patternUnits='userSpaceOnUse'><image href=\""+u+"\" xlink:href=\""+u+"\" width='"+p.s+"' height='"+hh+"'/></pattern>"}
 function wdPatURI(p,h){
-  var hh=(p.id==='hex')?26:p.s;
-  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 "+p.s+" "+hh+"'>"+patDefStr(p,h,'pv')+"<rect width='"+p.s+"' height='"+hh+"' fill='url(#pv)'/></svg>";
+  var hh=(p.id==='hex')?26:p.s;var k=3;
+  var svg="<svg xmlns='http://www.w3.org/2000/svg' width='"+(p.s*k)+"' height='"+(hh*k)+"' viewBox='0 0 "+p.s+" "+hh+"'>"+patDefStr(p,h,'pv')+"<rect width='"+p.s+"' height='"+hh+"' fill='url(#pv)'/></svg>";
   return encodeURIComponent(svg).replace(/'/g,'%27');
 }
 window.WD50_PATURI=wdPatURI;
@@ -14712,7 +14721,7 @@ function patOv_rebuild(force){
         if(statusOf(n)==='neutral')return;
         var l=(typeof layersByName!=='undefined')?layersByName[n]:null;
         if(!l||!l.getLatLngs)return;
-        var m=L.polygon(l.getLatLngs(),{renderer:patR,interactive:false,keyboard:false,stroke:false,fill:true,fillColor:url,fillOpacity:.75,className:'wd-pat-ov',bubblingMouseEvents:false,smoothFactor:3,noClip:true}).addTo(map);
+        var m=L.polygon(l.getLatLngs(),{renderer:patR,interactive:false,keyboard:false,stroke:false,fill:true,fillColor:url,fillOpacity:.88,className:'wd-pat-ov',bubblingMouseEvents:false,smoothFactor:3,noClip:true}).addTo(map);
         patOv[n]=m;
       }catch(e){}
     });
@@ -14897,7 +14906,7 @@ body.wd-autolite .leaflet-marker-icon img{box-shadow:none!important}
 body.wd-autolite .leaflet-overlay-pane path{transition:none!important}
 body.wd-autolite .wd-em{animation:none!important}
 /* نوار دکمه‌ی مراسم المپیک داخل هاب */
-#wd51-cerbar{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);z-index:100002;display:none;gap:8px}
+#wd51-cerbar{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);z-index:150500;display:none;gap:8px}
 #wd51-cerbar .wd51-cerb{background:linear-gradient(135deg,rgba(20,40,70,.96),rgba(30,16,60,.96));border:1.5px solid #ffd75e;
   color:#ffe9a8;font-weight:900;font-size:11.5px;padding:9px 14px;border-radius:14px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.55);font-family:inherit}
 #wd51-cerbar .wd51-cerb.alt{border-color:#7fd7ff;color:#c9ecff}
