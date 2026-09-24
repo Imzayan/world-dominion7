@@ -800,3 +800,16 @@ Work Log:
 Stage Summary:
 - هر ۵ خواسته روی production: V45b لایو (V45c جزئی در حال build)، نقشه روشن و بدون سیاهی، آموزش مستقل از پوشش‌ها، چیپ‌های اضافه مدیریت شده، لگ با ۵ بهینه‌سازی ریشه‌ای کم شد
 - APK: download/apk/WorldDominion-v1.0.1.apk (versionCode 2) + keystore جدید + README-release.md به‌روز (هشدار تغییر امضا + چک‌لیست تست)
+
+---
+Task ID: V45-apk-link
+Agent: Super Z (main)
+Task: ارسال APK مستقیم به کاربر + راهنمای نصب
+
+Work Log:
+- public/apk/WorldDominion-v1.0.1.apk ساخته شد (کپی از download/apk)
+- کامیت f8308df + push → دیپلوی خودکار Vercel
+- لینک لایو تأیید شد: https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.1.apk (HTTP 200، content-type صحیح)
+
+Stage Summary:
+- لینک مستقیم دانلود APK برای کاربر فعال است + راهنمای گام‌به‌گام نصب فارسی در چت ارسال شد
