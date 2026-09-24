@@ -614,3 +614,25 @@ Work Log (V40 完成记录):
 Stage Summary:
 - 用户全部需求交付: 油耗1/5+仓储2.5x、全局卡顿根治(覆盖层时地图paint=0)、排球按6点方案电影化重制、奥运6项+全可选、届次真结束、直播从"啥都不显示"变成真实数据轮播、HUD RGB电影化、排名面板升级
 - 关键教训: (1)游戏内变量命名冲突sc会静默摧毁DOM (2)两次valOf参数错误都是即时测试抓到的 (3)WD33 old代码与V37/V39装饰层的层叠冲突需在数据源(gkey)层解决
+
+---
+Task ID: 41
+Agent: Super Z (main)
+Task: V41 — 奥运10项战术模拟化(用户5阶段方案) + 攻击系统修复 + 顶部图标重叠修复
+
+Work Log:
+- 攻击修复: ①decay()(每5秒-1.5%自动回退)废除——进度永不自动减少 ②"防守反击":被击退时进度-15%(AI国+pvp两条路径) ③wd-warfx红丝带从top:14px移到104px(不再遮挡HUD图标)+加✕关闭按钮+晕影减弱+fx-target下移缩小
+- 图标重叠: RGB环从inset:-2.5px外伸改为inset:0内嵌(相邻不再相互融入)+res-card环opacity .7/hchip .6+hud-strip gap 5→9px+resource-group gap 5→8px
+- Phase 0 引擎(v41-sim块): mulberry32种子RNG(可复现)、baseStrength(统计基线0..1,≤40%权重)、chance()(40%统计+60%决策×RNG)、narr()模板叙事、frame()展示层(时间线+标记+时钟+统计条+打字机解说feed+战术决策面板+场地)、report()(最终报告+星级+教练分析+回放按钮)
+- WD33_API桥接: minigames IIFE末尾导出{FX,JUICE,sndK2,loop33,on33,tm33,faN,esc,hud,foot,GAMES(getter防TDZ)}
+- Phase 1 足球旗舰: 球探报告(对手阵型/弱点seeded)→阵型3选+风格3选→90分钟压缩模拟(420ms/分钟)→进球/射门/解说(分钟戳+时间线标记)→55分钟条件指令(落后全体压上/领先控节奏)→45分钟中场换战术→终场报告(比分/控球/射门/教练分析/回放)
+- Phase 2/3 三家族: A连续个人赛(sprint/swim/cycling)=能量分配4方案+双时刻决策+4道实时进度+名次结算; B回合制(weight/archery/gym)=3回合×风险3档(风险↑收益↑失败率↑)+对手seeded出招; C直接对抗(volley/wrestle/chess)=克制三元循环(agg>def>trick>agg)+对手倾向读心+先到N胜
+- 10项目恢复+注册6/10: GD33回10键、SCHED33恢复5天×2、文案"۶ رشته از ۱۰"、服务端quota 6不变
+- 平衡: 全游戏 baseStrength 仅40%封顶——全保守选=低分(176),大胆正确=高分(901/1000)
+- 调试战果: ①注入锚点'</body></html>'带换行不匹配→静默失败 ②API导出TDZ(GAMES const前求值)→getter惰性 ③重写时丢const D=document ④H.say textContent显示<b>字面量→temp div剥标签 ⑤gRace双定时器竞态→单interval+deciding标志
+- 测试: 68块0错误; 实测: 足球全场(5-3胜/条件指令/中场换阵/教练分析), 短跑(🥇671+双决策), 举重(全保守176), 沙排球(901胜), 国象(381), 游泳OK; 手机390px决策面板/feed/统计条全部正常渲染
+
+Stage Summary:
+- 用户5阶段方案落地: 引擎一次成型、10个游戏全部转为"决策驱动模拟"型、注册=从10选6、回放+教练分析+两层解说词+实时统计全齐
+- 攻击: 进度只进不退(除非防守方反击)、攻击期间屏幕文字全部可✕关闭且不再遮挡图标/地图
+- 经验: 大段注入必须用python find/find精确锚点+断言; IIFE导出其他const一律getter

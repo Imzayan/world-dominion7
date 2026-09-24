@@ -1801,12 +1801,13 @@ async function attackTarget(n){
   if(occ>=100){conqueredCountries.add(n);const gl=Math.round(t.gold*.4),ol=Math.round(t.oil*.4);playerRes.gold+=gl;playerRes.oil+=ol;
     overrides[n]={...t,def:Math.round(t.def*.1),gold:Math.round(t.gold*.5),oil:Math.round(t.oil*.5)};
     txt.innerHTML=`🏆 <b style="color:var(--green-glow)">${t.fa} سقوط کرد!</b><br>غنیمت: 💰${gl.toLocaleString()} | 🛢️${ol.toLocaleString()} — تلفات ارتش: ${lostPct}٪`;showToast(`🏆 ${t.fa} کاملاً تصرف شد!`,"win")}
-  else if(occ>start){txt.innerHTML=`⚔️ <b style="color:var(--gold-glow)">${Math.round(occ-start)}٪ پیشروی</b> — کل تصرف: ${Math.round(occ)}٪<br>تلفات: ${lostPct}٪ — دشمن به‌مرور خاک را پس می‌گیرد؛ حمله را ادامه دهید.`;showToast(`⚔️ ${Math.round(occ-start)}٪ پیشروی در ${t.fa}`,"win")}
-  else{txt.innerHTML=(power<=0?'💀 ارتش شما نابود شد!<br>':'')+`🛡️ <b style="color:var(--red-glow)">حمله دفع شد!</b> دفاع دشمن برای ارتش شما بیش از حد قوی بود.<br>تلفات: ${lostPct}٪`;showToast(`🛡️ حمله به ${t.fa} شکست خورد`,"lose")}
+  else if(occ>start){txt.innerHTML=`⚔️ <b style="color:var(--gold-glow)">${Math.round(occ-start)}٪ پیشروی</b> — کل تصرف: ${Math.round(occ)}٪<br>تلفات: ${lostPct}٪ — پیشروی حفظ می‌شود؛ ادامه بده تا فتح کامل.`;showToast(`⚔️ ${Math.round(occ-start)}٪ پیشروی در ${t.fa}`,"win")}
+  else{const cback=Math.min(15,start);if(cback>0){occupationPct[n]=Math.max(0,start-cback);setHatch(n,occupationPct[n],false,start);/* V41: ضدحمله‌ی مدافع — تنها راه عقب‌نشانی پیشروی */}
+    txt.innerHTML=(power<=0?'💀 ارتش شما نابود شد!<br>':'')+`🛡️ <b style="color:var(--red-glow)">حمله دفع شد!</b> مدافعان ضدحمله زدند${cback>0?' و '+cback+'٪ از پیشروی را عقب راندند':''}.<br>تلفات: ${lostPct}٪`;showToast(`🛡️ حمله به ${t.fa} شکست خورد${cback>0?' — ضدحمله‌ی مدافع':''}`,"lose")}
   applyCountryColor(n);updateUI();$("battle-close-btn").style.display="block";battleBusy=false;
   if(activeEngName===n)onCountryClick({properties:{name:n}},layersByName[n])}
-function decay(){if(battleBusy)return;Object.keys(occupationPct).forEach(n=>{const o=occupationPct[n];
-  if(o>0&&o<100&&statusOf(n)==='neutral'&&!(window.__wdUnrest&&window.__wdUnrest[n]>Date.now())){const v=Math.max(0,o-1.5);v?occupationPct[n]=v:delete occupationPct[n];setHatch(n,v,false,o);applyCountryColor(n)}})}
+function decay(){/* V41: پیشروی هرگز خودبه‌خود کم نمی‌شود (قبلاً هر ۵ ثانیه ۱.۵٪ سوزانده می‌شد!) —
+  فقط ضدحمله‌ی مدافع آن را عقب می‌راند (در لحظه‌ی «دفع شدن» موج حمله اعمال می‌شود) */}
 
 // ---- misc wiring ----
 const _oc=onCountryClick;
@@ -1826,7 +1827,7 @@ addEventListener('load',()=>{if(typeof map==='undefined'||!map)return;
 .stat-box{background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border-color:rgba(0,240,255,.18)}
 .action-btn{position:relative;overflow:hidden;box-shadow:0 3px 12px rgba(0,0,0,.45)}
 .action-btn::after{content:"";position:absolute;top:0;bottom:0;width:35%;left:-50%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);animation:sweep 4s ease-in-out infinite}
-#hud-strip{position:fixed;top:80px;right:8px;z-index:9997;display:flex;gap:5px;align-items:center;direction:ltr}
+#hud-strip{position:fixed;top:80px;right:8px;z-index:9997;display:flex;gap:9px;align-items:center;direction:ltr}
 .hchip{background:rgba(3,12,26,.9);border:1px solid rgba(0,240,255,.35);border-radius:14px;padding:3px 9px;font-size:10px;font-weight:700;color:#dff6ff;display:flex;gap:5px;align-items:center;white-space:nowrap}
 #tn-bar{width:46px;height:6px;border-radius:3px;background:#0a2a4a;overflow:hidden}
 #tn-fill{height:100%;width:0;background:linear-gradient(90deg,#00ff88,#ffcc00,#ff3366);background-size:46px 100%;transition:width .6s}
@@ -4484,6 +4485,12 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
             '<span style="color:#8eb9e8">ارتش نگه داشته شد؟ «موج بعدی» را بزن — هر موج شانس تازه‌ای است.</span>';
           showToast('🛡️ حمله دفع شد','lose');
           if(typeof news==='function')news('🛡️ حمله به '+escB(target.fa)+' دفع شد');
+          /* V41: ضدحمله‌ی مدافع — پیشروی فقط اینجا عقب می‌راند، نه با مرور زمان */
+          try{const occ0=occupationPct[country]||0;if(occ0>0){const cback=Math.min(15,occ0);occupationPct[country]=Math.max(0,occ0-cback);
+            if(occupationPct[country]<=0)delete occupationPct[country];
+            if(typeof setHatch==='function')setHatch(country,occupationPct[country]||0,false,occ0);
+            if(typeof applyCountryColor==='function')applyCountryColor(country);
+            showToast('⚔️ ضدحمله‌ی مدافع — '+cback+'٪ از پیشروی عقب رانده شد','lose')}}catch(e){}
           const cb=document.getElementById("battle-close-btn");
           cb.textContent="⚔️ موج بعدی";cb.style.display="block";
           cb.onclick=()=>{
@@ -4729,7 +4736,7 @@ try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAt
 .top-bar{height:58px!important;padding:0 10px!important;background:linear-gradient(180deg,rgba(2,6,16,.96),rgba(4,9,20,.83))!important;border-bottom:1px solid rgba(0,246,233,.3)!important;box-shadow:0 8px 30px rgba(0,0,0,.45),0 1px 18px rgba(0,246,233,.08)!important;backdrop-filter:blur(12px)!important}
 .brand{font-size:11px!important;letter-spacing:1.3px!important;text-shadow:0 0 16px rgba(0,246,233,.45)}
 .brand .dot{width:7px!important;height:7px!important;box-shadow:0 0 14px var(--wd10-c)!important}
-.resource-group{gap:5px!important}
+.resource-group{gap:8px!important}
 .res-card{min-width:49px!important;padding:4px 6px!important;border-color:rgba(0,246,233,.14)!important;background:linear-gradient(145deg,rgba(12,29,48,.9),rgba(5,10,22,.9))!important;box-shadow:inset 0 1px rgba(255,255,255,.04)}
 .res-card b{font-size:10px!important;text-shadow:0 0 8px rgba(255,255,255,.18)}
 .status-banner{top:58px!important;height:26px!important;background:linear-gradient(90deg,rgba(5,18,31,.94),rgba(21,9,42,.94),rgba(5,18,31,.94))!important;color:#bffcff!important;border-bottom:1px solid rgba(155,92,255,.25)!important;box-shadow:0 5px 18px rgba(0,0,0,.35)!important;text-shadow:0 0 9px rgba(0,246,233,.3)}
@@ -8487,10 +8494,12 @@ setInterval(function(){
 /* war overlay edges + op ribbon */
 #wd-warfx{position:fixed;inset:0;z-index:98000;pointer-events:none;opacity:0;transition:opacity .5s}
 #wd-warfx.on{opacity:1}
-#wd-warfx .fx-vig{position:absolute;inset:0;box-shadow:inset 0 0 120px 30px rgba(180,20,0,.38);animation:w30pulse 1.6s ease-in-out infinite}
+#wd-warfx .fx-vig{position:absolute;inset:0;box-shadow:inset 0 0 90px 18px rgba(180,20,0,.26);animation:w30pulse 1.6s ease-in-out infinite}
 @keyframes w30pulse{0%,100%{opacity:.75}50%{opacity:1}}
-#wd-warfx .fx-ribbon{position:absolute;top:14px;left:50%;transform:translateX(-50%);padding:7px 22px;border-radius:999px;background:linear-gradient(90deg,rgba(120,10,0,.92),rgba(190,40,10,.92),rgba(120,10,0,.92));border:1px solid rgba(255,140,80,.5);color:#ffe8d6;font-weight:900;font-size:12px;letter-spacing:.5px;box-shadow:0 6px 24px rgba(255,60,0,.35);white-space:nowrap}
-#wd-warfx .fx-target{position:absolute;top:64px;left:50%;transform:translateX(-50%);font-size:clamp(20px,5.4vw,34px);font-weight:950;color:#fff;text-shadow:0 2px 18px rgba(255,80,20,.65),0 1px 3px #000;white-space:nowrap;opacity:0}
+#wd-warfx .fx-ribbon{position:absolute;top:104px;left:50%;transform:translateX(-50%);padding:5px 16px;border-radius:999px;background:linear-gradient(90deg,rgba(120,10,0,.9),rgba(190,40,10,.9),rgba(120,10,0,.9));border:1px solid rgba(255,140,80,.5);color:#ffe8d6;font-weight:900;font-size:11px;letter-spacing:.5px;box-shadow:0 6px 24px rgba(255,60,0,.3);white-space:nowrap;display:flex;align-items:center;gap:8px}
+#wd-warfx .fx-ribbon button{all:unset;cursor:pointer;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:10px;line-height:20px;text-align:center;pointer-events:auto}
+#wd-warfx .fx-ribbon button:hover{background:rgba(255,255,255,.3)}
+#wd-warfx .fx-target{position:absolute;top:142px;left:50%;transform:translateX(-50%);font-size:clamp(18px,4.2vw,28px);font-weight:950;color:#fff;text-shadow:0 2px 18px rgba(255,80,20,.65),0 1px 3px #000;white-space:nowrap;opacity:0}
 #wd-warfx.on .fx-target{animation:w30target .8s ease-out .15s forwards}
 @keyframes w30target{from{opacity:0;transform:translateX(-50%) scale(1.5);filter:blur(6px)}to{opacity:1;transform:translateX(-50%) scale(1);filter:blur(0)}}
 /* battle modal → cinematic bottom sheet */
@@ -8654,7 +8663,11 @@ try{if(typeof sb!=='undefined'&&sb&&sb.channel){sb.channel('wd30-cinema-'+SRV30)
 
 /* ---------- 4) WAR CINEMA — the attack moment ---------- */
 let warfx=null,warbar=null,warbarT=null,stampEl=null;
-function warfxEnsure(){if(!warfx){warfx=D.createElement('div');warfx.id='wd-warfx';warfx.innerHTML='<div class="fx-vig"></div><div class="fx-ribbon">⚔️ عملیات نظامی — WORLD DOMINION</div><div class="fx-target"></div>';D.body.appendChild(warfx)}
+function warfxEnsure(){if(!warfx){warfx=D.createElement('div');warfx.id='wd-warfx';
+  warfx.innerHTML='<div class="fx-vig"></div><div class="fx-ribbon">⚔️ عملیات نظامی — WORLD DOMINION<button id="wd-warfx-x" title="بستن نمایش">✕</button></div><div class="fx-target"></div>';
+  D.body.appendChild(warfx);
+  /* V41: نوشته‌های وسط/بالای حمله با ضربدر جمع می‌شوند تا نقشه دیده شود */
+  warfx.querySelector('#wd-warfx-x').addEventListener('click',ev=>{ev.stopPropagation();warOff()})}
   if(!warbar){warbar=D.createElement('div');warbar.id='wd-warbar';D.body.appendChild(warbar)}
   if(!stampEl){stampEl=D.createElement('div');stampEl.id='wd-stamp';D.body.appendChild(stampEl)}}
 function warBar(msg,lose){warfxEnsure();warbar.textContent=msg;warbar.classList.toggle('lose',!!lose);warbar.classList.add('on');clearTimeout(warbarT);warbarT=setTimeout(()=>warbar.classList.remove('on'),3400)}
@@ -9755,15 +9768,19 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 const srvN=()=>{try{return Math.max(1,Number(window.SRV)||1)}catch(e){return 1}};
 const sndK=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
 const ANCHOR=Date.UTC(2026,0,1),EDM=30*864e5,REGO=15*864e5,OPENO=24*864e5,CLOSEO=29*864e5;
-/* V40: المپیک حالا ۶ رشته‌ی سینمایی دارد — رکوردهای رشته‌های قدیمی در آرشیو/رتبه سرور می‌مانند */
+/* V41: هر ۱۰ رشته بازگشت — بازیکن هر ۶ رشته را برای المپیک انتخاب می‌کند */
 const GD33={sprint:{d:0,ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه هرچه می‌توانی تند بزن — سرعت خالص!'},
  archery:{d:0,ic:'🎯',fa:'تیراندازی با کمان',tip:'در بهترین لحظه شلیک کن — هرچه مرکزی‌تر، امتیاز بیشتر'},
  swim:{d:1,ic:'🏊',fa:'شنا',tip:'ضربه‌ها را یکی‌درمیان چپ و راست بزن — ریتم متقارن'},
+ gym:{d:1,ic:'🤸',fa:'ژیمناستیک',tip:'توالی جهت‌ها را به‌ترتیب و به‌موقع لمس کن'},
  weight:{d:2,ic:'🏋️',fa:'وزنه‌برداری',tip:'دقیقاً وقتی مارکر در ناحیه‌ی طلایی است بزن'},
+ cycling:{d:2,ic:'🚴',fa:'دوچرخه‌سواری',tip:'ریتم یکنواخت ~نیم‌ثانیه — ثبات مهم‌تر از سرعت است'},
+ chess:{d:3,ic:'♟️',fa:'شطرنج',tip:'کیش‌ومات یک‌حرکتی — بهترین حرکت را قبل از پایان زمان انتخاب کن'},
  volley:{d:3,ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — رالی را بلندتر کن'},
- football:{d:4,ic:'⚽',fa:'فوتبال',tip:'پنالتی: گوشه را انتخاب کن — دروازه‌بان هر دوره‌ی بعد قوی‌تر می‌شود'}};
+ football:{d:4,ic:'⚽',fa:'فوتبال',tip:'پنالتی: گوشه را انتخاب کن — دروازه‌بان هر دوره‌ی بعد قوی‌تر می‌شود'},
+ wrestle:{d:4,ic:'🥋',fa:'کشتی',tip:'طناب‌کشی — تند و پیوسته بزن تا مارکر از خطت رد شود'}};
 const GD_KEYS=Object.keys(GD33);
-const SCHED33=[['sprint','archery'],['swim','weight'],['volley','football'],['sprint','volley'],['swim','football']];
+const SCHED33=[['sprint','archery'],['swim','gym'],['weight','cycling'],['chess','volley'],['football','wrestle']];
 const HOSTS33=[{c:'توکیو',n:'ژاپن',f:'jp'},{c:'پاریس',n:'فرانسه',f:'fr'},{c:'لس‌آنجلس',n:'آمریکا',f:'us'},{c:'لندن',n:'بریتانیا',f:'gb'},{c:'ریودوژانیرو',n:'برزیل',f:'br'},{c:'پکن',n:'چین',f:'cn'},{c:'آتن',n:'یونان',f:'gr'},{c:'سیدنی',n:'استرالیا',f:'au'},{c:'بارسلونا',n:'اسپانیا',f:'es'},{c:'سئول',n:'کره‌ی جنوبی',f:'kr'},{c:'مسکو',n:'روسیه',f:'ru'},{c:'مونترال',n:'کانادا',f:'ca'},{c:'مونیخ',n:'آلمان',f:'de'},{c:'مکزیکوسیتی',n:'مکزیک',f:'mx'},{c:'رم',n:'ایتالیا',f:'it'},{c:'هلزینکی',n:'فنلاند',f:'fi'},{c:'آمستردام',n:'هلند',f:'nl'},{c:'استکهلم',n:'سوئد',f:'se'},{c:'استانبول',n:'ترکیه',f:'tr'},{c:'قاهره',n:'مصر',f:'eg'},{c:'دهلی‌نو',n:'هند',f:'in'},{c:'بوئنوس‌آیرس',n:'آرژانتین',f:'ar'},{c:'نایروبی',n:'کنیا',f:'ke'},{c:'دبی',n:'امارات',f:'ae'},{c:'سنگاپور',n:'سنگاپور',f:'sg'},{c:'کیپ‌تاون',n:'آفریقای جنوبی',f:'za'},{c:'لیما',n:'پرو',f:'pe'},{c:'ورشو',n:'لهستان',f:'pl'},{c:'لیسبون',n:'پرتغال',f:'pt'},{c:'لاگوس',n:'نیجریه',f:'ng'},{c:'کوالالامپور',n:'مالزی',f:'my'},{c:'دوحه',n:'قطر',f:'qa'}];
 function hostOf33(e){let h=(e*2654435761)>>>0;h^=h>>>13;h=Math.imul(h,1274126177)>>>0;return HOSTS33[h%HOSTS33.length]}
 function flagUrl33(cc){try{return (typeof flagUrl==='function')?flagUrl(cc):('/cdn/flags/w80/'+cc+'.png')}catch(e){return '/cdn/flags/w80/'+cc+'.png'}}
@@ -9973,9 +9990,9 @@ function renderHub(){
     '<div class="wd31-kicker" style="margin-top:10px">WORLD DOMINION OLYMPIC GAMES</div>'+
     '<h1 class="wd31-title">المپیک جهانی — دوره‌ی '+faN(g.edition)+'</h1>'+
     '<div class="wg33-host"><img src="'+flagUrl33(g.host.f)+'" alt="">میزبان این دوره: '+esc(g.host.c)+'، '+esc(g.host.n)+'</div>';
-  if(g.phase==='pre')h+='<span class="wg33-ph pre">⏳ ثبت‌نام باز نشده</span><div class="wg33-cd">🕊️ آتش‌بس و بازی‌ها از '+cdTxt(g.openAt)+' دیگر شروع می‌شود</div><div class="wd31-mini" style="margin-top:4px">باز شدن ثبت‌نام (هر ۶ رشته): '+cdTxt(g.regAt)+' دیگر</div>';
+  if(g.phase==='pre')h+='<span class="wg33-ph pre">⏳ ثبت‌نام باز نشده</span><div class="wg33-cd">🕊️ آتش‌بس و بازی‌ها از '+cdTxt(g.openAt)+' دیگر شروع می‌شود</div><div class="wd31-mini" style="margin-top:4px">باز شدن ثبت‌نام (۶ رشته از ۱۰): '+cdTxt(g.regAt)+' دیگر</div>';
   else if(g.phase==='reg')h+='<span class="wg33-ph reg">📝 ثبت‌نام باز است</span><div class="wg33-cd">افتتاحیه و شروع بازی‌ها: '+cdTxt(g.openAt)+' دیگر</div>';
-  else if(g.phase==='live')h+='<span class="wg33-ph live">🔴 بازی‌ها زنده است — روز '+faN(g.gameDay+1)+' از ۵</span><div class="wg33-cd">🕊️ آتش‌بس مقدس برقرار است — جنگ ممنوع</div><div class="wd31-mini" style="margin-top:4px">هر ۶ رشته بازند • اختتامیه: '+cdTxt(g.closeAt)+' دیگر</div>';
+  else if(g.phase==='live')h+='<span class="wg33-ph live">🔴 بازی‌ها زنده است — روز '+faN(g.gameDay+1)+' از ۵</span><div class="wg33-cd">🕊️ آتش‌بس مقدس برقرار است — جنگ ممنوع</div><div class="wd31-mini" style="margin-top:4px">هر ۱۰ رشته بازند • ثبت‌نام: ۶ از ۱۰ • اختتامیه: '+cdTxt(g.closeAt)+' دیگر</div>';
   else h+='<span class="wg33-ph after">🏁 بازی‌های این دوره تمام شد</span><div class="wg33-cd">ثبت‌نام دوره‌ی بعد: '+cdTxt(g.nextReg)+' دیگر</div>';
   h+='</section>';
   /* my career card */
@@ -9984,12 +10001,12 @@ function renderHub(){
     '<div style="font-size:12.5px;font-weight:900;color:#ffe08a">🥇 '+faN(career.g)+' • 🥈 '+faN(career.s)+' • 🥉 '+faN(career.b)+' = '+faN(career.total)+' مدال در '+faN(career.eds.length)+' دوره</div></div></div>';
   if(g.phase==='pre'){
     h+='<div class="wd31-card">'+secTitle('📅','برنامه‌ی این دوره')+
-      '<div class="wd31-mini" style="font-size:11.5px;line-height:2.1">🕊️ روز ۱۶ فصل: باز شدن ثبت‌نام — هر ۶ رشته را انتخاب کن<br>🎪 روز ۲۵ فصل: مراسم افتتاحیه (رژه‌ی پرچم‌ها + مشعل + میزبان) و آغاز آتش‌بس<br>🏟️ روز ۲۵ تا ۳۰: هر ۶ رشته باز است — هر روز یک دلیل تازه برای برگشتن<br>🏁 روز ۳۰: اختتامیه — سرود قهرمان، پرچم طلایی ۲۴ ساعته، تاج‌گذاری و جوایز</div></div>'+
-      '<div class="wd31-card">'+secTitle('🏟️','۶ رشته‌ی المپیک')+'<div class="wg33-grid3">'+GD_KEYS.map(k=>discCard(k,'lock')).join('')+'</div></div>';
+      '<div class="wd31-mini" style="font-size:11.5px;line-height:2.1">🕊️ روز ۱۶ فصل: باز شدن ثبت‌نام — ۶ رشته از ۱۰ را انتخاب کن<br>🎪 روز ۲۵ فصل: مراسم افتتاحیه (رژه‌ی پرچم‌ها + مشعل + میزبان) و آغاز آتش‌بس<br>🏟️ روز ۲۵ تا ۳۰: مسابقه‌ها — تاکتیک بچین و زنده تماشا کن<br>🏁 روز ۳۰: اختتامیه — سرود قهرمان، پرچم طلایی ۲۴ ساعته، تاج‌گذاری و جوایز</div></div>'+
+      '<div class="wd31-card">'+secTitle('🏟️','۱۰ رشته‌ی المپیک')+'<div class="wg33-grid3">'+GD_KEYS.map(k=>discCard(k,'lock')).join('')+'</div></div>';
   }
   if(g.phase==='reg'){
     const myReg=my.reg||[];
-    h+='<div class="wd31-card">'+secTitle('📝','ثبت‌نام — هر ۶ رشته را انتخاب کن')+
+    h+='<div class="wd31-card">'+secTitle('📝','ثبت‌نام — ۶ رشته از ۱۰ را انتخاب کن')+
       '<div class="wd31-mini" style="margin:0 0 8px">کشور تو: <b style="color:#ffe08a">'+esc(my.country||'—')+'</b> • انتخاب شده: <b id="wg33-seln">'+faN(wgSel.length)+'</b>/۶ — تا لحظه‌ی افتتاحیه می‌توانی عوض کنی</div>'+
       '<div class="wg33-grid3" id="wg33-reggrid">'+GD_KEYS.map(k=>discCard(k,myReg.indexOf(k)>-1||wgSel.indexOf(k)>-1?'sel':'')).join('')+'</div>'+
       '<button class="wg33-play" id="wg33-regbtn" style="margin-top:12px">'+(myReg.length?'✅ ثبت/ویرایش انتخاب‌ها':'✅ ثبت‌نام در المپیک')+'</button>'+
@@ -10642,6 +10659,10 @@ async function openGame33(key){
 };
 /* V35.1: دکمه‌ی «بازی کن» هاب به این ورودی وصل است — در تدفین قبلی گم شده بود */
 window.WD33_PLAY=openGame33;
+/* V41: پل به موتور شبیه‌سازی تاکتیکی — GAMES با getter late-bound (جلوگیری از TDZ) */
+window.WD33_API={FX,JUICE,sndK2:sndK2||function(){},loop33,on33,tm33,faN,esc,
+  hud,foot,ensureStage,closeStage,getStage:()=>stage,isOpen:()=>sOpen,
+  get GAMES(){return GAMES}};
 function showToast2(m,k){try{showToast(m,k)}catch(e){}}
 function intro33(bd,m,e,onStart){
   /* V38: پرده‌ی اول داستان — استادیوم، رقیب و روایت این رشته */
@@ -12584,28 +12605,27 @@ body.idle *{animation-play-state:paused!important}
 @property --ha{syntax:'<angle>';inherits:false;initial-value:0deg}
 @keyframes hue40{to{--ha:360deg}}
 .res-card,.hchip{position:relative}
-/* .hchip حلقه بیرونی (کلیپ نمی‌شود) */
-.hchip::before{content:'';position:absolute;inset:-2.5px;border-radius:inherit;padding:1.6px;z-index:0;
+/* .hchip حلقه داخل لبه‌ها — بیرون نمی‌زند تا با همسایه‌ها یکی دیده نشود */
+.hchip::before{content:'';position:absolute;inset:0;border-radius:inherit;padding:1.5px;z-index:0;
   background:conic-gradient(from var(--ha),#ff4d6d,#ffb02e,#ffe08a,#7dff6a,#39e6d0,#4da3ff,#b06bff,#ff4d6d);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
   -webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
-  animation:hue40 4.5s linear infinite;opacity:.9;pointer-events:none;
-  filter:drop-shadow(0 0 5px rgba(120,180,255,.35))}
+  animation:hue40 5s linear infinite;opacity:.6;pointer-events:none}
 /* .res-card حلقه داخلی (چون overflow:hidden دارد) */
-.res-card::before{content:'';position:absolute;inset:0;border-radius:inherit;padding:1.8px;z-index:0;
+.res-card::before{content:'';position:absolute;inset:0;border-radius:inherit;padding:1.6px;z-index:0;
   background:conic-gradient(from var(--ha),#ff4d6d,#ffb02e,#ffe08a,#7dff6a,#39e6d0,#4da3ff,#b06bff,#ff4d6d);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
   -webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;
-  animation:hue40 4.5s linear infinite;opacity:.95;pointer-events:none}
+  animation:hue40 5s linear infinite;opacity:.7;pointer-events:none}
 .res-card::after{z-index:1}
-/* بزرگ‌تر ولی بدون برخورد */
-.res-card{min-width:56px;padding:8px 11px;border-radius:15px}
-.res-card span{font-size:9px}
-.res-card b{font-size:13.5px}
-.res-card i{font-size:14px}
-.hchip{padding:5px 11px;font-size:11px;border-radius:15px}
-#hud-strip .hchip{padding:4px 10px!important;font-size:11px!important}
-#hud-olympic{width:78px!important;height:78px!important}
+/* بزرگ‌تر ولی با فاصله‌ی مطمئن — هیچ‌گاه داخل هم نمی‌روند */
+.res-card{min-width:52px;padding:7px 9px;border-radius:15px}
+.res-card span{font-size:8.5px}
+.res-card b{font-size:13px}
+.res-card i{font-size:13px}
+.hchip{padding:4px 10px;font-size:10.5px;border-radius:14px}
+#hud-strip .hchip{padding:3px 9px!important;font-size:10.5px!important}
+#hud-olympic{width:76px!important;height:76px!important}
 #hud-olympic .wdol-fab-label{font-size:10px}
 /* محتوای چیپ‌ها بالای حلقه‌ی RGB */
 .res-card>*,.hchip>*{position:relative;z-index:1}
@@ -12650,6 +12670,404 @@ body.idle *{animation-play-state:paused!important}
 .wd31-card{border-radius:18px}
 
 </style>
+<style id="v41-sim-css">
+/* ============ V41: استایل موتور شبیه‌سازی تاکتیکی ============ */
+.w41-sim{display:flex;flex-direction:column;gap:9px}
+.w41-vs{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 12px;border-radius:14px;
+  background:linear-gradient(90deg,rgba(56,189,248,.1),rgba(255,255,255,.03),rgba(255,107,143,.1));border:1px solid rgba(255,255,255,.1)}
+.w41-vs .me{font-weight:950;color:#7dd8ff;font-size:13px}
+.w41-vs .op{font-weight:950;color:#ff8ba0;font-size:13px}
+.w41-vs .vsx{font-size:16px;filter:drop-shadow(0 0 8px rgba(255,204,0,.6))}
+.w41-clock{display:flex;align-items:center;gap:10px}
+.w41-clock>span{min-width:52px;text-align:center;font-weight:950;color:#ffe08a;font-size:13px;
+  background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.3);border-radius:10px;padding:4px 8px}
+.w41-tl{flex:1;height:12px;border-radius:8px;background:rgba(255,255,255,.07);position:relative;overflow:visible}
+.w41-tl>i{position:absolute;top:0;bottom:0;right:0;width:0;border-radius:8px;
+  background:linear-gradient(90deg,#ffb02e,#ffe08a,#fff);box-shadow:0 0 12px rgba(255,204,0,.5);transition:width .3s linear}
+#w41-marks{position:absolute;inset:0}
+#w41-marks i{position:absolute;top:-7px;width:6px;height:6px;border-radius:50%;background:#ff5f7e;box-shadow:0 0 8px #ff5f7e}
+.w41-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.w41-stat{display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:11px;
+  background:linear-gradient(140deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08)}
+.w41-stat small{font-size:8.5px;color:#9fb6d4;white-space:nowrap;font-weight:800}
+.w41-stat .b{flex:1;height:9px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden}
+.w41-stat .b i{display:block;height:100%;width:0;border-radius:6px;transition:width .5s ease}
+.w41-stat b{font-size:10.5px;color:#fff;min-width:22px;text-align:left}
+.w41-feed{max-height:190px;min-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:8px 10px;
+  border-radius:13px;background:rgba(2,8,20,.65);border:1px solid rgba(255,255,255,.08);scrollbar-width:thin}
+.w41-line{display:flex;gap:7px;align-items:flex-start;font-size:11px;line-height:1.75;color:#dfe9f7}
+.w41-line i{flex:0 0 6px;height:6px;border-radius:50%;background:#4da3ff;margin-top:6px}
+.w41-line.goal{color:#7dff9e}.w41-line.goal i{background:#7dff9e;box-shadow:0 0 8px #7dff9e}
+.w41-line.bad{color:#ff8ba0}.w41-line.bad i{background:#ff5f7e;box-shadow:0 0 8px #ff5f7e}
+.w41-line.sys{color:#ffe08a}.w41-line.sys i{background:#ffd75e}
+.w41-decide:empty{display:none}
+.w41-ask{padding:11px 12px;border-radius:15px;background:linear-gradient(160deg,rgba(56,120,255,.12),rgba(255,255,255,.02));
+  border:1px solid rgba(120,180,255,.3);animation:w40feedin .35s ease}
+.w41-ask .h{font-size:12.5px;font-weight:950;color:#fff;margin-bottom:9px}
+.w41-ask .h small{display:block;font-size:9.5px;color:#9fb6d4;font-weight:700;margin-top:3px}
+.w41-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:7px}
+.w41-opts button{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 8px;
+  border-radius:13px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);transition:.18s;text-align:center}
+.w41-opts button:hover{background:rgba(255,204,0,.1);border-color:rgba(255,204,0,.5);transform:translateY(-2px)}
+.w41-opts button.picked{background:rgba(125,255,158,.14);border-color:#7dff9e;box-shadow:0 0 16px rgba(125,255,158,.3)}
+.w41-opts .ic{font-size:21px}
+.w41-opts .lb{font-size:11px;font-weight:900;color:#fff}
+.w41-opts small{font-size:8.5px;color:#9fb6d4}
+.w41-arena{min-height:0}
+.w41-lanes{display:flex;flex-direction:column;gap:7px;padding:11px;border-radius:15px;
+  background:linear-gradient(170deg,rgba(10,22,44,.7),rgba(4,10,22,.85));border:1px solid rgba(255,255,255,.09)}
+.w41-lanes .ln{display:flex;align-items:center;gap:8px}
+.w41-lanes .who{flex:0 0 84px;font-size:9.5px;font-weight:800;color:#cdd7e8;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.w41-lanes .tr{flex:1;height:13px;border-radius:8px;background:rgba(255,255,255,.06);overflow:hidden;position:relative}
+.w41-lanes .p{position:absolute;top:0;bottom:0;right:0;width:0;border-radius:8px;transition:width .12s linear;
+  background:linear-gradient(90deg,#ffb02e,#ffe08a);box-shadow:0 0 9px rgba(255,204,0,.45)}
+.w41-lanes .ln:nth-child(n+2) .p{background:linear-gradient(90deg,#4da3ff,#9bd0ff);box-shadow:0 0 8px rgba(77,163,255,.4)}
+.w41-lanes .pc{flex:0 0 40px;text-align:left;font-size:9.5px;font-weight:900;color:#dfe9f7;direction:ltr}
+.w41-rep{padding:14px;border-radius:17px;background:linear-gradient(165deg,rgba(20,34,64,.96),rgba(8,14,30,.98));
+  border:1px solid rgba(255,204,0,.4);box-shadow:0 0 40px rgba(255,180,0,.14);animation:w40feedin .45s ease}
+.w41-rep .ttl{font-size:14px;font-weight:950;color:#ffe08a;text-align:center}
+.w41-rep .big{font-size:34px;text-align:center;font-weight:950;color:#fff;margin:7px 0;
+  text-shadow:0 0 22px rgba(255,204,0,.6)}
+.w41-stars{text-align:center;margin:5px 0}
+.w41-stars i{font-size:23px;color:rgba(255,255,255,.16);margin:0 3px}
+.w41-stars i.on{color:#ffd75e;text-shadow:0 0 14px rgba(255,204,0,.8);animation:bump .5s ease}
+.w41-rep .sc{text-align:center;margin:6px 0 10px}
+.w41-rep .sc b{font-size:24px;font-weight:950;color:#7dff9e;text-shadow:0 0 14px rgba(125,255,158,.4)}
+.w41-rep .sc small{display:block;font-size:9px;color:#9fb6d4;font-weight:800}
+.w41-rep .rw{display:flex;justify-content:space-between;padding:7px 11px;border-radius:10px;margin-bottom:5px;
+  background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);font-size:11px}
+.w41-rep .rw span{color:#9fb6d4;font-weight:700}
+.w41-rep .rw b{color:#fff}
+.w41-rep .coach{margin-top:9px;padding:10px 12px;border-radius:13px;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.25)}
+.w41-rep .coach .ch{font-size:11px;font-weight:950;color:#7dd8ff;margin-bottom:6px}
+.w41-rep .coach .cl{font-size:10.5px;color:#cdd9ea;line-height:1.9;margin-bottom:4px}
+.w41-repbtns{display:flex;gap:8px;margin-top:11px}
+.w41-repbtns button{all:unset;cursor:pointer;flex:1;text-align:center;padding:11px;border-radius:12px;font-weight:950;font-size:12.5px}
+.w41-repbtns .rp{background:rgba(255,255,255,.09);color:#cdd7e8;border:1px solid rgba(255,255,255,.15)}
+.w41-repbtns .go{background:linear-gradient(135deg,#ffb02e,#ffe08a);color:#241500;box-shadow:0 6px 20px rgba(255,180,0,.35)}
+</style>
+
+<script id="v41-sim">
+/* ============ V41: موتور شبیه‌سازی تاکتیکی المپیک (طرح ۵ فازی کاربر) ============
+   فاز صفر: هسته‌ی مشترک — RNG تکرارپذیر + موتور تاکتیک + روایت قالبی + لایه‌ی نمایش (تایم‌لاین/گزارشگر تایپ‌رایتر/آمار زنده/ریپلی/تحلیل مربی)
+   فاز یک: فوتبال پرچمدار | فاز دو/سه: سه خانواده (مسابقه‌ی فردی/راند‌به‌راند/رویارویی)
+   فاز پنج توازن: آمار پایه ≤ ۴۰٪ — تصمیم بازیکن + شانس ≥ ۶۰٪ */
+(function(){
+'use strict';
+const D=document;
+const API=window.WD33_API||{};
+const faN=n=>{try{return String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])}catch(e){return String(n)}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fx=API.FX||{spark(){},conf(){},text(){},ring(){},shake(){},flash(){},punch(){}};
+const sndK=API.sndK2||function(){};
+const juke=API.JUICE||{slow(){},zoom(){},cam(){},camOff(){}};
+
+/* ---------- ۱) موتور شبیه‌سازی: RNG تکرارپذیر (mulberry32) ---------- */
+function rng(seed){let a=(seed>>>0)||12345;return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296}}
+let seedBase=0;
+const nextSeed=()=>((Date.now()%9973)+((seedBase=(seedBase+1)%97)*104729))>>>0;
+/* آمار پایه ۰..۱ (سقف اثر ۴۰٪ در توازن) */
+function baseStrength(){
+  try{
+    const pow=(typeof calculateTotalAttack==='function')?calculateTotalAttack():5000;
+    const gold=(typeof playerRes!=='undefined'&&playerRes&&playerRes.gold)||0;
+    const cc=(typeof conqueredCountries!=='undefined'&&conqueredCountries)?conqueredCountries.size:1;
+    const s=(Math.log10(1+Math.max(1,pow))/5.2)*.5+(Math.log10(1+Math.max(1,gold))/6.4)*.25+Math.min(1,cc/12)*.25;
+    return Math.max(.18,Math.min(.92,s));
+  }catch(e){return .5}
+}
+/* احتمال رویداد = ۴۰٪ آمار پایه + ۶۰٪ نسبت تاکتیک‌ها ± شانس */
+function chance(myW,oppW,base,rr){
+  const dec=Math.max(.06,Math.min(1,myW/Math.max(.06,myW+Math.max(.06,oppW))));
+  return Math.max(.04,Math.min(.94,0.40*base+0.60*dec*(0.7+0.6*(rr==null?.5:rr))));
+}
+const narr=(tpl,v)=>String(tpl).replace(/\{(\w+)\}/g,(_,k)=>(v&&v[k]!=null)?v[k]:'؟');
+
+/* ---------- ۳) لایه‌ی نمایش مشترک ---------- */
+function frame(el,o){
+  o=o||{};
+  el.innerHTML='<div class="w41-sim">'+
+    '<div class="w41-vs"><span class="me">'+esc(o.me||'تو')+'</span><span class="vsx">'+(o.vs||'⇄')+'</span><span class="op">'+esc(o.op||'حریف')+'</span></div>'+
+    '<div class="w41-clock"><span id="w41-clock-t">'+esc(o.clock0||'')+'</span><div class="w41-tl"><i id="w41-tli"></i><div id="w41-marks"></div></div></div>'+
+    '<div class="w41-stats" id="w41-stats"></div>'+
+    '<div class="w41-feed" id="w41-feed"></div>'+
+    '<div class="w41-decide" id="w41-decide"></div>'+
+    '<div class="w41-arena" id="w41-arena"></div></div>';
+  const sim=el.querySelector('.w41-sim');
+  const H={sim,feed:el.querySelector('#w41-feed'),decide:el.querySelector('#w41-decide'),
+    stats:el.querySelector('#w41-stats'),arena:el.querySelector('#w41-arena'),
+    tli:el.querySelector('#w41-tli'),marks:el.querySelector('#w41-marks'),clock:el.querySelector('#w41-clock-t'),
+    events:[],done:false,paused:false};
+  H.mark=txt=>{const m=D.createElement('i');m.title=txt;H.marks.appendChild(m)};
+  H.clockSet=t=>{if(H.clock)H.clock.textContent=t};
+  H.time=p=>{if(H.tli)H.tli.style.width=Math.max(0,Math.min(100,p*100))+'%'};
+  H.stat=(name,v,max,col)=>{let row=H.stats.querySelector('[data-n="'+name+'"]');
+    if(!row){row=D.createElement('div');row.className='w41-stat';row.setAttribute('data-n',name);
+      row.innerHTML='<small>'+esc(name)+'</small><div class="b"><i></i></div><b>۰</b>';H.stats.appendChild(row)}
+    const i=row.querySelector('i');i.style.width=Math.max(2,Math.min(100,v/Math.max(1,max||100)*100))+'%';
+    i.style.background=col||'linear-gradient(90deg,#ffb02e,#ffe08a)';
+    row.querySelector('b').textContent=faN(Math.round(v))};
+  H.say=(txt,cls)=>{const tmp=D.createElement('div');tmp.innerHTML=txt;const plain=tmp.textContent;
+    H.events.push({txt:plain,cls:cls||''});
+    const d=D.createElement('div');d.className='w41-line '+(cls||'');
+    d.innerHTML='<i></i><span></span>';H.feed.appendChild(d);
+    while(H.feed.children.length>26)H.feed.removeChild(H.feed.firstChild);
+    const sp=d.querySelector('span');let ix=0;
+    const tm=setInterval(()=>{ix+=3;sp.textContent=plain.slice(0,ix);if(ix>=plain.length)clearInterval(tm)},14);
+    H.feed.scrollTop=H.feed.scrollHeight};
+  H.speak=(txt,cls)=>{const d=D.createElement('div');d.className='w41-line '+(cls||'');d.innerHTML='<i></i><span>'+txt+'</span>';H.feed.appendChild(d);H.feed.scrollTop=H.feed.scrollHeight};
+  H.ask=(title,opts,note)=>new Promise(res=>{
+    H.decide.innerHTML='<div class="w41-ask"><div class="h">'+esc(title)+(note?'<small>'+esc(note)+'</small>':'')+'</div>'+
+      '<div class="w41-opts">'+opts.map((op,i)=>'<button data-i="'+i+'"><span class="ic">'+op.ic+'</span><span class="lb">'+esc(op.label)+'</span><small>'+esc(op.desc||'')+'</small></button>').join('')+'</div></div>';
+    H.decide.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+      if(H.decide.dataset.lock==='1')return;H.decide.dataset.lock='1';
+      H.decide.querySelectorAll('button').forEach(x=>x.classList.remove('picked'));
+      b.classList.add('picked');sndK('click');
+      setTimeout(()=>{H.decide.dataset.lock='0';H.decide.innerHTML='';res(opts[Number(b.getAttribute('data-i'))])},240)}))});
+  H.arenaHTML=h=>{H.arena.innerHTML=h;return H.arena.firstChild};
+  H.close=()=>{H.done=true};
+  return H;
+}
+function report(H,o){
+  H.decide.innerHTML='';
+  let h='<div class="w41-rep"><div class="ttl">'+(o.ic||'🏁')+' '+esc(o.title||'گزارش پایانی')+'</div>';
+  if(o.big)h+='<div class="big">'+o.big+'</div>';
+  if(o.stars!=null){h+='<div class="w41-stars">';for(let i=0;i<3;i++)h+='<i class="'+(i<o.stars?'on':'')+'">★</i>';h+='</div>'}
+  h+='<div class="sc"><b>'+faN(o.norm||0)+'</b><small>امتیاز ثبت‌شده</small></div>';
+  (o.rows||[]).forEach(r=>{h+='<div class="rw"><span>'+esc(r[0])+'</span><b>'+esc(String(r[1]))+'</b></div>'});
+  h+='<div class="coach"><div class="ch">🧠 تحلیل مربی</div>'+(o.coach||[]).map(c=>'<div class="cl">'+c+'</div>').join('')+'</div>';
+  h+='<div class="w41-repbtns"><button class="rp">🎬 ریپلی</button><button class="go">ادامه</button></div></div>';
+  const rep=D.createElement('div');rep.innerHTML=h;H.sim.appendChild(rep);
+  rep.querySelector('.go').addEventListener('click',()=>{H.close();o.onEnd&&o.onEnd()});
+  rep.querySelector('.rp').addEventListener('click',()=>{sndK('click');
+    H.feed.innerHTML='';H.events.slice(0,44).forEach(e=>H.speak(esc(e.txt),e.cls));
+    H.speak('<b style="color:#7fd8ff">🎬 ریپلی کامل مسابقه</b>','sys')});
+  if((o.stars||0)>=2){fx.conf((o.stars||2)>=3?70:36);fx.flash('#ffd75e',.3)}
+}
+
+/* ================= فاز یک — فوتبال پرچمدار ================= */
+function gFootball(el,done){
+  const B=baseStrength(),seed=nextSeed(),R=rng(seed);
+  const rival='سرخ‌پوشان';
+  const H=frame(el,{me:'تیم تو',op:rival,vs:'⚽',clock0:'۰′'});
+  juke.cam('court');
+  const scout={form:['۴-۴-۲ متعادل','۴-۳-۳ تهاجمی','۵-۳-۲ دفاعی'][Math.floor(R()*3)],
+    weak:['بال چپ','وسط دفاع','بال راست'][Math.floor(R()*3)],pow:.5+R()*.36};
+  H.say('📋 اسکاوت: '+rival+' با <b>'+scout.form+'</b> — نقطه‌ی ضعف: <b>'+scout.weak+'</b>','sys');
+  (async()=>{
+    const form=await H.ask('آرایش تیم را انتخاب کن',[
+      {ic:'⚖️',k:'bal',label:'۴-۴-۲ متعادل',desc:'تعادل دفاع/حمله'},
+      {ic:'🔥',k:'atk',label:'۴-۳-۳ تهاجمی',desc:'حمله‌ی سنگین'},
+      {ic:'🛡️',k:'def',label:'۵-۳-۲ دفاعی',desc:'مهار + ضدحمله'}],'نقطه‌ی ضعف حریف: '+scout.weak);
+    const style=await H.ask('سبک بازی',[
+      {ic:'🎯',k:'poss',label:'مالکیت توپ',desc:'ساخت آهسته و دقیق'},
+      {ic:'⚡',k:'counter',label:'ضدحمله',desc:'سرعت در فضای خالی'},
+      {ic:'💪',k:'press',label:'پرس بالا',desc:'فشار از دقیقه‌ی اول'}],'آرایش: '+form.label);
+    H.say('🗣️ گزارشگر: «'+form.label+' و '+style.label+' — ورزشگاه منفجر شد!»');
+    const tac={atk:{bal:.58,atk:.84,def:.36}[form.k],def:{bal:.6,atk:.4,def:.86}[form.k],
+      poss:{poss:.74,counter:.52,press:.62}[style.k]};
+    if(style.k==='press'){tac.atk=Math.min(1,tac.atk+.08);tac.def=Math.min(1,tac.def+.05)}
+    if(scout.weak==='وسط دفاع'&&form.k==='atk')tac.atk=Math.min(1,tac.atk+.06);
+    const st={g1:0,g2:0,poss:0,sh1:0,sh2:0};
+    let minute=0,boost=0,condDown=false,condUp=false;
+    H.stat('مالکیت ٪',50,100,'#7fd8ff');H.stat('شوت‌های من',0,16,'#ffe08a');H.stat('شوت حریف',0,14,'#ff8ba0');
+    const total=90,stepMs=420;let paused=false;
+    const timer=setInterval(async()=>{
+      if(H.done){clearInterval(timer);return}
+      if(paused)return;
+      minute++;H.time(minute/total);H.clockSet(faN(minute)+'′');
+      const pMine=chance(tac.atk*(1+boost),0.55,B*.95,R());
+      const pOpp=chance(scout.pow*(1-boost*.5),0.5,.5,R());
+      if(R()<.4)st.poss+=(tac.poss>.62?60:46);
+      if(R()<pMine*.22){st.sh1++;
+        if(R()<.4){st.g1++;sndK('crowd');juke.zoom();H.mark('⚽'+faN(minute));
+          H.say(narr('⚽ دقیقه‌ی {t}: گـل! ترکیب از سمت {w} — تور لرزید!',{t:faN(minute),w:scout.weak}),'goal')}
+        else H.say(narr('دقیقه‌ی {t}: شوت از پشت محوطه — دروازه‌بان پاسخ داد',{t:faN(minute)}))}
+      else if(R()<.18)H.say(narr('دقیقه‌ی {t}: {a}',{t:faN(minute),a:['حمل توپ طولانی در میانه','دوئل هوایی در محوطه','پاس عمقی — آفساید','کرنر: دفاع سر زد','کارت زرد برای بازیکن حریف'][Math.floor(R()*5)]}));
+      if(R()<pOpp*.17){st.sh2++;
+        if(R()<.36){st.g2++;sndK('alert');H.mark('⚽'+faN(minute));
+          H.say(narr('😣 دقیقه‌ی {t}: ضدحمله‌ی {op} — گل شد',{t:faN(minute),op:rival}),'bad')}}
+      H.stat('مالکیت ٪',Math.round(st.poss/Math.max(1,minute)),100,'#7fd8ff');
+      H.stat('شوت‌های من',st.sh1,16,'#ffe08a');H.stat('شوت حریف',st.sh2,14,'#ff8ba0');
+      if(minute>55&&st.g1<st.g2&&!condDown){condDown=true;boost+=.22;
+        H.say('🚨 دستور وضعیتی: «عقب افتادیم — همه‌به‌سوی حمله»','sys')}
+      if(minute>72&&st.g1>st.g2+1&&!condUp){condUp=true;boost-=.08;
+        H.say('🧊 دستور وضعیتی: «جلو هستیم — کنترل تمپو»','sys')}
+      if(minute===45){paused=true;
+        H.say('⏸️ پایان نیمه‌ی اول — نتیجه: '+faN(st.g1)+' - '+faN(st.g2),'sys');
+        const t2=await H.ask('تغییر تاکتیک نیمه‌ی دوم؟',[
+          {ic:'🔥',k:'up',label:'فشار بیشتر',desc:'+حمله، ریسک دفاع'},
+          {ic:'🛡️',k:'hold',label:'مهار و کنترل',desc:'حفظ نتیجه'},
+          {ic:'♻️',k:'same',label:'همین روال',desc:'بدون تغییر'}]);
+        if(t2.k==='up'){tac.atk=Math.min(1,tac.atk+.16);tac.def=Math.max(.2,tac.def-.1);boost+=.14}
+        if(t2.k==='hold'){tac.def=Math.min(1,tac.def+.16);tac.atk=Math.max(.25,tac.atk-.08);boost-=.04}
+        H.say('🔁 تاکتیک نیمه‌ی دوم: '+t2.label,'sys');paused=false}
+      if(minute>=total){clearInterval(timer);
+        const win=st.g1>st.g2,draw=st.g1===st.g2;
+        const perf=Math.round(st.sh1*9+st.poss/Math.max(1,minute)*.6);
+        const norm=Math.max(150,Math.min(1000,Math.round((win?660+st.g1*70:draw?430:200)+Math.min(140,perf)+B*80)));
+        report(H,{ic:'⚽',title:'پایان مسابقه',big:faN(st.g1)+' - '+faN(st.g2),stars:win?(st.g1-st.g2>=2?3:2):draw?2:1,norm,
+          rows:[['مالکیت توپ',faN(Math.round(38+tac.poss*24+Math.min(8,st.g1*2)))+'٪'],['شوت‌ها',faN(st.sh1)+' در برابر '+faN(st.sh2)],['دستور وضعیتی',(condDown||condUp)?'اجرا شد':'لازم نشد']],
+          coach:['آمار پایه‌ی کشورت '+Math.round(B*100)+'٪ وزن داشت — '+Math.round(100-B*100)+'٪ بقیه ساخته‌ی تاکتیک و شانس بود.',
+            win?'چیدمانت نسبت به اسکاوت حریف درست بود.':'در نیمه‌ی دوم تغییر زودتر می‌توانست نتیجه را عوض کند.'],
+          onEnd:()=>{juke.camOff();done(norm)}})}
+    },stepMs);
+  })();
+}
+/* ---------- خانواده‌ی A: مسابقه‌ی فردی پیوسته ---------- */
+function gRace(el,done,cfg){
+  const B=baseStrength(),seed=nextSeed(),R=rng(seed);
+  const H=frame(el,{me:'تو',op:cfg.rival,vs:cfg.ic,clock0:''});
+  const rivals=[{n:cfg.rival,p:.5+R()*.32},{n:'تعقیب‌کننده',p:.44+R()*.26},{n:'تازه‌نفس',p:.42+R()*.24}];
+  H.say('📋 شرایط: '+cfg.cond+' — حریف اصلی: <b>'+cfg.rival+'</b>','sys');
+  (async()=>{
+    const plan=await H.ask('انرژی‌ات را چطور توزیع می‌کنی؟',[
+      {ic:'⚖️',k:'even',label:'یکنواخت',desc:'ریتم پایدار تا پایان'},
+      {ic:'🚀',k:'fast',label:'استارت انفجاری',desc:'فاصله بگیر، ریسک افت'},
+      {ic:'📈',k:'neg',label:'نیمه‌ی دوم تند',desc:'ذخیره کن، آخر بزن'},
+      {ic:'🎲',k:'allout',label:'همه‌چیز یا هیچ',desc:'حداکثر سرعت'}]);
+    H.say('🗣️ گزارشگر: «'+plan.label+' — استراتژی جسورانه‌ای است!»');
+    const planK={even:1,fast:1.2,neg:.94,allout:1.32}[plan.k];
+    const fatigueK={even:.999,fast:.968,neg:1,allout:.945}[plan.k];
+    H.arenaHTML('<div class="w41-lanes">'+[0,1,2,3].map(i=>'<div class="ln"><span class="who">'+(i?'🔵':'🔴')+' '+(i?esc(rivals[i-1].n):'تو')+'</span><div class="tr"><i class="p" data-i="'+i+'"></i></div><b class="pc" data-i="'+i+'">۰٪</b></div>').join('')+'</div>');
+    const bars=H.arena.querySelectorAll('.p'),pcs=H.arena.querySelectorAll('.pc');
+    const prog={you:0,r0:0,r1:0,r2:0};
+    let t=0,boost=1,fatigue=1,decisionUsed=0,deciding=false;
+    const dur=cfg.dur;
+    const timer=setInterval(async()=>{
+      if(H.done||deciding){return}
+      t++;const p=t/dur;
+      H.time(Math.min(1,p));H.clockSet(faN(Math.max(0,Math.round(cfg.durReal*(1-p))))+'″');
+      fatigue*=fatigueK;
+      prog.you=Math.min(100,prog.you+(100/dur)*planK*boost*fatigue);
+      rivals.forEach((rv,i)=>{prog['r'+i]=Math.min(100,prog['r'+i]+(100/dur)*rv.p*(.85+R()*.4))});
+      bars.forEach((b,i)=>{const v=i?prog['r'+(i-1)]:prog.you;b.style.width=v+'%';pcs[i].textContent=faN(Math.round(v))+'٪'});
+      if(decisionUsed<2&&p>(decisionUsed===0?.36:.68)){decisionUsed++;deciding=true;
+        const c=await H.ask('لحظه‌ی تصمیم — چه می‌کنی؟',[
+          {ic:'💥',k:'push',label:'حمله! ضربه بزن',desc:'+سرعت شدید، انرژی −'},
+          {ic:'🧘',k:'hold',label:'در چرخ بمان',desc:'انرژی ذخیره'},
+          {ic:'👀',k:'read',label:'حریف را بخوان',desc:'ریسک کم'}]);
+        if(c.k==='push'){boost*=1.5;fatigue*=.93;fx.shake();sndK('crowd');H.say('⚡ حمله زدی — گروه جا ماند!','goal')}
+        else if(c.k==='hold'){boost*=1.06;H.say('🧘 ریتم را نگه داشتی')}
+        else{boost*=1+B*.55;H.say('👀 حرکت حریف را خواندی','sys')}
+        deciding=false;return}
+      if(R()<.04)H.say(narr('جریان مسابقه: {a}',{a:['گروه چسبیده است','رقیب اصلی تندتر کرد','پاها سنگین می‌شوند','تماشاگران می‌فریادند'][Math.floor(R()*4)]}));
+      if(p>=1){clearInterval(timer);
+        const order=[{n:'تو',v:prog.you},...rivals.map((r,i)=>({n:r.n,v:prog['r'+i]}))].sort((a,b)=>b.v-a.v);
+        const place=order.findIndex(x=>x.n==='تو')+1;
+        const gap=Math.abs(order[0].v-(place===1?order[1].v:order[0].v));
+        const norm=Math.max(140,Math.min(1000,Math.round((5-place)*150+Math.max(0,28-gap*.4)+B*110)));
+        H.mark('🏁');H.say('🏁 خط پایان — جایگاه: <b>'+faN(place)+'</b>','goal');
+        setTimeout(()=>report(H,{ic:cfg.ic,title:cfg.name+' — نتیجه',big:['🥇','🥈','🥉','۴','۴'][place-1]||'🏁',
+          stars:place===1?3:place===2?2:place===3?1:0,norm,
+          rows:[['جایگاه',faN(place)+' از ۴'],['فاصله با صدر',faN(Math.round(gap))+'٪'],['استراتژی انرژی',plan.label]],
+          coach:['سهم آمار پایه: '+Math.round(B*40)+'٪ سقف — مابقی از برنامه‌ی انرژی و دو تصمیم میانی تو ساخت شد.',
+            place<=2?'مدیریت لحظه‌ی حمله درست بود.':'حمله را دیرتر/زودتر بزن — تایمینگ همه‌چیز است.'],
+          onEnd:()=>done(norm)}),800)}
+    },100);
+  })();
+}
+/* ---------- خانواده‌ی B: راند‌به‌راند ---------- */
+function gRounds(el,done,cfg){
+  const B=baseStrength(),seed=nextSeed(),R=rng(seed);
+  const H=frame(el,{me:'تو',op:cfg.rival,vs:cfg.ic,clock0:''});
+  let my=0,op=0;
+  const rivalPicks=cfg.rounds.map(()=>cfg.opts[Math.floor(R()*cfg.opts.length)]);
+  H.say('📋 '+cfg.intro+' — حریف: <b>'+cfg.rival+'</b>','sys');
+  H.stat('امتیاز من',0,cfg.max,'#ffe08a');H.stat('امتیاز حریف',0,cfg.max,'#ff8ba0');
+  (async()=>{
+    for(let i=0;i<cfg.rounds.length;i++){
+      H.clockSet('راند '+faN(i+1)+' / '+faN(cfg.rounds.length));
+      H.time(i/cfg.rounds.length);
+      const pick=await H.ask(cfg.rounds[i],cfg.opts);
+      const oOpt=rivalPicks[i];const rr=R();
+      const p=chance(pick.w,1.15-pick.risk/150,B,rr);
+      const fail=rr>(0.4+pick.risk/170);
+      const myGain=fail?Math.round(cfg.max*pick.risk/100*.1):Math.round(cfg.max*pick.risk/100*p*.66);
+      const opGain=Math.round(cfg.max*(oOpt.risk/100)*(.4+R()*.42));
+      my+=myGain;op+=opGain;
+      H.stat('امتیاز من',my,cfg.max);H.stat('امتیاز حریف',op,cfg.max);
+      if(fail){sndK('alert');H.say(narr(cfg.failTxt,{t:faN(i+1),m:pick.label}),'bad')}
+      else{sndK('coin');fx.shake();H.say(narr(cfg.okTxt,{t:faN(i+1),m:pick.label,g:faN(myGain)}),'goal')}
+      H.say(narr('حریف: {a} — {g} امتیاز',{a:oOpt.label,g:faN(opGain)}));
+    }
+    H.time(1);
+    const win=my>op,draw=my===op;
+    const norm=Math.max(140,Math.min(1000,Math.round((my/cfg.max)*600+(win?300:draw?180:60)+B*80)));
+    report(H,{ic:cfg.ic,title:cfg.name+' — نتیجه',big:win?'🏆':draw?'🤝':'😞',stars:win?3:draw?2:1,norm,
+      rows:[['امتیاز من',faN(my)],['امتیاز حریف',faN(op)],['نتیجه',win?'برد':draw?'مساوی':'باخت']],
+      coach:['سقف سهم آمار پایه: ۴۰٪ — '+Math.round(100-B*40)+'٪ از انتخاب ریسک‌های تو آمد.',
+        win?'پله‌ی ریسک‌ها را هوشمندانه بالا بردی.':'ریسک را جایی زدی که حریف محکم بود — توازن بین راند حفظ کن.'],
+      onEnd:()=>done(norm)});
+  })();
+}
+/* ---------- خانواده‌ی C: رویارویی مستقیم ---------- */
+function gDuel(el,done,cfg){
+  const B=baseStrength(),seed=nextSeed(),R=rng(seed);
+  const H=frame(el,{me:'تو',op:cfg.rival,vs:cfg.ic,clock0:''});
+  let mw=0,ow=0,ex=0;
+  const actsK=['agg','def','trick'];
+  H.say('📋 '+cfg.intro+' — سبک حریف: <b>'+cfg.tend.label+'</b>','sys');
+  H.stat('بردهای من',0,cfg.need,'#ffe08a');H.stat('بردهای حریف',0,cfg.need,'#ff8ba0');
+  (async()=>{
+    while(mw<cfg.need&&ow<cfg.need&&ex<cfg.maxEx){
+      ex++;H.clockSet('تبادل '+faN(ex));H.time(ex/cfg.maxEx);
+      const pick=await H.ask(cfg.q,cfg.acts);
+      const rivalAct=cfg.acts[actsK.indexOf(cfg.tend.fav)>-1&&R()<.45?actsK.indexOf(cfg.tend.fav):Math.floor(R()*3)];
+      const beats={agg:'def',def:'trick',trick:'agg'}[pick.k];
+      const goodPick=beats===rivalAct.k;
+      const winE=R()<chance(goodPick?1.3:.8,cfg.tend.w,B,R());
+      if(winE){mw++;sndK('coin');fx.shake();H.say(narr(cfg.winTxt,{t:faN(ex),m:pick.label,a:rivalAct.label}),'goal')}
+      else{ow++;sndK('alert');H.say(narr(cfg.loseTxt,{t:faN(ex),m:pick.label,a:rivalAct.label}),'bad')}
+      H.stat('بردهای من',mw,cfg.need);H.stat('بردهای حریف',ow,cfg.need);
+    }
+    const win=mw>ow,draw=mw===ow;
+    const norm=Math.max(140,Math.min(1000,Math.round((mw/cfg.need)*540+(win?320:draw?190:70)+B*80)));
+    report(H,{ic:cfg.ic,title:cfg.name+' — نتیجه',big:win?'🏆':draw?'🤝':'😤',stars:win?3:draw?2:1,norm,
+      rows:[['تبادل‌های بردهٔ من',faN(mw)],['حریف',faN(ow)],['سبک حریف',cfg.tend.label]],
+      coach:['خواندن الگوی حریف مهم‌تر از آمار بود — سقف آمار ۴۰٪.',
+        win?'الگو را شکستی؛ انتخاب وضعیتی درست بود.':'دفعه بعد فینت را جایی بزن که حریف متعهد شده.'],
+      onEnd:()=>done(norm)});
+  })();
+}
+
+/* ---------- ۵) سوار کردن بازی‌های تاکتیکی روی GAMES ---------- */
+const G=API.GAMES||{};
+G.football=(el,done)=>gFootball(el,done);
+G.sprint=(el,done)=>gRace(el,done,{ic:'🏃',name:'دو ۱۰۰ متر',rival:'برق‌آسا',dur:110,durReal:11,cond:'پیست استادیوم ملی — باد ملایم'});
+G.swim=(el,done)=>gRace(el,done,{ic:'🏊',name:'شنا ۱۰۰ متر',rival:'دلفین',dur:120,durReal:12,cond:'استخر المپیک — لاین ۴'});
+G.cycling=(el,done)=>gRace(el,done,{ic:'🚴',name:'دوچرخه‌سواری جاده',rival:'کوهنورد',dur:150,durReal:15,cond:'جاده‌ی کوهستان — شیب در کیلومتر آخر'});
+G.weight=(el,done)=>gRounds(el,done,{ic:'🏋️',name:'وزنه‌برداری',rival:'خرس کوهستان',max:1000,
+  intro:'سه حرکت — هرچه وزنه سنگین‌تر، ریسک و امتیاز بیشتر',
+  rounds:['حرکت اول — وزنه پایه؟','حرکت دوم — حریف گرم شده؟','حرکت سوم — رکورد روی میز است؟'],
+  opts:[{ic:'🟢',k:'safe',label:'محافظه‌کار',desc:'وزنه مطمئن',risk:24,w:1.16},{ic:'🟡',k:'mid',label:'متعادل',desc:'وزنه هدف',risk:5,w:.96},{ic:'🔴',k:'gamble',label:'ریسکی',desc:'وزنه رکورد',risk:78,w:.82}],
+  okTxt:'🏋️ راند {t}: {m} — بالا رفت تمیز! {g} امتیاز',failTxt:'💢 راند {t}: {m} — میله زمین خورد'});
+G.archery=(el,done)=>gRounds(el,done,{ic:'🎯',name:'تیراندازی با کمان',rival:'شاهین چشم',max:900,
+  intro:'سه تیر پیاپی — مرکز هدف = امتیاز بیشتر',
+  rounds:['تیر ۱ — فاصله ۷۰ متر','تیر ۲ — باد تند شد','تیر ۳ — تیر طلایی آخر'],
+  opts:[{ic:'🟢',k:'safe',label:'مرکز امن',desc:'امتیاز مطمئن',risk:26,w:1.15},{ic:'🟡',k:'mid',label:'هدف میانی',desc:'ریسک متوسط',risk:5,w:.96},{ic:'🔴',k:'gamble',label:'شیار ده',desc:'حداکثر امتیاز',risk:74,w:.8}],
+  okTxt:'🎯 راند {t}: {m} — شلیک فرود آمد! {g} امتیاز',failTxt:'🌬️ راند {t}: {m} — باد تیر را برد'});
+G.gym=(el,done)=>gRounds(el,done,{ic:'🤸',name:'ژیمناستیک',rival:'برق‌و‌بالا',max:900,
+  intro:'سه حرکت — سختی حرکت = ضریب امتیاز',
+  rounds:['حرکت اول — پایه؟','حرکت دوم — ترکیبی؟','حرکت سوم — حرکت امضایی؟'],
+  opts:[{ic:'🟢',k:'safe',label:'ساده و تمیز',desc:'اجرای مطمئن',risk:24,w:1.16},{ic:'🟡',k:'mid',label:'متوسط',desc:'چند آکروبات',risk:5,w:.96},{ic:'🔴',k:'gamble',label:'بسیار سخت',desc:'دبل‌بک با پیچ',risk:76,w:.8}],
+  okTxt:'🤸 راند {t}: {m} — فرود مثل گربه! {g} امتیاز',failTxt:'🤕 راند {t}: {m} — فرود لرزید'});
+G.volley=(el,done)=>gDuel(el,done,{ic:'🏐',name:'والیبال ساحلی',rival:'موج‌سوار',need:3,maxEx:6,
+  intro:'رالی به رالی — الگوی حریف را بشکن',q:'این رالی را چطور بازی کن؟',tend:{label:'دریافت کوتاه‌کن',w:.9,fav:'def'},
+  acts:[{ic:'💥',k:'agg',label:'اسپایک سنگین',desc:'مستقیم و قدرتی'},{ic:'🛡️',k:'def',label:'دریافت و پاس',desc:'ساخت مجدد'},{ic:'🎭',k:'trick',label:'فینت کوتاه',desc:'غافلگیری'}],
+  winTxt:'🏐 رالی {t}: {m} روی {a} — زمین بلرزید!',loseTxt:'💔 رالی {t}: {m} توسط {a} برگشت'});
+G.wrestle=(el,done)=>gDuel(el,done,{ic:'🥋',name:'کشتی آزاد',rival:'صخره',need:2,maxEx:4,
+  intro:'گیری به گیری — هر گیری یک امتیاز',q:'این گیری را چطور بچینی؟',tend:{label:'دفاع بسته',w:.86,fav:'def'},
+  acts:[{ic:'💥',k:'agg',label:'حمله پای',desc:'دابل‌لگ قدرتی'},{ic:'🛡️',k:'def',label:'کمرگیری',desc:'صبر و کنترل'},{ic:'🎭',k:'trick',label:'فینت سرشانه',desc:'غافلگیری'}],
+  winTxt:'🥋 گیری {t}: {m} روی {a} — تشک به صدا درآمد!',loseTxt:'💪 گیری {t}: {m} خنثی شد توسط {a}'});
+G.chess=(el,done)=>gDuel(el,done,{ic:'♟️',name:'شطرنج',rival:'استاد سیاه',need:2,maxEx:4,
+  intro:'سیزیون‌های سرنوشت‌ساز — هر حرکت یک تصمیم',q:'حرکت سرنوشت‌ساز؟',tend:{label:'بازی محکم',w:.95,fav:'def'},
+  acts:[{ic:'⚔️',k:'agg',label:'قربانی حمله',desc:'ریسک برای ابتکار'},{ic:'🏰',k:'def',label:'محکم‌سازی',desc:'ساخت پوزیسیون'},{ic:'🎭',k:'trick',label:'تله‌گذاری',desc:'حریف را وسوسه کن'}],
+  winTxt:'♟️ سیزیون {t}: {m} در برابر {a} — برتری تعیین شد!',loseTxt:'♟️ سیزیون {t}: {m} را استاد خواند و پاسخ داد'});
+})();
+</script>
+
+
 </body>
 </html>
 
