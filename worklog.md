@@ -959,3 +959,20 @@ Stage Summary:
 - ریشه: از دست رفتن translate(-bounds.min) در transform کانواس = همه‌چیز جابه‌جا؛ فیکس = حذف override (بازگشت به رندر استوک)
 - درس ماندگار: هر تست موبایل باید hardwareConcurrency>=6 و deviceScaleFactor=3 را تزریق کند + چک پیکسلی (anchor/coverage) نه فقط بررسی نصب بودن patch
 - pending: push با token کاربر → سپس اجرای map-visual-v58b و apk-sim-v58 روی لایو به‌عنوان شاهد نهایی
+
+---
+Task ID: V58b-deploy
+Agent: Super Z (main)
+Task: استقرار V58b روی پروداکشن با token تازه‌ی کاربر + راستی‌آزمایی نهایی
+
+Work Log:
+- token یک‌بارمصرف inline استفاده شد (api verify: admin=true؛ ذخیره نشد)؛ push موفق 53623fa..5f467cc → main
+- Vercel سریع دیپلوی کرد: live md5 be7ebcceb70b3a5e1e6f2c05561a6502 == origin/main بایت‌به‌بایت
+- تأیید محتوای ریموت: L.Canvas صفر ارجاع؛ فقط گاردهای drawHatch/END_NOW باقی (عمدی)
+- تست پروداکشن: map-visual-v58b 20/20 (dsf 3/2/1، anchor-pixel Kazakhstan a=235، coverage 32٪، بدون pageerror)؛ apk-sim-v58 28/28؛ ghost-probe الگوی سالم
+- اسکرین‌شات نهایی production-clean-map-V58b.png بعد از pan کاربر‌گونه: اروپا+آفریقا سالم، اقیانوس پاک، خاکستری بی‌مالک‌ها مطابق درخواست قبلی کاربر
+- sanity: ratio=2 (رندر استوک)، patched=false، versionCode 8 دست‌نخورده، latest.json تغییر نکرد، APK بدون rebuild خودکار به‌روز می‌شود
+
+Stage Summary:
+- V58b (5f467cc) روی پروداکشن زنده است؛ باگ «طراحی افتاده بیرون» برطرف شد
+- درس ماندگار در worklog: تست‌های موبایل باید cores>=6 + dsf=3 تزریق کنند و چک پیکسلی داشته باشند
