@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { rateLimit, clientIp } from '@/lib/ratelimit'
-import { computeScore, hasRecalc, type Telemetry, type TelemEvent } from '@/lib/olyScore'
+import { computeScore, hasRecalc, SIM_V2_ED, type Telemetry, type TelemEvent } from '@/lib/olyScore'
 import {
   skillOf, consistencyOf, potentialOf, evalAchievements, achDef, bullseyesFromTelemetry,
   type RecentScore,
@@ -1549,7 +1549,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         const seed = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
         const m = await db.olympicMatch.create({ data: { edition: g.edition, userId: user.id, discipline: key, mode, serverSeed: seed, status: 'open' } })
-        return R({ ok: true, match_id: m.id, seed, server_ms: Date.now(), mode, att_max: mode === 'official' ? hostMax : 0 })
+        return R({ ok: true, match_id: m.id, seed, server_ms: Date.now(), mode, att_max: mode === 'official' ? hostMax : 0, edition: g.edition })
       }
 
       /* ---------------- V33 olympic_register: pick 3 of 10 (reg window + late entry while live) ----------------
@@ -1600,7 +1600,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         let tel = args.p_telemetry as Telemetry | string | null | undefined
         if (typeof tel === 'string') { try { tel = JSON.parse(tel) as Telemetry } catch (e) { tel = null } }
         /* L2/L3/L4: بازمحاسبه + قوانین فیزیکی — رد شدن = تلاش سوخت (official) */
-        const res = computeScore(key, tel)
+        /* O3: نسخه‌ی امتیازدهی بر اساس دوره — دوره‌ی جاری v1، دوره‌های بعدی v2 (بدون کف، مهارت‌محور) */
+        const res = computeScore(key, tel, g.edition)
         if (!res.ok) {
           await db.olympicMatch.update({ where: { id: m.id }, data: { status: 'rejected', flags: res.reason || 'invalid', clientNonce: nonce, finishedAt: new Date() } }).catch(() => {})
           if (m.mode === 'official') {
@@ -1654,8 +1655,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             }
             await db.olympicRecord.upsert({
               where: { discipline: key },
-              create: { discipline: key, score, nick: user.nick, country: cfa, edition: g.edition, matchId: m.id },
-              update: { score, nick: user.nick, country: cfa, edition: g.edition, matchId: m.id },
+              create: { discipline: key, score, nick: user.nick, country: cfa, edition: g.edition, matchId: m.id, sv: g.edition >= SIM_V2_ED ? 2 : 1 },
+              update: { score, nick: user.nick, country: cfa, edition: g.edition, matchId: m.id, sv: g.edition >= SIM_V2_ED ? 2 : 1 },
             })
             /* L5 / PHASE 44: replay رکورد رسمی ذخیره می‌شود (تله‌متری ورودی، نه ویدیو) */
             await db.olympicMatch.update({ where: { id: m.id }, data: { logJson: JSON.stringify(tel).slice(0, 19000) } }).catch(() => {})
@@ -1745,7 +1746,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           const rowT = await db.olympicSuspicious.findUnique({ where: { id } })
           if (!rowT) return R({ ok: false, reason: 'row' })
           let recalc: { ok: boolean; score: number; reason?: string } | null = null
-          try { recalc = computeScore(rowT.discipline, rowT.logJson ? (JSON.parse(rowT.logJson) as Telemetry) : null) } catch (e) { recalc = null }
+          try { recalc = computeScore(rowT.discipline, rowT.logJson ? (JSON.parse(rowT.logJson) as Telemetry) : null, rowT.edition) } catch (e) { recalc = null }
           return R({ ok: true, log: rowT.logJson || null, recalc })
         }
         const row = await db.olympicSuspicious.findUnique({ where: { id } }).catch(() => null)
@@ -1760,8 +1761,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (entV) await db.olympicEntry.update({ where: { id: entV.id }, data: { best: Math.max(entV.best, row.score) } })
         await db.olympicRecord.upsert({
           where: { discipline: row.discipline },
-          create: { discipline: row.discipline, score: row.score, nick: row.nick, country: row.countryFa, edition: row.edition, matchId: row.matchId },
-          update: { score: row.score, nick: row.nick, country: row.countryFa, edition: row.edition, matchId: row.matchId },
+          create: { discipline: row.discipline, score: row.score, nick: row.nick, country: row.countryFa, edition: row.edition, matchId: row.matchId, sv: row.edition >= SIM_V2_ED ? 2 : 1 },
+          update: { score: row.score, nick: row.nick, country: row.countryFa, edition: row.edition, matchId: row.matchId, sv: row.edition >= SIM_V2_ED ? 2 : 1 },
         })
         /* O2: رکورد تأییدشده وارد پروفایل مهارت هم می‌شود (ring + bestEver) */
         try {

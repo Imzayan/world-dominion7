@@ -10006,7 +10006,9 @@ function recordsBox(recs){
   const rr=(recs||[]).filter(x=>x&&x.nick);
   if(!rr.length)return '<div class="wd31-mini" style="margin-top:8px">هنوز رکوردی ثبت نشده — اولین قهرمانی می‌تواند نام تو را در تاریخ ثبت کند ⚡</div>';
   return rr.map(x=>{const m=GD33[x.discipline]||{ic:'🏅',fa:x.discipline};
-    return '<div class="wg33-rec"><span class="ric">'+m.ic+'</span><span><span class="rn">'+esc(x.nick)+'</span><br><span class="rc">'+esc(m.fa)+(x.country?' • '+esc(x.country):'')+' • دوره‌ی '+faN(x.edition||0)+'</span></span><span class="rv">'+faN(x.score)+'</span></div>'}).join('');
+    /* O3: نسخه‌ی مقیاس امتیاز — صداقت تاریخی (نسبت رکوردهای نسل‌های مختلف) */
+    const sv=x.sv>=2?' <span class="chip33" style="font-size:7.5px;color:#7dff9e">⚖ مقیاس ۲</span>':'';
+    return '<div class="wg33-rec"><span class="ric">'+m.ic+'</span><span><span class="rn">'+esc(x.nick)+'</span><br><span class="rc">'+esc(m.fa)+(x.country?' • '+esc(x.country):'')+' • دوره‌ی '+faN(x.edition||0)+sv+'</span></span><span class="rv">'+faN(x.score)+'</span></div>'}).join('');
 }
 function archiveBox(arch){
   const aa=(arch||[]);if(!aa.length)return '<div class="wd31-mini" style="margin-top:8px">هنوز دوره‌ای کامل نشده — صفحه‌ی تاریخ با اولین اختتامیه باز می‌شود 📜</div>';
@@ -10659,7 +10661,7 @@ function foot(t){const f=D.getElementById('wg33-sft');if(f)f.textContent=t||''}
 
 /* ---------- V35 FX engine: sparks / confetti / floating text / rings / shake / flash ---------- */
 const FX=(()=>{
-  let cv=null,ctx=null,parts=[],run=false,vw=0,vh=0,dpr=1,TIME=1;
+  let cv=null,ctx=null,parts=[],run=false,vw=0,vh=0,dpr=1,TIME=1,FXCAP=1;/* O3/P36: ضریب ذرات — حالت سبک 0.35 */
   function ensure(){if(cv)return true;
     if(!stage)return false;
     cv=D.createElement('canvas');cv.id='wg33-fx';stage.appendChild(cv);
@@ -10693,11 +10695,11 @@ const FX=(()=>{
       parts=alive;ctx.globalAlpha=1}
     requestAnimationFrame(tick)}
   function pt(el,fx,fy){const r=el.getBoundingClientRect();return{x:r.left+r.width*(fx==null?.5:fx),y:r.top+r.height*(fy==null?.5:fy)}}
-  function spark(x,y,col,n,spd,grav){if(!ctx)return;start();n=n||12;const cols=Array.isArray(col)?col:[col];
+  function spark(x,y,col,n,spd,grav){if(!ctx)return;start();n=Math.round((n||12)*FXCAP)||1;const cols=Array.isArray(col)?col:[col];
     for(let i=0;i<n;i++){const a=Math.random()*6.3,d=spd||70;
       parts.push({kind:'sp',x,y,vx:Math.cos(a),vy:Math.sin(a),dist:d*(.5+Math.random()),t:0,dt:.016,dur:.45+Math.random()*.4,life:0,s:2.5+Math.random()*2.5,col:cols[i%cols.length],grav:grav==null?1:grav})}
     if(parts.length>260)parts.splice(0,parts.length-260)}
-  function conf(n){if(!ctx)return;start();n=n||60;const cols=['#ffd75e','#ff6b9d','#39e6d0','#7dff9e','#7fd8ff','#ffb02e'];
+  function conf(n){if(!ctx)return;start();n=Math.round((n||60)*FXCAP)||1;const cols=['#ffd75e','#ff6b9d','#39e6d0','#7dff9e','#7fd8ff','#ffb02e'];
     for(let i=0;i<n;i++)parts.push({kind:'conf',x:Math.random()*vw,y:-14-Math.random()*vh*.3,vy:.6+Math.random()*.9,t:Math.random()*3,dt:.016,dur:2.1+Math.random()*.9,life:0,s:6+Math.random()*6,spin:3+Math.random()*5,wob:2+Math.random()*3,col:cols[i%cols.length]})}
   function text(x,y,txt,col,size){if(!ctx)return;start();parts.push({kind:'text',x,y,txt,col:col||'#ffd75e',size:size||17,t:0,dt:.016,dur:.9,life:0,rise:44})}
   function ring(x,y,col,r0,r1){if(!ctx)return;start();parts.push({kind:'ring',x,y,col:col||'rgba(255,215,94,.9)',r0:r0||8,r1:r1||54,t:0,dt:.016,dur:.5,life:0})}
@@ -10710,14 +10712,14 @@ const FX=(()=>{
   function wipe(){parts=[]}
   /* V39: زمان FX (اسلوموشن سینمایی) + ذرات مخصوص ورزش */
   function settime(v){TIME=Math.max(.12,Math.min(1.6,Number(v)||1))}
-  function dust(x,y,n){if(!ctx)return;start();n=n||7;
+  function dust(x,y,n){if(!ctx)return;start();n=Math.round((n||7)*FXCAP)||1;
     for(let i=0;i<n;i++)parts.push({kind:'sp',x:x+(Math.random()*18-9),y:y+(Math.random()*6-3),vx:Math.cos(Math.random()*6.3),vy:Math.sin(Math.random()*6.3)*-.5,dist:34+Math.random()*30,t:0,dt:.016,dur:.5+Math.random()*.35,life:0,s:2+Math.random()*2.6,col:['#b89a6a','#8a7050','#d9c49a'][i%3],grav:.22});
     if(parts.length>260)parts.splice(0,parts.length-260)}
-  function splash(x,y,n){if(!ctx)return;start();n=n||12;
+  function splash(x,y,n){if(!ctx)return;start();n=Math.round((n||12)*FXCAP)||1;
     for(let i=0;i<n;i++){const a=-Math.PI/2+(Math.random()-.5)*1.7,d=60+Math.random()*80;
       parts.push({kind:'sp',x,y,vx:Math.cos(a),vy:Math.sin(a),dist:d,t:0,dt:.016,dur:.5+Math.random()*.3,life:0,s:1.8+Math.random()*2.4,col:['#9adcff','#fff','#39e6d0','#cdeeff'][i%4],grav:1.25})}
     if(parts.length>260)parts.splice(0,parts.length-260)}
-  return{ensure,sync,pt,spark,conf,text,ring,shake,flash,punch,stop,wipe,settime,dust,splash};
+  return{ensure,sync,pt,spark,conf,text,ring,shake,flash,punch,stop,wipe,settime,dust,splash,cap:(v)=>{FXCAP=(v==null?1:Math.max(.25,Math.min(1,v)))}};
 })();
 /* ---------- V39 Juice: اسلوموشن + دوربین سینمایی + صدای استادیوم ---------- */
 const JUICE=(()=>{
@@ -10810,6 +10812,7 @@ async function startAttempt33(bd,key,e0,train){
     const mm={window:'زمان این رشته تمام شده',attempts:'تلاش‌های رسمی‌ات تمام شده — تمرین آزاد باز است',not_registered:'اول از هاب در این رشته ثبت‌نام کن',disabled:'المپیک فعال نیست',net:'⚠️ اتصال ناموفق — دوباره تلاش کن'};
     showToast2(mm[rs]||('خطا: '+rs),'lose');return}
   MATCH={id:s.match_id,seed:s.seed};ATT_MAX=(Number(s.att_max)||0)>0?Number(s.att_max):ATT_MAX;
+  if(s.edition)window.WD33_EDITION=s.edition; /* O3: نسخه‌ی دوره از سرور — گیت v1/v2 آینه همیشه هم‌راستا با داور */
   hud({att:e0.attempts,best:e0.best||0});
   runGame(bd,key,(norm,raw)=>{finish33(bd,key,norm,raw,e0)});
 }
@@ -10865,6 +10868,7 @@ function countdown33(bd,cb){
   tm33(tick,850);
 }
 function runGame(bd,key,done){
+  window.WD33_CURKEY=key; /* O3: کلید رشته برای آینه‌ی امتیاز نسل ۲ (v60-o2) */
   foot(GD33[key].tip);
   countdown33(bd,()=>{
     TELE.begin(); /* O1: شروع ضبط تله‌متری ورودی */
@@ -13117,6 +13121,25 @@ const API=window.WD33_API||{};
 /* O1: تله‌متری تصمیم‌ها — سرور امتیاز را از روی توالی تصمیم‌ها بازمحاسبه می‌کند */
 const TELE41=API.TELE||null;
 const TE=(...a)=>{try{if(TELE41)TELE41.ev(...a)}catch(e){}};
+/* O3: امتیاز نسل ۲ — تک‌آینه‌ی سرور (WD60_SCORE در بلوک wd60-o2)؛
+   دوره‌های >= V2ED از فرمول بی‌کف مهارت‌محور استفاده می‌کنند و دوره‌ی جاری v1.
+   LAST_PARTS = سهم هر جز (PHASE 32: بازخورد گام‌به‌گام در گزارش پایانی) */
+let LAST_PARTS=null;
+function norm33(key,legacy){
+  try{
+    const ed=(window.WD33_EDITION)||((window.WD33_PHASE&&window.WD33_PHASE().edition)||0);
+    const S=window.WD60_SCORE;
+    if(S&&S.v2(ed)){
+      const r=S.total(key,(API.TELE?API.TELE.list:[]).slice(),ed);
+      LAST_PARTS=(r&&r.parts)||[];
+      if(r&&r.ok)return r.total;
+      LAST_PARTS=[];return 0;
+    }
+  }catch(e){}
+  LAST_PARTS=null;return legacy;
+}
+/* O3/P17: سختی تطبیقی — فقط تمرین؛ رسمی همیشه قوانین یکسان */
+const TADAPT=()=>((API.MODE==='train')&&window.WD60_TRAIN)?window.WD60_TRAIN.level():1;
 const Tnow=()=>{try{return Math.round(performance.now()-((TELE41&&TELE41.t0)||0))}catch(e){return 0}};
 const faN=n=>{try{return String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])}catch(e){return String(n)}};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -13207,6 +13230,8 @@ function report(H,o){
   if(o.stars!=null){h+='<div class="w41-stars">';for(let i=0;i<3;i++)h+='<i class="'+(i<o.stars?'on':'')+'">★</i>';h+='</div>'}
   h+='<div class="sc"><b>'+faN(o.norm||0)+'</b><small>امتیاز ثبت‌شده</small></div>';
   (o.rows||[]).forEach(r=>{h+='<div class="rw"><span>'+esc(r[0])+'</span><b>'+esc(String(r[1]))+'</b></div>'});
+  /* O3/P32: بازخورد گام‌به‌گام — سهم هر جز (تصمیم/تاخیر/کمبو/کلچ/نتیجه) */
+  if(LAST_PARTS&&LAST_PARTS.length){h+='<div class="w41-parts">'+LAST_PARTS.map(p=>'<div class="pr"><span>'+esc(p.l)+'</span><b class="'+(p.pts>=0?'pos':'neg')+'">'+(p.pts>=0?'+':'')+faN(p.pts)+'</b></div>').join('')+'</div>'}
   h+='<div class="coach"><div class="ch">🧠 تحلیل مربی</div>'+(o.coach||[]).map(c=>'<div class="cl">'+c+'</div>').join('')+'</div>';
   h+='<div class="w41-repbtns"><button class="rp">🎬 ریپلی</button><button class="go">ادامه</button></div></div>';
   const rep=D.createElement('div');rep.innerHTML=h;H.sim.appendChild(rep);
@@ -13256,14 +13281,15 @@ function gFootball(el,done){
       minute++;H.time(minute/total);H.clockSet(faN(minute)+'′');
       const pMine=chance(tac.atk*(1+boost),0.55,B*.95,R());
       const pOpp=chance(scout.pow*(1-boost*.5),0.5,.5,R());
+      const ta=TADAPT();/* O3/P17: تمرین تطبیقی — حریف با سطح تمرین مقیاس می‌شود */
       if(R()<.4)st.poss+=(tac.poss>.62?60:46);
       if(R()<pMine*.22){st.sh1++;
         if(R()<.4){st.g1++;sndK('crowd');juke.zoom();H.mark('⚽'+faN(minute));
           H.say(narr('⚽ دقیقه‌ی {t}: گـل! ترکیب از سمت {w} — تور لرزید!',{t:faN(minute),w:scout.weak}),'goal')}
         else H.say(narr('دقیقه‌ی {t}: شوت از پشت محوطه — دروازه‌بان پاسخ داد',{t:faN(minute)}))}
       else if(R()<.18)H.say(narr('دقیقه‌ی {t}: {a}',{t:faN(minute),a:['حمل توپ طولانی در میانه','دوئل هوایی در محوطه','پاس عمقی — آفساید','کرنر: دفاع سر زد','کارت زرد برای بازیکن حریف'][Math.floor(R()*5)]}));
-      if(R()<pOpp*.17){st.sh2++;
-        if(R()<.36){st.g2++;sndK('alert');H.mark('⚽'+faN(minute));
+      if(R()<pOpp*.17/ta){st.sh2++;
+        if(R()<.36/ta){st.g2++;sndK('alert');H.mark('⚽'+faN(minute));
           H.say(narr('😣 دقیقه‌ی {t}: ضدحمله‌ی {op} — گل شد',{t:faN(minute),op:rival}),'bad')}}
       H.stat('مالکیت ٪',Math.round(st.poss/Math.max(1,minute)),100,'#7fd8ff');
       H.stat('شوت‌های من',st.sh1,16,'#ffe08a');H.stat('شوت حریف',st.sh2,14,'#ff8ba0');
@@ -13287,7 +13313,9 @@ function gFootball(el,done){
         const perf=Math.round(st.sh1*9+st.poss/Math.max(1,minute)*.6);
         /* O1: سقف ۱۰۰۰ حذف — بازمحاسبه‌ی سرور از روی تصمیم‌ها + نتیجه */
         TE('fbend',Tnow(),st.g1,st.g2,st.sh1,st.poss,Math.round(B*100));
-        const norm=Math.max(150,Math.round((win?660+st.g1*70:draw?430:200)+Math.min(140,perf)+B*80));
+        /* O1: سقف ۱۰۰۰ حذف • O3: نسل ۲ = بدون کف، وزن تاکتیک/تاخیر */
+        const norm=norm33('football',Math.max(150,Math.round((win?660+st.g1*70:draw?430:200)+Math.min(140,perf)+B*80)));
+        if(API.MODE==='train'&&window.WD60_TRAIN)window.WD60_TRAIN.bump(win);
         report(H,{ic:'⚽',title:'پایان مسابقه',big:faN(st.g1)+' - '+faN(st.g2),stars:win?(st.g1-st.g2>=2?3:2):draw?2:1,norm,
           rows:[['مالکیت توپ',faN(Math.round(38+tac.poss*24+Math.min(8,st.g1*2)))+'٪'],['شوت‌ها',faN(st.sh1)+' در برابر '+faN(st.sh2)],['دستور وضعیتی',(condDown||condUp)?'اجرا شد':'لازم نشد']],
           coach:['آمار پایه‌ی کشورت '+Math.round(B*100)+'٪ وزن داشت — '+Math.round(100-B*100)+'٪ بقیه ساخته‌ی تاکتیک و شانس بود.',
@@ -13300,7 +13328,7 @@ function gFootball(el,done){
 function gRace(el,done,cfg){
   const B=baseStrength(),seed=nextSeed(),R=rng(seed);
   const H=frame(el,{me:'تو',op:cfg.rival,vs:cfg.ic,clock0:''});
-  const rivals=[{n:cfg.rival,p:.5+R()*.32},{n:'تعقیب‌کننده',p:.44+R()*.26},{n:'تازه‌نفس',p:.42+R()*.24}];
+  const rivals=[{n:cfg.rival,p:(.5+R()*.32)*TADAPT()},{n:'تعقیب‌کننده',p:(.44+R()*.26)*TADAPT()},{n:'تازه‌نفس',p:(.42+R()*.24)*TADAPT()}];
   H.say('📋 شرایط: '+cfg.cond+' — حریف اصلی: <b>'+cfg.rival+'</b>','sys');
   (async()=>{
     const plan=await H.ask('انرژی‌ات را چطور توزیع می‌کنی؟',[
@@ -13342,8 +13370,9 @@ function gRace(el,done,cfg){
         const place=order.findIndex(x=>x.n==='تو')+1;
         const gap=Math.abs(order[0].v-(place===1?order[1].v:order[0].v));
         TE('racend',Tnow(),place,Math.round(gap),Math.round(B*100));
-        /* O1: سقف ۱۰۰۰ حذف */
-        const norm=Math.max(140,Math.round((5-place)*150+Math.max(0,28-gap*.4)+B*110));
+        /* O1: سقف ۱۰۰۰ حذف • O3: نسل ۲ = بدون کف، وزن تصمیم/تاخیر */
+        const norm=norm33(window.WD33_CURKEY||cfg.sp,Math.max(140,Math.round((5-place)*150+Math.max(0,28-gap*.4)+B*110)));
+        if(API.MODE==='train'&&window.WD60_TRAIN)window.WD60_TRAIN.bump(place===1);
         H.mark('🏁');H.say('🏁 خط پایان — جایگاه: <b>'+faN(place)+'</b>','goal');
         setTimeout(()=>report(H,{ic:cfg.ic,title:cfg.name+' — نتیجه',big:['🥇','🥈','🥉','۴','۴'][place-1]||'🏁',
           stars:place===1?3:place===2?2:place===3?1:0,norm,
@@ -13358,7 +13387,7 @@ function gRace(el,done,cfg){
 function gRounds(el,done,cfg){
   const B=baseStrength(),seed=nextSeed(),R=rng(seed);
   const H=frame(el,{me:'تو',op:cfg.rival,vs:cfg.ic,clock0:''});
-  let my=0,op=0;
+  let my=0,op=0,streakW=0;
   const rivalPicks=cfg.rounds.map(()=>cfg.opts[Math.floor(R()*cfg.opts.length)]);
   H.say('📋 '+cfg.intro+' — حریف: <b>'+cfg.rival+'</b>','sys');
   H.stat('امتیاز من',0,cfg.max,'#ffe08a');H.stat('امتیاز حریف',0,cfg.max,'#ff8ba0');
@@ -13379,22 +13408,26 @@ function gRounds(el,done,cfg){
       /* V42 فیکس توازن: ریسک بالاتر واقعاً ریسکِ بیشتر — شانس شکست با ریسک بالا می‌رود */
       const fail=rr>(1-pick.risk/135);
       const myGain=fail?Math.round(cfg.max*pick.risk/100*.1):Math.round(cfg.max*pick.risk/100*p*.66);
-      const opGain=Math.round(cfg.max*(oOpt.risk/100)*(.4+R()*.42));
+      const opGain=Math.round(cfg.max*(oOpt.risk/100)*(.4+R()*.42)*TADAPT());
       my+=myGain;op+=opGain;
       H.stat('امتیاز من',my,cfg.max);H.stat('امتیاز حریف',op,cfg.max);
       if(riskI)riskI.style.width=pick.risk+'%';
       if(spot){spot.classList.remove('win','fail');void spot.offsetWidth;spot.classList.add(fail?'fail':'win')}
       if(distEl)distEl.textContent=cfg.distFn?cfg.distFn(pick,fail,R):'';
-      if(fail){sndK('alert');H.say(narr(cfg.failTxt,{t:faN(i+1),m:pick.label}),'bad')}
-      else{sndK('coin');fx.shake();H.say(narr(cfg.okTxt,{t:faN(i+1),m:pick.label,g:faN(myGain)}),'goal')}
+      if(fail){sndK('alert');streakW=0;H.say(narr(cfg.failTxt,{t:faN(i+1),m:pick.label}),'bad')}
+      else{sndK('coin');fx.shake();H.say(narr(cfg.okTxt,{t:faN(i+1),m:pick.label,g:faN(myGain)}),'goal');
+        /* O3/P19+P20: کمبو استریک + کلچ راند آخر — بازخورد زنده */
+        streakW++;if(streakW>=2)H.say('🔥 کمبو ×'+faN(streakW)+' — توالی موفق، امتیاز بیشتر!','goal');
+        if(i===cfg.rounds.length-1)H.say('🧊 کلچ — راند آخر، بیشترین وزن!','sys')}
       H.say(narr('حریف: {a} — {g} امتیاز',{a:oOpt.label,g:faN(opGain)}));
       TE('rnd',Tnow(),i,cfg.opts.indexOf(pick),fail?1:0,myGain,opGain);
     }
     H.time(1);
     const win=my>op,draw=my===op;
     TE('rndend',Tnow(),win?2:draw?1:0,Math.round(B*100));
-    /* O1: سقف ۱۰۰۰ حذف */
-    const norm=Math.max(140,Math.round((my/cfg.max)*600+(win?300:draw?180:60)+B*80));
+    /* O1: سقف ۱۰۰۰ حذف • O3: نسل ۲ = بدون کف، وزن ریسک/تاخیر/کمبو/کلچ */
+    const norm=norm33(window.WD33_CURKEY,Math.max(140,Math.round((my/cfg.max)*600+(win?300:draw?180:60)+B*80)));
+    if(API.MODE==='train'&&window.WD60_TRAIN)window.WD60_TRAIN.bump(win);
     report(H,{ic:cfg.ic,title:cfg.name+' — نتیجه',big:win?'🏆':draw?'🤝':'😞',stars:win?3:draw?2:1,norm,
       rows:[['امتیاز من',faN(my)],['امتیاز حریف',faN(op)],['نتیجه',win?'برد':draw?'مساوی':'باخت']],
       coach:['سقف سهم آمار پایه: ۴۰٪ — '+Math.round(100-B*40)+'٪ از انتخاب ریسک‌های تو آمد.',
@@ -13406,7 +13439,7 @@ function gRounds(el,done,cfg){
 function gDuel(el,done,cfg){
   const B=baseStrength(),seed=nextSeed(),R=rng(seed);
   const H=frame(el,{me:'تو',op:cfg.rival,vs:cfg.ic,clock0:''});
-  let mw=0,ow=0,ex=0,revealed=false;
+  let mw=0,ow=0,ex=0,revealed=false,streakW=0;
   const actsK=['agg','def','trick'];
   H.say('📋 '+cfg.intro+' — الگوی حریف را کشف کن!','sys');
   H.stat('بردهای من',0,cfg.need,'#ffe08a');H.stat('بردهای حریف',0,cfg.need,'#ff8ba0');
@@ -13426,7 +13459,7 @@ function gDuel(el,done,cfg){
       const rivalAct=cfg.acts[actsK.indexOf(cfg.tend.fav)>-1&&R()<.45?actsK.indexOf(cfg.tend.fav):Math.floor(R()*3)];
       const beats={agg:'def',def:'trick',trick:'agg'}[pick.k];
       const goodPick=beats===rivalAct.k;
-      const winE=R()<chance(goodPick?1.3:.8,cfg.tend.w,B,R());
+      const winE=R()<chance(goodPick?1.3:.8,cfg.tend.w*TADAPT(),B,R());
       if(winE){mw++;sndK('coin');fx.shake();
         if(sideMe){sideMe.classList.add('hitL');sideOp.classList.add('hurt')}
         if(obj){obj.classList.remove('hit');void obj.offsetWidth;obj.classList.add('hit')}
@@ -13442,12 +13475,15 @@ function gDuel(el,done,cfg){
       if(!revealed){revealed=true;
         H.say('🔎 کادر فنی: حریف عاشق «'+cfg.tend.label+'» است — ضدّش را آماده کن','sys')}
       TE('du',Tnow(),winE?1:0);
+      /* O3/P19: کمبو استریک در دوئل */
+      if(winE){streakW++;if(streakW>=2)H.say('🔥 کمبو ×'+faN(streakW)+' — خواندن الگو جواب داد!','goal')}else{streakW=0}
       H.stat('بردهای من',mw,cfg.need);H.stat('بردهای حریف',ow,cfg.need);
     }
     const win=mw>ow,draw=mw===ow;
     TE('duend',Tnow(),win?2:draw?1:0,Math.round(B*100));
-    /* O1: سقف ۱۰۰۰ حذف */
-    const norm=Math.max(140,Math.round((mw/cfg.need)*540+(win?320:draw?190:70)+B*80));
+    /* O1: سقف ۱۰۰۰ حذف • O3: نسل ۲ = بدون کف، وزن خواندن الگو/تاخیر/کمبو */
+    const norm=norm33(window.WD33_CURKEY,Math.max(140,Math.round((mw/cfg.need)*540+(win?320:draw?190:70)+B*80)));
+    if(API.MODE==='train'&&window.WD60_TRAIN)window.WD60_TRAIN.bump(win);
     report(H,{ic:cfg.ic,title:cfg.name+' — نتیجه',big:win?'🏆':draw?'🤝':'😤',stars:win?3:draw?2:1,norm,
       rows:[['تبادل‌های بردهٔ من',faN(mw)],['حریف',faN(ow)],['سبک حریف',cfg.tend.label]],
       coach:['خواندن الگوی حریف مهم‌تر از آمار بود — سقف آمار ۴۰٪.',
@@ -13754,7 +13790,8 @@ function profBody(p){
     '<div class="wd60-srow pot"><span class="lb">Potential</span><span class="br"><i style="width:'+Math.min(100,p.potential||0)+'%"></i></span><b>'+faN(p.potential||0)+'٪</b></div>'+
     '<div class="wd60-srow con"><span class="lb">Consistency</span><span class="br"><i style="width:'+((p.consistency==null)?0:Math.min(100,p.consistency))+'%"></i></span><b>'+(p.consistency==null?'—':faN(p.consistency)+'٪')+'</b></div>'+
     '<div class="wd31-mini" style="margin-top:6px">Potential با روند صعودی‌ات بالا می‌رود — سقف مرده وجود ندارد</div>'+
-    '<canvas id="wd60-spark" style="display:block;margin:8px 0 4px"></canvas>';
+    '<canvas id="wd60-spark" style="display:block;margin:8px 0 4px"></canvas>'+
+    '<button id="wd60-lowfx" class="wg33-start" style="padding:7px 14px;font-size:10px;background:rgba(255,255,255,.08);color:#cdd7e8;box-shadow:none">🪶 حالت سبک: '+({auto:'خودکار',on:'روشن',off:'خاموش'}[(window.WD60_FX&&window.WD60_FX.state())||'auto'])+'</button>';
   return body}
 window.WD33_O2_HUB=function(d){
   try{return recBanner(d)+profCardHtml()+achCardHtml(null)}catch(e){return ''}};
@@ -13784,6 +13821,11 @@ window.WD33_O2_MOUNT=function(d,wrap){
         body.innerHTML=profBody(q);
         chips.querySelectorAll('.wg33-disc').forEach(function(c){c.classList.toggle('sel',c.getAttribute('data-k')===k)});
         sparkline(body.querySelector('#wd60-spark'),q.recent);
+        /* O3/P36: کلید سه‌حالته‌ی حالت سبک */
+        var lf=D.getElementById('wd60-lowfx');
+        if(lf)lf.addEventListener('click',function(){var s=window.WD60_FX.cycle();
+          lf.textContent='🪶 حالت سبک: '+({auto:'خودکار',on:'روشن',off:'خاموش'}[s]);
+          try{if(window.showToast)showToast(s==='off'?'🪶 افکت کامل برگشت':(s==='on'?'🪶 حالت سبک روشن شد — ۶۰FPS':'🪶 حالت سبک: خودکار'),'win')}catch(e){}});
         /* PHASE 26: تاریخچه — چند نتیجه‌ی اخیر به‌صورت متن هم */
         var rec=q.recent||[];
         if(rec.length)body.insertAdjacentHTML('beforeend','<div class="wd31-mini">آخرین نتایج رسمی: '+rec.slice(-6).map(function(r){return faN(r.s)}).join(' • ')+'</div>');
@@ -13900,16 +13942,207 @@ st.textContent=[
 '.wd60-ac-row .rsn{display:block;color:#8fb8dd;font-size:10px;margin-top:2px}',
 '.wd60-ac-row .b{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}',
 '.wd60-ac-row .b button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#e8f1fb;border-radius:8px;padding:5px 10px;font-size:10px;cursor:pointer}',
-'.wd60-ac-row .tel{margin-top:7px;background:rgba(0,0,0,.35);border-radius:8px;padding:7px;font-size:9.5px;color:#b9cde6;word-break:break-all;max-height:130px;overflow:auto}'
+'.wd60-ac-row .tel{margin-top:7px;background:rgba(0,0,0,.35);border-radius:8px;padding:7px;font-size:9.5px;color:#b9cde6;word-break:break-all;max-height:130px;overflow:auto}',
+/* O3/P32: بازخورد گام‌به‌گام در گزارش بازی */
+'.w41-parts{margin-top:8px;border-top:1px dashed rgba(255,255,255,.14);padding-top:7px;display:flex;flex-direction:column;gap:3px}',
+'.w41-parts .pr{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px}',
+'.w41-parts .pr span{color:#9fb6d4}.w41-parts .pr b{color:#7dff9e;font-weight:900}.w41-parts .pr b.neg{color:#ff8ba0}',
+/* O3/P36: حالت سبک — حذف افکت‌های سنگین، گیم‌پلی یکسان */
+'body.wd-lowfx .wg35-crowd,body.wd-lowfx .wg35-light{display:none!important}',
+'body.wd-lowfx .wg33-count,body.wd-lowfx .wd31-rise,body.wd-lowfx .wg35-shake,body.wd-lowfx .wg39-slow *{animation:none!important}',
+'body.wd-lowfx .res-card,body.wd-lowfx .wd31-card,body.wd-lowfx .wg33-disc{box-shadow:none!important}',
+'body.wd-lowfx *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}',
+'body.wd-lowfx .wg33-timer i,body.wd-lowfx .bar i{transition:none!important}'
 ].join('');
 D.head.appendChild(st);
 })();
+
+/* ================= WD60_SCORE — آینه‌ی نسل ۲ امتیاز (O3/PHASE 3/15/16/19/20/46/47) ======
+   پورت بایت‌به‌بایت از src/lib/olyScore.ts (v2Race/v2Rounds/v2Duel/v2Football):
+   - بدون کف مشارکتی؛ نخبه ≈ ۸۰۰–۱۱۰۰، ضعیف ≈ ۰
+   - اجزا: نتیجه + کیفیت/سرعت تصمیم + کمبو استریک + کلچ راند آخر + آمار پایه با وزن کم
+   - هر دو سمت از همان تله‌متری (رویدادهای TE) و همان ترتیب گردکردن استفاده می‌کنند
+     → پاریتی کامل؛ سرور همچنان تنها مرجع رسمی است.
+   فعال‌سازی: فقط دوره‌ی >= V2ED (همان SIM_V2_ED سرور) — دوره‌ی جاری v1 می‌ماند. */
+window.WD60_SCORE=(function(){
+'use strict';
+var SIMEND={fbend:1,racend:1,rndend:1,duend:1};
+var RISKS=[28,56,84];
+var MAX={weight:1000,archery:900,gym:900,lj:900};
+var NEED={volley:3,wrestle:2,chess:2};
+function clampB(v){var b=v/100;return (b>=0.14&&b<=0.95)?b:null}
+function flagOf(my,op){return my>op?2:(my===op?1:0)}
+function famOf(key){if(key==='football')return 'football';if(key==='sprint'||key==='swim'||key==='cycling')return 'race';if(MAX[key]!=null)return 'rounds';if(NEED[key]!=null)return 'duel';return null}
+function race(ev){
+  var plan=-1,mids=0,lastDecT=-1,latSum=0,latN=0,place=0,gap=0,B=null,ended=false;
+  for(var i=0;i<ev.length;i++){var e=ev[i];if(!e)continue;
+    if(e[0]==='dec'){
+      var seq=Math.round(Number(e[2])||0),idx=Math.round(Number(e[3])||0);
+      if(seq===0){if(!(idx>=0&&idx<=3))return{ok:false};plan=idx}
+      else if(seq===1){if(!(idx>=0&&idx<=2))return{ok:false};mids++;if(mids>2)return{ok:false}}
+      else return{ok:false};
+      if(lastDecT>=0){latSum+=Math.max(0,Number(e[1])-lastDecT);latN++}
+      lastDecT=Number(e[1]);
+    }else if(e[0]==='racend'){
+      place=Math.round(Number(e[2])||0);gap=Math.round(Number(e[3])||0);
+      B=clampB(Number(e[4])||0);if(!B)return{ok:false};
+      if(!(place>=1&&place<=4&&gap>=0&&gap<=100))return{ok:false};
+      ended=true;break}}
+  if(!ended)return{ok:false};
+  var bR=B||0;
+  var PLACE=[620,440,250,60];
+  var placePts=PLACE[place-1];
+  var gapPts=Math.max(0,26-Math.round(gap*0.5));
+  var dqPts=30+mids*30;
+  var latAvg=latN>0?latSum/latN:99999;
+  var fastPts=Math.round(60*(1-Math.min(1,latAvg/12000)));
+  var basePts=Math.round(bR*80);
+  return{ok:true,total:placePts+gapPts+dqPts+fastPts+basePts,parts:[
+    {l:'نتیجه‌ی مسابقه (جایگاه '+place+')',pts:placePts},
+    {l:'فاصله با صدر',pts:gapPts},
+    {l:'کیفیت تصمیم ('+mids+' تصمیم میانی)',pts:dqPts},
+    {l:'سرعت تصمیم‌گیری',pts:fastPts},
+    {l:'آمار پایه (وزن کم)',pts:basePts}]}}
+function rounds(max){return function(ev){
+  var i=0,my=0,op=0,streak=0,sum=0,prevT=-1,flag=-1,B=null,ended=false,parts=[];
+  for(var k=0;k<ev.length;k++){var e=ev[k];if(!e)continue;
+    if(e[0]==='rnd'){
+      if(i>2)return{ok:false};
+      var ri=Math.round(Number(e[2])||0);
+      if(ri!==i)return{ok:false};
+      var opt=Math.round(Number(e[3])||0);
+      if(!(opt>=0&&opt<=2))return{ok:false};
+      var fail=Math.round(Number(e[4])||0);
+      var myGain=Math.round(Number(e[5])||0),opGain=Math.round(Number(e[6])||0);
+      var risk=RISKS[opt];
+      if(fail){if(myGain!==Math.round(max*risk/100*0.1))return{ok:false}}
+      else{var capG=Math.round(max*risk/100*0.94*0.66)+1;if(myGain<0||myGain>capG)return{ok:false}}
+      var capO=Math.round(max*0.84*0.82)+1;if(opGain<0||opGain>capO)return{ok:false};
+      var lat=Math.max(0,Number(e[1])-(prevT<0?0:prevT));prevT=Number(e[1]);
+      var pts;
+      if(fail){pts=-Math.round(max*(risk/100)*0.06);streak=0}
+      else{var latK=1+0.25*(1-Math.min(1,lat/15000));
+        pts=Math.round(max*(risk/100)*0.30*latK);
+        if(streak>=1)pts+=Math.min(2,streak)*Math.round(max*0.03);
+        streak++;
+        if(i===2)pts+=Math.round(max*0.04)}
+      sum+=pts;parts.push({l:'راند '+(i+1)+(fail?' — ناموفق':' — موفق'),pts:pts});
+      my+=myGain;op+=opGain;i++;
+    }else if(e[0]==='rndend'){
+      if(i!==3)return{ok:false};
+      flag=Math.round(Number(e[2])||0);B=clampB(Number(e[3])||0);
+      if(!B)return{ok:false};
+      if(flag!==flagOf(my,op))return{ok:false};
+      ended=true;break}}
+  if(!ended)return{ok:false};
+  var winPts=flag===2?Math.round(max*0.10):flag===1?Math.round(max*0.05):0;
+  parts.push({l:flag===2?'نتیجه: برد':flag===1?'نتیجه: مساوی':'نتیجه: باخت',pts:winPts});
+  return{ok:true,total:Math.max(0,sum+winPts),parts:parts}}}
+function duel(need,maxEx){return function(ev){
+  var ex=0,mw=0,streak=0,sum=0,lastT=-1,flag=-1,B=null,ended=false,parts=[];
+  for(var k=0;k<ev.length;k++){var e=ev[k];if(!e)continue;
+    if(e[0]==='du'){
+      ex++;if(ex>maxEx)return{ok:false};
+      var w=Math.round(Number(e[2])||0)?1:0;
+      if(lastT>=0){var lat=Math.max(0,Number(e[1])-lastT);
+        if(w)sum+=Math.round(40*(1-Math.min(1,lat/8000)))}
+      lastT=Number(e[1]);
+      if(w){sum+=240;if(streak>=1)sum+=Math.min(2,streak)*35;streak++}
+      else{sum-=50;streak=0}
+      mw+=w;if(mw>need)return{ok:false};
+      parts.push({l:'تبادل '+ex+(w?' — برد':' — باخت'),pts:w?240:-50});
+    }else if(e[0]==='duend'){
+      var ow=ex-mw;
+      flag=Math.round(Number(e[2])||0);B=clampB(Number(e[3])||0);
+      if(!B)return{ok:false};
+      if(ow>need)return{ok:false};
+      if(mw<need&&ow<need&&ex!==maxEx)return{ok:false};
+      if(flag!==flagOf(mw,ow))return{ok:false};
+      ended=true;break}}
+  if(!ended)return{ok:false};
+  var winPts=flag===2?170:flag===1?80:0;
+  parts.push({l:flag===2?'نتیجه: برد':flag===1?'نتیجه: مساوی':'نتیجه: باخت',pts:winPts});
+  return{ok:true,total:Math.max(0,sum+winPts),parts:parts}}}
+function football(ev){
+  var dec=0,g1=-1,lastDecT=-1,latSum=0,latN=0,ended=false;
+  for(var i=0;i<ev.length;i++){var e=ev[i];if(!e)continue;
+    if(e[0]==='dec'){
+      if(dec>=3)return{ok:false};
+      var seq=Math.round(Number(e[2])||0),idx=Math.round(Number(e[3])||0);
+      if(!(idx>=0&&idx<=2))return{ok:false};
+      if(!(seq>=0&&seq<=2))return{ok:false};
+      if(lastDecT>=0){latSum+=Math.max(0,Number(e[1])-lastDecT);latN++}
+      lastDecT=Number(e[1]);dec++;
+    }else if(e[0]==='fbend'){
+      if(g1>=0)return{ok:false};
+      g1=Math.round(Number(e[2])||0);
+      var g2=Math.round(Number(e[3])||0);
+      var sh1=Math.round(Number(e[4])||0),poss=Math.round(Number(e[5])||0);
+      var B=clampB(Number(e[6])||0);if(!B)return{ok:false};
+      if(!(g1>=0&&g1<=10&&g2>=0&&g2<=8&&sh1>=0&&sh1<=22&&poss>=0&&poss<=6500))return{ok:false};
+      var win=g1>g2,draw=g1===g2;
+      var outcome=win?460+g1*55:draw?280:90;
+      var perf=Math.min(170,Math.round(sh1*8+poss/90*0.5));
+      var latAvg=latN>0?latSum/latN:99999;
+      var latPts=Math.round(50*(1-Math.min(1,latAvg/10000)));
+      var basePts=Math.round(B*70);
+      return{ok:true,total:outcome+perf+latPts+basePts,parts:[
+        {l:'نتیجه ('+g1+'–'+g2+')',pts:outcome},
+        {l:'شوت و مالکیت',pts:perf},
+        {l:'سرعت تصمیم‌گیری',pts:latPts},
+        {l:'آمار پایه (وزن کم)',pts:basePts}]}}}
+  return{ok:false}}
+return{
+  V2ED:10,lastParts:[],lastTotal:0,
+  v2:function(ed){return typeof ed==='number'&&ed>=10},
+  total:function(key,ev,ed){
+    var fam=famOf(key);
+    var r={ok:false,total:0,parts:[]};
+    try{
+      if(fam==='race')r=race(ev);
+      else if(fam==='rounds')r=rounds(MAX[key]||900)(ev);
+      else if(fam==='duel')r=duel(NEED[key]||3,6)(ev);
+      else if(fam==='football')r=football(ev);
+    }catch(e){r={ok:false,total:0,parts:[]}}
+    this.lastParts=(r&&r.parts)||[];
+    this.lastTotal=(r&&r.ok)?r.total:0;
+    return{ok:!!(r&&r.ok),total:this.lastTotal,parts:this.lastParts}}}
+})();
+/* ================= WD60_TRAIN — سختی تطبیقی تمرین (P17) =================
+   فقط مسیر تمرین: برد → حریف قوی‌تر (تا ۱.۳)، باخت → ضعیف‌تر (تا ۰.۸۵).
+   بازی رسمی هرگز اثری از آن نمی‌پذیرد (P17: قوانین رسمی برای همه یکسان). */
+window.WD60_TRAIN={
+  level:function(){try{var v=parseFloat(localStorage.getItem('wdTrainLvl'));return (v>=0.85&&v<=1.3)?v:1}catch(e){return 1}},
+  bump:function(win){try{
+    var v=this.level()+(win?0.04:-0.04);
+    v=Math.max(0.85,Math.min(1.3,v));
+    localStorage.setItem('wdTrainLvl',String(v));
+  }catch(e){}}};
+/* ================= WD60_FX — حالت سبک (P36): ۶۰FPS روی گوشی ضعیف =================
+   تشخیص خودکار (هسته‌های CPU کم / رم کم) + انتخاب دستی سه‌حالته؛
+   گیم‌پلی هیچ فرقی نمی‌کند — فقط ذرات/افکت‌های سنگین کم می‌شوند. */
+window.WD60_FX=(function(){
+  var D=document;
+  function auto(){try{
+    var cores=navigator.hardwareConcurrency||4,mem=navigator.deviceMemory||4;
+    return (cores<=4||mem<=4)?true:false;
+  }catch(e){return false}}
+  function state(){try{return localStorage.getItem('wdLowFx')||'auto'}catch(e){return 'auto'}}
+  function on(){var s=state();return s==='on'?true:s==='off'?false:auto()}
+  function apply(){
+    try{
+      var onv=on();
+      D.body.classList.toggle('wd-lowfx',onv);
+      try{if(window.WD33_API&&window.WD33_API.FX)window.WD33_API.FX.cap(onv?0.35:1)}catch(e){}
+    }catch(e){}
+  }
+  function cycle(){var s=state();var n=s==='auto'?'on':s==='on'?'off':'auto';
+    try{localStorage.setItem('wdLowFx',n)}catch(e){}
+    apply();return n}
+  apply();
+  return{on:on,apply:apply,cycle:cycle,state:state};
+})();
 </script>
-
-
-
-
-
 <style id="v42-hud-css">
 /* ============ V42: کارت‌های منابع — براق، توپُر، سینمایی (بدون تداخل هندسی) ============ */
 .res-card{overflow:visible!important;
