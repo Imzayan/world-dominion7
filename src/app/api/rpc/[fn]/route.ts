@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { rateLimit, clientIp } from '@/lib/ratelimit'
+import { computeScore, hasRecalc, type Telemetry } from '@/lib/olyScore'
 
 export const dynamic = 'force-dynamic'
 
@@ -339,6 +340,75 @@ const olCycle = (ms = Date.now()) => Math.floor(ms / CYCLE_MS)
 
 type OlAgg = { server: number; players: number; disciplines: { key: string; top: { nick: string; val: number }[] }[]; medals: { nick: string; g: number; s: number; b: number; total: number; score: number }[] }
 
+/* ============ O1 — پرفورمنس المپیک (PHASE 8/53) ============
+   کش TTL حافظه برای payloadهای سنگین صفحه‌ها؛ ذخیره‌گاه serverless هر نمونه
+   مستقل است اما همین هم بار DB را در ترافیک واقعی ده‌ها برابر کم می‌کند. */
+const OL_NEWS_ACTIONS = ['pvp_capture', 'cyber', 'commando', 'missile', 'nuke', 'trade', 'capture', 'conquer', 'pvp_attack']
+let OL_WORLD_CC: { k: number; at: number; v: OlAgg } | null = null
+let OL_GAMES_CC: { k: string; at: number; v: {
+  table: { country: string; countryFa: string; g: number; s: number; b: number; total: number }[]
+  records: Awaited<ReturnType<typeof db.olympicRecord.findMany>>
+  career: Record<string, { nick: string; g: number; s: number; b: number; total: number; eds: number[] }>
+  rivals: { nick: string; medals: number }[]
+  live_feed: { nick: string; discipline: string; best: number; countryFa: string; at: string }[]
+  torch: { edition: number; nick: string | null; country: string | null } | null
+  archives: Awaited<ReturnType<typeof db.olympicArchive.findMany>>
+} | null } | null = null
+
+/* بخش مشترک سنگین olympic_games — با کش ۱۰s (در فاز live جدول مدال تا ۱۰s عقب است: قابل قبول) */
+async function olyShared(edition: number, live: boolean) {
+  const ck0 = edition + ':' + (live ? 'l' : 'f')
+  if (OL_GAMES_CC && OL_GAMES_CC.k === ck0 && Date.now() - OL_GAMES_CC.at < 10000 && OL_GAMES_CC.v) return OL_GAMES_CC.v
+  /* live medal table by COUNTRY: during the games standings come straight from
+     entry bests (top-3 per discipline, same ranking as the freeze), after close
+     they come from the frozen olympicResult rows */
+  const byC: Record<string, { country: string; countryFa: string; g: number; s: number; b: number; total: number }> = {}
+  if (live) {
+    const ents = await db.olympicEntry.findMany({ where: { edition, best: { gt: 0 } }, orderBy: [{ best: 'desc' }, { lastAt: 'asc' }] })
+    const picked: Record<string, number> = {}
+    for (const e of ents) {
+      const n = picked[e.discipline] || 0
+      if (n >= 3) continue
+      picked[e.discipline] = n + 1
+      const ck = e.country || '?'
+      const c = byC[ck] || (byC[ck] = { country: ck, countryFa: e.countryFa || ck, g: 0, s: 0, b: 0, total: 0 })
+      if (n === 0) c.g++; else if (n === 1) c.s++; else c.b++
+      c.total++
+    }
+  } else {
+    const results = await db.olympicResult.findMany({ where: { edition } })
+    for (const r of results) {
+      const ck = r.country || '?'
+      const c = byC[ck] || (byC[ck] = { country: ck, countryFa: r.countryFa || ck, g: 0, s: 0, b: 0, total: 0 })
+      if (r.rank === 1) c.g++; else if (r.rank === 2) c.s++; else c.b++
+      c.total++
+    }
+  }
+  const table = Object.values(byC).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
+  const records = await db.olympicRecord.findMany({ take: 12 })
+  const allResults = await db.olympicResult.findMany({ orderBy: [{ edition: 'asc' }], take: 250 })
+  const career: Record<string, { nick: string; g: number; s: number; b: number; total: number; eds: number[] }> = {}
+  for (const r of allResults) {
+    const c2 = career[r.nick] || (career[r.nick] = { nick: r.nick, g: 0, s: 0, b: 0, total: 0, eds: [] })
+    if (r.rank === 1) c2.g++; else if (r.rank === 2) c2.s++; else c2.b++
+    c2.total++
+    if (c2.eds.indexOf(r.edition) < 0) c2.eds.push(r.edition)
+  }
+  const rivals = Object.values(career).sort((a, b) => b.total - a.total || b.g - a.g).slice(0, 8).map((c3) => ({ nick: c3.nick, medals: c3.total }))
+  const torch = await db.olympicArchive.findFirst({ where: { championNick: { not: null } }, orderBy: [{ edition: 'desc' }] })
+  const archives = await db.olympicArchive.findMany({ orderBy: [{ edition: 'desc' }], take: 8 })
+  /* V40: پخش زنده — آخرین نتایج واقعی بازیکنان برای تیکر زنده‌ی المپیک */
+  const feedRows = await db.olympicEntry.findMany({ where: { edition, best: { gt: 0 } }, orderBy: [{ lastAt: 'desc' }], take: 10 })
+  const live_feed = feedRows.map((f) => ({ nick: f.nick, discipline: f.discipline, best: f.best, countryFa: f.countryFa || f.country || '', at: f.lastAt.toISOString() }))
+  const v = {
+    table, records, career, rivals, live_feed,
+    torch: torch ? { edition: torch.edition, nick: torch.championNick, country: torch.championCountry } : null,
+    archives,
+  }
+  OL_GAMES_CC = { k: ck0, at: Date.now(), v }
+  return v
+}
+
 /* medal-table computation shared by the olympics page and the crowning (V31 logic, extracted) */
 async function olympicCompute(server: number): Promise<OlAgg> {
   const rows = await db.score.findMany({
@@ -347,10 +417,11 @@ async function olympicCompute(server: number): Promise<OlAgg> {
     take: 200,
   })
   const since = new Date(Date.now() - 7 * 86400000)
+  /* O1/PHASE 53: هرس اسکن news — فقط اکشن‌های مصرف‌شده + سقف ۲۰۰۰ (قبلاً ۵۰۰۰ بدون فیلتر) */
   const news = await db.worldNews.findMany({
-    where: { server, createdAt: { gte: since } },
+    where: { server, createdAt: { gte: since }, action: { in: OL_NEWS_ACTIONS } },
     select: { action: true, actorNick: true, createdAt: true },
-    take: 5000,
+    take: 2000,
   })
   const todayUTC = new Date()
   todayUTC.setUTCHours(0, 0, 0, 0)
@@ -444,7 +515,8 @@ const ED_REG = 15 * 86400000
 const ED_OPEN = 24 * 86400000
 const ED_CLOSE = 29 * 86400000
 const GD_DAY: Record<string, number> = { sprint: 0, archery: 0, swim: 1, gym: 1, weight: 2, cycling: 2, chess: 3, volley: 3, lj: 4, wrestle: 4, football: 4 }
-const GD_MAX: Record<string, number> = { sprint: 1000, archery: 1000, swim: 1000, gym: 1000, weight: 1000, cycling: 1000, chess: 1000, volley: 1000, lj: 1000, wrestle: 1000, football: 1000 }
+/* O1: GD_MAX حذف شد — سقف ۱۰۰۰ دیگر وجود ندارد؛ مرز امتیاز = خروجی بازمحاسبه‌ی
+   تله‌متری در src/lib/olyScore.ts (PHASE 2/3: حذف سقف سخت، امتیاز skill-based) */
 const HOSTS: { c: string; n: string; f: string }[] = [
   { c: 'توکیو', n: 'ژاپن', f: 'jp' }, { c: 'پاریس', n: 'فرانسه', f: 'fr' }, { c: 'لس‌آنجلس', n: 'آمریکا', f: 'us' },
   { c: 'لندن', n: 'بریتانیا', f: 'gb' }, { c: 'ریودوژانیرو', n: 'برزیل', f: 'br' }, { c: 'پکن', n: 'چین', f: 'cn' },
@@ -1285,7 +1357,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         let champRow: Awaited<ReturnType<typeof latestChampion>> = null
         champRow = await latestChampion(server)
         try { await ensureGamesClosed() } catch (e) { console.log('olensure', e) }
-        const agg = await olympicCompute(server)
+        /* O1: کش ۳۰s — اسکن news/امتیازها فقط هر ۳۰ ثانیه */
+        let agg: OlAgg
+        if (OL_WORLD_CC && OL_WORLD_CC.k === server && Date.now() - OL_WORLD_CC.at < 30000) agg = OL_WORLD_CC.v
+        else { agg = await olympicCompute(server); OL_WORLD_CC = { k: server, at: Date.now(), v: agg } }
         const latest = champRow && champRow.nick ? champRow : await latestChampion(server)
         return R({
           ...agg, ts: Date.now(),
@@ -1339,52 +1414,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const g = gamesPhase()
         const edition = g.edition
         if (g.phase === 'after') for (const k of Object.keys(GD_DAY)) { try { await freezeDiscipline(edition, k) } catch (e) {} }
-        /* live medal table by COUNTRY: during the games standings come straight from
-           entry bests (top-3 per discipline, same ranking as the freeze), after close
-           they come from the frozen olympicResult rows */
-        const byC: Record<string, { country: string; countryFa: string; g: number; s: number; b: number; total: number }> = {}
-        if (g.phase === 'live') {
-          const ents = await db.olympicEntry.findMany({ where: { edition, best: { gt: 0 } }, orderBy: [{ best: 'desc' }, { lastAt: 'asc' }] })
-          const picked: Record<string, number> = {}
-          for (const e of ents) {
-            const n = picked[e.discipline] || 0
-            if (n >= 3) continue
-            picked[e.discipline] = n + 1
-            const ck = e.country || '?'
-            const c = byC[ck] || (byC[ck] = { country: ck, countryFa: e.countryFa || ck, g: 0, s: 0, b: 0, total: 0 })
-            if (n === 0) c.g++; else if (n === 1) c.s++; else c.b++
-            c.total++
-          }
-        } else {
-          const results = await db.olympicResult.findMany({ where: { edition } })
-          for (const r of results) {
-            const ck = r.country || '?'
-            const c = byC[ck] || (byC[ck] = { country: ck, countryFa: r.countryFa || ck, g: 0, s: 0, b: 0, total: 0 })
-            if (r.rank === 1) c.g++; else if (r.rank === 2) c.s++; else c.b++
-            c.total++
-          }
-        }
-        const table = Object.values(byC).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
         const myEntries = await db.olympicEntry.findMany({ where: { edition, userId: user.id } })
-        const records = await db.olympicRecord.findMany({ take: 12 })
-        const allResults = await db.olympicResult.findMany({ orderBy: [{ edition: 'asc' }], take: 400 })
-        const career: Record<string, { nick: string; g: number; s: number; b: number; total: number; eds: number[] }> = {}
-        for (const r of allResults) {
-          const c2 = career[r.nick] || (career[r.nick] = { nick: r.nick, g: 0, s: 0, b: 0, total: 0, eds: [] })
-          if (r.rank === 1) c2.g++; else if (r.rank === 2) c2.s++; else c2.b++
-          c2.total++
-          if (c2.eds.indexOf(r.edition) < 0) c2.eds.push(r.edition)
-        }
-        const rivals = Object.values(career).sort((a, b) => b.total - a.total || b.g - a.g).slice(0, 8).map((c3) => ({ nick: c3.nick, medals: c3.total }))
+        /* O1: کش ۱۰s برای بخش مشترک سنگین (جدول مدال/رکورد/کارنامه/فید زنده/آرشیو) */
+        const sh = await olyShared(edition, g.phase === 'live')
         const myReg = myEntries.map((e) => e.discipline)
         const myE: Record<string, { best: number; attempts: number }> = {}
         for (const e of myEntries) myE[e.discipline] = { best: e.best, attempts: e.attempts }
-        const torch = await db.olympicArchive.findFirst({ where: { championNick: { not: null } }, orderBy: [{ edition: 'desc' }] })
-        const archives = await db.olympicArchive.findMany({ orderBy: [{ edition: 'desc' }], take: 8 })
         const champRow = await latestChampion(Math.max(1, Number(args.p_server || 1)))
-        /* V40: پخش زنده — آخرین نتایج واقعی بازیکنان برای تیکر زنده‌ی المپیک */
-        const feedRows = await db.olympicEntry.findMany({ where: { edition, best: { gt: 0 } }, orderBy: [{ lastAt: 'desc' }], take: 10 })
-        const live_feed = feedRows.map((f) => ({ nick: f.nick, discipline: f.discipline, best: f.best, countryFa: f.countryFa || f.country || '', at: f.lastAt.toISOString() }))
         return R({
           edition, phase: g.phase, game_day: g.gameDay, today: g.today, host: g.host,
           host_player: await olyHostGet(edition),
@@ -1392,8 +1428,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           close_at: new Date(g.closeAt).toISOString(), next_reg: new Date(g.nextReg).toISOString(),
           truce: g.phase === 'live',
           my: { reg: myReg, entries: myE, country: (myEntries[0] && myEntries[0].countryFa) || null },
-          table, records, career, rivals, live_feed, torch: torch ? { edition: torch.edition, nick: torch.championNick, country: torch.championCountry } : null,
-          archive: archives.map((a) => ({
+          table: sh.table, records: sh.records, career: sh.career, rivals: sh.rivals, live_feed: sh.live_feed,
+          torch: sh.torch,
+          archive: sh.archives.map((a) => ({
             edition: a.edition, host_city: a.hostCity, host_country: a.hostCountry, host_cc: a.hostCc,
             champion_country: a.championCountry, champion_nick: a.championNick, participants: a.participants,
             podiums: JSON.parse(a.medalsJson || '{}'), table: JSON.parse(a.tableJson || '[]'),
@@ -1402,6 +1439,35 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           rewards: OL_REWARDS,
           events: await eventSwitches(),
         })
+      }
+
+      /* ============ O1 — olympic_start: نشست مسابقه (L1/L6) ============
+         هر مسابقه match_id + serverSeed + زمان سرور می‌گیرد؛ submit بدون match
+         معتبر رد می‌شود. حالت train برای تمرین نامحدود (بدون اثر رتبه‌ای) است. */
+      case 'olympic_start': {
+        if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
+        const g = gamesPhase()
+        const key = String(args.p_discipline || '')
+        const mode = String(args.p_mode || 'official') === 'train' ? 'train' : 'official'
+        if (GD_DAY[key] === undefined || !hasRecalc(key)) return R({ ok: false, reason: 'discipline' })
+        if (mode === 'official' && g.phase !== 'live') return R({ ok: false, reason: 'window' })
+        const _h0 = await olyHostGet(g.edition)
+        const hostMax = (_h0 && _h0.uid === user.id) ? 6 : 5
+        if (mode === 'official') {
+          const ent0 = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
+          if (!ent0) return R({ ok: false, reason: 'not_registered' })
+          if (ent0.attempts >= hostMax) return R({ ok: false, reason: 'attempts' })
+        }
+        /* ضد سوءاستفاده: هر بار بیش از ۴ نشست باز برای یک کاربر → قدیمی‌ها منقضی */
+        const open = await db.olympicMatch.findMany({ where: { userId: user.id, status: 'open' }, orderBy: [{ startedAt: 'asc' }] })
+        if (open.length >= 4) {
+          for (const o of open.slice(0, open.length - 3)) {
+            await db.olympicMatch.update({ where: { id: o.id }, data: { status: 'expired', finishedAt: new Date() } }).catch(() => {})
+          }
+        }
+        const seed = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
+        const m = await db.olympicMatch.create({ data: { edition: g.edition, userId: user.id, discipline: key, mode, serverSeed: seed, status: 'open' } })
+        return R({ ok: true, match_id: m.id, seed, server_ms: Date.now(), mode, att_max: mode === 'official' ? hostMax : 0 })
       }
 
       /* ---------------- V33 olympic_register: pick 3 of 10 (reg window + late entry while live) ----------------
@@ -1428,47 +1494,118 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({ ok: true, keys })
       }
 
-      /* ---------------- V33 olympic_submit: mini-game score (registered + live + attempts + rate) ---------------- */
+      /* ============ O1 — olympic_submit v2: Server Authority + آنتی‌چیت L2/L3/L4/L5/L8/L9 ============
+         امتیاز نهایی هرگز از کلاینت پذیرفته نمی‌شود؛ سرور از روی تله‌متری
+         (توالی ورودی + زمان‌بندی) با همان فرمول بازی بازمحاسبه می‌کند.
+         train: نامحدود، بدون اثر رتبه‌ای. official: گیت اتمی تلاش + رکورد/رتبه. */
       case 'olympic_submit': {
         if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
         const g = gamesPhase()
         const key = String(args.p_discipline || '')
-        if (GD_DAY[key] === undefined) return R({ ok: false, reason: 'discipline' })
-        if (g.phase !== 'live') return R({ ok: false, reason: 'window' })
-        const score = Math.round(Number(args.p_score) || 0)
-        if (!(score >= 0 && score <= GD_MAX[key] + 50)) return R({ ok: false, reason: 'score' })
-        const ent = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
-        if (!ent) return R({ ok: false, reason: 'not_registered' })
-        /* V33.1: attempts + 8s rate gate atomically (concurrent submits can't exceed 5).
-           lastAt is NOT NULL in the schema (default now()), so a plain lte covers it. */
+        if (GD_DAY[key] === undefined || !hasRecalc(key)) return R({ ok: false, reason: 'discipline' })
+        const mid = String(args.p_match_id || '')
+        if (!mid) return R({ ok: false, reason: 'match' })
+        const m = await db.olympicMatch.findUnique({ where: { id: mid } })
+        if (!m || m.userId !== user.id || m.discipline !== key || m.edition !== g.edition) return R({ ok: false, reason: 'match' })
+        if (m.status === 'scored' || m.status === 'closed') return R({ ok: false, reason: 'duplicate' }) /* L8 */
+        if (m.status !== 'open') return R({ ok: false, reason: 'match' })
+        const startedMs = m.startedAt ? new Date(m.startedAt).getTime() : 0
+        if (!startedMs || Date.now() - startedMs > 300000) { /* نشست کهنه — منقضی */
+          await db.olympicMatch.update({ where: { id: m.id }, data: { status: 'expired', finishedAt: new Date() } }).catch(() => {})
+          return R({ ok: false, reason: 'expired' })
+        }
+        const nonce = String(args.p_nonce || '').slice(0, 80)
+        let tel = args.p_telemetry as Telemetry | string | null | undefined
+        if (typeof tel === 'string') { try { tel = JSON.parse(tel) as Telemetry } catch (e) { tel = null } }
+        /* L2/L3/L4: بازمحاسبه + قوانین فیزیکی — رد شدن = تلاش سوخت (official) */
+        const res = computeScore(key, tel)
+        if (!res.ok) {
+          await db.olympicMatch.update({ where: { id: m.id }, data: { status: 'rejected', flags: res.reason || 'invalid', clientNonce: nonce, finishedAt: new Date() } }).catch(() => {})
+          if (m.mode === 'official') {
+            const rateCutR = new Date(Date.now() - 8000)
+            await db.olympicEntry.updateMany({ where: { edition: g.edition, userId: user.id, discipline: key, attempts: { lt: 9 }, lastAt: { lte: rateCutR } }, data: { attempts: { increment: 1 }, lastAt: new Date() } }).catch(() => {})
+          }
+          return R({ ok: false, reason: 'invalid', flags: res.reason || 'invalid' })
+        }
+        const score = res.score
+        await db.olympicMatch.update({ where: { id: m.id }, data: { status: 'scored', score, clientNonce: nonce, finishedAt: new Date(), flags: (res.flags && res.flags.join(',')) || null } })
+        if (m.mode !== 'official') {
+          /* TRAINING — نامحدود، بدون رکورد/رتبه/تلاش (PHASE 11/12) */
+          return R({ ok: true, mode: 'train', train: true, score, best: 0, attempts: 0, rank: null, record_broken: false })
+        }
+        /* OFFICIAL — گیت اتمی تلاش + ۸s (بدون تغییر از V33.1) */
         const rateCut = new Date(Date.now() - 8000)
-        /* V53: میزبان دوره یک تلاش اضافه در هر رشته دارد (۵ ← ۶) */
         const _h53 = await olyHostGet(g.edition)
         const hostMax = (_h53 && _h53.uid === user.id) ? 6 : 5
         const gate = await db.olympicEntry.updateMany({
-          where: { id: ent.id, attempts: { lt: hostMax }, lastAt: { lte: rateCut } },
+          where: { edition: g.edition, userId: user.id, discipline: key, attempts: { lt: hostMax }, lastAt: { lte: rateCut } },
           data: { attempts: { increment: 1 }, lastAt: new Date() },
         })
-        if (gate.count === 0) return R({ ok: false, reason: ent.attempts >= hostMax ? 'attempts' : 'rate' })
+        if (gate.count === 0) {
+          const entG = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
+          return R({ ok: false, reason: entG && entG.attempts >= hostMax ? 'attempts' : 'rate' })
+        }
+        const ent = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
+        if (!ent) return R({ ok: false, reason: 'not_registered' })
         const cfa = ent.countryFa || ent.country || null
+        /* L9 / PHASE 29: رکورد پرتابی → صف راستی‌آزمایی؛ تا تأیید ادمین وارد رتبه رسمی نمی‌شود */
         const record = await db.olympicRecord.findUnique({ where: { discipline: key } })
+        const prevRec = record ? record.score : 0
+        const suspicious = prevRec > 0 && score > prevRec * 1.35 + 150
         let recordBroken = false
-        if (!record || score > record.score) {
-          if (record && score > record.score) {
-            recordBroken = true
-            await addNews(0, 'olympic_record', key, user.nick, null)
+        let recordPending = false
+        if (!record || score > prevRec) {
+          if (record && score > prevRec) recordBroken = true
+          if (suspicious) {
+            recordPending = true
+            await db.olympicSuspicious.create({ data: { matchId: m.id, edition: g.edition, discipline: key, userId: user.id, nick: user.nick, countryFa: cfa, score, reason: 'outlier', logJson: JSON.stringify(tel).slice(0, 19000) } }).catch(() => {})
+          } else {
+            if (recordBroken) await addNews(0, 'olympic_record', key, user.nick, null)
+            await db.olympicRecord.upsert({
+              where: { discipline: key },
+              create: { discipline: key, score, nick: user.nick, country: cfa, edition: g.edition },
+              update: { score, nick: user.nick, country: cfa, edition: g.edition },
+            })
+            /* L5 / PHASE 44: replay رکورد رسمی ذخیره می‌شود (تله‌متری ورودی، نه ویدیو) */
+            await db.olympicMatch.update({ where: { id: m.id }, data: { logJson: JSON.stringify(tel).slice(0, 19000) } }).catch(() => {})
           }
-          await db.olympicRecord.upsert({
-            where: { discipline: key },
-            create: { discipline: key, score, nick: user.nick, country: cfa, edition: g.edition },
-            update: { score, nick: user.nick, country: cfa, edition: g.edition },
-          })
         }
         const best = Math.max(ent.best, score)
         await db.olympicEntry.update({ where: { id: ent.id }, data: { best } })
         passAddXp(user.id, 'olympic').catch(() => {}) /* V43: مسیر فصلی — XP المپیک */
         const better = await db.olympicEntry.count({ where: { edition: g.edition, discipline: key, best: { gt: best } } })
-        return R({ ok: true, best, attempts: ent.attempts + 1, rank: better + 1, record_broken: recordBroken })
+        return R({ ok: true, best, attempts: ent.attempts + 1, rank: better + 1, record_broken: recordBroken, record_pending: recordPending, score, att_max: hostMax })
+      }
+
+      /* ============ O1 — oly_verify: رسیدگی به صف رکوردهای مشکوک (L9) ============ */
+      case 'oly_verify': {
+        if (!user.isAdmin) return R({ ok: false, reason: 'admin' })
+        const act = String(args.p_action || 'list')
+        if (act === 'list') {
+          const rows = await db.olympicSuspicious.findMany({ where: { status: 'pending' }, orderBy: [{ createdAt: 'asc' }], take: 30 })
+          return R({ ok: true, rows: rows.map((r) => ({ id: r.id, edition: r.edition, discipline: r.discipline, nick: r.nick, countryFa: r.countryFa, score: r.score, reason: r.reason, at: r.createdAt.toISOString() })) })
+        }
+        const id = String(args.p_id || '')
+        const row = await db.olympicSuspicious.findUnique({ where: { id } }).catch(() => null)
+        if (!row || row.status !== 'pending') return R({ ok: false, reason: 'row' })
+        if (act === 'reject') {
+          await db.olympicSuspicious.update({ where: { id }, data: { status: 'rejected' } })
+          return R({ ok: true, action: 'rejected' })
+        }
+        if (act !== 'confirm') return R({ ok: false, reason: 'action' })
+        await db.olympicSuspicious.update({ where: { id }, data: { status: 'confirmed' } })
+        const entV = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: row.edition, userId: row.userId, discipline: row.discipline } } })
+        if (entV) await db.olympicEntry.update({ where: { id: entV.id }, data: { best: Math.max(entV.best, row.score) } })
+        await db.olympicRecord.upsert({
+          where: { discipline: row.discipline },
+          create: { discipline: row.discipline, score: row.score, nick: row.nick, country: row.countryFa, edition: row.edition },
+          update: { score: row.score, nick: row.nick, country: row.countryFa, edition: row.edition },
+        })
+        await addNews(0, 'olympic_record', row.discipline, row.nick, null)
+        /* replay تأییدشده به مسابقه منتقل می‌شود */
+        if (row.logJson) await db.olympicMatch.update({ where: { id: row.matchId }, data: { logJson: row.logJson } }).catch(() => {})
+        OL_GAMES_CC = null /* کش جدول مدال را تازه کن */
+        return R({ ok: true, action: 'confirmed' })
       }
 
       /* ============ V36 — admin event switches (owner-controlled on/off) ============ */

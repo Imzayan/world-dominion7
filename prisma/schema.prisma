@@ -220,7 +220,48 @@ model OlympicEntry {
 
   @@unique([edition, userId, discipline])
   @@index([edition, discipline])
+  @@index([edition, discipline, best])
   @@map("olympic_entries")
+}
+
+/* O1 — آنتی‌چیت L1/L5/L6: نشست هر مسابقه (seed سرور + nonce + وضعیت) + بازپخش رکوردها */
+model OlympicMatch {
+  id          String    @id @default(cuid())
+  edition     Int
+  userId      String    @map("user_id")
+  discipline  String
+  mode        String    @default("official")
+  serverSeed  String    @map("server_seed")
+  clientNonce String?   @map("client_nonce")
+  score       Int       @default(0)
+  flags       String?
+  logJson     String?   @map("log_json")
+  status      String    @default("open")
+  startedAt   DateTime  @default(now()) @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+
+  @@index([userId, edition])
+  @@index([discipline, score])
+  @@map("olympic_matches")
+}
+
+/* O1 — آنتی‌چیت L9 / PHASE 29: رکوردهای مشکوک تا تأیید ادمین وارد رتبه رسمی نمی‌شوند */
+model OlympicSuspicious {
+  id         String   @id @default(cuid())
+  matchId    String   @map("match_id")
+  edition    Int
+  discipline String
+  userId     String   @map("user_id")
+  nick       String
+  countryFa  String?  @map("country_fa")
+  score      Int
+  reason     String?
+  status     String   @default("pending")
+  logJson    String?  @map("log_json")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([status, createdAt])
+  @@map("olympic_suspicious")
 }
 
 model OlympicResult {

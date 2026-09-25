@@ -9837,7 +9837,7 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 const srvN=()=>{try{return Math.max(1,Number(window.SRV)||1)}catch(e){return 1}};
 const sndK=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
 const ANCHOR=Date.UTC(2026,0,1),EDM=30*864e5,REGO=15*864e5,OPENO=24*864e5,CLOSEO=29*864e5;
-/* V41: هر ۱۰ رشته بازگشت — بازیکن هر ۶ رشته را برای المپیک انتخاب می‌کند */
+/* V41: هر ۱۱ رشته بازگشت — بازیکن هر ۶ رشته را برای المپیک انتخاب می‌کند */
 const GD33={sprint:{col:'#ff4d6d',d:0,ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه هرچه می‌توانی تند بزن — سرعت خالص!'},
  archery:{col:'#ffb02e',d:0,ic:'🎯',fa:'تیراندازی با کمان',tip:'در بهترین لحظه شلیک کن — هرچه مرکزی‌تر، امتیاز بیشتر'},
  swim:{col:'#2bb8ff',d:1,ic:'🏊',fa:'شنا',tip:'ضربه‌ها را یکی‌درمیان چپ و راست بزن — ریتم متقارن'},
@@ -9847,9 +9847,10 @@ const GD33={sprint:{col:'#ff4d6d',d:0,ic:'🏃',fa:'دو ۱۰۰ متر',tip:'ت�
  chess:{col:'#9fb6e8',d:3,ic:'♟️',fa:'شطرنج',tip:'کیش‌ومات یک‌حرکتی — بهترین حرکت را قبل از پایان زمان انتخاب کن'},
  volley:{col:'#ffd84d',d:3,ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — رالی را بلندتر کن'},
  lj:{col:'#4de3c0',d:4,ic:'🦘',fa:'پرش طول',tip:'سرعت دویدن و لحظه‌ی پرواز — ریسک بیشتر، پرش دورتر'},
- wrestle:{col:'#e05299',d:4,ic:'🥋',fa:'کشتی',tip:'طناب‌کشی — تند و پیوسته بزن تا مارکر از خطت رد شود'}};
+ wrestle:{col:'#e05299',d:4,ic:'🥋',fa:'کشتی',tip:'طناب‌کشی — تند و پیوسته بزن تا مارکر از خطت رد شود'},
+ football:{col:'#7fd8ff',d:4,ic:'⚽',fa:'ضربات پنالتی',tip:'سه دور ناکاوت — گوشه را انتخاب کن و دروازه‌بان را غافلگیر کن'}};
 const GD_KEYS=Object.keys(GD33);
-const SCHED33=[['sprint','archery'],['swim','gym'],['weight','cycling'],['chess','volley'],['lj','wrestle']];
+const SCHED33=[['sprint','archery'],['swim','gym'],['weight','cycling'],['chess','volley'],['lj','wrestle','football']];
 const HOSTS33=[{c:'توکیو',n:'ژاپن',f:'jp'},{c:'پاریس',n:'فرانسه',f:'fr'},{c:'لس‌آنجلس',n:'آمریکا',f:'us'},{c:'لندن',n:'بریتانیا',f:'gb'},{c:'ریودوژانیرو',n:'برزیل',f:'br'},{c:'پکن',n:'چین',f:'cn'},{c:'آتن',n:'یونان',f:'gr'},{c:'سیدنی',n:'استرالیا',f:'au'},{c:'بارسلونا',n:'اسپانیا',f:'es'},{c:'سئول',n:'کره‌ی جنوبی',f:'kr'},{c:'مسکو',n:'روسیه',f:'ru'},{c:'مونترال',n:'کانادا',f:'ca'},{c:'مونیخ',n:'آلمان',f:'de'},{c:'مکزیکوسیتی',n:'مکزیک',f:'mx'},{c:'رم',n:'ایتالیا',f:'it'},{c:'هلزینکی',n:'فنلاند',f:'fi'},{c:'آمستردام',n:'هلند',f:'nl'},{c:'استکهلم',n:'سوئد',f:'se'},{c:'استانبول',n:'ترکیه',f:'tr'},{c:'قاهره',n:'مصر',f:'eg'},{c:'دهلی‌نو',n:'هند',f:'in'},{c:'بوئنوس‌آیرس',n:'آرژانتین',f:'ar'},{c:'نایروبی',n:'کنیا',f:'ke'},{c:'دبی',n:'امارات',f:'ae'},{c:'سنگاپور',n:'سنگاپور',f:'sg'},{c:'کیپ‌تاون',n:'آفریقای جنوبی',f:'za'},{c:'لیما',n:'پرو',f:'pe'},{c:'ورشو',n:'لهستان',f:'pl'},{c:'لیسبون',n:'پرتغال',f:'pt'},{c:'لاگوس',n:'نیجریه',f:'ng'},{c:'کوالالامپور',n:'مالزی',f:'my'},{c:'دوحه',n:'قطر',f:'qa'}];
 function hostOf33(e){let h=(e*2654435761)>>>0;h^=h>>>13;h=Math.imul(h,1274126177)>>>0;return HOSTS33[h%HOSTS33.length]}
 function flagUrl33(cc){try{return (typeof flagUrl==='function')?flagUrl(cc):('/cdn/flags/w80/'+cc+'.png')}catch(e){return '/cdn/flags/w80/'+cc+'.png'}}
@@ -9915,7 +9916,7 @@ function statue33(g,s,b,sz){
 function legend33(c){try{if(!c||!Array.isArray(c.eds)||c.eds.length<2)return false;const e=c.eds.slice().sort((a,b)=>a-b);
   for(let i=1;i<e.length;i++)if(e[i]===e[i-1]+1)return true;return false}catch(e){return false}}
 window.WD33_STATUE=statue33;window.WD33_LEGEND=legend33;
-const DN33={sprint:'دو ۱۰۰ متر',archery:'تیراندازی با کمان',swim:'شنا',gym:'ژیمناستیک',weight:'وزنه‌برداری',cycling:'دوچرخه‌سواری',chess:'شطرنج',volley:'والیبال ساحلی',lj:'پرش طول',wrestle:'کشتی'};
+const DN33={sprint:'دو ۱۰۰ متر',archery:'تیراندازی با کمان',swim:'شنا',gym:'ژیمناستیک',weight:'وزنه‌برداری',cycling:'دوچرخه‌سواری',chess:'شطرنج',volley:'والیبال ساحلی',lj:'پرش طول',wrestle:'کشتی',football:'ضربات پنالتی'};
 window.WD33_DN=k=>{try{return DN33[k]||k||''}catch(e){return k||''}};
 
 /* ---------- V33.1: signature Olympic icon — golden laurel wreath + living torch flame.
@@ -10088,9 +10089,9 @@ function renderHub(){
     '<div class="wd31-kicker" style="margin-top:10px">WORLD DOMINION OLYMPIC GAMES</div>'+
     '<h1 class="wd31-title">المپیک جهانی — دوره‌ی '+faN(g.edition)+'</h1>'+
     '<div class="wg33-host"><img src="'+flagUrl33(g.host.f)+'" alt="">میزبان این دوره: '+esc(g.host.c)+'، '+esc(g.host.n)+'</div>';
-  if(g.phase==='pre')h+='<span class="wg33-ph pre">⏳ ثبت‌نام باز نشده</span><div class="wg33-cd">🕊️ آتش‌بس و بازی‌ها از '+cdTxt(g.openAt)+' دیگر شروع می‌شود</div><div class="wd31-mini" style="margin-top:4px">باز شدن ثبت‌نام (۶ رشته از ۱۰): '+cdTxt(g.regAt)+' دیگر</div>';
+  if(g.phase==='pre')h+='<span class="wg33-ph pre">⏳ ثبت‌نام باز نشده</span><div class="wg33-cd">🕊️ آتش‌بس و بازی‌ها از '+cdTxt(g.openAt)+' دیگر شروع می‌شود</div><div class="wd31-mini" style="margin-top:4px">باز شدن ثبت‌نام (۶ رشته از ۱۱): '+cdTxt(g.regAt)+' دیگر</div>';
   else if(g.phase==='reg')h+='<span class="wg33-ph reg">📝 ثبت‌نام باز است</span><div class="wg33-cd">افتتاحیه و شروع بازی‌ها: '+cdTxt(g.openAt)+' دیگر</div>';
-  else if(g.phase==='live')h+='<span class="wg33-ph live">🔴 بازی‌ها زنده است — روز '+faN(g.gameDay+1)+' از ۵</span><div class="wg33-cd">🕊️ آتش‌بس مقدس برقرار است — جنگ ممنوع</div><div class="wd31-mini" style="margin-top:4px">هر ۱۰ رشته بازند • ثبت‌نام: ۶ از ۱۰ • اختتامیه: '+cdTxt(g.closeAt)+' دیگر</div>';
+  else if(g.phase==='live')h+='<span class="wg33-ph live">🔴 بازی‌ها زنده است — روز '+faN(g.gameDay+1)+' از ۵</span><div class="wg33-cd">🕊️ آتش‌بس مقدس برقرار است — جنگ ممنوع</div><div class="wd31-mini" style="margin-top:4px">هر ۱۱ رشته بازند • ثبت‌نام: ۶ از ۱۱ • اختتامیه: '+cdTxt(g.closeAt)+' دیگر</div>';
   else h+='<span class="wg33-ph after">🏁 بازی‌های این دوره تمام شد</span><div class="wg33-cd">ثبت‌نام دوره‌ی بعد: '+cdTxt(g.nextReg)+' دیگر</div>';
   h+='</section>';
   /* my career card */
@@ -10099,12 +10100,12 @@ function renderHub(){
     '<div style="font-size:12.5px;font-weight:900;color:#ffe08a">🥇 '+faN(career.g)+' • 🥈 '+faN(career.s)+' • 🥉 '+faN(career.b)+' = '+faN(career.total)+' مدال در '+faN(career.eds.length)+' دوره</div></div></div>';
   if(g.phase==='pre'){
     h+='<div class="wd31-card">'+secTitle('📅','برنامه‌ی این دوره')+
-      '<div class="wd31-mini" style="font-size:11.5px;line-height:2.1">🕊️ روز ۱۶ فصل: باز شدن ثبت‌نام — ۶ رشته از ۱۰ را انتخاب کن<br>🎪 روز ۲۵ فصل: مراسم افتتاحیه (رژه‌ی پرچم‌ها + مشعل + میزبان) و آغاز آتش‌بس<br>🏟️ روز ۲۵ تا ۳۰: مسابقه‌ها — تاکتیک بچین و زنده تماشا کن<br>🏁 روز ۳۰: اختتامیه — سرود قهرمان، پرچم طلایی ۲۴ ساعته، تاج‌گذاری و جوایز</div></div>'+
-      '<div class="wd31-card">'+secTitle('🏟️','۱۰ رشته‌ی المپیک')+'<div class="wg33-grid3">'+GD_KEYS.map(k=>discCard(k,'lock')).join('')+'</div></div>';
+      '<div class="wd31-mini" style="font-size:11.5px;line-height:2.1">🕊️ روز ۱۶ فصل: باز شدن ثبت‌نام — ۶ رشته از ۱۱ را انتخاب کن<br>🎪 روز ۲۵ فصل: مراسم افتتاحیه (رژه‌ی پرچم‌ها + مشعل + میزبان) و آغاز آتش‌بس<br>🏟️ روز ۲۵ تا ۳۰: مسابقه‌ها — تاکتیک بچین و زنده تماشا کن<br>🏁 روز ۳۰: اختتامیه — سرود قهرمان، پرچم طلایی ۲۴ ساعته، تاج‌گذاری و جوایز</div></div>'+
+      '<div class="wd31-card">'+secTitle('🏟️','۱۱ رشته‌ی المپیک')+'<div class="wg33-grid3">'+GD_KEYS.map(k=>discCard(k,'lock')).join('')+'</div></div>';
   }
   if(g.phase==='reg'){
     const myReg=my.reg||[];
-    h+='<div class="wd31-card">'+secTitle('📝','ثبت‌نام — ۶ رشته از ۱۰ را انتخاب کن')+
+    h+='<div class="wd31-card">'+secTitle('📝','ثبت‌نام — ۶ رشته از ۱۱ را انتخاب کن')+
       '<div class="wd31-mini" style="margin:0 0 8px">کشور تو: <b style="color:#ffe08a">'+esc(my.country||'—')+'</b> • انتخاب شده: <b id="wg33-seln">'+faN(wgSel.length)+'</b>/۶ — تا لحظه‌ی افتتاحیه می‌توانی عوض کنی</div>'+
       '<div class="wg33-grid3" id="wg33-reggrid">'+GD_KEYS.map(k=>discCard(k,myReg.indexOf(k)>-1||wgSel.indexOf(k)>-1?'sel':'')).join('')+'</div>'+
       '<button class="wg33-play" id="wg33-regbtn" style="margin-top:12px">'+(myReg.length?'✅ ثبت/ویرایش انتخاب‌ها':'✅ ثبت‌نام در المپیک')+'</button>'+
@@ -10399,7 +10400,7 @@ function openScenes(){
     if(cerScene>3){cerClose();return}
     scene('<div class="ck">THE OLYMPIC TRUCE</div><div class="ct">🕊️ آتش‌بس مقدس اعلام می‌شود</div>'+
       '<div class="cs">از این لحظه تا پایان بازی‌ها، <b>هر جنگی متوقف است</b> — امپراتور بزرگ و تازه‌کار، برابر روی یک زمین بازی می‌ایستند.<br>'+
-      '۵ روز رقابت • ۱۰ رشته • همه‌ی رشته‌ها از روز اول بازند • سهمیه‌ی هر بازیکن: ۳ رشته<br>برای چند روز، ورزش جای جنگ را می‌گیرد.</div>'+
+      '۵ روز رقابت • ۱۱ رشته • همه‌ی رشته‌ها از روز اول بازند • سهمیه‌ی هر بازیکن: ۶ رشته<br>برای چند روز، ورزش جای جنگ را می‌گیرد.</div>'+
       '<div class="cs" style="color:#ffd75e;font-weight:900;margin-top:8px">بازی‌ها آغاز می‌شود! 🏅</div>'+
       '<div class="wg33-conf"></div>',8000,true)}
 }
@@ -10602,7 +10603,8 @@ const GD33={sprint:{col:'#ff4d6d',ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸
  chess:{col:'#9fb6e8',ic:'♟️',fa:'شطرنج',tip:'۴ صفحه‌ی کیش‌ومات — حرکت برنده را انتخاب کن'},
  volley:{col:'#ffd84d',ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — ۳ سرویس داری'},
  lj:{col:'#4de3c0',ic:'🦘',fa:'پرش طول',tip:'سه پرش — سرعت بیشتر = پرش دورتر ولی ریسک خطا'},
- wrestle:{col:'#e05299',ic:'🥋',fa:'کشتی',tip:'۳ دیدار طناب‌کشی — تند و پیوسته بزن'}};
+ wrestle:{col:'#e05299',ic:'🥋',fa:'کشتی',tip:'۳ دیدار طناب‌کشی — تند و پیوسته بزن'},
+ football:{col:'#7fd8ff',ic:'⚽',fa:'ضربات پنالتی',tip:'سه دور ناکاوت — گوشه را انتخاب کن و دروازه‌بان را غافلگیر کن'}};
 const sndK2=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rpcG=async fn=>{try{const r=await sb.rpc(fn);if(r&&r.error)return null;return r?r.data:null}catch(e){return null}};
@@ -10631,7 +10633,7 @@ function closeStage(refresh){clrAll();sOpen=false;FX.stop();if(stage)stage.class
   if(refresh&&window.WD33_REFRESH)window.WD33_REFRESH(true)}
 D.addEventListener('keydown',ev=>{if(ev&&ev.key==='Escape'&&sOpen)closeStage(true)});
 function hud(m){const att=D.getElementById('wg33-att'),bst=D.getElementById('wg33-bst');
-  if(att)att.textContent='تلاش '+faN(m.att||0)+'/۵';
+  if(att)att.textContent=m.train?'تمرین آزاد 🌀':('تلاش '+faN(m.att||0)+'/'+faN(ATT_MAX||5));
   if(bst)bst.textContent='بهترین: '+faN(m.best||0)}
 function foot(t){const f=D.getElementById('wg33-sft');if(f)f.textContent=t||''}
 
@@ -10736,49 +10738,77 @@ try{
   }catch(e){}
   _snd39v(k)};
 }catch(e){console.log('snd39',e)}
-async function openGame33(key){
+/* ===== O1 — Server Authority: نشست مسابقه + تله‌متری (PHASE 13) =====
+   هر تلاش اول olympic_start (match_id + seed سرور) می‌گیرد؛ در پایان
+   رویدادهای ورودی با زمان‌بندی به olympic_submit می‌رود و سرور با همان
+   فرمول بازی امتیاز را بازمحاسبه می‌کند — عدد ادعایی کلاینت هرگز ثبت نمی‌شود.
+   تمرین (PHASE 11): نامحدود، بی‌اثر روی رکورد/رتبه/تلاش. */
+let MATCH=null,MODE='official',ATT_MAX=5;
+const rndNonce=()=>{let s='';const cs='abcdef0123456789';for(let i=0;i<32;i++)s+=cs[Math.floor(Math.random()*16)];return s};
+const TELE={list:[],t0:0,
+  begin(){this.list=[];this.t0=performance.now()},
+  ev(){if(this.list.length>380)return;const a=arguments;const row=[String(a[0])];
+    for(let i=1;i<a.length;i++){const v=a[i];row.push(typeof v==='number'?(Math.round(v*100)/100):(v?1:0))}
+    this.list.push(row)},
+  end(){return{s:0,e:Math.round(performance.now()-this.t0),ev:this.list.slice(0,400)}}};
+async function openGame33(key,forceTrain){
   if(sOpen)return;
   if(window.WD33_EV&&window.WD33_EV.olympic===false){showToast2('⛔ المپیک توسط مدیر بازی غیرفعال شده است','lose');return}
   const m=GD33[key];if(!m)return;m.key=key; /* V38: story engine needs the discipline key */
   const g=(typeof window.WD33_PHASE==='function')?window.WD33_PHASE():null;
-  if(!g||g.phase!=='live'){showToast2('الان زمان بازی‌ها نیست','lose');return}
+  const live=!!(g&&g.phase==='live');
+  if(!live&&!forceTrain){showToast2('الان زمان بازی‌های رسمی نیست — «تمرین آزاد» همیشه در دسترس است','lose');return}
   showToast2('⏳ در حال آماده‌سازی…');
   const data=await rpcG('olympic_games');
   if(!data){showToast2('دریافت اطلاعات ناموفق بود','lose');return}
-  const reg=(data.my&&data.my.reg)||[],ent=(data.my&&data.my.entries)||{};
-  if(reg.indexOf(key)<0){showToast2('در این رشته ثبت‌نام نکرده‌ای — از بخش ثبت‌نام اضافه کن','lose');return}
+  const ent=(data.my&&data.my.entries)||{};
   const e=ent[key]||{best:0,attempts:0};
-  if(e.attempts>=5){showToast2('۵ تلاش این رشته تمام شد','lose');return}
   ensureStage();sOpen=true;stage.classList.add('on');
   FX.sync(); /* V35.1: اندازه‌ی canvas بعد از نمایان شدن صحنه */
   D.getElementById('wg33-ic').textContent=m.ic;
   D.getElementById('wg33-nm').textContent=m.fa;
   hud({att:e.attempts,best:e.best});
   const bd=D.getElementById('wg33-sbd');
-  intro33(bd,m,e,()=>{
-    runGame(bd,key,(norm,raw)=>{
-      finish33(bd,key,norm,raw,e);
-    });
-  });
+  intro33(bd,m,e,live,()=>{startAttempt33(bd,key,e,false)},()=>{startAttempt33(bd,key,e,true)});
 };
+async function startAttempt33(bd,key,e0,train){
+  MODE=train?'train':'official';
+  const st=(window.WD33_PHASE&&window.WD33_PHASE())||{};
+  if(!train&&st.phase!=='live'){showToast2('الان زمان بازی‌های رسمی نیست','lose');return}
+  showToast2(train?'🌀 حالت تمرین — بی‌اثر روی رکورد':'⏳ اتصال به داور سرور…');
+  let s=null;
+  try{const st33=await sb.rpc('olympic_start',{p_discipline:key,p_mode:MODE});s=(st33&&st33.data)||null}catch(e2){s=null}
+  if(!s||!s.ok||!s.match_id){
+    const rs=(s&&s.reason)||'net';
+    const mm={window:'زمان این رشته تمام شده',attempts:'تلاش‌های رسمی‌ات تمام شده — تمرین آزاد باز است',not_registered:'اول از هاب در این رشته ثبت‌نام کن',disabled:'المپیک فعال نیست',net:'⚠️ اتصال ناموفق — دوباره تلاش کن'};
+    showToast2(mm[rs]||('خطا: '+rs),'lose');return}
+  MATCH={id:s.match_id,seed:s.seed};ATT_MAX=(Number(s.att_max)||0)>0?Number(s.att_max):ATT_MAX;
+  hud({att:e0.attempts,best:e0.best||0});
+  runGame(bd,key,(norm,raw)=>{finish33(bd,key,norm,raw,e0)});
+}
 /* V35.1: دکمه‌ی «بازی کن» هاب به این ورودی وصل است — در تدفین قبلی گم شده بود */
 window.WD33_PLAY=openGame33;
 /* V41: پل به موتور شبیه‌سازی تاکتیکی — GAMES با getter late-bound (جلوگیری از TDZ) */
 window.WD33_API={FX,JUICE,sndK2:sndK2||function(){},loop33,on33,tm33,faN,esc,
   hud,foot,ensureStage,closeStage,getStage:()=>stage,isOpen:()=>sOpen,
-  get GAMES(){return GAMES}};
+  get GAMES(){return GAMES},get TELE(){return TELE},get MODE(){return MODE},get MATCH(){return MATCH}};
 function showToast2(m,k){try{showToast(m,k)}catch(e){}}
-function intro33(bd,m,e,onStart){
+function intro33(bd,m,e,live,onOfficial,onTrain){
   /* V38: پرده‌ی اول داستان — استادیوم، رقیب و روایت این رشته */
   const story=(window.ST38&&window.ST38.storyCard)?window.ST38.storyCard(m.key||''):'';
   bd.innerHTML='<div class="wg33-intro"><div class="big" id="wg33-introic">'+m.ic+'</div><h2>'+esc(m.fa)+'</h2><p>'+esc(m.tip)+'</p>'+
     story+
-    '<p style="font-size:11px;color:#8fb8dd">بهترین امتیاز فعلی: '+faN(e.best||0)+' • تلاش‌های باقی‌مانده: '+faN(5-(e.attempts||0))+'</p>'+
-    '<button class="wg33-start" id="wg33-go">شروع رقابت</button></div>';
+    '<p style="font-size:11px;color:#8fb8dd">بهترین امتیاز فعلی: '+faN(e.best||0)+' • تلاش‌های رسمی باقی‌مانده: '+faN(Math.max(0,ATT_MAX-(e.attempts||0)))+'</p>'+
+    '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">'+
+    '<button class="wg33-start" id="wg33-go">'+(live?'شروع رقابت رسمی':'رسمی فقط در زمان بازی‌ها')+'</button>'+
+    '<button class="wg33-start" id="wg33-tr" style="background:rgba(126,216,255,.14);color:#cfeaff">تمرین آزاد 🌀</button></div>'+
+    '<p style="font-size:10px;color:#7d92ad;margin-top:8px">تمرین: نامحدود و غیررسمی • رقابت رسمی: امتیاز توسط سرور از روی تله‌متری ورودی راستی‌آزمایی می‌شود</p></div>';
   foot('برای شروع، دکمه را بزن — حین بازی صفحه را نکش');
   /* V35: شعله‌ی زنده روی آیکون معرفی + پانچ دکمه شروع */
   tm33(()=>{const b=bd.querySelector('#wg33-go');if(b){FX.punch(b)}},900);
-  bd.querySelector('#wg33-go').addEventListener('click',onStart);
+  bd.querySelector('#wg33-go').addEventListener('click',onOfficial);
+  const tb=bd.querySelector('#wg33-tr');
+  if(tb)tb.addEventListener('click',onTrain);
 }
 function countdown33(bd,cb){
   /* V35: شمارش معکوس سینمایی با حلقه‌ی SVG که می‌بندد + پاپ عدد */
@@ -10798,44 +10828,60 @@ function countdown33(bd,cb){
 function runGame(bd,key,done){
   foot(GD33[key].tip);
   countdown33(bd,()=>{
-    const fin=(v)=>{tm33(()=>done(Math.max(0,Math.min(1000,Math.round(v)))),450)};
+    TELE.begin(); /* O1: شروع ضبط تله‌متری ورودی */
+    const fin=(v)=>{tm33(()=>done(Math.max(0,Math.round(v))),450)}; /* O1: سقف ۱۰۰۰ حذف شد — مرز = بازمحاسبه‌ی سرور */
     try{GAMES[key](bd,fin)}catch(err){console.log('wg33game',err);done(0)}
   });
 }
 async function finish33(bd,key,norm,raw,e0){
-  hud({att:e0.attempts+1,best:Math.max(e0.best||0,norm)});
-  /* V35: ستاره‌ها ۱ تا ۳ بر اساس نُرم امتیاز + کنفتی سینمایی */
-  const sN=norm>=700?3:norm>=400?2:norm>=150?1:0;
+  const train=(MODE==='train');
+  hud({att:e0.attempts+1,best:Math.max(e0.best||0,norm),train:train});
+  /* V35: ستاره‌ها ۱ تا ۳ بر اساس نُرم امتیاز + کنفتی سینمایی — آستانه‌ها برای مقیاس بی‌سقف */
+  const sN=norm>=1000?3:norm>=550?2:norm>=180?1:0;
   const stars=n=>{const s=sN;let h='<div class="stars">';
     for(let i=0;i<3;i++)h+='<i class="'+(i<s?'on':'')+'" style="animation-delay:'+(0.25+i*0.22)+'s">★</i>';return h+'</div>'};
   bd.innerHTML='<div class="wg33-result"><div class="big" style="font-size:40px">'+GD33[key].ic+'</div>'+stars()+
-    '<div class="sc">'+faN(norm)+'</div><div class="rr" id="wg33-sub">⏳ ثبت امتیاز…</div></div>'+(window.ST38&&window.ST38.epilogue?window.ST38.epilogue(key,sN):'');
+    '<div class="sc">'+faN(norm)+'</div><div class="rr" id="wg33-sub">⏳ ارسال تله‌متری به داور سرور…</div></div>'+(window.ST38&&window.ST38.epilogue?window.ST38.epilogue(key,sN):'');
   foot('');
   if(sN>=2){FX.conf(sN>=3?90:45);FX.flash('#ffd75e',.3)}
   const cpos=FX.pt(bd.querySelector('.wg33-result')||bd,0.5,0.42);
   FX.ring(cpos.x,cpos.y,'rgba(255,215,94,.85)',30,150);
   FX.text(cpos.x,cpos.y-90,sN>=3?'فوق‌العاده!':sN>=2?'آفرین!':sN>=1?'خوب بود!':'دفعه‌ی بعد…','#ffd75e',22);
-  const r=await (async()=>{try{const res=await sb.rpc('olympic_submit',{p_discipline:key,p_score:norm});
+  /* O1: امتیاز نهایی = خروجی بازمحاسبه‌ی سرور از تله‌متری؛ p_score فقط برای نمایش */
+  const tel=TELE.end();
+  const r=await (async()=>{if(!MATCH)return{ok:false,reason:'match'};
+    try{const res=await sb.rpc('olympic_submit',{p_discipline:key,p_match_id:MATCH.id,p_nonce:rndNonce(),p_telemetry:tel,p_score:norm});
     if(res&&res.error)return{ok:false,reason:(res.error&&res.error.message)||'err'};return res?res.data:null}catch(e2){return{ok:false,reason:'net'}}})();
+  MATCH=null;
   const box=D.getElementById('wg33-sub');
   let att=e0.attempts+1,best=e0.best||0;
-  if(r&&r.ok){
+  if(r&&r.ok&&train){
+    const fin2=(typeof r.score==='number')?r.score:norm;
+    best=Math.max(best,fin2);
+    if(box)box.innerHTML='🌀 <b>تمرین — غیررسمی</b> • امتیاز داور سرور: <b>'+faN(fin2)+'</b><br><span style="color:#8fb8dd">در تمرین، رکورد و رتبه ثبت نمی‌شود — تمرین نامحدود است</span>';
+    sndK2('coin');
+    hud({train:true,best:best});
+  }else if(r&&r.ok){
     best=Math.max(best,r.best||norm);att=r.attempts||att;
-    let txt='✅ ثبت شد — بهترینت: <b>'+faN(r.best)+'</b> • رتبه‌ی فعلی این رشته: <b>#'+faN(r.rank||1)+'</b> • تلاش '+faN(att)+'/۵';
-    if(r.record_broken){txt='<span class="recflag">⚡ رکورد همه‌ی دوران شکست!</span><br>'+txt;
+    if(Number(r.att_max)>0)ATT_MAX=Number(r.att_max);
+    let txt='✅ ثبت شد — بهترینت: <b>'+faN(r.best)+'</b> • رتبه‌ی فعلی این رشته: <b>#'+faN(r.rank||1)+'</b> • تلاش '+faN(att)+'/'+faN(ATT_MAX);
+    if(r.record_pending){txt='<span class="recflag">🛡️ رکورد بزرگ — در صف راستی‌آزمایی ضدتقلب است</span><br>'+txt}
+    else if(r.record_broken){txt='<span class="recflag">⚡ رکورد همه‌ی دوران شکست!</span><br>'+txt;
       try{if(typeof WD30CINE==='function')WD30CINE('⚡','رکورد جدید المپیک!','🏁 '+GD33[key].fa+' — '+faN(norm)+' امتیاز — نامت در تاریخ ثبت شد','c-gold','cheer')}catch(e){}}
     if(box)box.innerHTML=txt;
     sndK2(r.rank===1?'cheer':'coin');
   }else{
     const rs=(r&&r.reason)||'خطا';
-    const map={window:'⏳ زمان این رشته تمام شد — امتیاز ثبت نشد',attempts:'۵ تلاشت تمام شده بود',rate:'کمی صبر کن و دوباره',not_registered:'ثبت‌نام یافت نشد',score:'امتیاز نامعتبر',net:'⚠️ ثبت ناموفق — اینترنت را چک کن (امتیاز سوخت)'};
-    if(box)box.innerHTML='❌ '+(map[rs]||('خطا: '+esc(rs)))+'<br><span style="color:#8fb8dd">امتیاز خام: '+faN(norm)+'</span>';
+    const map={window:'⏳ زمان این رشته تمام شد — امتیاز ثبت نشد',attempts:'تلاش‌های رسمی‌ات تمام شده بود',rate:'کمی صبر کن و دوباره',not_registered:'ثبت‌نام یافت نشد',score:'امتیاز نامعتبر',match:'↻ نشست مسابقه نامعتبر — صفحه را نوسازی کن',expired:'⏱️ نشست منقضی شد (بیش از ۵ دقیقه)',duplicate:'این مسابقه قبلاً ثبت شده',invalid:'🚫 تله‌متری با قوانین بازی سازگار نبود — امتیاز ثبت نشد',net:'⚠️ ثبت ناموفق — اینترنت را چک کن (تلاش سوخت)'};
+    const extra=(r&&r.flags)?(' • داور: '+esc(r.flags)):'';
+    if(box)box.innerHTML='❌ '+(map[rs]||('خطا: '+esc(rs)))+extra+'<br><span style="color:#8fb8dd">امتیاز خام: '+faN(norm)+'</span>';
     sndK2('alert');
   }
   hud({att:att,best:best});
   const wrap=D.createElement('div');wrap.style.cssText='display:flex;gap:8px;margin-top:14px;justify-content:center';
-  if(att<5){const rb=D.createElement('button');rb.className='wg33-start';rb.style.padding='11px 26px';rb.textContent='تلاش دوباره ('+faN(5-att)+' مانده)';
-    rb.addEventListener('click',()=>{runGame(bd,key,(n2)=>finish33(bd,key,n2,0,{best:best,attempts:att}))});wrap.append(rb)}
+  const canPlay=train||att<ATT_MAX;
+  if(canPlay){const rb=D.createElement('button');rb.className='wg33-start';rb.style.padding='11px 26px';rb.textContent=train?'تمرین دوباره 🌀':'تلاش دوباره ('+faN(Math.max(0,ATT_MAX-att))+' مانده)';
+    rb.addEventListener('click',()=>{startAttempt33(bd,key,{best:best,attempts:train?0:att},train)});wrap.append(rb)}
   const cb=D.createElement('button');cb.className='wg33-start';cb.style.cssText+=';background:rgba(255,255,255,.1);color:#cdd7e8;box-shadow:none';
   cb.textContent='بازگشت';cb.addEventListener('click',()=>closeStage(true));wrap.append(cb);
   bd.querySelector('.wg33-result').append(wrap);
@@ -10858,7 +10904,7 @@ GAMES.sprint=(el,done)=>{
   const MS=[25,50,75];let mi=0;
   on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
     if(!t0){t0=performance.now();if(lane)lane.classList.add('run');if(S)S.say('تفنگ شلیک شد — شروع!');JUICE.cam('follow')}
-    taps++;sndK2('click');
+    taps++;sndK2('click');TELE.ev('p',performance.now()-TELE.t0); /* O1 تله‌متری */
     FX.spark(ev.clientX,ev.clientY,['#ffd75e','#fff','#ff9d3c'],7,90,0.4);
     if(taps%3===0)FX.dust(ev.clientX,ev.clientY+10);
     const W=el.querySelector('.gm33-track').clientWidth||340;
@@ -10879,7 +10925,7 @@ GAMES.sprint=(el,done)=>{
       FX.flash('#fff',.35);const c=FX.pt(run);
       FX.text(c.x,c.y-40,taps>=65?'🔥 اسطوره!':taps>=50?'عالی!':'پایان','#ffd75e',22);
       if(S&&!broke)S.say('پایان زمان — '+(taps>=50?'رکورد قابل احترام':'استادیوم انتظار بازگشتت را دارد'));
-      done(Math.min(1000,taps*12))}});
+      done(taps*12)}});
 };
 /* 2 — archery: 70m range — gusting wind changes target sway, arrows stick where they land (score formula unchanged: pts*20) */
 GAMES.archery=(el,done)=>{
@@ -10906,7 +10952,7 @@ GAMES.archery=(el,done)=>{
     if(shot>=5||fin)return;
     const rect=tg.getBoundingClientRect(),px=ev.clientX-(rect.left+rect.width/2);
     const d=Math.abs(px);const p=d<10?10:d<20?9:d<32?8:d<46?6:d<64?4:2;
-    pts+=p;shot++;sc.textContent=faN(pts)+' / ۵۰';st.textContent='تیر '+faN(Math.min(5,shot+1))+' از ۵';
+    pts+=p;shot++;TELE.ev('shot',performance.now()-TELE.t0,p);sc.textContent=faN(pts)+' / ۵۰';st.textContent='تیر '+faN(Math.min(5,shot+1))+' از ۵';
     sndK2('swoosh'); /* V39: صدای پرواز تیر */
     /* V38: تیر در هدف فرو می‌رود و می‌ماند — زاویه‌ی تصادفی مثل هدف واقعی */
     try{const tr=tg.getBoundingClientRect();
@@ -10925,7 +10971,7 @@ GAMES.archery=(el,done)=>{
     tm33(()=>{fl.innerHTML=''},600);sndK2(p>=8?'coin':'click');
     if(shot>=5){fin=true;const c=FX.pt(tg);FX.text(c.x,c.y-50,pts>=40?'کمانگیر افسانه‌ای!':pts>=28?'تیرانداز ماهر':'پایان','#ffd75e',20);
       if(S)S.say(pts>=40?'پنج تیر، پنج قصه — ایستو در تاریخ ثبت شد':'پنج تیر تمام — پرچم باد هنوز سرفه‌جاست');
-      done(Math.min(1000,pts*20))}});
+      done(pts*20)}});
 };
 /* 3 — swim: 100m freestyle — two pool lengths, wall turns every 25m with flip animation (score formula unchanged: strokes*14) */
 GAMES.swim=(el,done)=>{
@@ -10939,7 +10985,7 @@ GAMES.swim=(el,done)=>{
   on33(trk,'pointerdown',ev=>{ev.preventDefault();
     if(!t0){t0=performance.now();if(S)S.say('بوق استارت — آب را بشکاف!');JUICE.cam('swim')}
     const side=ev.clientX<window.innerWidth/2?0:1;
-    if(side!==last){strokes++;last=side;sndK2('click');
+    if(side!==last){strokes++;last=side;sndK2('click');TELE.ev('p',performance.now()-TELE.t0,side);
       FX.splash(ev.clientX,ev.clientY); /* V39: پاشش واقعی آب */
       FX.spark(ev.clientX,ev.clientY,['#9adcff','#fff','#39e6d0'],5,70,0.5);
       FX.ring(ev.clientX,ev.clientY,'rgba(153,220,255,.85)',5,44);
@@ -10961,7 +11007,7 @@ GAMES.swim=(el,done)=>{
       FX.text(c.x,c.y-40,strokes>=110?'🐋 موج‌سوار!':strokes>=85?'شناگر طلایی':'پایان','#9adcff',21);
       if(strokes>=110)FX.conf(60);
       if(S)S.say(strokes>=110?'موج‌سوار تالار!':'پایان مسافت — کرونومتر حرف آخر را زد');
-      done(Math.min(1000,strokes*14))}});
+      done(strokes*14)}});
 };
 /* 4 — gym: floor routine before a judges panel — E-score flashes after each move (score formula unchanged) */
 GAMES.gym=(el,done)=>{
@@ -10980,7 +11026,7 @@ GAMES.gym=(el,done)=>{
     /* V39: فرود پایانی — نور از زیر پا + سوت داور + بستن دوربین */
     JUICE.camOff();FX.flash('#ffd75e',.22);sndK2('whistle');FX.shake();
     if(S)S.say(miss>=4?'روتین نیمه‌کاره ماند — داورها امتیاز سخت گرفتند':'روتین تمام شد! داورها یادداشت‌هایشان را بستند');
-    done(Math.min(1000,pts))};
+    done(pts)};
   const judgeFlash=(fast)=>{
     judges.forEach((j,i)=>{const e=(8.4+Math.random()*(fast?1.5:0.9)).toFixed(1);
       j.textContent='داور '+faN(i+1)+': '+faN(e).replace('.','٫');j.style.color=fast?'#7dff9e':'#ffe08a';
@@ -10993,20 +11039,20 @@ GAMES.gym=(el,done)=>{
   loop33(()=>{if(fin)return;
     const w=win[Math.min(11,step)];const p=(performance.now()-stepT0)/w;
     if(tb)tb.style.width=Math.max(0,100-p*100)+'%';
-    if(p>=1){miss++;combo=0;if(cmb)cmb.textContent='';FX.shake();sndK2('alert');if(S&&miss===1)S.say('حرکت جا افتاد! تمرکز کن');next()}});
+    if(p>=1){miss++;combo=0;if(cmb)cmb.textContent='';TELE.ev('mv',performance.now()-TELE.t0,0,0);FX.shake();sndK2('alert');if(S&&miss===1)S.say('حرکت جا افتاد! تمرکز کن');next()}});
   el.querySelectorAll('.gm33-pad button').forEach(b=>b.addEventListener('pointerdown',ev=>{ev.preventDefault();
     if(fin)return;
     const w=win[Math.min(11,step)];const el3=performance.now()-stepT0;
     if(Number(b.getAttribute('data-d'))===cur){
       const fast=el3<w*.4;const gained=70+(fast?30:0);
-      pts+=gained;step++;combo++;sndK2('coin');sc.textContent=faN(pts);
+      pts+=gained;step++;combo++;sndK2('coin');sc.textContent=faN(pts);TELE.ev('mv',performance.now()-TELE.t0,1,fast?1:0);
       FX.punch(ar);FX.spark(FX.pt(ar).x,FX.pt(ar).y,fast?['#7dff9e','#ffd75e']:['#ffd75e'],fast?14:8,95,0.5);
       if(fast){const p2=FX.pt(ar);FX.text(p2.x,p2.y-50,'بی‌نقص! +'+faN(gained),'#7dff9e',18)}
       if(combo===3)judgeFlash(fast);
       if(cmb&&combo>=3){cmb.textContent='🔥 کمبو ×'+faN(combo)}
       if(S&&step===8)S.say('هشت حرکت تمام — تماشاگران روی پا هستند!');
       next()}
-    else{miss++;combo=0;if(cmb)cmb.textContent='';FX.shake();sndK2('alert');if(S)S.say('کج‌فرود آمدی — داور خطا یادداشت کرد');next()}},{passive:false}));
+    else{miss++;combo=0;if(cmb)cmb.textContent='';TELE.ev('mv',performance.now()-TELE.t0,0,0);FX.shake();sndK2('alert');if(S)S.say('کج‌فرود آمدی — داور خطا یادداشت کرد');next()}},{passive:false}));
   next();
 };
 /* 5 — weight: barbell ladder ۱۲۰→۲۴۰kg — three referee lights judge each lift (score formula unchanged) */
@@ -11035,7 +11081,7 @@ GAMES.weight=(el,done)=>{
     const my=((Number(m.style.top.replace('px',''))||0)+8);
     const d=Math.abs(my-zc);
     const p=Math.max(0,1-d/(zh*2.2));
-    const got=Math.round(200*p);pts+=got;lift++;
+    const got=Math.round(200*p);pts+=got;lift++;TELE.ev('lift',performance.now()-TELE.t0,p);
     /* V39: خم‌شدن میله زیر وزنه + ارتعاش + اسلوموشن حرکت بی‌نقص */
     bar.classList.add('wg39-bend');tm33(()=>bar.classList.remove('wg39-bend'),1050);
     if(p>.85)JUICE.slow(560);
@@ -11056,7 +11102,7 @@ GAMES.weight=(el,done)=>{
     sndK2(ok?'coin':'click');
     if(lift>=5){fin=true;JUICE.camOff();if(pts>=700){FX.conf(80);FX.flash('#ffd75e',.3);sndK2('crowd')}
       if(S)S.say(pts>=700?'تمام وزن‌ها فتح شد — سالن آهنین کف زد':'پنج حرکت تمام — میله روی زمین افتاد');
-      done(Math.min(1000,pts))}else drawZone()},{passive:false});
+      done(pts)}else drawZone()},{passive:false});
 };
 /* 6 — cycling: mountain road race — your rhythm moves you up a live field of two rivals (score formula unchanged: avg*1000) */
 GAMES.cycling=(el,done)=>{
@@ -11075,7 +11121,7 @@ GAMES.cycling=(el,done)=>{
   on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
     const now=performance.now();if(!t0){t0=now;last=now;tPrev=now;started=true;if(S)S.say('پرچم شروع! پاس کوهستانی پیش روست');return}
     const dt=now-last;last=now;
-    const q=Math.max(0,1-Math.abs(dt-400)/250);sum+=q;n++;
+    const q=Math.max(0,1-Math.abs(dt-400)/250);sum+=q;n++;TELE.ev('pedal',performance.now()-TELE.t0,dt);
     const avg=sum/n;sc.textContent=faN(Math.round(avg*1000));
     cd.style.width=(avg*100)+'%';sndK2('click');
     /* V35: خطوط سرعت وقتی ریتم درست است + جرقه‌ی چرخ */
@@ -11099,7 +11145,7 @@ GAMES.cycling=(el,done)=>{
       if(avg2>.8){FX.conf(60);JUICE.slow(600);JUICE.zoom();sndK2('crowd');FX.flash('#ffd75e',.28); /* V39: انفجار نور خط پایان */
         const cF=FX.pt(run);FX.ring(cF.x,cF.y,'rgba(255,215,94,.9)',16,120)}
       if(S)S.say(avg2>.8?'خط پایان با آغوش باز از تو استقبال کرد':'پایان مسابقه — پیست انتظار تمرین بیشتری دارد');
-      done(Math.min(1000,avg2*1000))}});
+      done(Math.round(avg2*1000))}});
 };
 /* 7 — chess: 4 mate-in-1 puzzles vs a grandmaster — winning piece glides across the board (score formula unchanged) */
 const CHESS33=[
@@ -11127,11 +11173,11 @@ GAMES.chess=(el,done)=>{
       '<div><span class="w38-clock" id="g33clk">⏱️ صبر می‌کند…</span></div>';
     const tb=el.querySelector('#g33t');
     loop33(()=>{if(gen!==myGen||fin)return;const p=Math.min(1,(performance.now()-t0)/15000);if(tb)tb.style.width=(100-p*100)+'%';
-      if(p>=1){sndK2('alert');FX.shake();pi++;show()}});
+      if(p>=1){TELE.ev('puz',performance.now()-TELE.t0,pi,0,15000);sndK2('alert');FX.shake();pi++;show()}});
     el.querySelectorAll('.gm33-opts button').forEach(b=>b.addEventListener('pointerdown',ev=>{ev.preventDefault();
       if(fin)return;
       const i=Number(b.getAttribute('data-i'));
-      if(i===P.ans){const dt=performance.now()-t0;pts+=200+(dt<6000?50:dt<10000?25:0);sndK2('coin');
+      if(i===P.ans){const dt=performance.now()-t0;pts+=200+(dt<6000?50:dt<10000?25:0);sndK2('coin');TELE.ev('puz',performance.now()-TELE.t0,pi,1,Math.round(dt));
         /* V38: مهره‌ی برنده از خانه‌ی مبدا به مقصد پرواز می‌کند */
         const bd2=el.querySelector('#g33bd2');
         const fromCell=bd2&&bd2.querySelector('[data-sq="'+P.mv.f+'"]');
@@ -11153,7 +11199,7 @@ GAMES.chess=(el,done)=>{
         FX.flash('#ffd75e',.3);FX.conf(30);
         if(S)S.say(['مات! استاد بزرگ گیج شد','شاه در دام افتاد — تالار منفجر شد','حرکت منتخب — این را کتاب‌ها ثبت می‌کنند','مات در یک حرکت — امضای تو'][pi]||'مات!');
         pi++;tm33(show,700)}
-      else{fin=true;FX.shake();FX.text(FX.pt(el).x,FX.pt(el).y*.4,'اشتباه بود…','#ff8ba0',20);
+      else{TELE.ev('puz',performance.now()-TELE.t0,pi,0,Math.round(performance.now()-t0));fin=true;FX.shake();FX.text(FX.pt(el).x,FX.pt(el).y*.4,'اشتباه بود…','#ff8ba0',20);
         if(S)S.say('حرکت اشتباه — استاد بزرگ با آرامش دستت را فشرد');done(pts)}},{passive:false}));
   };
   show();
@@ -11255,7 +11301,7 @@ GAMES.volley=(el,done)=>{
     if(fin)return;
     const r=b.getBoundingClientRect(),z=el.querySelector('.w40-vb-hitzone').getBoundingClientRect();
     if(r.right>z.left&&r.left<z.right&&r.top<z.bottom&&r.bottom>z.top){
-      spikes++;per=Math.min(4.6,per*1.09);sndK2('coin');sndK2('thump');
+      spikes++;per=Math.min(4.6,per*1.09);sndK2('coin');sndK2('thump');TELE.ev('hit',performance.now()-TELE.t0);
       jumpT=performance.now();setFrame('hit');           /* ③ ضربه */
       FX.punch(b);FX.spark(ev.clientX,ev.clientY,['#ffd75e','#fff','#ff9d3c'],14,130,.6);
       FX.ring(ev.clientX,ev.clientY,'rgba(255,215,94,.9)',8,66);
@@ -11266,14 +11312,14 @@ GAMES.volley=(el,done)=>{
       if(spikes===5&&S)S.say('رالی پنج تایی! تماشاگران روی ماسه می‌رقصند');
       if(spikes===9&&S)S.say('رقیب خسته شد — دریافتش کوتاه می‌شود');
       if(spikes===13&&S)S.say('افسانه‌ای! ساحل طلایی نامت را فریاد می‌زند')}
-    else{serves++;per=Math.max(1.8,per*0.85);sndK2('alert');FX.shake();
+    else{serves++;TELE.ev('fault',performance.now()-TELE.t0);per=Math.max(1.8,per*0.85);sndK2('alert');FX.shake();
       jumpT=0;setFrame('idle');
       FX.text(ev.clientX,ev.clientY-20,'💔 خطا!','#ff8ba0',17);
       if(S)S.say(['توپ بیرون رفت — داور پرچم زد','دست‌ها زیر توپ رفت — خطا','سخت زدی، بلند رفت — تمرکز کن'][serves%3]||'خطا!');
       st.textContent='سرویس '+faN(Math.min(3,serves))+' • رالی '+faN(spikes);
       if(serves>3){fin=true;JUICE.camOff();
         if(S)S.say('سه خطا — بازی ساحلی تمام شد؛ ماسه هنوز گرم است');
-        done(Math.min(1000,spikes*22))}}},{passive:false});
+        done(spikes*22)}}},{passive:false});
 };
 /* 9 — football: knockout shootout across 3 rounds — keeper dives, every kick is marked on the shootout board (score formula unchanged) */
 GAMES.football=(el,done)=>{
@@ -11297,6 +11343,7 @@ GAMES.football=(el,done)=>{
       if(fin)return;
       const zi=Number(z.getAttribute('data-z'));
       const kd=Math.random()<KP[Math.min(2,round)]?zi:(zi+1+Math.floor(Math.random()*2))%3;
+      TELE.ev('shot',performance.now()-TELE.t0,zi,kd,kd===zi?0:1,round);
       k.style.left=(16.5+kd*33.3)+'%';k.style.marginLeft='-15px';
       k.style.transform='rotate('+(kd===zi?'18deg':'-14deg')+') scale(1.15)'; /* شیرجه‌ی دروازه‌بان */
       b.style.left=(16.5+zi*33.3)+'%';b.style.bottom='55%';
@@ -11321,11 +11368,65 @@ GAMES.football=(el,done)=>{
             if(S)S.say(RN[round]+' گذر شد! '+(round===2?'قهرمان ضربات پنالتی — سرود طنین‌انداز شد':'حریف بعدی قوی‌تر است'))}
           else if(S)S.say('در '+RN[round]+' حذف شدی — اما ناکاوت ادامه دارد');
           round++;shot=0;goals=0;
-          if(round>=3){fin=true;JUICE.camOff();if(pts>=600)sndK2('crowd');done(Math.min(1000,pts))}
+          if(round>=3){fin=true;JUICE.camOff();if(pts>=600)sndK2('crowd');done(pts)}
           else tm33(show,900);
         }},420)},{passive:false}));
   };
   show();
+};
+/* 9-b — lj (O1): پرش طول — Run-up + Timing + Takeoff؛ سرعت از ریتم ضربه‌ها، آف‌تیک دقیق روی تخته‌ی طلایی، عبور از تخته = خطا (۳ پرش — فرمول سرور: round(m*45)) */
+GAMES.lj=(el,done)=>{
+  const S=window.ST38;
+  el.innerHTML='<div class="gm33-track" style="position:relative;overflow:hidden">'+
+    '<div style="position:absolute;left:0;right:0;bottom:8px;height:6px;background:rgba(255,255,255,.12);border-radius:3px"></div>'+
+    '<div id="g33board" style="position:absolute;right:14%;bottom:8px;width:6px;height:26px;background:linear-gradient(#ffd75e,#ff9d3c);border-radius:3px;box-shadow:0 0 10px rgba(255,204,0,.6)"></div>'+
+    '<div id="g33pit" style="position:absolute;left:0;right:14%;bottom:0;height:10px;background:linear-gradient(90deg,rgba(184,154,106,0),rgba(184,154,106,.55))"></div>'+
+    '<span class="gm33-runner" id="g33run" style="z-index:2">🦘</span></div>'+
+    '<div><span class="w38-meter" id="g33mtr">پرش ۱ از ۳</span></div>'+
+    '<div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div>'+
+    '<div class="gm33-step" id="g33st">ضربه‌های پیوسته = سرعت — لحظه‌ی رسیدن به تخته‌ی طلایی بپر؛ عبور از آن = خطا</div>';
+  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st'),mtr=el.querySelector('#g33mtr');
+  let jumps=0,pts=0,sp=0,lastTap=0,t0=0,jumped=false,fin=false;const TRACK_MS=9000;
+  JUICE.cam('low');
+  const reset=()=>{sp=0;lastTap=0;jumped=false;t0=0;run.style.transition='';run.style.transform='translateX(0px)';run.style.opacity='1';tb.style.width='100%'};
+  reset();
+  const doJump=(ranThrough,now)=>{
+    jumped=true;
+    const boardT=0.86*TRACK_MS,dtb=(now-t0)-boardT;
+    let m=0,foul=!!ranThrough;
+    if(!foul&&dtb>280)foul=true;
+    if(!foul){const prec=Math.max(0,1-Math.abs(dtb)/280);m=Math.round((4.4+sp*4.6+prec*2.3)*10)/10;if(m>11.9)m=11.9}
+    jumps++;
+    TELE.ev('jump',performance.now()-TELE.t0,m);
+    if(foul){FX.shake();sndK2('alert');FX.text(FX.pt(run).x,FX.pt(run).y-30,'🚫 خطا!','#ff8ba0',19);if(S)S.say('از تخته رد شدی — پرچم سرخ داور')}
+    else{pts+=Math.round(m*45);sc.textContent=faN(pts);
+      mtr.textContent='پرش '+faN(jumps)+' — '+faN(m).replace('.','٫')+' متر';
+      FX.splash(FX.pt(run).x,FX.pt(run).y+16,10);sndK2('swoosh');
+      run.style.transition='transform .5s cubic-bezier(.2,.8,.3,1)';run.style.transform+=' translateY(-24px)';
+      FX.text(FX.pt(run).x,FX.pt(run).y-44,faN(m).replace('.','٫')+' متر!','#7dff9e',20);
+      if(m>=9){JUICE.slow(650);JUICE.zoom();sndK2('crowd');if(S)S.say('پرش افسانه‌ای! شنی‌ها پرواز کردند')}
+      tm33(()=>{run.style.opacity='0'},500)}
+    tm33(()=>{
+      if(jumps>=3){fin=true;JUICE.camOff();if(pts>=700){FX.conf(60);FX.flash('#ffd75e',.25);sndK2('crowd')}done(pts);return}
+      reset();mtr.textContent='پرش '+faN(jumps+1)+' از ۳';if(S)S.say('سه فرصت داری — سرعت را ببلع، در لحظه‌ی درست پرواز کن');
+    },950)};
+  loop33(()=>{if(fin||jumped||!t0)return;
+    const now=performance.now();const prog=Math.min(1,(now-t0)/TRACK_MS);
+    const W=el.querySelector('.gm33-track').clientWidth||340;
+    run.style.transform='translateX('+(prog*(W-46))+'px)';
+    tb.style.width=Math.max(0,100-prog*100)+'%';
+    if(prog>=1)doJump(true,now)});
+  on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
+    if(fin||jumped)return;
+    if(!t0){t0=performance.now();if(S)S.say('باند دویدن گرم است — ریتم بساز');JUICE.cam('follow')}
+    const now=performance.now();
+    const dt=now-(lastTap||now-300);lastTap=now;
+    const q=Math.max(0,1-Math.abs(dt-260)/240); /* اوج ریتم ~۳.۸ ضربه در ثانیه */
+    sp=Math.min(1,sp*0.72+q*0.42);
+    sc.textContent=faN(Math.round(sp*100))+'٪';sndK2('click');FX.dust(ev.clientX,ev.clientY+8,5);
+    const prog=Math.min(1,(now-t0)/TRACK_MS);
+    if(prog>=0.86)doJump(false,now);
+    else if(prog>0.8)st.textContent='حالا! بپر! 🔥'},{passive:false});
 };
 /* 10 — wrestle: tug-of-war MATCH (2 of 3 bouts) — center line, walking referee, live match board (score formula unchanged) */
 GAMES.wrestle=(el,done)=>{
@@ -11353,14 +11454,14 @@ GAMES.wrestle=(el,done)=>{
       if(ref)ref.style.left=Math.max(2,Math.min(92,(pr/100)*(W-32)-14))+'px'; /* داور کنار کشمکش راه می‌رود */
       const el2=D.getElementById('g33t');if(el2)el2.style.width=Math.max(0,100-(dt/DUR)*100)+'%';
       if(pr>=100){bfin=true;const left=Math.max(0,12-dt);const got=250+Math.round(left/DUR*1000*0.15);
-        pts+=got;winsMe++;sndK2('cheer');sndK2('thump');sc.textContent=faN(pts);
+        pts+=got;winsMe++;TELE.ev('bout',performance.now()-TELE.t0,1,Math.round(left*1000));sndK2('cheer');sndK2('thump');sc.textContent=faN(pts);
         /* V35: پرچم پیروزی روی نشان + لرزش و جرقه */
         const mc=FX.pt(m);FX.spark(mc.x,mc.y,['#7dff9e','#ffd75e','#fff'],20,150,.8);FX.ring(mc.x,mc.y,'rgba(125,255,158,.9)',10,80);
         FX.dust(mc.x,mc.y+16,12); /* V39: گرد و خاک زمین‌زدن */
         FX.text(mc.x,mc.y-40,'🏆 برنده! +'+faN(got),'#7dff9e',20);FX.shake();JUICE.slow(500);
         if(S)S.say(winsMe>=2?'دو برد از سه — میدان مال توست! داور دستت را بالا برد':'دیدار بعدی حیاتی است — نفس بگیر');
         nextBout(got)}
-      else if(pr<=0||dt>=DUR){bfin=true;winsRiv++;sndK2('alert');FX.shake();
+      else if(pr<=0||dt>=DUR){bfin=true;winsRiv++;TELE.ev('bout',performance.now()-TELE.t0,0,0);sndK2('alert');FX.shake();
         const mc2=FX.pt(m);FX.text(mc2.x,mc2.y-40,'😮 باخت این دیدار','#ff8ba0',18);
         if(S)S.say(winsRiv>=2?'دو باخت — حریف امشب قوی‌تر بود':'طناب کج رفت — بازگرد و بکش!');
         nextBout(0)}});
@@ -11371,7 +11472,7 @@ GAMES.wrestle=(el,done)=>{
   };
   const nextBout=(got)=>{bout++;
     /* سه دیدار کامل برگزار می‌شود تا سقف امتیاز مثل قبل حفظ شود — برد ۲-۰ هم بازی سوم دارد (نمایشی) */
-    if(bout>=3){fin=true;JUICE.camOff();if(pts>=500){FX.conf(80);FX.flash('#ffd75e',.3);sndK2('crowd')}done(Math.min(1000,pts))}
+    if(bout>=3){fin=true;JUICE.camOff();if(pts>=500){FX.conf(80);FX.flash('#ffd75e',.3);sndK2('crowd')}done(pts)}
     else tm33(()=>{showToast2(got?'💪 بردی! +'+faN(got):'😮 باختی — دیدار بعدی','win');show()},700)};
   show();
 };
@@ -12494,7 +12595,8 @@ function radar39(cv,entries,keys,names){
   var cx=W/2,cy=H/2+4,R=Math.min(W,H)/2-26;
   /* V40: کانواس مخفی (۰px) → شعاع منفی → خطای حلقه‌ای؛ رد کن */
   if(W<20||H<20||R<6)return;
-  var vals=keys.map(function(k){var e=entries&&entries[k];return Math.max(0,Math.min(1,(e&&e.best||0)/1000))});
+  var rmax39=1000;keys.forEach(function(k){var e=entries&&entries[k];if(e&&e.best>rmax39)rmax39=e.best}); /* O1: مقیاس داینامیک — سقف ۱۰۰۰ حذف شد */
+  var vals=keys.map(function(k){var e=entries&&entries[k];return Math.max(0,Math.min(1,(e&&e.best||0)/rmax39))});
   var avg=vals.reduce(function(s,v){return s+v},0)/Math.max(1,vals.length);
   /* rings */
   for(var ring=1;ring<=4;ring++){
@@ -12535,7 +12637,7 @@ function radar39(cv,entries,keys,names){
     if(p<1)requestAnimationFrame(frame);else{
       var cx2=cx,cy2=cy-H/2-2;
       ctx.font='900 11px Vazirmatn,system-ui,sans-serif';ctx.fillStyle='#ffe08a';
-      ctx.fillText('میانگین قدرت: '+faN(Math.round(avg*1000)),cx2,cy2)}
+      ctx.fillText('میانگین قدرت: '+faN(Math.round(avg*rmax39)),cx2,cy2)}
   })();
 }
 function injectCharts(){
@@ -12547,7 +12649,7 @@ function injectCharts(){
     var host=D.createElement('div');host.id='wd39-charts';
     var GD=[['sprint','دو'],['archery','کمان'],['swim','شنا'],['gym','ژیم'],['weight','وزنه'],['cycling','رخ'],['chess','شطرنج'],['volley','والی'],['lj','پرش'],['wrestle','کشتی']];
     host.innerHTML='<div class="wd31-card wd39-chartcard" id="wd39-medalcard"><div class="wd39-chart-h"><b>📊 مسابقه‌ی مدال‌ها — زنده</b><small>۸ کشور صدر • به‌روزرسانی خودکار</small></div><div id="wd39-medalrace"></div></div>'+
-      '<div class="wd31-card wd39-chartcard" id="wd39-radarcard"><div class="wd39-chart-h"><b>🕸️ رادار قدرت من — ۱۰ رشته</b><small>هر ضلع تا ۱۰۰۰ امتیاز</small></div><canvas id="wd39-radar" height="210"></canvas><div id="wd39-radar-empty" class="wd31-mini" style="display:none;margin-top:4px">در رشته‌ها بازی کن تا رادارت جان بگیرد 🌱</div></div>';
+      '<div class="wd31-card wd39-chartcard" id="wd39-radarcard"><div class="wd39-chart-h"><b>🕸️ رادار قدرت من — ۱۱ رشته</b><small>مقیاس داینامیک — تا بهترین امتیازت</small></div><canvas id="wd39-radar" height="210"></canvas><div id="wd39-radar-empty" class="wd31-mini" style="display:none;margin-top:4px">در رشته‌ها بازی کن تا رادارت جان بگیرد 🌱</div></div>';
     anchor.parentNode.insertBefore(host,anchor);
     medalRace(D.getElementById('wd39-medalrace'),d.table);
     var my=d.my||{};var hasAny=GD.some(function(x){return my.entries&&my.entries[x[0]]&&my.entries[x[0]].best>0});
@@ -12938,6 +13040,10 @@ body.idle *{animation-play-state:paused!important}
 'use strict';
 const D=document;
 const API=window.WD33_API||{};
+/* O1: تله‌متری تصمیم‌ها — سرور امتیاز را از روی توالی تصمیم‌ها بازمحاسبه می‌کند */
+const TELE41=API.TELE||null;
+const TE=(...a)=>{try{if(TELE41)TELE41.ev(...a)}catch(e){}};
+const Tnow=()=>{try{return Math.round(performance.now()-((TELE41&&TELE41.t0)||0))}catch(e){return 0}};
 const faN=n=>{try{return String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])}catch(e){return String(n)}};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fx=API.FX||{spark(){},conf(){},text(){},ring(){},shake(){},flash(){},punch(){}};
@@ -12946,8 +13052,12 @@ const juke=API.JUICE||{slow(){},zoom(){},cam(){},camOff(){}};
 
 /* ---------- ۱) موتور شبیه‌سازی: RNG تکرارپذیر (mulberry32) ---------- */
 function rng(seed){let a=(seed>>>0)||12345;return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296}}
-let seedBase=0;
-const nextSeed=()=>((Date.now()%9973)+((seedBase=(seedBase+1)%97)*104729))>>>0;
+let seedBase=0,simSalt=0;
+/* O1/L6: RNG مسابقه با seed سرور (از olympic_start) بذر می‌شود — کلاینت نمی‌تواند seed خوش‌شانس انتخاب کند */
+const nextSeed=()=>{try{const m=(API&&API.MATCH&&typeof API.MATCH==='object')?API.MATCH:null;
+  if(m&&m.seed){simSalt++;let h=2166136261>>>0;const s=String(m.seed)+'#'+simSalt;
+    for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h>>>0}}catch(e){}
+  return ((Date.now()%9973)+((seedBase=(seedBase+1)%97)*104729))>>>0};
 /* آمار پایه ۰..۱ (سقف اثر ۴۰٪ در توازن) */
 function baseStrength(){
   try{
@@ -13057,6 +13167,7 @@ function gFootball(el,done){
       {ic:'⚡',k:'counter',label:'ضدحمله',desc:'سرعت در فضای خالی',rec:recStyle==='counter',bars:{'⚔':.72,'🛡':.58,'🎮':.5}},
       {ic:'💪',k:'press',label:'پرس بالا',desc:'فشار از دقیقه‌ی اول',rec:recStyle==='press',bars:{'⚔':.8,'🛡':.44,'🎮':.44}}],'آرایش: '+form.label);
     H.say('🗣️ گزارشگر: «'+form.label+' و '+style.label+' — ورزشگاه منفجر شد!»');
+    TE('dec',Tnow(),0,['bal','atk','def'].indexOf(form.k));TE('dec',Tnow(),1,['poss','counter','press'].indexOf(style.k));
     const tac={atk:{bal:.58,atk:.84,def:.36}[form.k],def:{bal:.6,atk:.4,def:.86}[form.k],
       poss:{poss:.74,counter:.52,press:.62}[style.k]};
     if(style.k==='press'){tac.atk=Math.min(1,tac.atk+.08);tac.def=Math.min(1,tac.def+.05)}
@@ -13096,11 +13207,13 @@ function gFootball(el,done){
           'نتیجه: '+faN(st.g1)+' - '+faN(st.g2)+(st.g1<st.g2?' — عقب هستی، کادر فنی حمله را توصیه می‌کند':st.g1>st.g2?' — جلو هستی، نتیجه را حفظ کن':' — تساوی؛ فرصت برای جسارت'));
         if(t2.k==='up'){tac.atk=Math.min(1,tac.atk+.16);tac.def=Math.max(.2,tac.def-.1);boost+=.14}
         if(t2.k==='hold'){tac.def=Math.min(1,tac.def+.16);tac.atk=Math.max(.25,tac.atk-.08);boost-=.04}
-        H.say('🔁 تاکتیک نیمه‌ی دوم: '+t2.label,'sys');paused=false}
+        H.say('🔁 تاکتیک نیمه‌ی دوم: '+t2.label,'sys');TE('dec',Tnow(),2,['up','hold','same'].indexOf(t2.k));paused=false}
       if(minute>=total){clearInterval(timer);
         const win=st.g1>st.g2,draw=st.g1===st.g2;
         const perf=Math.round(st.sh1*9+st.poss/Math.max(1,minute)*.6);
-        const norm=Math.max(150,Math.min(1000,Math.round((win?660+st.g1*70:draw?430:200)+Math.min(140,perf)+B*80)));
+        /* O1: سقف ۱۰۰۰ حذف — بازمحاسبه‌ی سرور از روی تصمیم‌ها + نتیجه */
+        TE('fbend',Tnow(),st.g1,st.g2,st.sh1,st.poss,Math.round(B*100));
+        const norm=Math.max(150,Math.round((win?660+st.g1*70:draw?430:200)+Math.min(140,perf)+B*80));
         report(H,{ic:'⚽',title:'پایان مسابقه',big:faN(st.g1)+' - '+faN(st.g2),stars:win?(st.g1-st.g2>=2?3:2):draw?2:1,norm,
           rows:[['مالکیت توپ',faN(Math.round(38+tac.poss*24+Math.min(8,st.g1*2)))+'٪'],['شوت‌ها',faN(st.sh1)+' در برابر '+faN(st.sh2)],['دستور وضعیتی',(condDown||condUp)?'اجرا شد':'لازم نشد']],
           coach:['آمار پایه‌ی کشورت '+Math.round(B*100)+'٪ وزن داشت — '+Math.round(100-B*100)+'٪ بقیه ساخته‌ی تاکتیک و شانس بود.',
@@ -13122,6 +13235,7 @@ function gRace(el,done,cfg){
       {ic:'📈',k:'neg',label:'نیمه‌ی دوم تند',desc:'ذخیره کن، آخر بزن'},
       {ic:'🎲',k:'allout',label:'همه‌چیز یا هیچ',desc:'حداکثر سرعت'}]);
     H.say('🗣️ گزارشگر: «'+plan.label+' — استراتژی جسورانه‌ای است!»');
+    TE('dec',Tnow(),0,['even','fast','neg','allout'].indexOf(plan.k));
     const planK={even:1,fast:1.2,neg:.94,allout:1.32}[plan.k];
     const fatigueK={even:.999,fast:.968,neg:1,allout:.945}[plan.k];
     H.arenaHTML('<div class="w41-trk" data-sp="'+(cfg.sp||'')+'"><div class="fin"></div>'+[0,1,2,3].map(i=>'<div class="lane '+(i?'r':'me')+'"><i class="ath">'+cfg.ath+'</i><b class="pc" data-i="'+i+'">۰٪</b><span class="nm">'+(i?esc(rivals[i-1].n):'تو')+'</span></div>').join('')+'</div>');
@@ -13147,13 +13261,15 @@ function gRace(el,done,cfg){
         if(c.k==='push'){boost*=1.5;fatigue*=.93;fx.shake();sndK('crowd');H.say('⚡ حمله زدی — گروه جا ماند!','goal')}
         else if(c.k==='hold'){boost*=1.06;H.say('🧘 ریتم را نگه داشتی')}
         else{boost*=1+B*.55;H.say('👀 حرکت حریف را خواندی','sys')}
-        deciding=false;return}
+        deciding=false;TE('dec',Tnow(),1,['push','hold','read'].indexOf(c.k),decisionUsed);return}
       if(R()<.04)H.say(narr('جریان مسابقه: {a}',{a:['گروه چسبیده است','رقیب اصلی تندتر کرد','پاها سنگین می‌شوند','تماشاگران می‌فریادند'][Math.floor(R()*4)]}));
       if(p>=1){clearInterval(timer);
         const order=[{n:'تو',v:prog.you},...rivals.map((r,i)=>({n:r.n,v:prog['r'+i]}))].sort((a,b)=>b.v-a.v);
         const place=order.findIndex(x=>x.n==='تو')+1;
         const gap=Math.abs(order[0].v-(place===1?order[1].v:order[0].v));
-        const norm=Math.max(140,Math.min(1000,Math.round((5-place)*150+Math.max(0,28-gap*.4)+B*110)));
+        TE('racend',Tnow(),place,Math.round(gap),Math.round(B*100));
+        /* O1: سقف ۱۰۰۰ حذف */
+        const norm=Math.max(140,Math.round((5-place)*150+Math.max(0,28-gap*.4)+B*110));
         H.mark('🏁');H.say('🏁 خط پایان — جایگاه: <b>'+faN(place)+'</b>','goal');
         setTimeout(()=>report(H,{ic:cfg.ic,title:cfg.name+' — نتیجه',big:['🥇','🥈','🥉','۴','۴'][place-1]||'🏁',
           stars:place===1?3:place===2?2:place===3?1:0,norm,
@@ -13198,10 +13314,13 @@ function gRounds(el,done,cfg){
       if(fail){sndK('alert');H.say(narr(cfg.failTxt,{t:faN(i+1),m:pick.label}),'bad')}
       else{sndK('coin');fx.shake();H.say(narr(cfg.okTxt,{t:faN(i+1),m:pick.label,g:faN(myGain)}),'goal')}
       H.say(narr('حریف: {a} — {g} امتیاز',{a:oOpt.label,g:faN(opGain)}));
+      TE('rnd',Tnow(),i,cfg.opts.indexOf(pick),fail?1:0,myGain,opGain);
     }
     H.time(1);
     const win=my>op,draw=my===op;
-    const norm=Math.max(140,Math.min(1000,Math.round((my/cfg.max)*600+(win?300:draw?180:60)+B*80)));
+    TE('rndend',Tnow(),win?2:draw?1:0,Math.round(B*100));
+    /* O1: سقف ۱۰۰۰ حذف */
+    const norm=Math.max(140,Math.round((my/cfg.max)*600+(win?300:draw?180:60)+B*80));
     report(H,{ic:cfg.ic,title:cfg.name+' — نتیجه',big:win?'🏆':draw?'🤝':'😞',stars:win?3:draw?2:1,norm,
       rows:[['امتیاز من',faN(my)],['امتیاز حریف',faN(op)],['نتیجه',win?'برد':draw?'مساوی':'باخت']],
       coach:['سقف سهم آمار پایه: ۴۰٪ — '+Math.round(100-B*40)+'٪ از انتخاب ریسک‌های تو آمد.',
@@ -13248,10 +13367,13 @@ function gDuel(el,done,cfg){
       setTimeout(()=>{sideMe&&sideMe.classList.remove('hitL','hurt');sideOp&&sideOp.classList.remove('hitR','hurt');vd&&vd.classList.remove('on')},750);
       if(!revealed){revealed=true;
         H.say('🔎 کادر فنی: حریف عاشق «'+cfg.tend.label+'» است — ضدّش را آماده کن','sys')}
+      TE('du',Tnow(),winE?1:0);
       H.stat('بردهای من',mw,cfg.need);H.stat('بردهای حریف',ow,cfg.need);
     }
     const win=mw>ow,draw=mw===ow;
-    const norm=Math.max(140,Math.min(1000,Math.round((mw/cfg.need)*540+(win?320:draw?190:70)+B*80)));
+    TE('duend',Tnow(),win?2:draw?1:0,Math.round(B*100));
+    /* O1: سقف ۱۰۰۰ حذف */
+    const norm=Math.max(140,Math.round((mw/cfg.need)*540+(win?320:draw?190:70)+B*80));
     report(H,{ic:cfg.ic,title:cfg.name+' — نتیجه',big:win?'🏆':draw?'🤝':'😤',stars:win?3:draw?2:1,norm,
       rows:[['تبادل‌های بردهٔ من',faN(mw)],['حریف',faN(ow)],['سبک حریف',cfg.tend.label]],
       coach:['خواندن الگوی حریف مهم‌تر از آمار بود — سقف آمار ۴۰٪.',
@@ -13661,7 +13783,7 @@ function cosOwnedPush(k){try{var C=window.COS||window.COS27;if(C&&C.owned&&C.own
 function saveN(){try{if(typeof saveNow==='function')saveNow()}catch(e){}}
 
 /* ================= 4) رنگ هر ورزش — صحنه (CSS data-g37) + پشتیبان JS + هاب ================= */
-var SPORT_COL={sprint:'#ff4d6d',archery:'#ffb02e',swim:'#2bb8ff',gym:'#b06bff',weight:'#ff7847',cycling:'#3ee86e',chess:'#9fb6e8',volley:'#ffd84d',lj:'#4de3c0',wrestle:'#e05299'};
+var SPORT_COL={sprint:'#ff4d6d',archery:'#ffb02e',swim:'#2bb8ff',gym:'#b06bff',weight:'#ff7847',cycling:'#3ee86e',chess:'#9fb6e8',volley:'#ffd84d',lj:'#4de3c0',wrestle:'#e05299',football:'#7fd8ff'};
 var SPORT_FA={'دو ۱۰۰ متر':'sprint','تیراندازی با کمان':'archery','شنا':'swim','ژیمناستیک':'gym','وزنه‌برداری':'weight','دوچرخه‌سواری':'cycling','شطرنج':'chess','والیبال ساحلی':'volley','پرش طول':'lj','کشتی':'wrestle'};
 function stageTint(){try{var st=S$('wd33-stage');if(!st||!st.classList.contains('on'))return;
  if(!st.getAttribute('data-g37')){var txt=st.textContent||'';for(var fa in SPORT_FA){if(txt.indexOf(fa)>-1){var k2=SPORT_FA[fa];st.style.setProperty('--gd-ac',SPORT_COL[k2]);st.style.setProperty('--gd-soft',SPORT_COL[k2]+'29');break}}}}catch(e){}}
