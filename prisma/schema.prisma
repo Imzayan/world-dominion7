@@ -285,9 +285,43 @@ model OlympicRecord {
   nick       String
   country    String?
   edition    Int
+  matchId    String?  @map("match_id") /* O2: پیوند به مسابقه‌ی رکورد — منبع Ghost/Replay */
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("olympic_records")
+}
+
+/* O2 — PHASE 3/4/49/50: پروفایل مهارت هر رشته (فقط مسابقه‌ی رسمی) —
+   Skill از رینگ ۱۰ رکورد اخیر + میانگین بلندمدت، Consistency از پراکندگی،
+   Potential از روند صعودی. هیچ عدد ثابت دستی ذخیره نمی‌شود. */
+model OlympicProfile {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  discipline  String
+  n           Int      @default(0) /* تعداد مسابقه‌ی رسمی */
+  bestEver    Int      @default(0) @map("best_ever") /* PB همه‌ی دوره‌ها */
+  bestEdition Int      @default(0) @map("best_edition")
+  prCount     Int      @default(0) @map("pr_count")
+  bullseyes   Int      @default(0) /* جمع ده‌های طلایی کمان */
+  recent      String?  @default("[]") /* رینگ JSON آخرین ۱۰ نتیجه [{s,m,at}] */
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, discipline])
+  @@index([discipline])
+  @@map("olympic_profiles")
+}
+
+/* O2 — PHASE 27: دستاوردهای واقعی (از داده‌ی واقعی مسابقه‌ها، نه دستی) */
+model OlympicAchieve {
+  id      String   @id @default(cuid())
+  userId  String   @map("user_id")
+  key     String
+  edition Int
+  at      DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("olympic_achieves")
 }
 
 model OlympicArchive {
