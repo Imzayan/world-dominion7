@@ -1040,3 +1040,28 @@ Stage Summary:
 - باگ «رنگش می‌پره» ریشه‌ای فیکس شد و روی پروداکشن (V59 Wave-2 + fix، b4d0af5) زنده است
 - درس ماندگار: هر تست پیکسلی باید transform-offset کانواس + rAF flush + آستانه آلفای هر fillOpacity را لحاظ کند؛ شواهد: upload/oth-color-lost.png (قبل) و oth-color-fixed.png (بعد)
 - versionCode 8 و latest.json دست‌نخورده؛ APK بدون rebuild خودکار HTML جدید را می‌کشد
+---
+Task ID: V60-olympics-wave-O1
+Agent: Super Z (main)
+Task: مگا-رفکتور Olympics طبق مشخصات ۵۳ فازی کاربر — موج O1 (Server Authority + آنتی‌چیت + حذف سقف ۱۰۰۰ + پرفورمنس)
+
+Work Log:
+- PHASE 0 audit کامل: ۹ هندلر RPC المپیک در route.ts، بلوک‌های v31/v32/v33/v41 در index.html، ۵ مدل Prisma؛ کشف driftها (سرور ۱۱ رشته/کلاینت ۱۰؛ GD_MAX سقف ۱۰۰۰ دوطرفه؛ GAMES.lj ظاهراً گمشده)
+- کشف حیاتی ممیزی: بلوک v41-sim تمام ۱۰ بازی را با نسخه‌های شبیه‌سازی تاکتیکی override می‌کند — بازی‌های tap نسخه V33 از V41 کد مرده بودند؛ پس تله‌متری به خود موتورهای sim (gFootball/gRace/gRounds/gDuel) تزریق شد
+- src/lib/olyScore.ts: تک‌منبع بازمحاسبه سروری — دو مدل (tap + sim) با دیسپچ خودکار، قوانین L3 (بازه زمانی، مونوتونیک) و L4 (نرخ ورودی، سقف gain، پرچم برد/باخت، baseStrength ∈ [0.18..0.92])
+- آنتی‌چیت: olympic_start (match_id+server_seed، L1/L6)؛ RNG موتورهای sim حالا از seed سرور بذر می‌شود (ضد seed-خوش‌شانسی)؛ olympic_submit v2 فقط خروجی بازمحاسبه را ثبت می‌کند؛ duplicate/expired/cross-user reject (L8)؛ replay رکوردها (L5)؛ صف olympic_suspicious برای رکوردهای پرتابی با RPC ادمین oly_verify (L9/PHASE 29)
+- حذف سقف ۱۰۰۰ (PHASE 2): ۱۲ نقطه (runGame + ۱۰ بازی + ۴ موتور sim + GD_MAX سرور) — مثلاً اسپرینت ۱۳۰ ضربه = ۱۵۶۰ معتبر
+- Training/Official (PHASE 11/12): تمرین نامحدود غیررسمی + رسمی ۵/۶؛ intro دو دکمه؛ رادار wd39 مقیاس داینامیک
+- پرف (PHASE 8/53): کش TTL (olympics 30s، olympic_games-shared 10s)؛ هرس اسکن news (اکشن‌لیست + take 2000 به‌جای 5000)؛ ایندکس ترکیبی (edition,discipline,best desc)؛ OlympicMatch + OlympicSuspicious در دو dialect (additive)
+- باگ یافت‌شده در تست: تصادم نام 'ev' (آرایه/متد) در TELE → روش تست‌محور ریشه‌ای فیکس شد (list[])
+- تست: oly-unit 39/39 (توازن فرمول tap+sim)، oly-flow 12/12 (خط لوله کامل تمرین + رد رسمی)، oly-server 8/8 (سرور واقعی+DB: بازمحاسبه ۷۹۸ به‌جای ۹۹۹۹۹ ادعایی، رد دستکاری، رد تکراری، رد سرقت match)، بلوک‌ها 80/80، tsc پاک، next build موفق
+- deploy: ce2b8af..aa7343a → Vercel (db push additive روی Neon در build)؛ live md5 51859c29 == local
+- راستی‌آزمایی production: apk-sim 28/28، map-visual 20/20، attack-smoke 10/10، wave2 audit ✓ — RPC دود روی لایو «disabled» برگرداند: کلید event_olympic روی پروداکشن خاموش است (تنظیم ادمین) — گیت غیرفعال‌سازی خودش اثبات شد؛ مسیر آنتی‌چیت با DB واقعی روی لوکال اثبات شد؛ پس از روشن‌کردن سوییچ توسط ادمین، همان oly-server-test با WD_BASE لایو قابل اجراست
+
+Stage Summary:
+- موج O1 روی پروداکشن (aa7343a): امتیاز المپیک حالا Server-Authoritative است؛ سقف ۱۰۰۰ حذف؛ تمرین/رسمی جدا؛ زیرساخت آنتی‌چیت ۹لایه + replay + صف راستی‌آزمایی فعال
+- نکته ادمین: برای فعال‌سازی المپیک جدید، سوییچ رویداد المپیک را از پنل ادمین روشن کن و بعد «oly_admin_shift open» بزن
+- باقی‌مانده موج O2: رکوردهای چندگانه (PB/Season/Country/Global) + Ghost Rival + اعلان Record Broken + Achievement + Skill Profile/Consistency (داده‌اش از OlympicMatch تله‌متری می‌آید) + UI پنل oly_verify برای ادمین
+- باقی‌مانده موج O3: بازطراحی Skill Loop رشته‌ها (حذف RNG-محوری simها طبق PHASE 15/16/46) + Difficulty Adaptive + Combo/Clutch + Low FX + Arena/Result UI
+- ۴ عدد Math.min(1000) باقی‌مانده در بلوک v41-sim متعلق به نمایش‌های محلی غیر-المپیکی همان موتور است — در O3 همراه بازطراحی حل می‌شود
+- versionCode 8 و latest.json دست‌نخورده؛ APK بدون rebuild جدید را می‌کشد
