@@ -461,7 +461,9 @@ async function olyShared(edition: number, live: boolean) {
       c.total++
     }
   }
-  const table = Object.values(byC).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
+  /* O4-final / PHASE 22: امتیاز کشوری وزن‌دار (G=5, S=2, B=1) — ستون نمایشی؛
+     ترتیب رسمی همان کنوانسیون المپیک (طلا اول) می‌ماند */
+  const table = Object.values(byC).map((c) => ({ ...c, pts: c.g * 5 + c.s * 2 + c.b })).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
   const records = await db.olympicRecord.findMany({ take: 12 })
   const allResults = await db.olympicResult.findMany({ orderBy: [{ edition: 'asc' }], take: 250 })
   const career: Record<string, { nick: string; g: number; s: number; b: number; total: number; eds: number[] }> = {}
@@ -483,6 +485,32 @@ async function olyShared(edition: number, live: boolean) {
     archives,
   }
   OL_GAMES_CC = { k: ck0, at: Date.now(), v }
+  return v
+}
+
+/* ============ O4-final / PHASE 34: لایه‌ی انگیزش — فقط با داده‌ی واقعی ============
+   برای هر رشته‌ی ثبت‌شده‌ی کاربر: فاصله تا رتبه‌ی بعدی، صدرنشینی، فاصله تا PR،
+   تلاش رسمی مانده. صفر عدد ساختگی — همه از جدول‌های رسمی داور.
+   کش ۳۰ ثانیه‌ای per-user (این بخش سنگین نیست ولی بی‌خودی تکرار نشود). */
+const OL_MOTIVE_CC: Record<string, { at: number; v: { discipline: string; kind: string; gap: number }[] }> = {}
+async function olyMotive(edition: number, userId: string, ents: { discipline: string; best: number; attempts: number }[], hostMax: number) {
+  const ck = edition + ':' + userId
+  const cc = OL_MOTIVE_CC[ck]
+  if (cc && Date.now() - cc.at < 30000) return cc.v
+  const lines: { discipline: string; kind: string; gap: number }[] = []
+  for (const e of ents) {
+    if (!(e.best > 0)) continue
+    const nb = await db.olympicEntry.findFirst({ where: { edition, discipline: e.discipline, best: { gt: e.best } }, orderBy: [{ best: 'asc' }], select: { best: true } })
+    if (nb) lines.push({ discipline: e.discipline, kind: 'chase', gap: nb.best - e.best })
+    else lines.push({ discipline: e.discipline, kind: 'lead', gap: 0 })
+    const prof = await db.olympicProfile.findUnique({ where: { userId_discipline: { userId, discipline: e.discipline } } })
+    if (prof && prof.bestEver > e.best) lines.push({ discipline: e.discipline, kind: 'pr', gap: prof.bestEver - e.best })
+    if (hostMax > e.attempts) lines.push({ discipline: e.discipline, kind: 'attempts', gap: hostMax - e.attempts })
+  }
+  /* چِیس‌های نزدیک اول؛ بعد PR؛ بعد بقیه */
+  lines.sort((a, b) => (a.kind === 'chase' ? 0 : a.kind === 'lead' ? 1 : a.kind === 'pr' ? 2 : 3) - (b.kind === 'chase' ? 0 : b.kind === 'lead' ? 1 : b.kind === 'pr' ? 2 : 3) || a.gap - b.gap)
+  const v = lines.slice(0, 3)
+  OL_MOTIVE_CC[ck] = { at: Date.now(), v }
   return v
 }
 
@@ -717,7 +745,9 @@ async function closeGamesEdition(edition: number) {
     if (r.rank === 1) p.g++; else if (r.rank === 2) p.s++; else p.b++
     p.total++
   }
-  const table = Object.values(byC).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
+  /* O4-final / PHASE 22: امتیاز کشوری وزن‌دار (G=5, S=2, B=1) — ستون نمایشی؛
+     ترتیب رسمی همان کنوانسیون المپیک (طلا اول) می‌ماند */
+  const table = Object.values(byC).map((c) => ({ ...c, pts: c.g * 5 + c.s * 2 + c.b })).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
   const players = Object.values(byP).sort((a, b) => b.g - a.g || b.s - a.s || b.b - a.b || b.total - a.total)
   const champ = players[0] || null
   const champCountry = table[0] || null
@@ -1500,16 +1530,25 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const myE: Record<string, { best: number; attempts: number }> = {}
         for (const e of myEntries) myE[e.discipline] = { best: e.best, attempts: e.attempts }
         const champRow = await latestChampion(Math.max(1, Number(args.p_server || 1)))
+        /* O4-final / PHASE 34: انگیزه‌های واقعی امروز — فقط در فاز زنده (قبل/بعد معنا ندارد) */
+        const _hO4 = await olyHostGet(edition)
+        const hostMaxO4 = (_hO4 && _hO4.uid === user.id) ? 6 : 5
+        let motive: { discipline: string; kind: string; gap: number }[] = []
+        if (g.phase === 'live' && myEntries.length) {
+          try { motive = await olyMotive(edition, user.id, myEntries.map((e) => ({ discipline: e.discipline, best: e.best, attempts: e.attempts })), hostMaxO4) } catch (e) { motive = [] }
+        }
         return R({
           edition, phase: g.phase, game_day: g.gameDay, today: g.today, host: g.host,
-          host_player: await olyHostGet(edition),
+          host_player: _hO4,
           reg_at: new Date(g.regAt).toISOString(), open_at: new Date(g.openAt).toISOString(),
           close_at: new Date(g.closeAt).toISOString(), next_reg: new Date(g.nextReg).toISOString(),
           truce: g.phase === 'live',
           my: { reg: myReg, entries: myE, country: (myEntries[0] && myEntries[0].countryFa) || null,
             /* O2 / PHASE 28: رشته‌هایی که الان رکورددار جهانی‌شان خودت هستی — کلاینت با
                مقایسه با آخرین وضعیت ذخیره‌شده، بنر RECORD BROKEN + [پس بگیر] می‌سازد */
-            my_records: (sh.records || []).filter((r) => r.nick === user.nick).map((r) => r.discipline) },
+            my_records: (sh.records || []).filter((r) => r.nick === user.nick).map((r) => r.discipline),
+            /* O4-final / PHASE 34: انگیزه‌های امروز از داده‌ی واقعی */
+            motive },
           table: sh.table, records: sh.records, career: sh.career, rivals: sh.rivals, live_feed: sh.live_feed,
           torch: sh.torch,
           archive: sh.archives.map((a) => ({
@@ -1685,9 +1724,56 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           ? await db.olympicEntry.count({ where: { edition: g.edition, discipline: key, best: { gt: prevBest, lt: score } } })
           : 0
         const nextRow = await db.olympicEntry.findFirst({ where: { edition: g.edition, discipline: key, best: { gt: score } }, orderBy: [{ best: 'asc' }], select: { best: true } })
+        /* O4-final / PHASE 10: دفتر رقابت ماندگار (تک‌منبع سروری).
+           رقیب = نفرِ دقیقاً بالای سرت در همین رشته/دوره (tie-break با lastAt).
+           pass  = امتیاز جدیدم از رکوردِ رقیبِ ذخیره‌شده‌ی قبلی رد شد (او را رد کردم)
+           fall  = رقیبِ ذخیره‌شده دوباره از من جلو زده (وقتی او بهتر شد و بالا برگشت)
+           همه‌ی اعداد از مسابقه‌ی رسمی داور می‌آیند — کلاینت نقشی ندارد. */
+        let rival: { nick: string; best: number; ahead: boolean; passes: number; falls: number; gap: number } | null = null
+        {
+          const above = await db.olympicEntry.findFirst({
+            where: { edition: g.edition, discipline: key, best: { gt: best } },
+            orderBy: [{ best: 'asc' }, { lastAt: 'asc' }],
+            select: { userId: true, nick: true, best: true },
+          })
+          const ex = await db.olympicRivalry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
+          let passes = ex ? ex.passes : 0
+          let falls = ex ? ex.falls : 0
+          let hist: { t: number; ev: string; vs: string; my: number; rv: number }[] = []
+          try { hist = JSON.parse((ex && ex.historyJson) || '[]') } catch (e) { hist = [] }
+          if (!Array.isArray(hist)) hist = []
+          /* رویداد نسبت به رقیبِ ذخیره‌شده‌ی قبلی (قبل از جابه‌جایی نشانگر):
+             pass  = داشتم تعقیبش می‌کردم (ahead=false) و امتیازم از رکوردِ ذخیره‌شده‌اش رد شد
+                     و او دیگر بالای سرم نیست (اگر هنوز بالای سرم باشد یعنی او هم بهتر شد — رد نشده)
+             fall  = جلویش بودم (ahead=true) و حالا همان نفر دوباره بالای سرم برگشته */
+          if (ex && !ex.ahead && best > ex.rivalBest && (!above || above.userId !== ex.rivalUserId)) {
+            passes++
+            hist.push({ t: Date.now(), ev: 'pass', vs: ex.rivalNick, my: best, rv: ex.rivalBest })
+          } else if (ex && ex.ahead && above && above.userId === ex.rivalUserId) {
+            falls++
+            hist.push({ t: Date.now(), ev: 'fall', vs: ex.rivalNick, my: best, rv: above.best })
+          }
+          if (above) {
+            /* رقیب تازه = نفر فعلی بالای سرم */
+            while (hist.length > 12) hist.shift()
+            await db.olympicRivalry.upsert({
+              where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } },
+              create: { edition: g.edition, discipline: key, userId: user.id, rivalUserId: above.userId, rivalNick: above.nick, myBest: best, rivalBest: above.best, passes, falls, ahead: false, historyJson: JSON.stringify(hist) },
+              update: { rivalUserId: above.userId, rivalNick: above.nick, myBest: best, rivalBest: above.best, passes, falls, ahead: false, historyJson: JSON.stringify(hist) },
+            })
+            rival = { nick: above.nick, best: above.best, ahead: false, passes, falls, gap: above.best - best }
+          } else if (ex) {
+            /* صدر نشسته‌ام — رقیب قبلی را نگه می‌داریم تا fallهای بعدی‌اش ثبت بماند */
+            const exEnt = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: ex.rivalUserId, discipline: key } } })
+            const exBest = exEnt ? exEnt.best : ex.rivalBest
+            while (hist.length > 12) hist.shift()
+            await db.olympicRivalry.update({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } }, data: { myBest: best, rivalBest: exBest, passes, falls, ahead: true, historyJson: JSON.stringify(hist) } }).catch(() => {})
+            rival = { nick: ex.rivalNick, best: exBest, ahead: true, passes, falls, gap: 0 }
+          }
+        }
         passAddXp(user.id, 'olympic').catch(() => {}) /* V43: مسیر فصلی — XP المپیک */
         return R({ ok: true, best, attempts: ent.attempts, rank: myRank, record_broken: recordBroken, record_pending: recordPending, score, att_max: hostMax,
-          prev_best: prevBest, pr: isPr, passed, next_best: nextRow ? nextRow.best : null, new_badges: newBadges })
+          prev_best: prevBest, pr: isPr, passed, next_best: nextRow ? nextRow.best : null, new_badges: newBadges, rival })
       }
 
       /* ============ O2 — olympic_profile: پروفایل مهارت من (PHASE 49) ============
@@ -1903,12 +1989,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           const res = await db.olympicResult.findMany({ where: { edition: g.edition, discipline: key }, orderBy: [{ rank: 'asc' }], take: 20 })
           const total = await db.olympicResult.count({ where: { edition: g.edition, discipline: key } })
           const mine = await db.olympicResult.findFirst({ where: { edition: g.edition, discipline: key, userId: user.id } })
-          return R({ ok: true, edition: g.edition, frozen: true, total,
+          return R({ ok: true, edition: g.edition, frozen: true, total, page: 1, pages: 1,
             rows: res.map((r) => ({ rank: r.rank, nick: r.nick, countryFa: r.countryFa || r.country, best: r.score, attempts: 0 })),
             my: mine ? { rank: mine.rank, best: mine.score, attempts: 0, in_podium: true } : null })
         }
-        const ents = await db.olympicEntry.findMany({ where: { edition: g.edition, discipline: key, best: { gt: 0 } }, orderBy: [{ best: 'desc' }, { lastAt: 'asc' }], take: 20 })
+        /* O4-final / PHASE 53: صفحه‌بندی واقعی برای مقیاس ۱۰۰هزار بازیکن —
+           هر صفحه ۲۰ ردیف، سقف ۵۰ صفحه (top-1000) تا deep-scan ممکن نشود */
+        const PAGE_SIZE = 20
         const total = await db.olympicEntry.count({ where: { edition: g.edition, discipline: key, best: { gt: 0 } } })
+        const page = Math.min(50, Math.max(1, Math.floor(Number(args.p_page) || 1)))
+        const pages = Math.min(50, Math.max(1, Math.ceil(total / PAGE_SIZE)))
+        const ents = page === 1
+          ? await db.olympicEntry.findMany({ where: { edition: g.edition, discipline: key, best: { gt: 0 } }, orderBy: [{ best: 'desc' }, { lastAt: 'asc' }], take: PAGE_SIZE })
+          : await db.olympicEntry.findMany({ where: { edition: g.edition, discipline: key, best: { gt: 0 } }, orderBy: [{ best: 'desc' }, { lastAt: 'asc' }], skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE })
         const mineRow = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
         let myRank: number | null = null
         if (mineRow && mineRow.best > 0) {
@@ -1930,11 +2023,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           const cb = await db.olympicEntry.findFirst({ where: { edition: g.edition, discipline: key, country: myC, best: { gt: 0 } }, orderBy: [{ best: 'desc' }], select: { best: true, nick: true } })
           countryBest = cb ? cb.best : null
         }
-        return R({ ok: true, edition: g.edition, frozen: false, total, leader,
-          rows: ents.map((e, i) => ({ rank: i + 1, nick: e.nick, countryFa: e.countryFa || e.country, best: e.best, attempts: e.attempts })),
+        /* O4-final / PHASE 10: رقیب فعلی از دفتر رقابت (پایدار بین submitها) */
+        const rivRow = await db.olympicRivalry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
+        const rivalOut = rivRow ? { nick: rivRow.rivalNick, best: rivRow.rivalBest, ahead: rivRow.ahead, passes: rivRow.passes, falls: rivRow.falls, gap: Math.max(0, rivRow.rivalBest - rivRow.myBest) } : null
+        /* rank ها نسبت به صفحه‌ی درخواستی (rank جهانی = offset + i + 1) */
+        return R({ ok: true, edition: g.edition, frozen: false, total, leader, page, pages,
+          rows: ents.map((e, i) => ({ rank: (page - 1) * PAGE_SIZE + i + 1, nick: e.nick, countryFa: e.countryFa || e.country, best: e.best, attempts: e.attempts })),
           my: (mineRow && mineRow.best > 0)
-            ? { rank: myRank, best: mineRow.best, attempts: mineRow.attempts, in_podium: myRank !== null && myRank <= 20, next_best: nextBest, country_best: countryBest }
-            : (mineRow ? { rank: null, best: 0, attempts: mineRow.attempts, in_podium: false, next_best: null, country_best: countryBest } : null) })
+            ? { rank: myRank, best: mineRow.best, attempts: mineRow.attempts, in_podium: myRank !== null && myRank <= 20, next_best: nextBest, country_best: countryBest, rival: rivalOut }
+            : (mineRow ? { rank: null, best: 0, attempts: mineRow.attempts, in_podium: false, next_best: null, country_best: countryBest, rival: rivalOut } : null) })
       }
 
       /* ============ V34 — social & competitive layer ============ */

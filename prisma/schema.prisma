@@ -342,6 +342,30 @@ model OlympicArchive {
   @@map("olympic_archives")
 }
 
+/* O4-final / PHASE 10: دفتر رقابت شخصی ماندگار — رقیب = نفر دقیقاً بالای سرت در
+   رتبه‌ی همان رشته‌ی همان دوره. هر «پیشی‌گرفتن» واقعی (با امتیاز رسمی داور) یک
+   رویداد pass/fall ثبت می‌کند؛ سری W-L از همین رویدادها ساخته می‌شود.
+   کل داده از مسابقه‌ی رسمی می‌آید — تمرین و دستکاری کلاینت اثری ندارد. */
+model OlympicRivalry {
+  id          String   @id @default(cuid())
+  edition     Int
+  discipline  String
+  userId      String   @map("user_id")
+  rivalUserId String   @map("rival_user_id")
+  rivalNick   String   @map("rival_nick")
+  myBest      Int      @default(0) @map("my_best")
+  rivalBest   Int      @default(0) @map("rival_best")
+  passes      Int      @default(0) /* دفعاتی که من از او پیشی گرفتم */
+  falls       Int      @default(0) /* دفعاتی که او از من پیشی گرفت */
+  ahead       Boolean  @default(false)
+  historyJson String?  @map("history_json") /* حداکثر ۱۲ رویداد آخر [{t,ev,my,rv}] */
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([edition, userId, discipline])
+  @@index([edition, rivalUserId])
+  @@map("olympic_rivalries")
+}
+
 /* ============ V34 — social & competitive layer ============ */
 
 /* استریک روزانه — consecutive daily login rewards (server-authoritative) */

@@ -1118,3 +1118,25 @@ Stage Summary:
 - باقی‌مانده (موج O4 پیشنهادی): P34 انگیزش پوش رشته‌ها، P9 شبح در report dot-by-dot، P22 Country Points، P53 فشار ۱۰۰k (pagination رتبه‌ها)، آمار بی‌لایو audit
 - درس ماندگار: unhandled rejection در async loop ها pageerror نمی‌دهد — تست‌ها باید unhandledrejection hook داشته باشند؛ گیت نسخه‌ای امتیاز = تنها راه تغییر مقیاس بدون شکستن رکوردهای تاریخی
 - versionCode 8 و latest.json دست‌نخورده
+
+---
+Task ID: V60-olympics-wave-O4-final
+Agent: Super Z (main)
+Task: موج آخر مگا-رفکتور Olympics — بستن کامل ۵۳ فاز در یک موج (دستور «چرا اینقدر موج داره آخه برو»)
+
+Work Log:
+- گزارش A-F قبل از کد ارائه شد؛ ممیزی: گپ‌های واقعی P53/P22/P9/P34/P10 + Back معلق V59؛ Math.min(1000) قبلی‌ها صفر
+- P53 صفحه‌بندی: olympic_rank پارامتر p_page (صفحه ۲۰تایی، سقف ۵۰ صفحه = top-1000 ضد deep-scan) + rank جهانی offset + فیلدهای page/pages + UI دکمه‌ی «بعدی/قبلی» + ردیف «شما» پین صفحه‌بندی‌آگاه (wgRankPage LIFO reset روی تعویض رشته)
+- P22 امتیاز کشوری: olyShared + مراسم اختتامیه هر دو جدول «pts» (G=5,S=2,B=1) + ستون «امتیاز» در medalTable با سورت‌پذیری (ترتیب رسمی طلا-اول حفظ شد)
+- P10 دفتر رقابت ماندگار: مدل OlympicRivalry (additive) + در olympic_submit ماشین حالت pass/fall نسبت به رقیبِ ذخیره‌شده (pass فقط وقتی رقیب دیگر بالای سرم نیست؛ fall وقتی همان رقیب بالا برگردد) + rival در پاسخ submit و rank با سری W-L و gap + خط «⚔️ رقیب تو» در پنل رتبه
+- P34 انگیزه‌ی واقعی: olyMotive (کش ۳۰s per-user) از داده‌ی داور: chase gap / lead / pr gap / attempts-left + کارت «🔥 چرا امروز بازی؟» در هاب (فقط فاز live؛ hostMax دقیق میزبان=۶)
+- P9 شبح در نتیجه: strip در finish33 — دلتای امتیاز شبح + تمپوی ۴ چک‌پوینت (شروع/نیمه/اوج/پایان از pace دو تله‌متری واقعی)
+- Back گوشی (معلق V59): سنتینل pushState واحد + پشته‌ی LIFO در تک‌منبع‌های openModal/closeModal + popstate = بستن stage المپیک یا آخرین مودال + wdBackSync خودترمیم (سنتینل با لایه‌های واقعی هم‌راستا) — بدون تغییر APK
+- باگ‌های یافت‌شده در تست و فیکس: ① جدول rivalry در DB محلی نبود (prisma db push) ② popstate DOM-order نسخه‌ی اول مودال اشتباهی را می‌بست → پشته‌ی LIFO ③ TDZ edition در تست ④ سقف rate-limit لاگین 10/min/IP خودِ V59 تست را می‌زد → کاهش لاگین با skip-if-same ⑤ آلودگی ردیف‌های تست O4 دستاورد podium/first_gold سوئیت o2 را قفل می‌کرد → بهداشت تست: self-cleanup انتهای o4-flow + پاک‌سازی O4* در o2-flow
+- تست: oly-o4-unit 30/30 (pts/صفحه‌بندی/ماشین حالت رقابت/انگیزه/pace)؛ oly-o4-flow 39/39 (سرور+DB واقعی: رقابت ۳بازیکنه با pass/fall/tie-break، صفحه‌بندی ۲۵ ردیفی، pts مدال، انگیزه، Back مودال+stage با history.back واقعی، صفر pageerror)؛ رگرسیون کامل: oly-unit 39، o2-unit 20، o3-unit 20، oly-flow 12، oly-server 8، o2-flow 34، o3-parity 9، o2-ui 23، wave2 13، apk-sim 28، map-visual 20، attack-smoke 10؛ ۸۱ بلوک ۰ خطا؛ tsc فقط خطاهای پیش‌موج (skills/db-route)؛ next build موفق
+- درس ماندگار: سرور پس‌زمینه بین فراخوانی‌های bash کشته می‌شود → بوت + هارنس‌های WD_BASEدار باید در یک فراخوانی باشند؛ MultiEdit غیراتمیک است — بعد از هر شکست، state را چک کن؛ پورت‌های ۳۲۱۰ توسط پروسه‌های بیگانه اشغال می‌شود
+
+Stage Summary:
+- موج O4-final: تمام ۵۳ فاز Olympics بسته شد — رقابت ماندگار، انگیزه‌ی واقعی، صفحه‌بندی ۱۰۰k، امتیاز کشوری، مقایسه‌ی شبح، Back گوشی
+- باقی‌مانده بیرون از دامنه‌ی المپیک (معلق از V59): فتح تک‌نفره‌ی server-authoritative، Audit امنیتی APIهای عمومی
+- versionCode 8 و latest.json دست‌نخورده؛ APK بدون rebuild جدید را می‌کشد
