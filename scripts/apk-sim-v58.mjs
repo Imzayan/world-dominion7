@@ -22,7 +22,7 @@ const html = await (await fetch(URL)).text();
 check('served HTML carries V57+V58 blocks', html.includes('v57-js') && html.includes('v58-js'));
 check('V58: unowned = pure gray baseStyle (sat 0)', html.includes("fillColor:'hsl(0,0%,'"));
 check('V58: sharper coasts (smoothFactor .55)', html.includes('smoothFactor:.55'));
-check('V58: Hi-DPI canvas patch present', html.includes('L.Canvas.prototype.__wd58'));
+check('V58b: Hi-DPI canvas hack REMOVED (was displacing map on DPR-3 phones)', !html.includes('L.Canvas.prototype.__wd58'));
 check('V58: front line removed (drawHatch wrap)', html.includes('window.drawHatch.__wd58'));
 check('V58: fire markers no-op (flames)', html.includes('window.flames=function(){}'));
 check('V58: live rank summary replaces static list', html.includes('خلاصه‌ی زنده‌ی سرور'));
@@ -56,8 +56,8 @@ const pal = await page.evaluate(() => {
 check('unowned countries render PURE GRAY (saturation 0)', !!pal && pal.sat0 === true, JSON.stringify(pal));
 check('coastlines/borders render sharper (smooth 0.55)', !!pal && pal.smooth === 0.55, pal && String(pal.smooth));
 
-// C) Hi-DPI patch active on DPR-3 phone
-check('Hi-DPI canvas patch installed (DPR-3 device)', await page.evaluate(() => !!(window.L && L.Canvas && L.Canvas.prototype.__wd58)));
+// C) stock renderer active on DPR-3 phone (V58b: hack removed)
+check('stock Leaflet canvas renderer on DPR-3 device (hack removed)', await page.evaluate(() => !!(window.L && L.Canvas && L.Canvas.prototype && !L.Canvas.prototype.__wd58)));
 const dpr3 = await page.evaluate(() => window.devicePixelRatio || 1);
 check('device pixel ratio is 3 (quality path eligible)', dpr3 === 3, String(dpr3));
 

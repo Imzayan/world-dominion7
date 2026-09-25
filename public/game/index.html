@@ -15641,30 +15641,9 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
         fillColor:'hsl(0,0%,'+(42+((h*7919)%6))+'%)',fillOpacity:.92}};
   }catch(e){}
 
-  /* ---- ۲) کیفیت نقشه روی گوشی‌های مدرن: Leaflet کانواس را فقط ۲x رندر می‌کند؛ روی نمایشگرهای
-          DPR>2 نقشه تار دیده می‌شود. بعد از هر رندر عادی، یک‌بار دیگر با DPR واقعی (تا ۳x) رسم می‌کنیم.
-          گارد سخت‌افزاری: فقط DPR>2 و ≥۶ هسته CPU تا لگ نیفتد ---- */
-  try{
-    if(window.L&&L.Canvas&&L.Canvas.prototype&&L.Canvas.prototype._update&&!L.Canvas.prototype.__wd58){
-      var _up=L.Canvas.prototype._update;
-      L.Canvas.prototype._update=function(){
-        var r=_up.apply(this,arguments);
-        try{
-          var map=this._map;if(!map||map._animatingZoom||!this._bounds||!this._container)return r;
-          var dpr=window.devicePixelRatio||1,cores=navigator.hardwareConcurrency||4;
-          if(dpr>2.05&&cores>=6){
-            var size=this._bounds.getSize(),m=Math.min(3,Math.round(dpr)),c=this._container;
-            c.width=Math.round(size.x*m);c.height=Math.round(size.y*m);
-            c.style.width=size.x+'px';c.style.height=size.y+'px';
-            var ctx=this._ctx=c.getContext('2d');
-            ctx.setTransform(m,0,0,m,0,0);ctx.lineCap='round';ctx.lineJoin='round';
-            if(typeof this._draw==='function')this._draw();
-          }
-        }catch(e){}
-        return r};
-      L.Canvas.prototype.__wd58=1;
-    }
-  }catch(e){}
+  /* ---- ۲) V58b: تلاش Hi-DPI برداشته شد — چون Leaflet ترنسفورم کانواس را با translate(-bounds.min)
+          ست می‌کند و بازنویسی ما بدون آن، همه‌ی جغرافیا را روی گوشی‌های DPR>2 جابه‌جا/بیرون می‌کشید.
+          رندر استوک Leaflet (retina 2x) برگشت؛ شارپ بودن ساحل‌ها با smoothFactor در baseStyle حفظ شد ---- */
 
   /* ---- ۳) «خط باگی» روی کشورها (مغولستان/روسیه): خط زرد خط‌چین جبهه (frontL) + شعله‌های 🔥🪖
           روی هر کشورِ با تصرف جزئی همیشه باقی می‌ماندند و از save هم دوباره ساخته می‌شدند.
