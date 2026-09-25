@@ -1370,92 +1370,7 @@ function claimCapital(engName) {
 }
 
 // ---------- Combat with gradual occupation ----------
-function attackTarget(engName) {
-  if (battleBusy) return;
-  if (!myCountryName) { showToast("❌ اول باید یک پایتخت انتخاب کنید!", "lose"); return; }
-  const myAttack = calculateTotalAttack();
-  if (myAttack <= 0) { showToast("❌ شما هیچ نیروی نظامی ندارید!", "lose"); return; }
-
-  battleBusy = true;
-  const target = getCountryData(engName);
-  const currentOcc = occupationPct[engName] || 0;
-  const remainingDef = Math.max(target.def * (1 - currentOcc / 100), target.def * 0.05);
-
-  // render dispatched units
-  const unitsContainer = document.getElementById('battle-units');
-  unitsContainer.innerHTML = "";
-  BATTLE_UNIT_ORDER.forEach(key => {
-    const u = ARMY_UNITS[key];
-    if (u.count > 0) {
-      const div = document.createElement("div");
-      div.className = "battle-unit-card";
-      div.innerHTML = `<div class="bic-icon">${u.icon}</div><div class="bic-name">${u.name}</div><div class="bic-count">${u.count}</div>`;
-      unitsContainer.appendChild(div);
-    }
-  });
-
-  document.getElementById("battle-title").textContent = `⚔️ گزارش نبرد: حمله به ${target.fa}`;
-  document.getElementById("battle-pct-label").textContent = Math.round(currentOcc) + "%";
-  const bar = document.getElementById("battle-progress-bar");
-  bar.style.transition = "none";
-  bar.style.width = currentOcc + "%";
-  document.getElementById("battle-result-text").textContent = "در حال پیشروی نیروها به سمت جبهه...";
-  document.getElementById("battle-close-btn").style.display = "none";
-  openModal("m-battle");
-
-  requestAnimationFrame(() => {
-    setTimeout(() => resolveBattle(engName, myAttack, target, currentOcc, remainingDef), 200);
-  });
-}
-
-function resolveBattle(engName, myAttack, target, currentOcc, remainingDef) {
-  const roll = 0.85 + Math.random() * 0.3;
-  const effective = myAttack * roll;
-  const ratio = effective / remainingDef;
-
-  let gain = Math.min(65, Math.max(4, ratio * 30));
-  const newOcc = Math.min(100, currentOcc + gain);
-
-  const bar = document.getElementById("battle-progress-bar");
-  bar.style.transition = "width 1.4s ease";
-  requestAnimationFrame(() => { bar.style.width = newOcc + "%"; });
-  document.getElementById("battle-pct-label").textContent = Math.round(newOcc) + "%";
-
-  const lossFraction = ratio >= 1 ? Math.min(0.25, 0.5 / ratio) : Math.min(0.6, 0.5 / ratio);
-  window.totalKills = (window.totalKills || 0) + Math.round(remainingDef * (gain / 100));
-
-  setTimeout(() => {
-    applyBattleLosses(lossFraction);
-    occupationPct[engName] = newOcc;
-
-    if (newOcc >= 100) {
-      conqueredCountries.add(engName);
-      const goldLoot = Math.round(target.gold * 0.4);
-      const oilLoot = Math.round(target.oil * 0.4);
-      playerRes.gold += goldLoot;
-      playerRes.oil += oilLoot;
-      overrides[engName] = { ...target, def: Math.round(target.def * 0.1) };
-      document.getElementById("battle-result-text").innerHTML =
-        `🏆 <b style="color:var(--green-glow)">خاک ${target.fa} به‌طور کامل تصرف شد!</b><br>غنیمت جنگی: 💰${goldLoot.toLocaleString()} | 🛢️${oilLoot.toLocaleString()}`;
-      showToast(`🏆 ${target.fa} کاملاً تصرف شد!`, "win");
-    } else {
-      const skirmishLoot = Math.round(target.gold * 0.02 * (gain / 10));
-      playerRes.gold += skirmishLoot;
-      document.getElementById("battle-result-text").innerHTML =
-        `⚔️ <b style="color:var(--gold-glow)">${Math.round(gain)}٪ از خاک ${target.fa} تصرف شد.</b><br>مجموع تصرف تاکنون: ${Math.round(newOcc)}٪ — دفاع باقی‌مانده: ${Math.round(target.def * (1 - newOcc / 100)).toLocaleString()}`;
-      showToast(`⚔️ ${Math.round(gain)}٪ پیشروی در خاک ${target.fa}`, ratio >= 1 ? "win" : "lose");
-    }
-
-    applyCountryColor(engName);
-    updateUI();
-    document.getElementById("battle-close-btn").style.display = "block";
-    battleBusy = false;
-
-    if (activeEngName === engName) {
-      onCountryClick({ properties: { name: engName } }, layersByName[engName]);
-    }
-  }, 1500);
-}
+// V59: dead code removed — legacy attackTarget v1 + resolveBattle (fully shadowed by the unified async attackTarget below)
 
 function applyBattleLosses(fraction) {
   const f = Math.min(Math.max(fraction, 0.1), 0.6);
@@ -1570,7 +1485,11 @@ function startIncomeLoop() {
 }
 
 // ---------- Modal / drawer wiring ----------
-function openModal(id) { const el=document.getElementById(id); if(el) el.classList.add("active"); }
+/* V59: تک‌منبع — هوک‌های رندر بعد از باز شدن (market/tax/army) از رجیستری می‌آیند، نه Wrapper زنجیره‌ای */
+const WD_MODAL_HOOKS={};window.WD_MODAL_HOOKS=WD_MODAL_HOOKS;
+function openModal(id) { const el=document.getElementById(id); if(!el) return; el.classList.add("active");
+  const hs=WD_MODAL_HOOKS[id]; if(hs) for(let i=0;i<hs.length;i++){try{hs[i](id)}catch(e){console.error("modal-hook",id,e)}} }
+function wdModalHook(id,fn){ (WD_MODAL_HOOKS[id]=WD_MODAL_HOOKS[id]||[]).push(fn) }
 function closeModal(id) { const el=document.getElementById(id); if(el) el.classList.remove("active"); }
 
 function switchLobbyTab(tab) {
@@ -1671,11 +1590,12 @@ addEventListener('error',e=>{try{console.log('wd-err:',e.message)}catch(_){}
 addEventListener('unhandledrejection',e=>{try{console.log('wd-rej:',e&&e.reason)}catch(_){}});
 const $=id=>document.getElementById(id), sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const hueOf=n=>{let h=7;for(const c of n)h=(h*31+c.charCodeAt(0))%360;return h};
-function baseStyle(n){const h=hueOf(String(n||''));
-  /* V48: کشورهای بی‌مالک خاکستری‌تر شدند تا قلمرو بازیکنان (رنگ زنده + برچسب اسم) واضح فرق کند.
-     V45: روشنایی بالای ۴۶٪ حفظ شد تا hueهای آبی/بنفش روی گوشی سیاه دیده نشوند */
-  const light=48+((h*7919)%7);
-  return{color:`hsla(${h},24%,30%,.5)`,weight:.8,fillColor:`hsl(${h},26%,${light}%)`,fillOpacity:.85,smoothFactor:1.1,noClip:false}}
+/* V59: تک‌تعریفی شد — فرمول نهایی (خاکستریِ کشورهای بی‌مالک + سواحل شارپ) همین‌جاست؛
+   بازتعریف‌های V48/V56/V58 حذف شدند. hash همان h*37 برای حفظ دقیق رنگ هر کشور */
+function baseStyle(n){let h=11;const s=String(n||'');
+  for(let i=0;i<s.length;i++)h=(h*37+s.charCodeAt(i))%360;
+  return{color:'rgba(10,14,20,.6)',weight:.7,smoothFactor:.55,
+    fillColor:'hsl(0,0%,'+(42+((h*7919)%6))+'%)',fillOpacity:.92}}
 
 // ISO codes for flags (Intl names + aliases for geojson spellings)
 const N2C={"united states of america":"us","democratic republic of the congo":"cd","republic of the congo":"cg","united republic of tanzania":"tz","republic of serbia":"rs","macedonia":"mk","ivory coast":"ci","czech republic":"cz","guinea bissau":"gw","the bahamas":"bs","east timor":"tl","swaziland":"sz","myanmar":"mm","turkey":"tr","french southern and antarctic lands":"tf","kosovo":"xk","bosnia and herzegovina":"ba","trinidad and tobago":"tt","west bank":"ps"};
@@ -1787,19 +1707,42 @@ function atkLine(n){const a=getG(myCountryName),b=getG(n);if(!a||!b)return null;
 function lose(f){Object.values(ARMY_UNITS).forEach(u=>{const k=u.count*(1-f);u.count=Math.max(0,Math.floor(k)+(Math.random()<k%1?1:0))})}
 
 // ---- harder, multi-round battle ----
+/* ================= V59: UNIFIED attackTarget — یک منبع، بدون زنجیره‌ی Wrapper =================
+   قبلاً ۲ تعریف + ۹ wrapper (V13/V22/V28/pvp/wd5/wd6/wd7/V30/V33) روی هم سوار بودند. همه در همین
+   تابع ادغام شدند و سیستم‌های اختیاری از رجیستری WD_ATTACK_HOOKS استفاده می‌کنند (هرکدام fail-safe):
+     truce(n)->bool | doctrinePre(n) | doctrinePost(n,fa) | pvpRoute(n)->result|undefined
+     cinemaStart(n,fa) | cinemaEnd(n,t0,wasMine)                                       */
+const WD_ATTACK_HOOKS={};window.WD_ATTACK_HOOKS=WD_ATTACK_HOOKS;
 async function attackTarget(n){
-  if(battleBusy)return;
-  /* V52: قفل ضدتکرار فقط بعد از عبور از همه‌ی اعتبارسنجی‌ها ست می‌شود (قبلاً قبل از چک پایتخت/ارتش/لجستیک بود
-     و یک تلاش ناموفق، ۶۰ ثانیه همه‌ی حمله‌های بعدی را می‌بست) + مهلت از ۶۰ به ۱۵ ثانیه کاهش یافت */
+  if(battleBusy)return;                                            /* [گارد] همه‌ی لایه‌ها همین را داشتند */
+  if(window.__wd39inflight)return;                                 /* [wd5] نبرد PvP در جریان است */
+  if(!myCountryName){showToast('❌ اول باید یک پایتخت انتخاب کنید!','lose');return} /* [core] برابری ترتیب قدیمی: پایتخت قبل از مرز */
+  try{const T=WD_ATTACK_HOOKS.truce;if(T&&T(n))return}catch(e){console.error('wd-truce',e)}                 /* [V33] آتش‌بس المپیک */
+  try{if(WD_ATTACK_HOOKS.doctrinePre)await WD_ATTACK_HOOKS.doctrinePre(n)}catch(e){console.error('wd-doctrine',e)} /* [wd5] دکترین */
+  try{news('⚔️ آغاز عملیات علیه '+getCountryData(n).fa)}catch(e){}                                          /* [wd7] خبر آغاز */
+  try{const R=WD_ATTACK_HOOKS.pvpRoute;if(R){const rr=await R(n);if(rr!==undefined)return rr}}catch(e){console.error('wd-pvp',e)} /* [pvp] مسیر PvP */
+  try{ /* [V28] مالکیت لحظه‌ای سرور — ممکن است کسی در ثانیه‌های آخر گرفته باشد */
+    if(OTH[n]){showToast('🏴 این کشور تحت کنترل بازیکن دیگری است؛ حمله به بازیکنان هنوز فعال نیست','lose');return}
+    if(sb&&ACC.uid&&MP_OK===true){
+      const r=await sb.from('territories').select('user_id,nick,is_capital').eq('server',SRV).eq('country',n).maybeSingle();
+      if(!r.error&&r.data&&r.data.user_id!==ACC.uid){OTH[n]={nick:r.data.nick,cap:r.data.is_capital};paintOther(n);renderSrvChip();
+        showToast('🏴 همین الان بازیکن دیگری این کشور را گرفت؛ حمله لغو شد','lose');return}}}catch(e){console.error('wd-own',e)}
+  /* [V13] مرز/ناوگان: کشور هم‌مرز نیست → حمله‌ی فراسرزمینی فقط با ناوگان دریایی/هوایی */
+  const near=bordersOwned(n),_u=ARMY_UNITS,proj=_u.carrier.count+_u.destroyer.count+_u.transport.count+_u.bomber.count>0;
+  if(!near&&!proj){showToast('🌊 این کشور هم‌مرز قلمرو تو نیست؛ برای حمله‌ی فراسرزمینی به ناو، ناوشکن، نیروبر یا بمب‌افکن نیاز داری','lose');return}
+  window.__ovs=!near;tension=Math.min(100,tension+(near?9:15));
+  try{news(near?('⚔️ ارتش تو از مرز عبور کرد و وارد '+getCountryData(n).fa+' شد'):('🚢 نیروی اعزامی تو به سواحل '+getCountryData(n).fa+' رسید (قدرت حمله ۳۰٪ کمتر)'));snd('alert')}catch(e){}
+  /* [core V52] قفل ضدتکرار فقط بعد از عبور از همه‌ی اعتبارسنجی‌ها ست می‌شود؛ مهلت ۱۵ ثانیه */
   if(window.__wd51nat&&Date.now()-(window.__wd51natAt||0)<15000){showToast('⏳ نبرد قبلی هنوز در جریان است','lose');return}
-  if(!myCountryName){showToast("❌ اول باید یک پایتخت انتخاب کنید!","lose");return}
   let power=Math.round(calculateTotalAttack()*(window.__ovs?ovsMult():1));
-  if(power<=0){showToast("❌ شما هیچ نیروی نظامی ندارید!","lose");return}
+  if(power<=0){showToast('❌ شما هیچ نیروی نظامی ندارید!','lose');return}
   const sup=250+Math.round(power*.06);
-  if(playerRes.food<sup||playerRes.oil<sup){showToast(`❌ لجستیک ناکافی! این نبرد ${sup} غذا و ${sup} نفت می‌خواهد`,"lose");return}
+  if(playerRes.food<sup||playerRes.oil<sup){showToast('❌ لجستیک ناکافی! این نبرد '+sup+' غذا و '+sup+' نفت می‌خواهد','lose');return}
   window.__wd51nat=true;window.__wd51natAt=Date.now();
-  playerRes.food-=sup;playerRes.oil-=sup;battleBusy=true;window.__warLaunched=true;
-  const t=getCountryData(n),start=occupationPct[n]||0,power0=power;let occ=start;
+  playerRes.food-=sup;playerRes.oil-=sup;battleBusy=true;
+  const t=getCountryData(n),t0={fa:t.fa,def:t.def,gold:t.gold},wasMine=conqueredCountries.has(n),start=occupationPct[n]||0,power0=power;let occ=start;
+  try{if(WD_ATTACK_HOOKS.cinemaStart)WD_ATTACK_HOOKS.cinemaStart(n,t0.fa)}catch(e){console.error('wd-cinema',e)}   /* [V30/V22] سینما */
+  window.__warLaunched=true;
   const uc=$("battle-units");uc.innerHTML="";
   BATTLE_UNIT_ORDER.forEach(k=>{const u=ARMY_UNITS[k];if(u.count>0){const d=document.createElement("div");d.className="battle-unit-card";d.innerHTML=`<div class="bic-icon">${u.icon}</div><div class="bic-name">${u.name}</div><div class="bic-count">${u.count}</div>`;uc.appendChild(d)}});
   $("battle-title").textContent=`⚔️ نبرد برای ${t.fa}`;$("battle-pct-label").textContent=Math.round(occ)+"%";
@@ -1812,7 +1755,7 @@ async function attackTarget(n){
   for(let r=1;r<=5;r++){
     txt.textContent=`⚔️ دور ${r} از ۵ — درگیری سنگین در خط مقدم`;
     const defNow=Math.max(def0*(1-occ/100*.75),def0*.2),ratio=power*(.8+Math.random()*.4)/defNow;
-    let gain=Math.max(-3,Math.min(16,(ratio-.3)*16));if(occ>75)gain*=.5;   // last 25% (capital siege) is slower
+    let gain=Math.max(-3,Math.min(16,(ratio-.3)*16));if(occ>75)gain*=.5;   /* محاصره‌ی پایتخت: ۲۵٪ آخر کندتر */
     const prev=occ;occ=Math.max(0,Math.min(100,occ+gain));
     bar.style.transition="width 1.2s ease";bar.style.width=occ+"%";$("battle-pct-label").textContent=Math.round(occ)+"%";
     setHatch(n,occ,true,prev);blasts(n,2);
@@ -1826,12 +1769,19 @@ async function attackTarget(n){
     overrides[n]={...t,def:Math.round(t.def*.1),gold:Math.round(t.gold*.5),oil:Math.round(t.oil*.5)};
     txt.innerHTML=`🏆 <b style="color:var(--green-glow)">${t.fa} سقوط کرد!</b><br>غنیمت: 💰${gl.toLocaleString()} | 🛢️${ol.toLocaleString()} — تلفات ارتش: ${lostPct}٪`;showToast(`🏆 ${t.fa} کاملاً تصرف شد!`,"win")}
   else if(occ>start){txt.innerHTML=`⚔️ <b style="color:var(--gold-glow)">${Math.round(occ-start)}٪ پیشروی</b> — کل تصرف: ${Math.round(occ)}٪<br>تلفات: ${lostPct}٪ — پیشروی حفظ می‌شود؛ ادامه بده تا فتح کامل.`;showToast(`⚔️ ${Math.round(occ-start)}٪ پیشروی در ${t.fa}`,"win")}
-  else{const cback=Math.min(15,start);if(cback>0){occupationPct[n]=Math.max(0,start-cback);setHatch(n,occupationPct[n],false,start);/* V41: ضدحمله‌ی مدافع — تنها راه عقب‌نشانی پیشروی */}
+  else{const cback=Math.min(15,start);if(cback>0){occupationPct[n]=Math.max(0,start-cback);setHatch(n,occupationPct[n],false,start)}/* V41: ضدحمله‌ی مدافع */
     txt.innerHTML=(power<=0?'💀 ارتش شما نابود شد!<br>':'')+`🛡️ <b style="color:var(--red-glow)">حمله دفع شد!</b> مدافعان ضدحمله زدند${cback>0?' و '+cback+'٪ از پیشروی را عقب راندند':''}.<br>تلفات: ${lostPct}٪`;showToast(`🛡️ حمله به ${t.fa} شکست خورد${cback>0?' — ضدحمله‌ی مدافع':''}`,"lose")}
+  try{if(conqueredCountries.has(n)&&!wasMine){tension=Math.min(100,tension+8);news('🏴 '+t0.fa+' سقوط کرد؛ جهان نگران است');snd('win')}}catch(e){} /* [V13 post] تنش */
+  try{if(WD_ATTACK_HOOKS.doctrinePost)WD_ATTACK_HOOKS.doctrinePost(n,t0.fa)}catch(e){console.error('wd-doctrine2',e)} /* [wd5 post] مأموریت */
+  try{mission('war');addXP(12,'نبرد')}catch(e){}                       /* [wd6 post] */
+  try{addXP(10,'war')}catch(e){}                                       /* [wd7 post] */
+  try{if(WD_ATTACK_HOOKS.cinemaEnd)WD_ATTACK_HOOKS.cinemaEnd(n,t0,wasMine)}catch(e){console.error('wd-cinema2',e)} /* [V30 post] مهر+پاکسازی */
   applyCountryColor(n);updateUI();try{saveNow()}catch(e){}$("battle-close-btn").style.display="block";battleBusy=false;window.__wd51nat=false;
-  /* V50: صفحه‌ی نبرد چند ثانیه بعد خودش جمع می‌شود — بازیباز نمی‌ماند */
+  /* V50: صفحه‌ی نبرد چند ثانیه بعد خودش جمع می‌شود */
   setTimeout(()=>{try{const mb=$("m-battle");if(mb&&mb.classList.contains('active')&&!battleBusy)closeModal("m-battle")}catch(e){}},5200);
-  if(activeEngName===n)onCountryClick({properties:{name:n}},layersByName[n])}
+  if(activeEngName===n)onCountryClick({properties:{name:n}},layersByName[n]);
+  try{if(typeof syncTerr==='function')syncTerr()}catch(e){}            /* [V28 post] همگام‌سازی سرور */
+}
 function decay(){/* V41: پیشروی هرگز خودبه‌خود کم نمی‌شود (قبلاً هر ۵ ثانیه ۱.۵٪ سوزانده می‌شد!) —
   فقط ضدحمله‌ی مدافع آن را عقب می‌راند (در لحظه‌ی «دفع شدن» موج حمله اعمال می‌شود) */}
 
@@ -1891,17 +1841,7 @@ function bordersOwned(n){if(!layersByName[n])return true;const T=ringsOf(n),M=.7
     for(const r of T.rs)for(let i=0;i<r.length;i+=2){const p=r[i];if(p.lat<O.s-M||p.lat>O.n+M||p.lng<O.w-M||p.lng>O.e+M)continue;
       for(const q of so)if(Math.abs(p.lat-q.lat)<M&&Math.abs(p.lng-q.lng)<M&&Math.hypot(p.lat-q.lat,p.lng-q.lng)<M)return true}}
   return false}
-const _at=attackTarget;
-attackTarget=async function(n){
-  if(battleBusy||!myCountryName)return _at(n);
-  const pw=calculateTotalAttack(),sup=250+Math.round(pw*.06);if(pw<=0||playerRes.food<sup||playerRes.oil<sup)return _at(n);
-  const near=bordersOwned(n),u=ARMY_UNITS,proj=u.carrier.count+u.destroyer.count+u.transport.count+u.bomber.count>0,fa=getCountryData(n).fa;
-  if(!near&&!proj){showToast('🌊 این کشور هم‌مرز قلمرو تو نیست؛ برای حمله‌ی فراسرزمینی به ناو، ناوشکن، نیروبر یا بمب‌افکن نیاز داری','lose');return}
-  window.__ovs=!near;tension=Math.min(100,tension+(near?9:15));
-  news(near?`⚔️ ارتش تو از مرز عبور کرد و وارد ${fa} شد`:`🚢 نیروی اعزامی تو به سواحل ${fa} رسید (قدرت حمله ۳۰٪ کمتر)`);snd('alert');
-  await _at(n);
-  if(conqueredCountries.has(n)){tension=Math.min(100,tension+8);news(`🏴 ${fa} سقوط کرد؛ جهان نگران است`);snd('win')}
-  window.__ovs=false};
+/* V59: wrapper V13 حذف شد — منطق مرز/ناوگان/تنش داخل attackTarget واحد ادغام شد */
 // --- economy, upkeep, sanctions, unrest ---
 function revolt(n){delete unrest[n];conqueredCountries.delete(n);occupationPct[n]=45;applyCountryColor(n);try{setHatch(n,45,false,0)}catch(e){}
   news(`🔥 شورش در ${getCountryData(n).fa}! کنترل این کشور را از دست دادی`,'lose')}
@@ -2317,7 +2257,7 @@ showDate=function(){const e=H$('hud-date');if(!e)return;let s;const d=new Date()
 addGrid=function(){};addNight=function(){};
 /* ---- natural land colors ---- */
 /* V45: نسخه‌ی روشن — همان فرمول نسخه‌ی پایین؛ hueهای تیره روی گوشی سیاه دیده نمی‌شوند */
-baseStyle=function(n){const h=hueOf(String(n||''));const light=48+((h*7919)%7);return{color:`hsla(${h},24%,30%,.5)`,weight:.8,fillColor:`hsl(${h},26%,${light}%)`,fillOpacity:.85}};
+/* V59: بازتعریف V48 حذف شد — baseStyle تک‌منبع شد */
 /* ---- flags built in small batches (no freeze while the intro plays) ---- */
 buildFlags=function(){const ks=Object.keys(layersByName).filter(n=>N2C[n.toLowerCase()]&&n!=='Antarctica');let i=0;
   (function step(){const end=Math.min(i+20,ks.length);
@@ -2674,13 +2614,7 @@ async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
   setInterval(()=>{if(!document.hidden)syncTerr()},SYNC_MS);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncTerr()})}
 const _eo=enterOnline;enterOnline=async function(u,nick){await _eo(u,nick);initServer()};
 /* other players' countries can't be attacked/claimed (PvP comes later) */
-const _atv=attackTarget;attackTarget=async function(n){
-  if(OTH[n]){showToast('🏴 این کشور تحت کنترل بازیکن دیگری است؛ حمله به بازیکنان هنوز فعال نیست','lose');return}
-  if(sb&&ACC.uid&&MP_OK===true){try{ /* fresh check: someone may have taken it in the last seconds */
-    const r=await sb.from('territories').select('user_id,nick,is_capital').eq('server',SRV).eq('country',n).maybeSingle();
-    if(!r.error&&r.data&&r.data.user_id!==ACC.uid){OTH[n]={nick:r.data.nick,cap:r.data.is_capital};paintOther(n);renderSrvChip();
-      showToast('🏴 همین الان بازیکن دیگری این کشور را گرفت؛ حمله لغو شد','lose');return}}catch(e){console.log(e)}}
-  await _atv(n);syncTerr()};
+/* V59: wrapper V28 حذف شد — چک مالکیت لحظه‌ای + syncTerr داخل attackTarget واحد ادغام شد */
 const _ccv=claimCapital;claimCapital=function(n){if(OTH[n]){showToast('❌ این کشور در سرور تو مال بازیکن دیگری است؛ کشور دیگری انتخاب کن','lose');return}_ccv(n);setTimeout(syncTerr,300)};
 (function(){const oc=onCountryClick;onCountryClick=function(f,l){oc(f,l);try{const o=OTH[f.properties.name];if(!o)return;
   const r=S$('c-role'),d=S$('drawer-actions');if(r)r.textContent='🏴 تحت کنترل '+o.nick+(o.cap?' (پایتخت)':'')+' — سرور '+SRV;
@@ -3498,11 +3432,9 @@ function releaseCountry(n){
     const bc=S$("battle-close-btn");if(bc)bc.style.display="block";
     WD.battles.delete(id);
   }
-  const oldAttack=attackTarget;
-  window.attackTarget=async function(n){
-    if(typeof OTH!=="undefined"&&OTH[n])return pvpAttack(n);
-    return oldAttack(n);
-  };
+  /* V59: به‌جای wrapper — رجیستری هوک؛ attackTarget دیگر بازنویسی نمی‌شود */
+  window.WD_ATTACK_HOOKS=window.WD_ATTACK_HOOKS||{};
+  WD_ATTACK_HOOKS.pvpRoute=function(n){if(OTH[n])return pvpAttack(n)};
   const oldEnter=enterOnline;
   window.enterOnline=async function(u,nick){
     await oldEnter(u,nick);
@@ -3738,26 +3670,21 @@ setTimeout(launch,1200);
 
 // Hook battle: require an operational doctrine and enrich existing battle with mission tracking.
 setTimeout(()=>{
- const old=W.attackTarget;
- if(typeof old!=='function'||old.__wd5)return;
- async function enhancedTarget(n){
-   /* V53-fix1: چک مرده‌ی W.battleBusy — let سراسری هرگز روی window نمی‌رود؛ حالا مقدار واقعی خوانده می‌شود */
-   var __bb53=false;try{__bb53=(typeof battleBusy!=='undefined'&&!!battleBusy)||(!!window.__wd39inflight)}catch(e){}
-   if(__bb53){return old(n)}
+/* V59: به‌جای wrapper — دکترین/مأموریت به‌صورت هوک (st/save/completeMission در همین بلاک در دسترس‌اند) */
+setTimeout(()=>{
+ if(!window.WD_ATTACK_HOOKS)return;
+ WD_ATTACK_HOOKS.doctrinePre=async function(){
    try{
      chooseTactic();
-     // tactic selector is asynchronous UI; wait until it is selected/closed or 15s.
-     const before=st.tactic, started=Date.now();
+     const started=Date.now();
      while(Date.now()-started<15000 && $('wd5-mini')) await new Promise(r=>setTimeout(r,100));
      st.stats.battles++;save();completeMission('war');
-   }catch(e53){/* V53-fix2: خطای لایه‌ی مأموریت هرگز نباید حمله را نگه دارد — همیشه old اجرا شود */}
-   const ok=await old(n);
-   try{
-     if(typeof conqueredCountries!=='undefined'&&conqueredCountries.has(n)){st.stats.wins++;save();completeMission('wins');toast('🏆 پیروزی ثبت شد')}
-   }catch(e53){}
-   return ok;
- }
- enhancedTarget.__wd5=true;W.attackTarget=enhancedTarget;
+   }catch(e53){console.error('wd-doctrine-pre',e53)}
+ };
+ WD_ATTACK_HOOKS.doctrinePost=function(n){
+   try{if(typeof conqueredCountries!=='undefined'&&conqueredCountries.has(n)){st.stats.wins++;save();completeMission('wins');toast('🏆 پیروزی ثبت شد')}}catch(e53){console.error('wd-doctrine-post',e53)}
+ };
+},2500);
 },2500);
 
 // Visual battle atmosphere: adds lightweight projectiles/explosions to the existing battle modal.
@@ -3826,7 +3753,7 @@ render();
 }
 function hook(){daily();mk();
 // Track common existing actions without replacing their logic.
-const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAttack.__wd6){const f=async function(...a){const r=await oldAttack.apply(this,a);try{mission('war');addXP(12,'نبرد')}catch(e){}return r};f.__wd6=true;window.attackTarget=f}
+/* V59: wrapper wd6 حذف شد — XP/مأموریت نبرد داخل attackTarget واحد ادغام شد */
 const oldBuy=window.buyUnit;if(typeof oldBuy==='function'&&!oldBuy.__wd6){const f=function(...a){const r=oldBuy.apply(this,a);mission('war',0);return r};f.__wd6=true;window.buyUnit=f}
 render();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(hook,900));else setTimeout(hook,900);
@@ -3917,7 +3844,7 @@ window.wd7_war=prepareWar;window.wd7_spy=spy;window.wd7_event=event;window.wd7_c
 $('wd7-btn').onclick=()=>{$('wd7-panel').classList.add('open');S.tab='world';render()};$('wd7-close').onclick=()=>$('wd7-panel').classList.remove('open');$('wd7-panel').onclick=e=>{if(e.target===$('wd7-panel'))$('wd7-panel').classList.remove('open')};
 S.started=S.started||Date.now();initAI();generateProvinces();season();economyTick();setInterval(()=>{economyTick();season();missionComplete('war');missionComplete('trade');missionComplete('spy');missionComplete('research');missionComplete('conquer');if($('wd7-panel').classList.contains('open'))render()},30000);
 // Hook core attack without replacing its combat logic: records a global-history layer around real attacks.
-try{const oldAttack=window.attackTarget;if(typeof oldAttack==='function'&&!oldAttack.__wd7){const wrap=async function(n){try{news('⚔️ آغاز عملیات علیه '+fa(n))}catch(e){}const r=await oldAttack.apply(this,arguments);try{addXP(10,'war')}catch(e){}return r};wrap.__wd7=true;window.attackTarget=wrap}}catch(e){}
+/* V59: wrapper wd7 حذف شد — خبر آغاز عملیات و XP داخل attackTarget واحد ادغام شد */
 })();
    </script>
    <style id="wd-v13-upgrade-css">
@@ -5020,7 +4947,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 'use strict';
 const $=id=>document.getElementById(id);
 function toast(m){try{if(typeof showToast==='function')showToast(m,'win')}catch(e){}}
-function openModalSafe(id){try{if(typeof openModal==='function'){openModal(id);return true}const x=$(id);if(x){x.classList.add('open');x.classList.add('active');return true}}catch(e){}return false}
+function openModalSafe(id){try{openModal(id);return true}catch(e){console.error('openModalSafe',e);return false}} /* V59: تک‌مسیر */
 /* Remove duplicated/legacy floating UI and install one map FX layer. */
 function installSurface(){
   const map=$('map');
@@ -5960,11 +5887,7 @@ window.wd22WarCinema=function(n){
   }catch(e){}
 };
 try{
-  var _at=window.attackTarget;
-  if(typeof _at==='function')window.attackTarget=async function(n){
-    try{window.wd22WarCinema(n)}catch(e){}
-    return _at(n);
-  };
+/* V59: wrapper wd22 حذف شد — سینمای جنگ از هوک cinemaStart/V30 اجرا می‌شود */
 }catch(e){}
 /* battle modal gets the war theme while open (covers normal + PvP arena)
    V52: toggle فقط وقتی واقعاً باید عوض شود — ضدهرینگ با اوبزرورهای دیگر */
@@ -8143,8 +8066,7 @@ window.renderMarket28=renderMarket;
 try{
   var btnMk=$$id('btn-m-market');
   if(btnMk)btnMk.addEventListener('click',function(){setTimeout(renderMarket,60)},true);
-  var oldOpen=openModal;
-  openModal=function(id){oldOpen(id);if(id==='m-market')setTimeout(renderMarket,60)};
+  wdModalHook('m-market',function(){setTimeout(renderMarket,60)}); /* V59 */
 }catch(e){}
 setInterval(function(){var m=$$id('m-market');if(m&&m.classList.contains('active')&&mktTab==='live')renderMarket()},30000);
 
@@ -8303,8 +8225,7 @@ window.renderTax28=renderTax;
 try{
   var btnTx=$$id('btn-m-tax');
   if(btnTx)btnTx.addEventListener('click',function(){setTimeout(renderTax,60)},true);
-  var oldOpen2=openModal;
-  openModal=function(id){oldOpen2(id);if(id==='m-tax')setTimeout(renderTax,60)};
+  wdModalHook('m-tax',function(){setTimeout(renderTax,60)}); /* V59 */
 }catch(e){}
 /* خروجی ارتش در دفتر خزانه */
 try{
@@ -8487,8 +8408,7 @@ window.renderArmy28=renderArmy28;
 try{
   var btnAr=$$id('btn-m-army');
   if(btnAr)btnAr.addEventListener('click',function(){setTimeout(renderArmy28,60)},true);
-  var _open3=openModal;
-  openModal=function(id){_open3(id);if(id==='m-army')setTimeout(renderArmy28,60)};
+  wdModalHook('m-army',function(){setTimeout(renderArmy28,60)}); /* V59 */
 }catch(e){}
 
 /* ---------- دکمه «افزودن به صف حمله» در کشوی کشور ---------- */
@@ -8757,14 +8677,14 @@ function warOff(){try{if(warfx)warfx.classList.remove('on')}catch(e){}}
 /* during battle: center toasts are silenced → routed to the bottom war bar */
 const _st30=showToast;showToast=function(m,k){if(window.__war30){warBar(m,k==='lose');snd(k==='lose'?'alert':'coin')}else _st30(m,k)};
 /* wrap the whole attack chain (outermost — V28 logistics/border checks stay intact) */
-const _atk30=attackTarget;
-attackTarget=async function(n){
-  if(battleBusy||!myCountryName)return _atk30(n);
-  const wasMine=conqueredCountries.has(n),t0=getCountryData(n),fa=t0.fa;
+/* V59: به‌جای wrapper — سینما/مهرها به‌صورت هوک (warfx/warBar/stamp/WD30BC/WD30HIST در همین بلاک‌اند) */
+window.WD_ATTACK_HOOKS=window.WD_ATTACK_HOOKS||{};
+WD_ATTACK_HOOKS.cinemaStart=function(n,fa){
   window.__warLaunched=false;window.__war30=true;D.body.classList.add('wd-war');warfxEnsure();
   warfx.querySelector('.fx-target').textContent=fa;warfx.classList.add('on');snd('drums');
   warBar('🎬 عملیات آغاز شد — نیروها به سمت '+fa+' حرکت کردند');
-  try{await _atk30(n)}catch(e){console.log(e)}
+};
+WD_ATTACK_HOOKS.cinemaEnd=function(n,t0,wasMine){
   const launched=!!window.__warLaunched;
   window.__war30=false;document.body.classList.remove('wd-war');warOff();
   if(!launched)return;
@@ -8772,11 +8692,11 @@ attackTarget=async function(n){
     const won=conqueredCountries.has(n)&&!wasMine;
     if(won){stamp('فتح شد ✓',true);snd('cheer');
       const big=(t0.def>=600||t0.gold>=900);
-      WD30HIST({t:Date.now(),type:big?'epic':'win',txt:big?('امپراتوری '+fa+' را فتح کردی! فتح تاریخی'):('کشور '+fa+' را فتح کردی'),ico:'🏴'});
-      if(big){WD30BC('conquest',{country:fa});news('🏳️ تو امپراتوری '+fa+' را فتح کردی — جهان شنید!')}
-    }else if((occupationPct[n]||0)>0){stamp('پیشروی ⚔️',true);WD30HIST({t:Date.now(),type:'win',txt:'در '+fa+' '+Math.round(occupationPct[n])+'٪ خاک تصرف کردی',ico:'⚔️'})}
-    else{stamp('دفع شد ✕',false);WD30HIST({t:Date.now(),type:'bad',txt:'حمله به '+fa+' دفع شد',ico:'🛡️'})}
-  }catch(e){console.log(e)}
+      WD30HIST({t:Date.now(),type:big?'epic':'win',txt:big?('امپراتوری '+t0.fa+' را فتح کردی! فتح تاریخی'):('کشور '+t0.fa+' را فتح کردی'),ico:'🏴'});
+      if(big){WD30BC('conquest',{country:t0.fa});news('🏳️ تو امپراتوری '+t0.fa+' را فتح کردی — جهان شنید!')}
+    }else if((occupationPct[n]||0)>0){stamp('پیشروی ⚔️',true);WD30HIST({t:Date.now(),type:'win',txt:'در '+t0.fa+' '+Math.round(occupationPct[n])+'٪ خاک تصرف کردی',ico:'⚔️'})}
+    else{stamp('دفع شد ✕',false);WD30HIST({t:Date.now(),type:'bad',txt:'حمله به '+t0.fa+' دفع شد',ico:'🛡️'})}
+  }catch(e){console.error('wd-cinema-end',e)}
 };
 })();
 </script>
@@ -10369,17 +10289,12 @@ function truceBlock(){
     try{if(typeof WD30CINE==='function')WD30CINE('🕊️','آتش‌بس المپیک!','تا پایان بازی‌ها جنگ ممنوع است — امروز میدان، ورزشگاه است','c-gold','cheer')}catch(e){}}
   showToast33('🕊️ آتش‌بس المپیک — حمله در طول بازی‌ها غیرفعال است','lose');
   return false}
-setInterval(function(){try{
-  if(gPhase33().phase!=='live')return;
-  if(typeof attackTarget!=='function'||attackTarget.__wd33truce)return;
-  const prev=attackTarget;
-  const wrapped=function(n){
-    /* V38: ادمین المپیک را خاموش کرده → آتش‌بس فوراً برداشته می‌شود (حتی وسط فاز live) */
-    if(window.WD33_EV&&window.WD33_EV.olympic===false)return prev.apply(this,arguments);
-    if(gPhase33().phase==='live'){truceBlock();return Promise.resolve()}
-    return prev.apply(this,arguments)};
-  wrapped.__wd33truce=1;attackTarget=wrapped;
-}catch(e){}},2000);
+/* V59: به‌جای re-wrap هر ۲ ثانیه — هوک آتش‌بس؛ attackTarget دیگر بازنویسی نمی‌شود */
+window.WD_ATTACK_HOOKS=window.WD_ATTACK_HOOKS||{};
+WD_ATTACK_HOOKS.truce=function(n){
+  if(window.WD33_EV&&window.WD33_EV.olympic===false)return false;
+  if(gPhase33().phase==='live'){truceBlock();return true}
+  return false};
 })();
 </script>
 <script id="v33-ceremony">
@@ -15484,10 +15399,7 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
   /* ۱) پالت زمین: خاکستری-آبیِ ملایم و کم‌اشباع. رنگ بازیکن‌ها = تنها اطلاعات رنگی نقشه
      (قبلاً ۱۷۷ کشور رنگین‌کمانی پرجسور بودند = خستگی چشم) */
   try{
-    window.baseStyle=function(n){var h=11,s=String(n||'');
-      for(var i=0;i<s.length;i++)h=(h*37+s.charCodeAt(i))%360;
-      return {color:'rgba(8,16,26,.55)',weight:.7,
-        fillColor:'hsl('+h+',13%,'+(41+((h*7919)%6))+'%)',fillOpacity:.92}};
+  /* V59: بازتعریف baseStyle حذف شد — تک‌منبع در هسته */
   }catch(e){}
 
   /* ۲) رنگ بازیکنان دیگر: اشباع ۶۸→۴۲٪ (به‌جای نئون) + گارد تکراری:
@@ -15635,10 +15547,7 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
   /* ---- ۱) کشورهای بدون مالک کاملاً خاکستری و بی‌رنگ (اشباع صفر) — فقط قلمرو بازیکن‌ها رنگ دارد.
           smoothFactor نصف شد → خط ساحل و مرزها دقیق‌تر و شارپ‌تر رندر می‌شوند ---- */
   try{
-    window.baseStyle=function(n){var h=11,s=String(n||'');
-      for(var i=0;i<s.length;i++)h=(h*37+s.charCodeAt(i))%360;
-      return {color:'rgba(10,14,20,.6)',weight:.7,smoothFactor:.55,
-        fillColor:'hsl(0,0%,'+(42+((h*7919)%6))+'%)',fillOpacity:.92}};
+  /* V59: بازتعریف baseStyle حذف شد — تک‌منبع در هسته */
   }catch(e){}
 
   /* ---- ۲) V58b: تلاش Hi-DPI برداشته شد — چون Leaflet ترنسفورم کانواس را با translate(-bounds.min)
