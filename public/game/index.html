@@ -1815,7 +1815,7 @@ async function attackTarget(n){
     let gain=Math.max(-3,Math.min(16,(ratio-.3)*16));if(occ>75)gain*=.5;   // last 25% (capital siege) is slower
     const prev=occ;occ=Math.max(0,Math.min(100,occ+gain));
     bar.style.transition="width 1.2s ease";bar.style.width=occ+"%";$("battle-pct-label").textContent=Math.round(occ)+"%";
-    setHatch(n,occ,true,prev);blasts(n,5);
+    setHatch(n,occ,true,prev);blasts(n,2);
     lose(Math.min(.1,.03+.03/Math.max(ratio,.2)));power=Math.round(calculateTotalAttack()*(window.__ovs?ovsMult():1));updateUI();
     await sleep(700);if(power<=0){txt.textContent="💀 ارتش شما نابود شد!";break}
   }
@@ -1843,7 +1843,7 @@ updateUI=function(){_uu();['gold','food','oil','army'].forEach(k=>{const e=$('r-
 addEventListener('load',()=>{if(typeof map==='undefined'||!map)return;
   try{const w=document.createElement('div');w.id='waves';map.getContainer().prepend(w)}catch(e){console.log(e)}
   try{map.on('zoomend',sizeFlags)}catch(e){}
-  setInterval(decay,5000)});
+  /* V55: تایمر decay مرده حذف شد (تابع خالی بود — فقط سیکل بیهوده) */});
    </script>
    <style>
     *{font-family:'Vazirmatn',system-ui,-apple-system,sans-serif}
@@ -1923,7 +1923,7 @@ const EV=[()=>{const g=150*Math.max(1,conqueredCountries.size);playerRes.gold+=g
  ()=>tweakDef(.88,'🪖 کودتا در X: دفاع این کشور ۱۲٪ ضعیف شد'),
  ()=>tweakDef(1.12,'🛡️ X ارتشش را نوسازی کرد: دفاع ۱۲٪ قوی‌تر شد')];
 function showDate(){const d=new Date(Date.UTC(2026,8,20)+GAME.days*864e5);let s;try{s=d.toLocaleDateString('fa-IR-u-ca-persian',{year:'numeric',month:'long',day:'numeric',timeZone:'UTC'})}catch(e){s=d.toISOString().slice(0,10)}H$('hud-date').textContent='📅 '+s}
-function gameTick(){GAME.days++;showDate();tension=Math.max(0,tension-.3);H$('tn-fill').style.width=tension+'%';
+function gameTick(){GAME.days++;showDate();tension=Math.max(0,tension-.3);const tf=H$('tn-fill');if(tf)tf.style.width=tension+'%';
   if(++tk4%4===0)econ();if(myCountryName&&--evT<=0){evT=45+(Math.random()*45|0);EV[Math.random()*EV.length|0]()}}
 function exportExt(){return{d:GAME.days,t:tension,u:unrest,s:sanction,n:NEWS,c:(typeof COS27!=='undefined'?COS27:null)}}
 function importExt(x){if(!x)return;GAME.days=x.d||0;tension=x.t||0;unrest=x.u||{};sanction=x.s||0;NEWS.length=0;(x.n||[]).forEach(m=>NEWS.push(m));if(x.c&&typeof cosRestore==='function'){try{cosRestore(x.c)}catch(e){}}const t=H$('tk');if(t)t.textContent=NEWS.slice().reverse().join('    ◆    ');showDate()}
@@ -1945,7 +1945,7 @@ function addGrid(){const o={color:'#7fdcff',weight:.6,opacity:.18,interactive:fa
   for(let la=-60;la<=60;la+=30)L.polyline([[la,-180],[la,180]],o).addTo(map);for(let lo=-150;lo<=180;lo+=30)L.polyline([[-85,lo],[85,lo]],o).addTo(map)}
 addEventListener('load',()=>{try{
   const v=document.createElement('div');v.id='vignette';document.body.appendChild(v);
-  const s=document.createElement('div');s.id='hud-strip';s.innerHTML='<div class="hchip" id="hud-date">📅</div><div class="hchip">🌡️ تنش<div id="tn-bar"><div id="tn-fill"></div></div></div><div class="hchip" id="hud-snd">🔊</div>';document.body.appendChild(s);
+  const s=document.createElement('div');s.id='hud-strip';s.innerHTML='<div class="hchip" id="hud-date">📅</div><div class="hchip" id="hud-snd">🔊</div>';document.body.appendChild(s);
   const t=document.createElement('div');t.id='ticker';t.innerHTML='<span id="tk"></span>';document.body.appendChild(t);
   H$('hud-snd').addEventListener('click',()=>{muted=!muted;H$('hud-snd').textContent=muted?'🔇':'🔊'});
   showDate();if(!NEWS.length){ const t=H$('tk'); if(t)t.textContent='در حال انتظار برای نخستین رویداد ثبت‌شده در سرور…'; }
@@ -8968,7 +8968,9 @@ async function doOp(kind,n){const op=WD54_OPS[kind];if(!op)return;const fa=getCo
     else if(typeof blasts==='function')blasts(n,3);
     if(op.pct>0)debuff(n,op.pct,op.dur,op.ic);
     snd(op.snd);
-    WD30CINE(op.cine[0],op.cine[1],op.cine[2].replace('%C',fa),op.cine[3],op.cine[4]);
+    /* V55: سینمای تمام‌صفحه‌ی اختصاصی هر عملیات — کارت نتیجه بعد از صحنه می‌آید */
+    try{if(typeof window.WD55_OPFX==='function')window.WD55_OPFX(kind,fa)}catch(e){}
+    setTimeout(function(){try{WD30CINE(op.cine[0],op.cine[1],op.cine[2].replace('%C',fa),op.cine[3],op.cine[4])}catch(e){}},kind==='nuke'?2600:2100);
     WD30BC(kind,{country:fa,target:d.owner_nick||''});
     news(op.ic+' '+op.fa+' بر '+fa+(d.owner_nick?' (خاک '+d.owner_nick+')':'')+' انجام شد — '+op.fa+' ثبت شد');
     WD30HIST({t:Date.now(),type:'epic',txt:op.fa+' روی '+fa+' اجرا کردی'+(d.owner_nick?' (خاک '+d.owner_nick+')':''),ico:op.ic});
@@ -8994,6 +8996,7 @@ function soCard(kind){const op=WD54_OPS[kind];if(!op)return null;
   const eff=[];
   if(op.bump>0)eff.push('+'+faNum(op.bump)+'٪ اشغال بدون جنگ');
   if(op.pct>0)eff.push('دفاع هدف '+faNum(Math.round(op.pct*100))+'٪ ضعیف به‌مدت '+faNum(op.dur)+' دقیقه');
+  eff.push('⚡ اثر واقعی در نبرد PvP هم اعمال می‌شود');
   body.innerHTML='<b>'+op.ic+' '+op.fa+'</b><small>'+eff.join(' + ')+' — سقف سرور: '+faNum(op.weekly)+' در هفته</small><div class="wd-so-cd"></div>';
   const btn=D.createElement('button');btn.className='wd-go-btn';btn.textContent=faNum(op.cost)+' 💎';
   btn.addEventListener('click',()=>startTargeting(kind));
@@ -9622,6 +9625,8 @@ function museumMedal(c){try{
 /* ---------- poll olympic_status (90s) — keeps badges/crown fresh for everyone ---------- */
 function handleStatus(d){try{
   if(!d)return;
+  /* V55: فاز المپیک از سرور authoritative — شروع/پایان فوری ادمین فوراً همه‌جا اعمال می‌شود */
+  if(d.games&&typeof window.WD55_SETPHASE==='function')window.WD55_SETPHASE(d.games);
   /* V36: admin event switches — olympic/elections/duels on-off comes from the server */
   if(d.events){
     /* V38: تشخیص تغییر وضعیت سوئیچ — اعمال فوری برای همه (بدون انتظار تا رفرش دستی) */
@@ -9656,7 +9661,10 @@ function poll(){try{
     handleStatus(r&&r.data?r.data:null);
   }).catch(()=>{});
 }catch(e){}}
+window.WD33_POLL=poll; /* V55: پنل ادمین بعد از شروع/پایان فوری، فاز را بلافاصله برای همه‌ی مسیرها تازه می‌کند */
 poll();setTimeout(poll,6000);setInterval(()=>{if(!document.hidden)poll()},90000);
+/* V55: برگشت به اپ/تب = بلافاصله فاز تازه (آتش‌بس/اختتامیه بدون انتظار برای چرخه‌ی بعدی) */
+document.addEventListener('visibilitychange',function(){try{if(!document.hidden){poll();if(typeof window.WD33_REFRESH==='function')window.WD33_REFRESH(false)}}catch(e){}});
 setTimeout(placeCrown,12000);setInterval(()=>{if(!document.hidden)placeCrown()},180000);
 })();
 </script>
@@ -9912,8 +9920,29 @@ const SCHED33=[['sprint','archery'],['swim','gym'],['weight','cycling'],['chess'
 const HOSTS33=[{c:'توکیو',n:'ژاپن',f:'jp'},{c:'پاریس',n:'فرانسه',f:'fr'},{c:'لس‌آنجلس',n:'آمریکا',f:'us'},{c:'لندن',n:'بریتانیا',f:'gb'},{c:'ریودوژانیرو',n:'برزیل',f:'br'},{c:'پکن',n:'چین',f:'cn'},{c:'آتن',n:'یونان',f:'gr'},{c:'سیدنی',n:'استرالیا',f:'au'},{c:'بارسلونا',n:'اسپانیا',f:'es'},{c:'سئول',n:'کره‌ی جنوبی',f:'kr'},{c:'مسکو',n:'روسیه',f:'ru'},{c:'مونترال',n:'کانادا',f:'ca'},{c:'مونیخ',n:'آلمان',f:'de'},{c:'مکزیکوسیتی',n:'مکزیک',f:'mx'},{c:'رم',n:'ایتالیا',f:'it'},{c:'هلزینکی',n:'فنلاند',f:'fi'},{c:'آمستردام',n:'هلند',f:'nl'},{c:'استکهلم',n:'سوئد',f:'se'},{c:'استانبول',n:'ترکیه',f:'tr'},{c:'قاهره',n:'مصر',f:'eg'},{c:'دهلی‌نو',n:'هند',f:'in'},{c:'بوئنوس‌آیرس',n:'آرژانتین',f:'ar'},{c:'نایروبی',n:'کنیا',f:'ke'},{c:'دبی',n:'امارات',f:'ae'},{c:'سنگاپور',n:'سنگاپور',f:'sg'},{c:'کیپ‌تاون',n:'آفریقای جنوبی',f:'za'},{c:'لیما',n:'پرو',f:'pe'},{c:'ورشو',n:'لهستان',f:'pl'},{c:'لیسبون',n:'پرتغال',f:'pt'},{c:'لاگوس',n:'نیجریه',f:'ng'},{c:'کوالالامپور',n:'مالزی',f:'my'},{c:'دوحه',n:'قطر',f:'qa'}];
 function hostOf33(e){let h=(e*2654435761)>>>0;h^=h>>>13;h=Math.imul(h,1274126177)>>>0;return HOSTS33[h%HOSTS33.length]}
 function flagUrl33(cc){try{return (typeof flagUrl==='function')?flagUrl(cc):('/cdn/flags/w80/'+cc+'.png')}catch(e){return '/cdn/flags/w80/'+cc+'.png'}}
-/* client phase mirror — identical anchors to server; wd33toff = E2E time offset */
+/* client phase mirror — identical anchors to server; wd33toff = E2E time offset
+   V55 FIX (ریشه‌ای): فاز از سرور authoritative است. قبلاً این تابع فقط از تقویم محلی می‌خواند و
+   «شروع/پایان فوری» ادمین (oly_shift) را نمی‌دید — برای همین اختتامیه المپیک را تمام نمی‌کرد،
+   مراسم اختتامیه پخش نمی‌شد و آتش‌بس بعد از پایان هم باقی می‌ماند.
+   هر کلاینتی که olympic_status/olympic_games می‌گیرد، اسنپ‌شات را در WD33_SPHASE می‌ریزد؛
+   تا ۵ دقیقه معتبر است و بعد به آینه‌ی محلی برمی‌گردد (قطعی شبکه = رفتار قدیمی). */
 function gPhase33(){
+  try{
+    var sp=window.WD33_SPHASE;
+    if(sp&&sp.at&&(Date.now()-sp.at)<300000&&sp.phase&&sp.edition){
+      const off0=Number(localStorage.getItem('wd33toff')||0)||0;
+      const ed0=Math.floor((Date.now()+off0-ANCHOR)/EDM)+1;
+      if(ed0===sp.edition){
+        return{edition:sp.edition,phase:sp.phase,gameDay:sp.gameDay||0,
+          regAt:sp.regAt||(ANCHOR+(sp.edition-1)*EDM+REGO),
+          openAt:sp.openAt||(ANCHOR+(sp.edition-1)*EDM+OPENO),
+          closeAt:sp.closeAt||(ANCHOR+(sp.edition-1)*EDM+CLOSEO),
+          nextReg:sp.nextReg||(ANCHOR+sp.edition*EDM+REGO),
+          host:sp.host||hostOf33(sp.edition),
+          today:sp.phase==='live'?(sp.today||SCHED33[sp.gameDay||0]||[]):[]};
+      }
+    }
+  }catch(e){}
   const off=Number(localStorage.getItem('wd33toff')||0)||0;
   const now=Date.now()+off;
   const edition=Math.floor((now-ANCHOR)/EDM)+1;
@@ -9926,6 +9955,14 @@ function gPhase33(){
     today:phase==='live'?SCHED33[gameDay]:[]};
 }
 window.WD33_PHASE=gPhase33;
+window.gPhase33=gPhase33; /* V55: بلاک‌های دیگر (بریفینگ حمله/گزارش جهانی) قبلاً نمی‌دیدندش — آتش‌بس از قبل اعمال می‌شود */
+/* V55: یک setter سراسری — همه‌ی منابع سرور (status/games/ادمین) با همین فاز را تازه می‌کنند */
+window.WD55_SETPHASE=function(s){try{
+  if(!s||!s.phase)return;
+  window.WD33_SPHASE={edition:s.edition,phase:s.phase,gameDay:s.game_day!=null?s.game_day:(s.gameDay||0),
+    regAt:s.regAt!=null?s.regAt:null,openAt:s.openAt!=null?s.openAt:null,closeAt:s.closeAt!=null?s.closeAt:null,
+    nextReg:s.nextReg!=null?s.nextReg:null,host:s.host||null,today:Array.isArray(s.today)?s.today:null,at:Date.now()};
+}catch(e){}};
 const cdTxt=(to,from)=>{const l=Math.max(0,to-(from||Date.now()));const d=Math.floor(l/864e5),h=Math.floor((l%864e5)/36e5),m=Math.floor((l%36e5)/6e4);
   return d>0?(faN(d)+' روز و '+faN(h)+' ساعت'):d===0&&h>0?(faN(h)+' ساعت و '+faN(m)+' دقیقه'):(faN(m)+' دقیقه')};
 const myNick=()=>{try{return (typeof ACC!=='undefined'&&ACC&&ACC.nick)||''}catch(e){return ''}};
@@ -10253,6 +10290,8 @@ async function wgRefresh(force){
     /* V36: admin switch — the hub payload carries {disabled:true} when the olympics are off */
     if(r.d.disabled){WG33={disabled:true,edition:r.d.edition||0};if(wgOpenFlag)renderHub();return}
     WG33=r.d;
+    /* V55: فاز authoritative — payload کامل games همین‌جا اسنپ‌شات می‌شود (اختتامیه فوری ادمین → فوراً after) */
+    if(typeof window.WD55_SETPHASE==='function'&&r.d.phase){window.WD55_SETPHASE(r.d)}
     window.__wg33career=r.d.career||{};
     window.WD33_CAREER=function(n){try{return (window.__wg33career||{})[n]||null}catch(e){return null}};
     window.__wg33data=r.d;
@@ -11796,10 +11835,8 @@ function renderPoster(b){
   const nw=H('wd34-pnew');
   if(nw)nw.addEventListener('click',async()=>{S.poster=null;renderPoster(b);await badgeTick();await makePoster();renderPoster(b)})}
 
-/* ---------- 🔥 war heatmap ---------- */
-function heatBtn(){let b=H('wd34-heat-btn');if(b)return b;
-  b=D.createElement('div');b.id='wd34-heat-btn';b.title='نقشه‌ی حرارت نبردها (۴۸ ساعت)';
-  b.innerHTML='🔥';b.addEventListener('click',toggleHeat);D.body.appendChild(b);return b}
+/* ---------- 🔥 war heatmap — V55: دکمه‌ی مشعل/آتش زیر دکمه‌ی المپیک حذف شد (شلوغی صفحه) ---------- */
+function heatBtn(){/* V55: آیکون 🔥 برداشته شد — لایه‌ی حرارت دیگر از رابط کاربری در دسترس نیست */return null}
 function syncHeatPos(){try{const f=H('hud-olympic'),b=H('wd34-heat-btn');if(f&&b){const t=parseFloat(getComputedStyle(f).top)||142,h=f.offsetHeight||72;b.style.top=(t+h+14)+'px'}}catch(e){}}
 async function toggleHeat(){
   S.heat=!S.heat;const b=H('wd34-heat-btn'),lg=H('wd34-heat-lg');
@@ -15187,7 +15224,10 @@ function ensureAdminBox(){
             showToast(msg,'lose');
           }else{
             showToast(mode==='reset'?'↩️ برنامه‌ی عادی برگشت':'✅ انجام شد — فاز جدید: '+(PH[x.phase]||x.phase),'win');
+            /* V55: فاز جدید فوراً authoritative می‌شود — اختتامیه بی‌درنگ برای خود ادمین هم تمام است */
+            try{if(typeof window.WD55_SETPHASE==='function')window.WD55_SETPHASE({edition:x.edition,phase:x.phase})}catch(e){}
             try{if(typeof wgRefresh==='function')wgRefresh(true)}catch(e){}
+            try{if(typeof window.WD33_POLL==='function')window.WD33_POLL()}catch(e){}
           }
         }catch(e){}
         busy(false,btn);refreshPhase();
@@ -15196,6 +15236,8 @@ function ensureAdminBox(){
     var refreshPhase=function(){
       try{sb.rpc('olympic_status',{p_server:srv()}).then(function(r){
         try{var x=r&&r.data;var g=(x&&x.games)?x.games:x;
+          /* V55: همین پاسخ، فاز authoritative سراسری را هم تازه می‌کند */
+          if(x&&g&&typeof window.WD55_SETPHASE==='function')window.WD55_SETPHASE(g);
           var el=D.getElementById('wd53-olyph');
           if(el&&g&&g.phase){el.textContent='وضعیت فعلی: '+(PH[g.phase]||g.phase)+' • دوره‌ی '+faN(g.edition||0);
             var bo=D.getElementById('wd53-olyopen'),bc=D.getElementById('wd53-olyclose');
@@ -15263,6 +15305,129 @@ setInterval(function(){if(!D.hidden)adminCheck().then(function(okad){if(okad||is
     function chip(){if(D.getElementById('wd54-testchip'))return;var c=D.createElement('div');c.id='wd54-testchip';c.textContent='🧪 سرور تستی — نسخه‌ی عرضه: سرور جدید مایکت';D.body.appendChild(c)}
     if(D.body)chip();else D.addEventListener('DOMContentLoaded',chip);
   }
+})();
+   </script>
+   <style id="v55-css">
+/* ===== V55: سینمای عملیات‌های ویژه + سبک‌سازی صفحه ===== */
+#wd55-opfx{position:fixed;inset:0;z-index:120000;cursor:pointer;direction:ltr;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+  background:rgba(2,4,10,.82);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
+  opacity:0;transition:opacity .25s}
+#wd55-opfx.on{opacity:1}
+#wd55-opfx.out{opacity:0;transition:opacity .32s}
+.wd55-op-t{position:absolute;bottom:16vh;left:0;right:0;text-align:center;font-weight:900;
+  font-size:clamp(17px,4.6vw,26px);color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.8);direction:rtl;
+  animation:wd55pop .5s cubic-bezier(.2,1.4,.4,1) both}
+.wd55-op-sk{position:absolute;top:16px;left:0;right:0;text-align:center;font-size:10px;font-weight:800;color:#9fb6d4;direction:rtl}
+@keyframes wd55pop{from{transform:translateY(18px) scale(.9);opacity:0}to{transform:none;opacity:1}}
+/* — cyber — */
+.wd55-opfx.k-cyber{background:rgba(1,8,14,.9)}
+.wd55-scan{position:absolute;left:0;right:0;height:16vh;top:-20vh;
+  background:linear-gradient(180deg,transparent,rgba(70,220,255,.22) 45%,rgba(160,245,255,.65) 50%,rgba(70,220,255,.22) 55%,transparent);
+  animation:wd55scan 1.15s linear infinite}
+@keyframes wd55scan{to{transform:translateY(130vh)}}
+.wd55-grid{position:absolute;inset:-10%;
+  background:repeating-linear-gradient(0deg,transparent 0 46px,rgba(70,220,255,.13) 46px 47px),repeating-linear-gradient(90deg,transparent 0 46px,rgba(70,220,255,.13) 46px 47px);
+  animation:wd55grid 2.6s linear infinite}
+@keyframes wd55grid{to{transform:translate(47px,47px)}}
+.wd55-bin{position:absolute;top:-6vh;font-family:monospace;font-size:12px;color:rgba(140,235,255,.85);white-space:nowrap;animation:wd55fall 1.9s linear infinite}
+@keyframes wd55fall{to{transform:translateY(112vh)}}
+.wd55-term{position:absolute;top:36vh;left:6vw;right:6vw;z-index:2;font-family:monospace;font-weight:900;color:#8ef4ff;text-align:center;
+  font-size:clamp(13px,3.4vw,19px);text-shadow:0 0 16px rgba(70,220,255,.9);animation:wd55glitch 1.2s steps(2) infinite}
+@keyframes wd55glitch{0%,100%{transform:none;opacity:1}25%{transform:translateX(2px);opacity:.85}75%{transform:translateX(-2px);opacity:.9}}
+/* — commando — */
+.wd55-opfx.k-commando{background:radial-gradient(ellipse at center,rgba(6,26,10,.55) 30%,rgba(2,10,4,.94) 100%)}
+.wd55-nv{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 42%,rgba(60,255,120,.14) 100%);animation:wd55nvb 1.4s ease-in-out infinite alternate}
+@keyframes wd55nvb{from{opacity:.55}to{opacity:1}}
+.wd55-chute{position:absolute;top:-9vh;font-size:clamp(24px,6vw,40px);animation:wd55drop 2.5s linear infinite}
+@keyframes wd55drop{to{transform:translateY(118vh) rotate(6deg)}}
+.wd55-flare{position:absolute;width:34vw;height:34vw;border-radius:50%;filter:blur(2px);
+  background:radial-gradient(circle,rgba(190,255,120,.4),transparent 65%);animation:wd55flare 2.2s ease-in-out infinite}
+@keyframes wd55flare{0%,100%{opacity:.35;transform:scale(.9)}50%{opacity:.85;transform:scale(1.06)}}
+.wd55-term.c-green{color:#9dffb0;text-shadow:0 0 16px rgba(90,255,140,.9)}
+/* — missile — */
+.wd55-opfx.k-missile{background:rgba(18,6,2,.88)}
+.wd55-alert{position:absolute;inset:0;border:3px solid rgba(255,80,60,.7);box-shadow:inset 0 0 60px rgba(255,60,40,.5);animation:wd55alert .5s linear 3}
+@keyframes wd55alert{50%{opacity:.25}}
+.wd55-rocket{position:absolute;top:12vh;left:-14vw;font-size:clamp(30px,8vw,54px);
+  animation:wd55fly 1.05s cubic-bezier(.5,0,.85,.4) .25s forwards;transform:rotate(24deg)}
+@keyframes wd55fly{to{left:104vw;top:64vh}}
+.wd55-trail{position:absolute;top:0;left:0;width:160px;height:4px;transform-origin:left center;
+  background:linear-gradient(90deg,transparent,rgba(255,170,80,.9));opacity:0;animation:wd55trail 1.05s linear .25s forwards}
+@keyframes wd55trail{0%{opacity:0;transform:rotate(19deg) scaleX(0)}8%{opacity:1}100%{opacity:0;transform:rotate(37deg) translateX(115vw) scaleX(1)}}
+.wd55-flash{position:absolute;inset:0;background:#fff;opacity:0;animation:wd55flash .8s ease-out 1.3s forwards}
+@keyframes wd55flash{0%{opacity:0}18%{opacity:.96}100%{opacity:0}}
+.wd55-ring{position:absolute;top:52vh;left:50%;width:12px;height:12px;border-radius:50%;border:3px solid rgba(255,190,110,.9);
+  transform:translate(-50%,-50%) scale(.2);opacity:0;animation:wd55ring 1.5s ease-out 1.35s forwards}
+.wd55-ring.r2{animation-delay:1.55s;border-color:rgba(255,120,70,.8)}
+@keyframes wd55ring{0%{opacity:.95;transform:translate(-50%,-50%) scale(.2)}100%{opacity:0;transform:translate(-50%,-50%) scale(26)}}
+.wd55-boom{position:absolute;top:50vh;left:50%;font-size:clamp(44px,13vw,84px);transform:translate(-50%,-50%) scale(.4);opacity:0;animation:wd55boom 1.2s cubic-bezier(.2,1.2,.3,1) 1.32s forwards}
+@keyframes wd55boom{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.25)}100%{opacity:.95;transform:translate(-50%,-50%) scale(1)}}
+/* — nuke — */
+.wd55-opfx.k-nuke{background:rgba(10,2,2,.9)}
+.wd55-nflash{position:absolute;inset:0;background:#fff;opacity:0;animation:wd55nflash 1.6s ease-out .2s forwards}
+@keyframes wd55nflash{0%{opacity:0}10%{opacity:1}100%{opacity:0}}
+.wd55-mush{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:60vw;max-width:420px;height:0;display:flex;flex-direction:column;align-items:center;animation:wd55rise 2.6s cubic-bezier(.25,.8,.3,1) .5s forwards}
+@keyframes wd55rise{to{height:78vh}}
+.wd55-cap{width:100%;aspect-ratio:2/1.15;border-radius:50% 50% 12% 12%;background:radial-gradient(circle at 42% 30%,#ffe9c0,#ff9c3c 42%,#c23c12 75%,#5c1408);opacity:.94;filter:saturate(1.05)}
+.wd55-stem{width:13%;flex:1;background:linear-gradient(180deg,#e07a2c,#8a2a10 70%,#3c0d06);border-radius:14px 14px 0 0;opacity:.9}
+.wd55-base{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:86vw;max-width:640px;height:10vh;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(255,150,60,.5),transparent 70%);animation:wd55spread 2.4s ease-out .5s forwards}
+@keyframes wd55spread{from{transform:translateX(-50%) scale(.4);opacity:.2}to{transform:translateX(-50%) scale(1.15);opacity:.95}}
+.wd55-ring.rd{top:58vh;border-color:rgba(255,220,150,.95);animation-delay:.75s;animation-duration:1.9s}
+.wd55-ring.rd2{top:58vh;border-color:rgba(255,150,80,.85);animation-delay:1.05s;animation-duration:2.1s}
+.wd55-opol{position:absolute;inset:0;background:rgba(255,70,30,.14);opacity:0;animation:wd55opol 2.2s ease-in 1.2s forwards}
+@keyframes wd55opol{to{opacity:1}}
+body.wd-autolite #wd55-opfx{display:none!important}
+body.wd-autolite .wd55-op-t{display:none}
+@media (prefers-reduced-motion:reduce){#wd55-opfx{display:none!important}}
+   </style>
+   <script id="v55-js">
+/* ============ V55: سینمای عملیات‌های ویژه — زدن هر یک از ۴ عملیات صحنه‌ی تمام‌صفحه‌ی خودش را دارد ============
+   سبک و روان: فقط transform/opacity (کامپوزیتور GPU)، زیر ۱۵ المان در هر صحنه، تپ = رد کردن،
+   در حالت صرفه‌جویی (wd-autolite) یا prefers-reduced-motion کامل خاموش است. */
+(function(){
+'use strict';
+var D=document;
+var ended=false;
+function rand(min,max){return min+Math.random()*(max-min)}
+window.WD55_OPFX=function(kind,fa){
+  try{
+    if(!D.body)return;
+    if(D.body.classList.contains('wd-autolite'))return; /* حالت سبک: بدون سینما */
+    var old=D.getElementById('wd55-opfx');if(old)old.remove();
+    ended=false;
+    var root=D.createElement('div');root.id='wd55-opfx';root.className='wd55-opfx k-'+kind;
+    var inn='';
+    var i;
+    if(kind==='cyber'){
+      inn+='<div class="wd55-grid"></div>';
+      for(i=0;i<6;i++)inn+='<div class="wd55-bin" style="left:'+Math.round(rand(0,88))+'vw;animation-delay:'+rand(0,1.4).toFixed(2)+'s">'+String(Math.floor(rand(1e9,9e9)))+'</div>';
+      inn+='<div class="wd55-scan"></div><div class="wd55-term">&gt; TARGET LOCKED :: '+esc55(fa)+'<br>&gt; INJECTING PAYLOAD … OK<br>&gt; FIREWALL DOWN — ACCESS GRANTED ▮</div>';
+    }else if(kind==='commando'){
+      inn+='<div class="wd55-nv"></div>';
+      inn+='<div class="wd55-flare" style="top:6vh;left:8vw"></div><div class="wd55-flare" style="bottom:8vh;right:6vw;animation-delay:.7s"></div>';
+      for(i=0;i<6;i++)inn+='<div class="wd55-chute" style="left:'+Math.round(rand(4,88))+'vw;animation-delay:'+rand(0,1.6).toFixed(2)+'s;animation-duration:'+rand(2.2,3).toFixed(2)+'s">🪂</div>';
+      inn+='<div class="wd55-term c-green">&gt; NIGHT OPS :: '+esc55(fa)+'<br>&gt; HALO INSERTION … COMPLETE<br>&gt; ALL TEAMS IN POSITION ✔</div>';
+    }else if(kind==='missile'){
+      inn+='<div class="wd55-alert"></div><div class="wd55-trail" style="top:12vh"></div><div class="wd55-rocket">🚀</div>';
+      inn+='<div class="wd55-flash"></div><div class="wd55-ring"></div><div class="wd55-ring r2"></div><div class="wd55-boom">💥</div>';
+    }else if(kind==='nuke'){
+      inn+='<div class="wd55-nflash"></div><div class="wd55-base"></div>';
+      inn+='<div class="wd55-mush"><div class="wd55-cap"></div><div class="wd55-stem"></div></div>';
+      inn+='<div class="wd55-ring rd"></div><div class="wd55-ring rd2"></div><div class="wd55-opol"></div>';
+    }else return;
+    inn+='<div class="wd55-op-t">'+ic55(kind)+' '+esc55(fa)+'</div><div class="wd55-op-sk">برای رد کردن، صفحه را بزن ✕</div>';
+    root.innerHTML='<div style="position:absolute;inset:0">'+inn+'</div>';
+    D.body.appendChild(root);
+    requestAnimationFrame(function(){try{root.classList.add('on')}catch(e){}});
+    var kill=function(){if(ended)return;ended=true;try{root.classList.remove('on');root.classList.add('out');setTimeout(function(){try{root.remove()}catch(e){}},360)}catch(e){}};
+    root.addEventListener('click',kill);
+    setTimeout(kill,kind==='nuke'?4200:(kind==='missile'?3400:3200));
+  }catch(e){}
+};
+function esc55(s){return String(s==null?'':s).replace(/[<>&]/g,'')}
+function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile'?'🚀':'☢️'}
 })();
    </script>
 </body>

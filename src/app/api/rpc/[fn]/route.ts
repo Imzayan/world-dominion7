@@ -41,6 +41,35 @@ const SPECIAL_OPS: Record<string, { cost: number; cd: number; weekly: number }> 
   nuke: { cost: 500, cd: 48 * 3600_000, weekly: 20 },
 }
 
+/* V55 — اثر واقعی عملیات‌ها روی PvP (قبلاً فقط افکت محلی کلاینت بود و بازیکن حس می‌کرد عملیات بی‌اثر است)
+   در GameSetting('wd_ops_eff_<server>'): { [country]: { k, pct, until, by } }
+     cyber/missile/nuke → دفاع آن کشور در pvp_attack تا پایان مدت pct٪ ضعیف می‌شود
+     commando          → حمله‌ی مهاجم روی همان کشور +۲۰٪ قدرت می‌گیرد (bump خاک همچنان سمت کلاینت) */
+const OPS_EFF_KEY = (server: number) => 'wd_ops_eff_' + server
+type OpsEffMap = Record<string, { k: string; pct: number; until: number; by: string }>
+let OPS_EFF_CACHE: { at: number; byServer: Record<number, OpsEffMap> } = { at: 0, byServer: {} }
+async function opsEffGet(server: number): Promise<OpsEffMap> {
+  const c = OPS_EFF_CACHE.byServer[server]
+  if (c && Date.now() - OPS_EFF_CACHE.at < 10_000) return c
+  let m: OpsEffMap = {}
+  try { m = await getSetting<OpsEffMap>(OPS_EFF_KEY(server), {}) } catch (e) { console.log('opseff', e) }
+  /* prune expired so the blob stays small */
+  const now = Date.now()
+  for (const k of Object.keys(m)) { if (!m[k] || !(m[k].until > now)) delete m[k] }
+  OPS_EFF_CACHE.byServer[server] = m
+  OPS_EFF_CACHE.at = Date.now()
+  return m
+}
+async function opsEffSet(server: number, country: string, eff: { k: string; pct: number; until: number; by: string }) {
+  try {
+    const m = await opsEffGet(server)
+    m[country] = eff
+    OPS_EFF_CACHE.byServer[server] = m
+    OPS_EFF_CACHE.at = Date.now()
+    await setSetting(OPS_EFF_KEY(server), m)
+  } catch (e) { console.log('opseffset', e) }
+}
+
 function weekKey(d = new Date()): string {
   const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
   const day = date.getUTCDay() || 7
@@ -942,7 +971,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const defScore = await db.score.findUnique({ where: { userId: t.userId } })
         const myScore = await db.score.findUnique({ where: { userId: user.id } })
         let a = Math.max(1, myScore?.score || 100)
-        const d = Math.max(1, (defScore?.score || 200))
+        const d0 = Math.max(1, (defScore?.score || 200))
+        /* V55: اثر واقعی عملیات‌های جم — دفاع هدفِ تحت عملیات ضعیف می‌شود، راید کماندو قدرت مهاجم را بالا می‌برد */
+        let opApplied: { k: string; pct: number } | null = null
+        try {
+          const eff = (await opsEffGet(server))[country]
+          if (eff && eff.until > Date.now()) {
+            if (eff.k === 'commando') { a = Math.round(a * 1.2); opApplied = { k: eff.k, pct: 0.2 } }
+            else if (eff.pct > 0) { opApplied = { k: eff.k, pct: eff.pct }; }
+          }
+        } catch (e) { console.log('opseffr', e) }
+        const d = opApplied && opApplied.pct > 0 ? Math.max(1, Math.round(d0 * (1 - opApplied.pct))) : d0
         /* V34: revenge strike — the attacker's one-shot +25% right against the player
            who took their land (72h window, consumed on use, win or lose) */
         let revenge_used = false
@@ -969,7 +1008,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
            defense/captured — before this it always computed 0% and 60% losses and
            syncTerr deleted the just-won territory */
-        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used })
+        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied })
       }
       case 'pvp_capture_territory': {
         if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
@@ -1033,9 +1072,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         const nw = await ensureWallet(user.id)
         await addNews(server, item, country, user.nick, terr.nick ? terr.nick : null)
+        /* V55: اثر واقعی عملیات ثبت می‌شود — pvp_attack همین کشور تا پایان مدت از آن استفاده می‌کند */
+        const OP_DUR: Record<string, number> = { cyber: 90, commando: 120, missile: 120, nuke: 180 }
+        const OP_PCT: Record<string, number> = { cyber: 0.2, missile: 0.3, nuke: 0.4 }
+        const durMin = OP_DUR[item] || 90
+        try {
+          await opsEffSet(server, country, { k: item, pct: OP_PCT[item] || 0, until: Date.now() + durMin * 60_000, by: user.nick })
+        } catch (e) { console.log('opseffw', e) }
         /* V34: special strikes also feed the war-heatmap */
         try { await db.battleLog.create({ data: { server, kind: item, country, attacker: user.nick, defender: terr.nick || null, win: true } }) } catch (e) { console.log('blog', e) }
-        return R({ ok: true, gems: nw.gems, owner_nick: terr.nick ? terr.nick : null, next_ok: new Date(Date.now() + cooldownMs).toISOString() })
+        return R({ ok: true, gems: nw.gems, owner_nick: terr.nick ? terr.nick : null, next_ok: new Date(Date.now() + cooldownMs).toISOString(), op_dur: durMin, op_pct: OP_PCT[item] || 0 })
       }
 
       /* ---------------- V54 special ops live status (کول‌داون/سقف واقعی برای هر ۴ عملیات) ---------------- */
