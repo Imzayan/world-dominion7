@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword, newToken, setSessionCookie, supaUser, adminNicks } from '@/lib/auth'
+import { rateLimit, clientIp } from '@/lib/ratelimit'
 
 export const dynamic = 'force-dynamic'
 
 /** Supabase-compatible signUp. Body: { email, password, nick?, device_id? } */
 export async function POST(req: NextRequest) {
+  /* V59 wave-2 (§17): signup flood guard — 5 accounts / minute / IP */
+  const rl = rateLimit(req, 'signup:' + clientIp(req), 5, 60_000)
+  if (rl) return rl
   try {
     const body = await req.json()
     const email = String(body.email || '').toLowerCase().trim()

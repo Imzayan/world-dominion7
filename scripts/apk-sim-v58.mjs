@@ -23,8 +23,8 @@ check('served HTML carries V57+V58 blocks', html.includes('v57-js') && html.incl
 check('V58: unowned = pure gray baseStyle (sat 0)', html.includes("fillColor:'hsl(0,0%,'"));
 check('V58: sharper coasts (smoothFactor .55)', html.includes('smoothFactor:.55'));
 check('V58b: Hi-DPI canvas hack REMOVED (was displacing map on DPR-3 phones)', !html.includes('L.Canvas.prototype.__wd58'));
-check('V58: front line removed (drawHatch wrap)', html.includes('window.drawHatch.__wd58'));
-check('V58: fire markers no-op (flames)', html.includes('window.flames=function(){}'));
+check('V59w2: front line folded into core drawHatch (no frontL polyline creation ever)', html.includes('function drawHatch') && !/frontL\[n\]\s*=\s*L\.polyline/.test(html));
+check('V59w2: flames is a single no-op core (no wrapper assignment)', !html.includes('window.flames=function(){}') && (html.match(/function flames\(/g)||[]).length===1);
 check('V58: live rank summary replaces static list', html.includes('خلاصه‌ی زنده‌ی سرور'));
 check('V58: ceremony prize strip installed', html.includes('جوایز این دوره واریز شد'));
 check('V58: open = REAL NEW ROUND in after phase', html.includes('شروع دور جدید المپیک'));
@@ -61,14 +61,14 @@ check('stock Leaflet canvas renderer on DPR-3 device (hack removed)', await page
 const dpr3 = await page.evaluate(() => window.devicePixelRatio || 1);
 check('device pixel ratio is 3 (quality path eligible)', dpr3 === 3, String(dpr3));
 
-// B) buggy lines: no front lines / flames after boot, hatch wrap armed
+// B) buggy lines: no front lines / flames after boot — V59w2: behavior-level checks (wrapper folded into core)
 const lines = await page.evaluate(() => ({
   front: document.querySelectorAll('.frontln').length,
   flames: (typeof window.flames === 'function') ? (window.flames.toString().includes('_en') ? 1 : 0) : -1,
-  wrap: typeof window.drawHatch === 'function' && !!window.drawHatch.__wd58,
-  noFire: typeof window.flames === 'function' && window.flames.toString().replace(/\s/g, '').length < 25,
+  wrap: typeof window.drawHatch === 'function' && !window.drawHatch.toString().includes('L.polyline(segs'),
+  noFire: typeof window.flames === 'function' && window.flames.toString().replace(/\s/g, '').length < 120,
 }));
-check('drawHatch wrap armed (front line can never persist)', lines.wrap === true, JSON.stringify(lines));
+check('drawHatch draws no front-line geometry (folded into core)', lines.wrap === true, JSON.stringify(lines));
 check('flames() is a no-op (no fire icons on the map)', lines.noFire === true, JSON.stringify(lines));
 
 // D) rank modal: live summary

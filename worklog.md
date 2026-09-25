@@ -994,3 +994,29 @@ Work Log:
 Stage Summary:
 - V59 wave-1 روی پروداکشن: -۹۱ خط خالص (زنجیره‌ها حذف)، معماری هوک واحد
 - باقی‌مانده برای موج ۲: تایمرهای hidden (۱۰۲ مورد)، ادغام بقیه توابع تکراری (addXP/drawHatch/render/...)، BACK گوشی برای بستن Modal (نیاز به MainActivity+APK)، server-authoritative فتح تک‌نفره، MAX_COUNTRIES مرکزی، فیکس News جعلی، Audit امنیت API
+
+---
+Task ID: V59-architecture-wave2
+Agent: Super Z (main)
+Task: موج دوم بازسازی معماری (§8/§10/§11/§12/§13/§17/§19/§21) طبق دستور «برو موج دو»
+
+Work Log:
+- گزارش A-F پیش از تغییر کد در چت ارائه شد (§31)
+- ادغام زنجیره‌های باقی‌مانده با الگوی رجیستری fail-safe موج ۱:
+  * showToast: ۳ wrapper (محموله V9، صدا، حالت جنگ V30) → WD_TOAST_HOOKS{pre,post} + تک‌تعریف
+  * applyCountryColor: ۲ تعریف پایه (یکی مرده) + ۸ wrapper → تک‌تعریف + WD_COLOR_HOOKS.after با ۸ هوک (ترتیب دقیقاً برابر زنجیره قبلی)
+  * onCountryClick: ۱ پایه + ۱۳ wrapper (۴ سازنده OTH که یکدیگر را بازنویسی می‌کردند) → تک‌تعریف + WD_CLICK_HOOKS{pre:[guard نبرد، هدف‌گیری عملیات], post:[پرچم، مرز/ناآرامی، زیرساخت، OTH×۳، رها کردن، حلقه انتخاب، اعداد فارسی، دوئر]}
+  * paintOther: ۳ تعریف → تک‌تعریف (رنگ V56 + گارد __wd56p + لیبل)
+  * drawHatch/setHatch: نسخه‌های مرده V1 (hbox/clipRing/HB) حذف؛ frontL دیگر اصلاً رسم نمی‌شود (رفتار V58 داخل هسته)؛ flames تک‌no-op با پاک‌سازی
+- فیکس باگ خاموش XP حمله (§21): mission/addXP در attackTarget به global اشاره می‌کرد که وجود ندارد → هر حمله ReferenceError؛ حالا WD_ATTACK_HOOKS.xpPost (لیست) که wd6/wd7 ثبت می‌کنند
+- سقف مرکزی کشورها (§8): MAX_COUNTRIES=15 در سرور (pvp_attack + pvp_capture_territory، error:'cap') + WD_MAX_COUNTRIES کلاینت + شمارنده «X/15» در کشوی کشور خودی + پیام صادقانه روی بلاک
+- §10 پرفورمنس: CSS توقف همه‌ی animation ها در تب مخفی (body.wd-page-hidden) + گارد document.hidden روی gameTick/aura/drawFronts/sbBridge/armCharts + حذف حلقه‌ی ابدی ۵ثانیه‌ای wd-lvlchip
+- §13 خبر جعلی: eventRoll (رویداد جهانی تصادفی محلی) کامل حذف + تب «جهان» wd5 = آمار واقعی سرور (server_stats) + کارت صادقانه خانه
+- §19 باگ TWA: گزارش جاسوسی با alert() در APK دیده نمی‌شد (طلا کم می‌شد!) → دیالوگ درون‌برنامه‌ای wd5Report
+- §17 امنیت: src/lib/ratelimit.ts (پنجره لغزان) → login 10/min/IP، signup 5/min/IP، RPC 240/min/user؛ tsc پاک
+- تست: ۸۰ بلاک 0 خطا؛ attack-smoke 10/10 (مسیر کامل نبرد + هوک‌ها)؛ apk-sim 28/28 (۲۴→۲۸ پس از به‌روزرسانی ۲ assert معکوس به رفتارمحور)؛ map-visual 20/20 (dsf 3/2/1)؛ wave2-regression جدید 13/13 (رجیستری‌ها، کلیک، شمارنده سقف، توست، CSS مخفی، صفر pageerror)
+
+Stage Summary:
+- V59 wave-2 آماده: زنجیره‌های باقی‌مانده تک‌منبع شدند (≈۹۰ خط حذف)، باگ XP حمله و باگ جاسوسی APK ریشه‌ای فیکس، سقف ۱۵ کشوره دوطرفه، تب مخفی صرفه‌جوی منابع، خبر جعلی حذف، rate-limit فعال
+- deferred: دکمه Back گوشی (نیاز به تغییر MainActivity + rebuild APK + تصمیم versionCode) — موج ۳
+- pending: push با token کاربر → سپس اجرای کامل تست‌ها روی لایو

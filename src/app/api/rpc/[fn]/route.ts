@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
+import { rateLimit, clientIp } from '@/lib/ratelimit'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +32,14 @@ const EMST_COSTS: Record<string, number> = {
 }
 const WEEKLY_REWARDS: Record<number, number> = { 1: 5000, 2: 2500, 3: 1000 }
 const WEEKLY_CATEGORIES = ['score', 'kills', 'economy', 'recruits'] as const
+
+/* V59 wave-2 (§8): central territory cap — ONE source of truth server-side.
+   Client mirror lives in public/game/index.html as WD_MAX_COUNTRIES (same value).
+   Only NEW captures are blocked; existing holders are never harmed. */
+const MAX_COUNTRIES = 15
+async function territoryCount(userId: number | string, server: number): Promise<number> {
+  try { return await db.territory.count({ where: { userId: userId as string, server } }) } catch { return 0 }
+}
 
 /* V54 — عملیات‌های حمله‌ای جم (جای کودتا/شهاب): قیمت، کول‌داون شخصی و سقف هفتگی کل سرور.
    قیمت‌ها باید با OPS سمت کلاینت یکی باشد. */
@@ -838,6 +847,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
   const { fn } = await ctx.params
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ data: null, error: { message: 'not authenticated', code: '401' } })
+  /* V59 wave-2 (§17): global RPC flood guard — 240 calls / minute / user (pollers use ~40) */
+  const rl = rateLimit(req, 'rpc:' + user.id, 240, 60_000)
+  if (rl) return rl
   let args: Record<string, unknown> = {}
   try { args = await req.json() } catch {}
   const R = (data: unknown) => NextResponse.json({ data, error: null })
@@ -988,6 +1000,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
            p_attack is no longer trusted (it could be spoofed to pin the 0.85 win cap) */
         const t = await db.territory.findUnique({ where: { server_country: { server, country } } })
         if (!t || t.userId === user.id) return R({ ok: false })
+        /* V59 wave-2 (§8): territory cap — attacker at the cap cannot take more land */
+        if ((await territoryCount(user.id, server)) >= MAX_COUNTRIES) return R({ ok: false, error: 'cap' })
         /* V34: a formal duel between the two players is a SANCTIONED match — it may be
            fought even during the sacred Olympic truce (unsanctioned wars stay blocked) */
         const duel = await db.duel.findFirst({
@@ -1051,6 +1065,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const t0 = await db.territory.findUnique({ where: { server_country: { server, country } } })
         if (!t0) return R(false)
         if (t0.userId && t0.userId !== user.id) return R({ ok: false, error: 'owned' })
+        /* V59 wave-2 (§8): territory cap on free capture too */
+        if ((await territoryCount(user.id, server)) >= MAX_COUNTRIES) return R({ ok: false, error: 'cap' })
         const now = Date.now()
         const last = lastCapture.get(user.id) || 0
         if (now - last < 15_000) return R(false)

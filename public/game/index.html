@@ -1058,13 +1058,18 @@ let unReady = true, unCooldownTimer = null;
 let battleBusy = false;
 
 // ---------- Toast ----------
+/* V59 wave-2: تک‌تعریفی — سه wrapper قدیمی (V9 محموله‌ی جشن، V?? صدا، V30 حالت جنگ)
+   به رجیستری fail-safe منتقل شدند؛ ترتیب اجرا دقیقاً مثل قبل: pre(جنگ) → نمایش → post(محموله، صدا) */
+window.WD_TOAST_HOOKS={pre:[],post:[]};
 function showToast(msg, kind) {
+  try{for(const h of WD_TOAST_HOOKS.pre){if(h(msg,kind)===false)return}}catch(e){console.error('wd-toast-pre',e)}
   const container = document.getElementById("toast-container");
   const el = document.createElement("div");
   el.className = "toast" + (kind ? " " + kind : "");
   el.textContent = msg;
   container.appendChild(el);
   setTimeout(() => el.remove(), 2600);
+  try{for(const h of WD_TOAST_HOOKS.post){h(msg,kind)}}catch(e){console.error('wd-toast-post',e)}
 }
 
 // ---------- Color helpers ----------
@@ -1291,28 +1296,14 @@ function statusOf(engName) {
   return "neutral";
 }
 
-function applyCountryColor(engName) {
-  const layer = layersByName[engName];
-  if (!layer) return;
-  const status = statusOf(engName);
-  const occ = occupationPct[engName] || 0;
+/* V59 wave-2: تعریف مرده‌ی اول applyCountryColor (سبک V45 قدیمی) حذف شد — از لحظه‌ی پارس توسط
+   تعریف پایین‌تر سایه می‌شد و هرگز اجرا نمی‌شد */
 
-  if (status === "capital") {
-    layer.setStyle({ fillColor: '#00ff88', fillOpacity: 0.75, color: '#ffffff', weight: 2.5 });
-  } else if (status === "conquered") {
-    layer.setStyle({ fillColor: '#00c2ff', fillOpacity: 0.6, color: '#ffffff', weight: 2 });
-  } else if (occ > 0) {
-    const t = occ / 100;
-    const fill = lerpColor('#4a7ab8', '#ffcc00', t); /* V45: پایه‌ی روشن‌تر — قبلاً #0a2a4a تیره بود */
-    layer.setStyle({ fillColor: fill, fillOpacity: 0.45 + 0.3 * t, color: '#ffcc00', weight: 2 });
-  } else if (engName === activeEngName) {
-    layer.setStyle({ fillColor: '#ffcc00', fillOpacity: 0.6, color: '#ffffff', weight: 2 });
-  } else {
-    layer.setStyle(Object.assign({weight:1}, typeof baseStyle==='function'?baseStyle(engName):{}));
-  }
-}
-
+/* V59 wave-2: تک‌منبع سیستم کلیک کشور — رجیستری fail-safe pre(می‌تواند قطع کند)/post.
+   ۱۳ wrapper قدیمی به هوک منتقل شدند؛ ترتیب ثبت = ترتیب اجرای قبلی زنجیره */
+window.WD_CLICK_HOOKS={pre:[],post:[]};
 function onCountryClick(feature, layer) {
+  try{for(const h of WD_CLICK_HOOKS.pre){if(h(feature,layer)===false)return}}catch(e){console.error('wd-click-pre',e)}
   if (battleBusy) return;
   const prevActive = activeEngName;
   activeEngName = feature.properties.name;
@@ -1340,7 +1331,8 @@ function onCountryClick(feature, layer) {
     actionsDiv.innerHTML = `<button class="action-btn btn-green" id="act-claim">🏛️ انتخاب ${c.fa} به‌عنوان کشور مادری</button>`;
     document.getElementById("act-claim").addEventListener("click", () => claimCapital(activeEngName));
   } else if (statusOf(activeEngName) !== "neutral") {
-    document.getElementById("c-role").textContent = statusOf(activeEngName) === "capital" ? "🌟 پایتخت شما" : "🔰 قلمرو تصرف‌شده";
+    /* V59 wave-2 §8: شمارنده‌ی قلمرو — همیشه قابل مشاهده در کشوی کشور خودی */
+    document.getElementById("c-role").textContent = (statusOf(activeEngName) === "capital" ? "🌟 پایتخت شما" : "🔰 قلمرو تصرف‌شده") + ` • 🏛️ ${wdTerrCount()}/${WD_MAX_COUNTRIES}`;
     actionsDiv.innerHTML = `<button class="action-btn btn-cyan" id="act-goto-lobby">🏢 مدیریت زیرساخت در لابی</button>`;
     document.getElementById("act-goto-lobby").addEventListener("click", () => { openModal("m-lobby"); switchLobbyTab("infra"); });
   } else {
@@ -1349,6 +1341,7 @@ function onCountryClick(feature, layer) {
     document.getElementById("act-attack").addEventListener("click", () => attackTarget(activeEngName));
   }
   const cd=document.getElementById("country-drawer"); if(cd) cd.classList.add("open");
+  try{for(const h of WD_CLICK_HOOKS.post){h(feature,layer)}}catch(e){console.error('wd-click-post',e)}
 }
 
 function claimCapital(engName) {
@@ -1363,7 +1356,8 @@ function claimCapital(engName) {
   banner.textContent = "🏛️ پایتخت شما ثبت شد! حالا برای گسترش قلمرو به کشورهای دیگر حمله کنید.";
   showToast(`🏛️ ${getCountryData(engName).fa} به‌عنوان پایتخت شما انتخاب شد!`, "win");
 
-  document.getElementById("c-role").textContent = "🌟 پایتخت شما";
+  /* V59 wave-2 §8: شمارنده‌ی قلمرو همین‌جا هم دیده شود */
+  document.getElementById("c-role").textContent = "🌟 پایتخت شما • 🏛️ " + wdTerrCount() + "/" + WD_MAX_COUNTRIES;
   document.getElementById("drawer-actions").innerHTML =
     `<button class="action-btn btn-cyan" id="act-goto-lobby">🏢 مدیریت زیرساخت در لابی</button>`;
   document.getElementById("act-goto-lobby").addEventListener("click", () => { openModal("m-lobby"); switchLobbyTab("infra"); });
@@ -1598,6 +1592,9 @@ function baseStyle(n){let h=11;const s=String(n||'');
     fillColor:'hsl(0,0%,'+(42+((h*7919)%6))+'%)',fillOpacity:.92}}
 
 // ISO codes for flags (Intl names + aliases for geojson spellings)
+/* V59 wave-2 §8: سقف مرکزی کشورها — تک‌ثابت کلاینت (قرینه‌ی سرور در src/app/api/rpc/[fn]/route.ts: MAX_COUNTRIES) */
+const WD_MAX_COUNTRIES=15;
+function wdTerrCount(){let c=conqueredCountries?conqueredCountries.size:0;if(myCountryName&&!conqueredCountries.has(myCountryName))c++;return c}
 const N2C={"united states of america":"us","democratic republic of the congo":"cd","republic of the congo":"cg","united republic of tanzania":"tz","republic of serbia":"rs","macedonia":"mk","ivory coast":"ci","czech republic":"cz","guinea bissau":"gw","the bahamas":"bs","east timor":"tl","swaziland":"sz","myanmar":"mm","turkey":"tr","french southern and antarctic lands":"tf","kosovo":"xk","bosnia and herzegovina":"ba","trinidad and tobago":"tt","west bank":"ps"};
 try{const dn=new Intl.DisplayNames(['en'],{type:'region'});for(let i=65;i<91;i++)for(let j=65;j<91;j++){const c=String.fromCharCode(i,j),n=dn.of(c);if(n&&n!==c&&!/^(DD|VD|YD|BU|TP|ZR|FX|NT|SU|CS|YU)$/.test(c)&&!N2C[n.toLowerCase()])N2C[n.toLowerCase()]=c.toLowerCase()}}catch(e){}
 /* V29 — flags are self-hosted (same origin, works without VPN); flagcdn is only a fallback. */
@@ -1625,12 +1622,17 @@ function setFlag(n){const f=FL[n];if(!f||!f.el||!f.el.isConnected)return;const o
   const u=flagUrl(s!=='neutral'&&own?own.code:f.code);if(f.el.getAttribute('src')!==u){f.el.dataset.fb='';f.el.src=u}f.el.classList.toggle('cap',s!=='neutral')}
 
 // ---- colors per country ----
+/* V59 wave-2: تک‌تعریفی applyCountryColor — رنگ پایه + رجیستری fail-safe پس‌هوک‌ها.
+   ۸ wrapper قدیمی (V7 refresh، هوی مالک، paintOther، خط‌چین دست‌نشانده، outline، کازمتیک،
+   جوهر wd43، الگوی wd50) به WD_COLOR_HOOKS.after منتقل شدند — ترتیب ثبت = ترتیب بلاک‌ها = ترتیب اجرای قبلی */
+window.WD_COLOR_HOOKS={after:[]};
 function applyCountryColor(n){const l=layersByName[n];if(!l)return;const s=statusOf(n),occ=occupationPct[n]||0;
   if(s==='capital')l.setStyle({fillColor:'#00d97e',fillOpacity:.75,color:'#fff',weight:2.5});
   else if(s==='conquered')l.setStyle({fillColor:'#12b5e5',fillOpacity:.72,color:'#fff',weight:2});
   else if(n===activeEngName)l.setStyle({fillColor:'#ffcc00',fillOpacity:.7,color:'#fff',weight:2.5});
   else l.setStyle(occ>0?Object.assign(baseStyle(n),{color:'#ffcc00',weight:2}):baseStyle(n));
-  setFlag(n)}
+  setFlag(n);
+  for(const h of WD_COLOR_HOOKS.after){try{h(n)}catch(e){console.error('wd-color-hook',e)}}}
 function afterGeo(){try{buildFlags()}catch(e){console.log(e)}}
 
 // ---- deliveries: vehicles move only when the player trades / receives aid ----
@@ -1668,38 +1670,20 @@ function shipment(kind,icon){ // kind 'sea': ship along a sea lane to the neares
       return spawn({pts,type:'ship',speed:12,cargo:icon,done:d(port,c)>.8?()=>spawn({pts:[port,c],type:'truck',speed:6,cargo:icon,done}):done})}}
   const far=CITIES.filter(o=>d(o,c)>15),o=far[Math.random()*far.length|0]||CITIES[0];
   spawn({pts:arc(o,c,.2,36),type:'plane',speed:22,cargo:icon,done})}
-const _st=showToast;
-showToast=function(m,k){_st(m,k);if(k!=='win')return;
+/* V59 wave-2: wrapper حذف شد — محموله‌ی جشن به‌صورت post-hook روی showToast تک‌منبع ثبت می‌شود */
+try{(WD_TOAST_HOOKS.post=WD_TOAST_HOOKS.post||[]).push(function(m,k){if(k!=='win')return;
   if(/کمک بشردوستانه/.test(m))shipment('air','🌾');
   else if(/مبادله با موفقیت/.test(m))shipment('sea','🔄');
-  else if(/خریداری/.test(m))/نفت/.test(m)?shipment('sea','🛢️'):shipment('air','🌾')};
+  else if(/خریداری/.test(m))/نفت/.test(m)?shipment('sea','🛢️'):shipment('air','🌾')})}catch(e){console.error('wd-ship-hook',e)}
 
 // ---- hatch-fill conquest (polygon is clipped geometrically, no CSS tricks) ----
-const hatchL={},hs={},HB={};
+const hatchL={},hs={};
 function pip(r,la,lo){let ins=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const a=r[i],b=r[j];if((a.lat>la)!==(b.lat>la)&&lo<(b.lng-a.lng)*(la-a.lat)/(b.lat-a.lat)+a.lng)ins=!ins}return ins}
 function ensurePat(h){const svg=h._renderer&&h._renderer._container;if(!svg)return false;
   if(!svg.querySelector('#hatchPat'))svg.insertAdjacentHTML('afterbegin','<defs><pattern id="hatchPat" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="rgba(0,255,136,.30)"/><line x1="0" y1="0" x2="0" y2="8" stroke="#00ff88" stroke-width="3.5"/></pattern></defs>');
   return !!svg.querySelector('#hatchPat')}
-function hbox(n){if(HB[n])return HB[n];const ll=layersByName[n].getLatLngs(),rings=(Array.isArray(ll[0][0])?ll:[ll]).map(p=>p[0]);let W=180,E=-180;
-  rings.forEach(r=>r.forEach(q=>{W=Math.min(W,q.lng);E=Math.max(E,q.lng)}));
-  return HB[n]={rings,W,E,left:getG(myCountryName).c[1]<=getG(n).c[1]}}
-function clipRing(r,cut,left){const ins=q=>left?q.lng<=cut:q.lng>=cut,out=[];
-  for(let i=0;i<r.length;i++){const a=r[i],b=r[(i+1)%r.length],ia=ins(a),ib=ins(b);
-    if(ia)out.push([a.lat,a.lng]);
-    if(ia!==ib){const t=(cut-a.lng)/(b.lng-a.lng);out.push([a.lat+(b.lat-a.lat)*t,cut])}}
-  return out}
-function drawHatch(n,v){const H=hbox(n),cut=H.left?H.W+(H.E-H.W)*v/100:H.E-(H.E-H.W)*v/100;
-  const parts=v<.3?[]:H.rings.map(r=>clipRing(r,cut,H.left)).filter(p=>p.length>2).map(p=>[p]);let o=hatchL[n];
-  if(!parts.length){if(o){o.remove();delete hatchL[n]}return}
-  if(!o){o=hatchL[n]=L.polygon(parts,{color:'#00ff88',weight:2,fillColor:'#00ff88',fillOpacity:.55,interactive:false,className:'hatch-ov'}).addTo(map);
-    try{if(ensurePat(o))o.getElement().setAttribute('fill','url(#hatchPat)')}catch(e){}}
-  else o.setLatLngs(parts)}
-function setHatch(n,occ,anim,prev){if(!layersByName[n]||!map)return;const st=hs[n]||(hs[n]={cur:0});cancelAnimationFrame(st.raf);
-  if(!anim){st.cur=occ;drawHatch(n,occ);return}
-  const from=prev!=null?prev:st.cur,t0=performance.now();
-  const step=t=>{const k=Math.min(1,(t-t0)/1200),e=k*(2-k);st.cur=from+(occ-from)*e;drawHatch(n,st.cur);
-    if(k<1)st.raf=requestAnimationFrame(step);else if(occ>=100)setTimeout(()=>{if(hatchL[n]){hatchL[n].remove();delete hatchL[n]}},700)};
-  st.raf=requestAnimationFrame(step)}
+/* V59 wave-2: drawHatch/setHatch نسخه‌ی V1 (hbox/clipRing/HB) کامل حذف شد — از V45 زنده نبود؛
+   تک‌منبع = نسخه‌ی هندسی V45 در بلاک بعدی + حذف خط جبهه‌ی V58 داخل خود تابع */
 function blasts(n,c){const g=getG(n);if(!g||!map)return;for(let i=0;i<c;i++)setTimeout(()=>{for(let k=0;k<25;k++){const la=g.s+(g.n-g.s)*Math.random(),lo=g.w+(g.e-g.w)*Math.random();
   if(pip(g.r,la,lo)){const m=L.marker([la,lo],{interactive:false,icon:L.divIcon({className:'boom',iconSize:[0,0],html:'<i></i>'})}).addTo(map);setTimeout(()=>m.remove(),1000);break}}},i*260)}
 function atkLine(n){const a=getG(myCountryName),b=getG(n);if(!a||!b)return null;
@@ -1773,8 +1757,9 @@ async function attackTarget(n){
     txt.innerHTML=(power<=0?'💀 ارتش شما نابود شد!<br>':'')+`🛡️ <b style="color:var(--red-glow)">حمله دفع شد!</b> مدافعان ضدحمله زدند${cback>0?' و '+cback+'٪ از پیشروی را عقب راندند':''}.<br>تلفات: ${lostPct}٪`;showToast(`🛡️ حمله به ${t.fa} شکست خورد${cback>0?' — ضدحمله‌ی مدافع':''}`,"lose")}
   try{if(conqueredCountries.has(n)&&!wasMine){tension=Math.min(100,tension+8);news('🏴 '+t0.fa+' سقوط کرد؛ جهان نگران است');snd('win')}}catch(e){} /* [V13 post] تنش */
   try{if(WD_ATTACK_HOOKS.doctrinePost)WD_ATTACK_HOOKS.doctrinePost(n,t0.fa)}catch(e){console.error('wd-doctrine2',e)} /* [wd5 post] مأموریت */
-  try{mission('war');addXP(12,'نبرد')}catch(e){}                       /* [wd6 post] */
-  try{addXP(10,'war')}catch(e){}                                       /* [wd7 post] */
+  /* V59 wave-2: قبلاً mission/addXP اینجا به global اشاره می‌کرد که وجود ندارد (wd6/wd7 خصوصی‌اند)
+     → هر حمله ReferenceError خاموش و پیشرفت XP مرده بود؛ حالا رجیستری xpPost (لیست fail-safe) */
+  try{if(WD_ATTACK_HOOKS.xpPost)WD_ATTACK_HOOKS.xpPost.forEach(fn=>{try{fn(n)}catch(e){console.error('wd-xp',e)}})}catch(e){}
   try{if(WD_ATTACK_HOOKS.cinemaEnd)WD_ATTACK_HOOKS.cinemaEnd(n,t0,wasMine)}catch(e){console.error('wd-cinema2',e)} /* [V30 post] مهر+پاکسازی */
   applyCountryColor(n);updateUI();try{saveNow()}catch(e){}$("battle-close-btn").style.display="block";battleBusy=false;window.__wd51nat=false;
   /* V50: صفحه‌ی نبرد چند ثانیه بعد خودش جمع می‌شود */
@@ -1786,8 +1771,8 @@ function decay(){/* V41: پیشروی هرگز خودبه‌خود کم نمی�
   فقط ضدحمله‌ی مدافع آن را عقب می‌راند (در لحظه‌ی «دفع شدن» موج حمله اعمال می‌شود) */}
 
 // ---- misc wiring ----
-const _oc=onCountryClick;
-onCountryClick=function(f,l){_oc(f,l);const fl=FL[f.properties.name],e=$("c-name");if(fl&&e)e.innerHTML=`<img class="dflag" data-c="${fl.code}" src="${flagUrl(fl.code)}" onerror="wdFlagErr(this)"> `+e.textContent};
+/* V59 wave-2: wrapper حذف شد — پرچم کنار نام کشور، پس‌هوک کلیک */
+try{WD_CLICK_HOOKS.post.push(function(f,l){const fl=FL[f.properties.name],e=$("c-name");if(fl&&e)e.innerHTML=`<img class="dflag" data-c="${fl.code}" src="${flagUrl(fl.code)}" onerror="wdFlagErr(this)"> `+e.textContent})}catch(e){console.error('wd-c1',e)}
 const _uu=updateUI;
 updateUI=function(){_uu();['gold','food','oil','army'].forEach(k=>{const e=$('r-'+k);if(e._p!==e.textContent){if(e._p!==undefined){const c=e.parentNode;c.classList.remove('bump');void c.offsetWidth;c.classList.add('bump')}e._p=e.textContent}})};
 addEventListener('load',()=>{if(typeof map==='undefined'||!map)return;
@@ -1827,7 +1812,8 @@ function snd(k){if(muted)return;try{AC=AC||new(window.AudioContext||window.webki
   else if(k==='win')[523,659,784,1046].forEach((f,i)=>tone(f,i*.1,.18,'triangle',.08));
   else if(k==='boom'){const n=Math.floor(AC.sampleRate*.55),b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,3);
     const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();f.type='lowpass';f.frequency.value=420;g.gain.value=.55;s.buffer=b;s.connect(f);f.connect(g);g.connect(AC.destination);s.start()}}catch(e){}}
-const _st2=showToast;showToast=function(m,k){_st2(m,k);if(k==='win')snd('coin');else if(k==='lose')snd('alert')};
+/* V59 wave-2: wrapper حذف شد — صدای توست به‌صورت post-hook ثبت می‌شود (win→coin، lose→alert) */
+try{(WD_TOAST_HOOKS.post=WD_TOAST_HOOKS.post||[]).push(function(m,k){if(k==='win')snd('coin');else if(k==='lose')snd('alert')})}catch(e){console.error('wd-snd-hook',e)}
 const _bl=blasts;blasts=function(n,c){_bl(n,c);for(let i=0;i<Math.min(c,3);i++)setTimeout(()=>snd('boom'),i*260)};
 document.addEventListener('click',e=>{if(e.target.closest&&e.target.closest('.nav-btn,.action-btn,.lobby-tab-btn,.lobby-item-btn'))snd('click')});
 // --- borders: land invasion needs a shared border, otherwise naval/air projection ---
@@ -1868,11 +1854,11 @@ function gameTick(){GAME.days++;showDate();tension=Math.max(0,tension-.3);const 
 function exportExt(){return{d:GAME.days,t:tension,u:unrest,s:sanction,n:NEWS,c:(typeof COS27!=='undefined'?COS27:null)}}
 function importExt(x){if(!x)return;GAME.days=x.d||0;tension=x.t||0;unrest=x.u||{};sanction=x.s||0;NEWS.length=0;(x.n||[]).forEach(m=>NEWS.push(m));if(x.c&&typeof cosRestore==='function'){try{cosRestore(x.c)}catch(e){}}const t=H$('tk');if(t)t.textContent=NEWS.slice().reverse().join('    ◆    ');showDate()}
 // --- drawer extras ---
-const _oc2=onCountryClick;
-onCountryClick=function(f,l){_oc2(f,l);if(!myCountryName)return;const n=f.properties.name,r=H$('c-role'),st=statusOf(n);
+/* V59 wave-2: wrapper حذف شد — مرز/ناآرامی در نقش کشور، پس‌هوک کلیک */
+try{WD_CLICK_HOOKS.post.push(function(f,l){if(!myCountryName)return;const n=f.properties.name,r=H$('c-role'),st=statusOf(n);
   if(st==='neutral'&&r)r.textContent+=bordersOwned(n)?' • 🚩 هم‌مرز':' • 🌊 نیاز به اعزام دریایی/هوایی';
   if(st==='conquered'&&n!==myCountryName&&r){r.textContent+=` • 🔥 ناآرامی: ${Math.round(unrest[n]||25)}٪`;const b=document.createElement('button');b.className='action-btn btn-gold';b.textContent='🕊️ آرام‌سازی (۳۰۰ طلا)';
-    b.addEventListener('click',()=>{if(playerRes.gold<300){showToast('❌ طلای کافی نیست','lose');return}playerRes.gold-=300;unrest[n]=Math.max(0,(unrest[n]||25)-40);updateUI();showToast('🕊️ ناآرامی کاهش یافت','win');onCountryClick(f,l)});H$('drawer-actions').appendChild(b)}};
+    b.addEventListener('click',()=>{if(playerRes.gold<300){showToast('❌ طلای کافی نیست','lose');return}playerRes.gold-=300;unrest[n]=Math.max(0,(unrest[n]||25)-40);updateUI();showToast('🕊️ ناآرامی کاهش یافت','win');onCountryClick(f,l)});H$('drawer-actions').appendChild(b)}})}catch(e){console.error('wd-c2',e)}
 // --- day/night terminator + graticule ---
 let nightPoly=null;
 function nightPts(){const d=Date.now()/864e5+2440587.5-2451545,R=Math.PI/180,g=(357.529+.98560028*d)*R,q=280.459+.98564736*d,Lm=(q+1.915*Math.sin(g)+.02*Math.sin(2*g))*R,e=23.439*R,
@@ -1889,7 +1875,8 @@ addEventListener('load',()=>{try{
   const t=document.createElement('div');t.id='ticker';t.innerHTML='<span id="tk"></span>';document.body.appendChild(t);
   H$('hud-snd').addEventListener('click',()=>{muted=!muted;H$('hud-snd').textContent=muted?'🔇':'🔊'});
   showDate();if(!NEWS.length){ const t=H$('tk'); if(t)t.textContent='در حال انتظار برای نخستین رویداد ثبت‌شده در سرور…'; }
-  if(typeof map!=='undefined'&&map)addGrid();setInterval(gameTick,1000)}catch(e){console.log(e)}});
+  if(typeof map!=='undefined'&&map)addGrid();/* V59 wave-2 §10: ساعت/اقتصاد بازی در تب مخفی متوقف می‌شود */
+  setInterval(function(){if(!document.hidden)gameTick()},1000)}catch(e){console.log(e)}});
    </script>
    <style>
     #auth .modal-card{text-align:center;line-height:1.7;font-size:12px;color:#cfe8ff}
@@ -2169,7 +2156,9 @@ function refreshSites(){
   Object.keys(want).forEach(id=>{if(MK[id])return;const s=want[id],b=isBuilt(s);
     const m=L.marker([s.lat,s.lng],{icon:L.divIcon({className:'site-wrap',iconSize:[0,0],html:'<div class="site '+(b?'s-built':'s-free')+'">'+ST[s.t].i+'</div>'}),interactive:false,keyboard:false,zIndexOffset:600}).addTo(map);
     m._b=b;MK[id]=m})}
-(function(){const ac=applyCountryColor;applyCountryColor=function(n){ac(n);queueRefresh()};
+/* V59 wave-2: wrapper حذف شد — queueRefresh به‌صورت پس‌هوک applyCountryColor */
+try{WD_COLOR_HOOKS.after.push(function(n){queueRefresh()})}catch(e){console.error('wd-h1',e)};
+(function(){
   const ag=afterGeo;afterGeo=function(){ag();try{const zc=()=>map.getContainer().classList.toggle('z4',map.getZoom()>=4);map.on('zoomend',zc);zc();queueRefresh()}catch(e){console.log(e)}}})();
 
 /* ----- window (modal) ----- */
@@ -2210,12 +2199,11 @@ function renderSites(){const b=S$('sites-body'),t=S$('sites-title');if(!b)return
       b.append(r)})}}
 
 /* ----- entry points: country drawer + top chip ----- */
-(function(){const oc=onCountryClick;
-  onCountryClick=function(f,l){oc(f,l);try{if(!myCountryName)return;const n=f.properties.name,list=sitesOf(n),d=S$('drawer-actions');if(!d)return;
+/* V59 wave-2: wrapper حذف شد — دکمه زیرساخت‌ها، پس‌هوک کلیک */
+try{WD_CLICK_HOOKS.post.push(function(f,l){if(!myCountryName)return;const n=f.properties.name,list=sitesOf(n),d=S$('drawer-actions');if(!d)return;
     if(owned(n)){d.append(el('button','🏗️ زیرساخت‌ها ('+list.filter(isBuilt).length+'/'+list.length+')','action-btn btn-cyan',()=>openSites(n)))}
     else if(list.length){const seen={};list.forEach(s=>{seen[s.t]=(seen[s.t]||0)+1});
-      d.append(el('div','🏗️ زیرساخت‌های واقعی: '+Object.keys(seen).map(t=>ST[t].i+' '+ST[t].fa+(seen[t]>1?' ×'+seen[t]:'')).join(' ، ')+' — بعد از تصرف قابل ساخت است','sites-info'))}}
-   catch(e){console.log(e)}}})();
+      d.append(el('div','🏗️ زیرساخت‌های واقعی: '+Object.keys(seen).map(t=>ST[t].i+' '+ST[t].fa+(seen[t]>1?' ×'+seen[t]:'')).join(' ، ')+' — بعد از تصرف قابل ساخت است','sites-info'))}})}catch(e){console.error('wd-c3',e)}
 /* V25: top-right infra chip removed (was cluttering the HUD) — infra lives in the lobby, drawer and ☰ menu */
    </script>
    <style id="v3-css">
@@ -2276,9 +2264,11 @@ function ownLabel(n,st){const g=getG(n),has=OL[n];
   if(has){has.getElement().firstChild.textContent=t;return}
   const d=document.createElement('div');d.className='own';d.textContent=t;
   OL[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:500,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
-(function(){const ac=applyCountryColor;applyCountryColor=function(n){ac(n);try{const l=layersByName[n],st=statusOf(n);
+/* V59 wave-2: wrapper حذف شد — رنگ امپراتوری خودی (hsl مالک) + لیبل، پس‌هوک applyCountryColor */
+try{WD_COLOR_HOOKS.after.push(function(n){const l=layersByName[n],st=statusOf(n);
     if(l&&st!=='neutral')l.setStyle({fillColor:`hsl(${plHue()},78%,${st==='capital'?36:46}%)`,fillOpacity:.9,color:st==='capital'?'#ffd84d':'#fff',weight:st==='capital'?3:2});
-    ownLabel(n,st)}catch(e){console.log(e)}};
+    ownLabel(n,st)})}catch(e){console.error('wd-h2',e)};
+(function(){
   const ag=afterGeo;afterGeo=function(){ag();try{const z=()=>map.getContainer().classList.toggle('z3',map.getZoom()>=3);map.on('zoomend',z);z()}catch(e){}}})();
 /* ---- more infrastructure ---- */
 Object.assign(ST,{university:{i:'🎓',fa:'دانشگاه',g:1600,o:0,p:{gold:9}},hospital:{i:'🏥',fa:'بیمارستان',g:1100,o:0,p:{food:6,gold:3},calm:.2},
@@ -2579,14 +2569,21 @@ function otherLabel(n,o){const g=getG(n),has=OL2[n];
   if(has){has.getElement().firstChild.textContent=t;return}
   const d=document.createElement('div');d.className='own oth';d.textContent=t;d.style.borderColor=`hsl(${nickHue(o.nick)},80%,65%)`;
   OL2[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:480,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
+/* V59 wave-2: تک‌تعریفی paintOther — رنگ V56 (اشباع ۴۲٪ روشن‌تر برای خوانایی روی گوشی) + گارد __wd56p
+   (بعد از هر حمله/سینک فقط کشورهای تغییرکرده رنگ می‌خورند) + لیبل مالک؛ wrapper های 22-core و V56 حذف شدند */
 function paintOther(n){const l=layersByName[n],o=OTH[n];if(!l||!o)return;
-  /* V45: رنگ روشن‌تر کشورهای بازیکنان دیگر — قبلاً 42٪ روشنایی روی گوشی تقریباً سیاه بود */
-  l.setStyle({fillColor:`hsl(${nickHue(o.nick)},68%,56%)`,fillOpacity:.95,color:'#fff',weight:o.cap?3.2:2});otherLabel(n,o)}
+  const key=o.nick+'|'+(o.cap?1:0);
+  if(l.__wd56p===key){try{otherLabel(n,o)}catch(e){}return}
+  l.__wd56p=key;
+  l.setStyle({fillColor:'hsl('+nickHue(o.nick)+',42%,52%)',fillOpacity:.9,
+    color:'rgba(255,255,255,.85)',weight:o.cap?2.4:1.6});
+  try{otherLabel(n,o)}catch(e){}}
 function applyOthers(nw){const old=OTH;OTH=nw;
   Object.keys(old).forEach(n=>{if(!nw[n]){if(OL2[n]){OL2[n].remove();delete OL2[n]}try{applyCountryColor(n)}catch(e){}}});
   Object.keys(nw).forEach(paintOther);renderSrvChip()}
-(function(){const ac=applyCountryColor;applyCountryColor=function(n){ac(n);if(OTH[n])paintOther(n)};
-  const ag=afterGeo;afterGeo=function(){ag();try{Object.keys(OTH).forEach(paintOther)}catch(e){}}})();
+/* V59 wave-2: wrapper حذف شد — paintOther برای کشورهای دیگران، پس‌هوک applyCountryColor */
+try{WD_COLOR_HOOKS.after.push(function(n){if(OTH[n])paintOther(n)})}catch(e){console.error('wd-h3',e)};
+(function(){const ag=afterGeo;afterGeo=function(){ag();try{Object.keys(OTH).forEach(paintOther)}catch(e){}}})();
 /* keep my territories in the shared table (first come, first served) */
 async function syncTerr(){if(syncBusy||!sb||!ACC.uid||!ACC.ready||MP_OK!==true)return;syncBusy=true;
   try{await loadStats();let f=await fetchTerr();DBMINE=f.mine;
@@ -2616,9 +2613,10 @@ const _eo=enterOnline;enterOnline=async function(u,nick){await _eo(u,nick);initS
 /* other players' countries can't be attacked/claimed (PvP comes later) */
 /* V59: wrapper V28 حذف شد — چک مالکیت لحظه‌ای + syncTerr داخل attackTarget واحد ادغام شد */
 const _ccv=claimCapital;claimCapital=function(n){if(OTH[n]){showToast('❌ این کشور در سرور تو مال بازیکن دیگری است؛ کشور دیگری انتخاب کن','lose');return}_ccv(n);setTimeout(syncTerr,300)};
-(function(){const oc=onCountryClick;onCountryClick=function(f,l){oc(f,l);try{const o=OTH[f.properties.name];if(!o)return;
+/* V59 wave-2: wrapper حذف شد — نقش کشورِ دیگران (OTH)، پس‌هوک کلیک */
+try{WD_CLICK_HOOKS.post.push(function(f,l){const o=OTH[f.properties.name];if(!o)return;
   const r=S$('c-role'),d=S$('drawer-actions');if(r)r.textContent='🏴 تحت کنترل '+o.nick+(o.cap?' (پایتخت)':'')+' — سرور '+SRV;
-  if(d){d.textContent='';d.append(el('div','حمله به بازیکنان دیگر هنوز فعال نیست؛ به کشورهای آزاد حمله کن.','sites-info'))}}catch(e){}}})();
+  if(d){d.textContent='';d.append(el('div','حمله به بازیکنان دیگر هنوز فعال نیست؛ به کشورهای آزاد حمله کن.','sites-info'))}})}catch(e){console.error('wd-c4',e)}
 /* leaderboard of my server */
 rankOnline=async function(box){box.append(mk('div','🌍 رتبه‌بندی سرور '+SRV,'lr-h'));const load=mk('div','⏳','lr-row');box.append(load);
   try{const r=await sb.from('scores').select('user_id,nick,conquered,score').eq('server',SRV).order('score',{ascending:false}).limit(10);load.remove();if(r.error)throw r.error;
@@ -2838,7 +2836,9 @@ function clipDir(r,D,t,low){const ins=q=>low?projP(q,D)<=t:projP(q,D)>=t,out=[],
 function hbox2(n){const D=dirInfo(n),key=D.dx.toFixed(2)+'|'+D.dy.toFixed(2);let H=HB2[n];if(H&&H.key===key)return H;
   const ll=layersByName[n].getLatLngs(),rings=(Array.isArray(ll[0][0])?ll:[ll]).map(p=>p[0]);let lo=1e9,hi=-1e9;
   rings.forEach(r=>r.forEach(q=>{const p=projP(q,D);lo=Math.min(lo,p);hi=Math.max(hi,p)}));return HB2[n]={key,rings,D,lo,hi,segs:[]}}
-function clearHatch(n){[hatchL,contL,frontL].forEach(o=>{if(o[n]){o[n].remove();delete o[n]}});(flameM[n]||[]).forEach(m=>m.remove());flameM[n]=[]}
+function clearHatch(n){[hatchL,contL,frontL].forEach(o=>{const x=o[n];if(!x)return;try{if(Array.isArray(x))x.forEach(y=>{try{y.remove()}catch(e){}});else x.remove()}catch(e){}delete o[n]});(flameM[n]||[]).forEach(m=>m.remove());flameM[n]=[]}
+/* V59 wave-2: تک‌تعریفی drawHatch — هندسه‌ی V45؛ خط جبهه‌ی زرد (frontL) که V58 با wrapper پاکش می‌کرد،
+   اینجا اصلاً دیگر رسم نمی‌شود (نشان پیشروی فقط داخل سینمای نبرد می‌ماند) */
 function drawHatch(n,v){if(!layersByName[n]||!getG(myCountryName)||!map)return;if(v<.3){clearHatch(n);return}
   const H=hbox2(n),span=H.hi-H.lo,t=H.lo+span*Math.min(v,100)/100,band=Math.max(span*.07,.04),parts=[],cont=[],segs=[];
   H.rings.forEach(r=>{const a=clipDir(r,H.D,t,true);if(a.poly.length>2){parts.push([a.poly]);
@@ -2850,12 +2850,10 @@ function drawHatch(n,v){if(!layersByName[n]||!getG(myCountryName)||!map)return;i
     try{if(ensurePat(o))o.getElement().setAttribute('fill','url(#hatchPat)')}catch(e){}}else o.setLatLngs(parts);
   if(cont.length){if(!contL[n])contL[n]=L.polygon(cont,{stroke:false,fillColor:'#ff6a1a',fillOpacity:.5,interactive:false}).addTo(map);else contL[n].setLatLngs(cont)}
   else if(contL[n]){contL[n].remove();delete contL[n]}
-  if(segs.length&&v<100){if(!frontL[n])frontL[n]=L.polyline(segs,{color:'#ffd84d',weight:3,opacity:.95,dashArray:'2 6',interactive:false,className:'frontln'}).addTo(map);else frontL[n].setLatLngs(segs)}
-  else if(frontL[n]){frontL[n].remove();delete frontL[n]}}
-function flames(n,occ){(flameM[n]||[]).forEach(m=>m.remove());flameM[n]=[];const H=HB2[n];if(!H||!H.segs.length||occ<.3||occ>=100)return;
-  H.segs.slice(0,3).forEach((s,i)=>{const mid=[(s[0][0]+s[1][0])/2,(s[0][1]+s[1][1])/2];
-    flameM[n].push(L.marker(mid,{interactive:false,keyboard:false,zIndexOffset:650,icon:L.divIcon({className:'boom',iconSize:[0,0],html:'<div class="ffx">'+(i?'🔥':'🪖')+'</div>'})}).addTo(map))})}
-setHatch=function(n,occ,anim,prev){if(!layersByName[n]||!map||!getG(myCountryName))return;const st=hs[n]||(hs[n]={cur:0});cancelAnimationFrame(st.raf);
+  if(frontL[n]){frontL[n].forEach(function(x){try{x.remove()}catch(e){}});delete frontL[n]}}
+/* V59 wave-2: شعله‌ها/🪖 از V58 عمداً حذف شده‌اند — حالا تک‌منبع no-op با پاک‌سازی مارکرهای کهنه */
+function flames(n,occ){try{(flameM[n]||[]).forEach(m=>m.remove())}catch(e){}flameM[n]=[]}
+function setHatch(n,occ,anim,prev){if(!layersByName[n]||!map||!getG(myCountryName))return;const st=hs[n]||(hs[n]={cur:0});cancelAnimationFrame(st.raf);
   if(!anim){st.cur=occ;drawHatch(n,occ);flames(n,occ);return}
   const from=prev!=null?prev:st.cur,t0=performance.now();
   const step=t=>{const k=Math.max(0,Math.min(1,(t-t0)/1500)),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;st.cur=from+(occ-from)*e;drawHatch(n,st.cur);
@@ -2888,16 +2886,13 @@ async function abandonCountry(n){
   showToast('🕊️ '+getCountryData(n).fa+' رها و مستقل شد','win');
 }
 
-(function(){
-  const _acc=applyCountryColor;
-  applyCountryColor=function(n){_acc(n);try{
+/* V59 wave-2: wrapper حذف شد — خط‌چین دولت دست‌نشانده، پس‌هوک applyCountryColor */
+try{WD_COLOR_HOOKS.after.push(function(n){
     if(layersByName[n])layersByName[n].setStyle({dashArray:vassals[n]?'4 4':null});
-  }catch(e){}};
-})();
+})}catch(e){console.error('wd-h4',e)};
 
-(function(){
-  const prevClick=onCountryClick;
-  onCountryClick=function(f,l){prevClick(f,l);try{
+/* V59 wave-2: wrapper حذف شد — دست‌نشانده/رها کردن کشورِ تصرف‌شده، پس‌هوک کلیک */
+try{WD_CLICK_HOOKS.post.push(function(f,l){
     const n=f.properties.name;
     if(!myCountryName||n===myCountryName)return;
     if(typeof OTH!=='undefined'&&OTH[n])return;
@@ -2920,8 +2915,7 @@ async function abandonCountry(n){
     btnA.addEventListener('click',()=>abandonCountry(n));
     wrap.appendChild(btnV);wrap.appendChild(btnA);
     d.appendChild(wrap);
-  }catch(e){console.log(e)}};
-})();
+})}catch(e){console.error('wd-c5',e)}
 
 (function(){
   const _snap=snapState;
@@ -3225,13 +3219,13 @@ function releaseCountry(n){
   if(typeof syncTerr==='function')syncTerr();
   if(typeof saveNow==='function')saveNow();
   try{onCountryClick({properties:{name:n}},layersByName[n])}catch(e){}}
-(function(){const oc=onCountryClick;
-  onCountryClick=function(f,l){oc(f,l);try{
+/* V59 wave-2: wrapper حذف شد — دکمه رها کردن، پس‌هوک کلیک */
+try{WD_CLICK_HOOKS.post.push(function(f,l){
     const n=f.properties.name,d=document.getElementById('drawer-actions');
     if(!d||!myCountryName||n===myCountryName||!conqueredCountries.has(n)||(typeof OTH!=='undefined'&&OTH[n]))return;
     const b=document.createElement('button');b.className='action-btn btn-ghost';
     b.textContent='🏳️ رها کردن این کشور (−'+Math.round(ABANDON_PCT*100)+'٪ ارتش و منابع)';
-    b.addEventListener('click',()=>releaseCountry(n));d.appendChild(b)}catch(e){console.log(e)}}})();
+    b.addEventListener('click',()=>releaseCountry(n));d.appendChild(b)})}catch(e){console.error('wd-c6',e)}
    </script>
    <div aria-hidden="true" id="wd-v2-badge">
     PVP BATTLE v2
@@ -3564,21 +3558,28 @@ function spy(){
  st.stats.spies++;save();completeMission('spy');
  const c=safe(()=>W.getCountryData&&W.getCountryData(target),{def:0,pop:'?',gold:0,oil:0});
  toast('🛰️ گزارش اطلاعاتی دریافت شد');
- alert('🛰️ گزارش محرمانه\\n\\nکشور: '+(c.fa||target)+'\\nدفاع تقریبی: '+num(c.def)+'\\nذخیره طلا: '+num(c.gold)+'\\nذخیره نفت: '+num(c.oil)+'\\n\\nدقت اطلاعات: '+(75+researchLevel('intelligence')*5)+'%');
+ /* V59 wave-2 §19: alert() در TWA/APK اندروید نمایش داده نمی‌شد — طلای واقعی کم می‌شد و گزارش گم می‌شد؛
+    حالا دیالوگ درون‌برنامه‌ای (TWA-safe) */
+ wd5Report('🛰️ گزارش محرمانه — '+(c.fa||target),
+   'دفاع تقریبی: '+num(c.def)+'<br>ذخیره طلا: '+num(c.gold)+'<br>ذخیره نفت: '+num(c.oil)+'<br>دقت اطلاعات: '+(75+researchLevel('intelligence')*5)+'%');
  render()
 }
-
-function eventRoll(){
- if(st.event)return;
- const events=[
-  ['🛢️ بحران جهانی نفت','قیمت لجستیک جنگ برای مدتی افزایش یافته است.','oil'],
-  ['🌾 برداشت فوق‌العاده','کشاورزی رونق گرفته؛ پاداش دریافت کن.','food'],
-  ['📉 رکود اقتصادی','تولید طلا برای مدتی کاهش یافته است.','gold'],
-  ['⚡ جهش صنعتی','کارخانه‌ها تولید بیشتری دارند.','industry']
- ];
- const e=events[Math.floor(Math.random()*events.length)];st.event={n:e[0],d:e[1],type:e[2],until:Date.now()+3600000};save();
+/* V59 wave-2: دیالوگ درون‌برنامه‌ای سبک (به‌جای alert) — همیشه روی همه‌ی پلتفرم‌ها دیده می‌شود */
+function wd5Report(title,html){
+ try{
+  const old=document.getElementById('wd5-report');if(old)old.remove();
+  const ov=document.createElement('div');ov.id='wd5-report';ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(2,8,18,.72);display:flex;align-items:center;justify-content:center;padding:18px';
+  const box=document.createElement('div');box.style.cssText='width:min(420px,100%);background:linear-gradient(180deg,#0e2440,#081527);border:1px solid rgba(0,240,255,.35);border-radius:16px;padding:18px;color:#dff6ff;font-size:14px;line-height:2;box-shadow:0 20px 60px rgba(0,0,0,.6)';
+  box.innerHTML='<b style="font-size:15px">'+title+'</b><hr style="border:0;border-top:1px solid rgba(0,240,255,.2);margin:8px 0"><div>'+html+'</div><button id="wd5-rep-ok" style="margin-top:12px;width:100%;padding:10px;border:0;border-radius:10px;background:#0f6f9f;color:#fff;font-weight:800;cursor:pointer">دریافت شد</button>';
+  ov.appendChild(box);document.body.appendChild(ov);
+  const close=()=>{try{ov.remove()}catch(e){}};
+  ov.addEventListener('click',e=>{if(e.target===ov)close()});
+  document.getElementById('wd5-rep-ok').onclick=close;
+ }catch(e){console.error('wd5-report',e)}
 }
-eventRoll();
+
+/* V59 wave-2 §13: eventRoll حذف شد — «رویداد جهانی» تصادفیِ محلیِ بدون هیچ اثر واقعی در بازی بود؛
+   فقط دروغ نمایشی می‌ساخت (§29: سیستم جعلی ممنوع). اخبار واقعی از سرور می‌آیند. */
 
 function generalTrain(){
  const cost=1000+st.general.level*800;
@@ -3633,10 +3634,10 @@ function render(tab){
  const b=$('wd5-body');if(!b)return;
  const r=res(), terr=safe(()=>W.conqueredCountries?W.conqueredCountries.size:0,0);
  if(tab==='home'||!tab){
-   const ev=st.event;
    b.innerHTML='<div class="wd5-grid">'+card('قدرت نظامی',num(safe(()=>W.calculateTotalAttack(),0)),'بر اساس یگان‌های فعلی')+card('قلمرو',num(terr),'کشورهای تحت کنترل')+card('فرمانده',st.general.name,'Lv.'+st.general.level+' • XP '+st.general.xp)+card('اتحاد',st.alliance.name||'بدون اتحاد',(st.alliance.name?st.alliance.members+' عضو':'ایجاد اتحاد'))+'</div>'+
    '<div class="wd5-section" style="margin-top:12px">⚡ دستورات سریع</div><div class="wd5-grid"><button class="wd5-btn cyan" data-act="tactic">🎯 انتخاب دکترین جنگ</button><button class="wd5-btn" data-act="spy">🛰️ جاسوسی هدف انتخاب‌شده</button><button class="wd5-btn green" data-act="general">🎖️ آموزش فرمانده</button><button class="wd5-btn gold" data-act="alliance">🤝 ساخت اتحاد</button></div>'+
-   '<div class="wd5-section" style="margin-top:12px">📰 رویداد فعلی</div><div class="wd5-card"><b>'+ev.n+'</b><div class="wd5-small">'+ev.d+'</div></div>';
+   /* V59 wave-2 §13: «رویداد فعلی» تصادفی محلی حذف شد — کارت صادقانه جایگزین شد */
+   '<div class="wd5-section" style="margin-top:12px">📰 وضعیت امروز</div><div class="wd5-card"><b>آماده‌ی عملیات</b><div class="wd5-small">اخبار واقعی بازی در «روزنامه» و نوار رویدادها منتشر می‌شود.</div></div>';
  }else if(tab==='army'){
    const units=(typeof ARMY_UNITS!=='undefined'?ARMY_UNITS:{});let rows='';
    Object.keys(units).forEach(k=>{const u=units[k];rows+='<div class="wd5-row"><div><b>'+u.icon+' '+u.name+'</b><br><span>قدرت هر واحد: '+num(u.attack)+'</span></div><strong>'+num(u.count)+'</strong></div>'});
@@ -3653,9 +3654,16 @@ function render(tab){
    b.innerHTML='<div class="wd5-section">🎯 اهداف امروز</div><div class="wd5-list">'+MISSIONS.map(m=>{const v=missionProgress(m),done=v>=m.goal;return '<div class="wd5-row"><div><b>'+m.n+'</b><br><span>'+m.d+' • '+v+'/'+m.goal+'</span></div><span class="wd5-pill">'+(done?'کامل شد':'+'+num(m.r)+' طلا')+'</span></div>'}).join('')+'</div>';
  }else if(tab==='world'){
    const fa=safe(()=>(typeof myCountryName!=='undefined'&&myCountryName)||'کشور انتخاب نشده','کشور انتخاب نشده');
-   b.innerHTML='<div class="wd5-grid">'+card('🌍 کشور فعلی',fa,'مرکز فرماندهی')+card('⚔️ نبردها',num(st.stats.battles),'کل عملیات')+card('🏆 پیروزی',num(st.stats.wins),'فتح کامل')+card('📊 معاملات',num(st.stats.trades),'تجارت انجام‌شده')+'</div><div class="wd5-card" style="margin-top:10px"><b>🌎 رویداد جهانی</b><p class="wd5-small">'+st.event.n+'<br>'+st.event.d+'</p><button class="wd5-btn" data-act="event">🔄 رویداد جدید</button></div>';
+   /* V59 wave-2 §13: «رویداد جهانی» تصادفی محلی حذف شد — جایگزین: آمار واقعی سرور + شمارنده‌ی سقف قلمرو */
+   const tc=wdTerrCount?wdTerrCount():0,mx=(typeof WD_MAX_COUNTRIES!=='undefined')?WD_MAX_COUNTRIES:15;
+   b.innerHTML='<div class="wd5-grid">'+card('🌍 کشور فعلی',fa,'مرکز فرماندهی')+card('⚔️ نبردها',num(st.stats.battles),'کل عملیات')+card('🏆 پیروزی',num(st.stats.wins),'فتح کامل')+card('🏛️ قلمروها',tc+' / '+mx,'سقف کشورها')+'</div><div class="wd5-card" id="wd5-srv-stat" style="margin-top:10px"><b>🌐 سرور '+(typeof SRV!=='undefined'?SRV:'۱')+'</b><p class="wd5-small">در حال دریافت آمار زنده…</p></div>';
+   try{if(typeof sb!=='undefined'&&sb&&sb.from){sb.from('server_stats').select('taken,players').eq('server',(typeof SRV!=='undefined'?SRV:1)).maybeSingle().then(function(r){
+     const el=D.getElementById('wd5-srv-stat');if(!el)return;
+     if(r&&r.error||!r||!r.data){el.innerHTML='<b>🌐 سرور '+(typeof SRV!=='undefined'?SRV:'۱')+'</b><p class="wd5-small">آمار سرور در دسترس نیست.</p>';return}
+     el.innerHTML='<b>🌐 سرور '+(typeof SRV!=='undefined'?SRV:'۱')+'</b><p class="wd5-small">کشورهای تصرف‌شده: '+num(r.data.taken||0)+' • بازیکنان فعال: '+num(r.data.players||0)+'</p>';
+   }).catch(function(){});}}catch(e){console.error('wd5-srv',e)}
  }
- b.querySelectorAll('[data-act]').forEach(x=>x.onclick=()=>{const a=x.dataset.act;if(a==='tactic')chooseTactic();if(a==='spy')spy();if(a==='general')generalTrain();if(a==='alliance')diplomacy('alliance');if(a==='event'){st.event=null;eventRoll();render('world')}})
+ b.querySelectorAll('[data-act]').forEach(x=>x.onclick=()=>{const a=x.dataset.act;if(a==='tactic')chooseTactic();if(a==='spy')spy();if(a==='general')generalTrain();if(a==='alliance')diplomacy('alliance')})
  b.querySelectorAll('[data-buy]').forEach(x=>x.onclick=()=>marketBuy(x.dataset.buy));
  b.querySelectorAll('[data-sell]').forEach(x=>x.onclick=()=>marketSell(x.dataset.sell));
  b.querySelectorAll('[data-dip]').forEach(x=>x.onclick=()=>diplomacy(x.dataset.dip));
@@ -3759,6 +3767,8 @@ render();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(hook,900));else setTimeout(hook,900);
 setInterval(render,5000);
 window.WD6={xp:addXP,mission,open,close};
+/* V59 wave-2: ثبت XP/مأموریت حمله در رجیستری — قبلاً فراخوانی global مرده بود */
+try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.push(function(){mission('war');addXP(12,'نبرد')})}catch(e){console.error('wd6-xp',e)}
 })();
    </script>
    <style id="wd7-world-css">
@@ -3845,6 +3855,8 @@ $('wd7-btn').onclick=()=>{$('wd7-panel').classList.add('open');S.tab='world';ren
 S.started=S.started||Date.now();initAI();generateProvinces();season();economyTick();setInterval(()=>{economyTick();season();missionComplete('war');missionComplete('trade');missionComplete('spy');missionComplete('research');missionComplete('conquer');if($('wd7-panel').classList.contains('open'))render()},30000);
 // Hook core attack without replacing its combat logic: records a global-history layer around real attacks.
 /* V59: wrapper wd7 حذف شد — خبر آغاز عملیات و XP داخل attackTarget واحد ادغام شد */
+/* V59 wave-2: ثبت XP حمله در رجیستری xpPost — قبلاً فراخوانی global مرده بود */
+try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.push(function(){addXP(10,'war')})}catch(e){console.error('wd7-xp',e)}
 })();
    </script>
    <style id="wd-v13-upgrade-css">
@@ -4118,6 +4130,7 @@ S.started=S.started||Date.now();initAI();generateProvinces();season();economyTic
           if(r.duel_won)showToast('🥇 دوئر را بردی — ۱۵٬۰۰۰ طلا + ۲ جم واریز شد','win');
           await syncTerr();await saveNow();closeModal('wd-pvp');
         }else{
+          if(r&&r.error==='cap'){showToast('🏛️ سقف '+WD_MAX_COUNTRIES+' کشور پر است؛ اول یکی را رها کن','lose');closeModal('wd-pvp');return}
           addNews((ACC.nick||'بازیکن')+' به '+(o.nick||'بازیکن دیگر')+' برای تصرف '+target.fa+' حمله کرد اما موفق نشد.');
           showToast('⚔️ حمله ناموفق بود؛ دفاع دشمن قوی‌تر بود.','lose');closeModal('wd-pvp');
         }
@@ -4129,11 +4142,9 @@ S.started=S.started||Date.now();initAI();generateProvinces();season();economyTic
   }
 
   // Replace the old "PvP not active" drawer text with a real button.
-  if(typeof onCountryClick==='function'){
-    const _oc=onCountryClick;
-    window.onCountryClick=function(f,l){
-      _oc(f,l);
-      try{
+  /* V59 wave-2: wrapper حذف شد — دکمه حمله PvP به کشور دیگران، پس‌هوک کلیک */
+  try{
+    WD_CLICK_HOOKS.post.push(function(f,l){
         const o=OTH[f.properties.name];
         if(!o)return;
         const r=$('c-role'),d=$('drawer-actions');
@@ -4143,9 +4154,8 @@ S.started=S.started||Date.now();initAI();generateProvinces();season();economyTic
           const b=document.createElement('button');b.className='action-btn btn-red';b.textContent='⚔️ حمله به '+o.nick;
           b.onclick=()=>openPvP(f.properties.name);d.appendChild(b);
         }
-      }catch(e){console.log(e)}
-    };
-  }
+    })
+  }catch(e){console.error('wd-c7',e)}
 
   // Log ordinary conquest after the existing battle resolves.
   if(typeof resolveBattle==='function'){
@@ -4383,6 +4393,18 @@ S.started=S.started||Date.now();initAI();generateProvinces();season();economyTic
       if(result.error)throw result.error;
       const x=result.data||{};
       if(x.busy)throw new Error('این جبهه هم‌اکنون درگیر است.');
+      if(x.error==='cap'){
+        /* V59 wave-2 §8: سقف کشورها — پیام صادقانه با عدد دقیق */
+        battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();
+        if(pvpLine){pvpLine.remove();pvpLine=null}
+        hpBox.style.display='none';
+        log.innerHTML='<span class="wd39-round">🏛️ سقف قلمرو</span><div class="wd39-narr">به سقف '+faN(WD_MAX_COUNTRIES)+' کشور رسیده‌ای. برای تصرف تازه، اول یکی از قلمروهایت را رها کن.</div>';
+        document.getElementById("battle-close-btn").textContent="باشه";
+        document.getElementById("battle-close-btn").style.display="block";
+        window.__wd39inflight=false;
+        document.getElementById("battle-close-btn").onclick=()=>{battleBusy=false;closeModal("m-battle")};
+        return;
+      }
       if(x.error==='truce'){
         battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();
         if(pvpLine){pvpLine.remove();pvpLine=null}
@@ -4524,14 +4546,12 @@ S.started=S.started||Date.now();initAI();generateProvinces();season();economyTic
   window.WD39_PRO_ATTACK=professionalAttack;
 
   // Final override: clicking another player's country opens the same tactical battle flow as neutral land.
-  const oldClick=window.onCountryClick;
-  window.onCountryClick=function(f,l){
-    oldClick(f,l);
-    try{const n=f.properties.name,o=window.OTH&&OTH[n];if(!o)return;const d=$('drawer-actions'),r=$('c-role');
+  /* V59 wave-2: wrapper حذف شد — دکمه حمله زمینی به OTH، پس‌هوک کلیک (این آخرین بازنویسی OTH است و مثل قبل آخرین می‌ماند) */
+  try{WD_CLICK_HOOKS.post.push(function(f,l){
+      const n=f.properties.name,o=window.OTH&&OTH[n];if(!o)return;const d=$('drawer-actions'),r=$('c-role');
       if(r)r.textContent='🏴 تحت کنترل '+o.nick+(o.cap?' (پایتخت)':'')+' — خط مقدم قابل حمله';
       if(d){d.innerHTML='';const b=document.createElement('button');b.className='action-btn btn-red';b.textContent='⚔️ عملیات زمینی علیه '+o.nick;b.onclick=()=>professionalAttack(n);d.appendChild(b)}
-    }catch(e){console.log(e)}
-  };
+  })}catch(e){console.error('wd-c8',e)}
   // Global chat
   async function loadChat(){
     const list=$('wdc-list');if(!list||!sb||!ACC||!ACC.uid)return;
@@ -4991,7 +5011,8 @@ function animateCountryAura(){
 }
 function start(){
   installSurface();bindCommand();animateCountryAura();
-  clearInterval(auraTimer);auraTimer=setInterval(animateCountryAura,2800);
+  clearInterval(auraTimer);/* V59 wave-2 §10: هاله‌ی تزئینی فقط وقتی تب دیده می‌شود */
+  auraTimer=setInterval(function(){if(!document.hidden)animateCountryAura()},2800);
   /* Ensure command panel never leaves the bottom dock visible through it. */
   const p=$('wd7-panel');
   if(p && !p.dataset.v12bound){p.dataset.v12bound='1';const obs=new MutationObserver(()=>{if(p.classList.contains('open'))document.body.classList.add('wd12-command-open');else document.body.classList.remove('wd12-command-open')});obs.observe(p,{attributes:true,attributeFilter:['class']})}
@@ -5076,6 +5097,8 @@ body.wd-low-power #vignette{animation:none!important;transition:none!important}
 body.wd-low-power .wd11-pulse,body.wd-low-power .wd10-float,body.wd-low-power .wd10-scan,
 body.wd-low-power .wd12-pulse,body.wd-low-power .wd12-scan{animation:none!important}
 body.wd-low-power #wd7-panel,body.wd-low-power #wd7-shell{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+/* V59 wave-2 §10: وقتی تب مخفی است هیچ انیمیشن CSS‌ای CPU/GPU نسوزاند */
+body.wd-page-hidden *,body.wd-page-hidden *::before,body.wd-page-hidden *::after{animation-play-state:paused!important;transition:none!important}
 body.wd-low-power *{scroll-behavior:auto!important}
    </style>
    <script id="wd15-performance-js">
@@ -5586,16 +5609,15 @@ function mapUpgrade(){
   map.on('zoomend moveend',updateLabels);
   setTimeout(updateLabels,600);
   /* 4) selection pulse ring on the clicked country */
+  /* V59 wave-2: wrapper حذف شد — حلقه‌ی انتخاب، پس‌هوک کلیک */
   var selRing=null;
-  var _occ=onCountryClick;
-  onCountryClick=function(f,l){
-    _occ(f,l);
+  try{WD_CLICK_HOOKS.post.push(function(f,l){
     try{
       if(selRing){selRing.remove();selRing=null;}
       var g=mainRing(l);
       if(g){selRing=L.marker(g.c,{interactive:false,zIndexOffset:390,icon:L.divIcon({className:'wd-clabel-wrap',iconSize:[34,34],html:'<div class="wd-selring"></div>'})}).addTo(map);}
     }catch(e){}
-  };
+  })}catch(e){console.error('wd-c9',e)}
 }
 /* chain onto afterGeo (runs right after countries render) */
 setTimeout(function(){
@@ -5824,23 +5846,18 @@ function drawMyOutline(n){
 }
 function clearOutline(n){(OUT[n]||[]).forEach(function(x){try{x.remove()}catch(e){}});delete OUT[n]}
 try{
-  var _po=window.paintOther;
-  if(typeof _po==='function')window.paintOther=function(n){_po(n);try{drawOwnerOutline(n)}catch(e){}};
+  /* V59 wave-2: wrapper paintOther حذف شد (تک‌منبع در هسته)؛ applyOthers cache __wd56p را برای کشورهای حذف‌شده پاک می‌کند */
   var _ao=window.applyOthers;
   if(typeof _ao==='function')window.applyOthers=function(nw){
     try{var cur=(typeof OTH!=='undefined')?OTH:{};Object.keys(cur).forEach(function(n){if(!nw||!nw[n])clearOutline(n)})}catch(e){}
     return _ao(nw);
   };
-  var _acc=window.applyCountryColor;
-  if(typeof _acc==='function')window.applyCountryColor=function(n){
-    _acc(n);
-    try{
+  /* V59 wave-2: wrapper applyCountryColor حذف شد — outline خودی به‌صورت پس‌هوک (فراخوانی تکراری paintOther هم حذف شد چون هوک قبلی همان کار را می‌کند) */
+  try{WD_COLOR_HOOKS.after.push(function(n){
       var mine=false;
       try{mine=(typeof myCountryName!=='undefined'&&n===myCountryName)||(typeof conqueredCountries!=='undefined'&&conqueredCountries.has&&conqueredCountries.has(n))}catch(e){}
       if(mine)drawMyOutline(n);else clearOutline('__me__'+n);
-      if(typeof OTH!=='undefined'&&OTH[n]&&typeof window.paintOther==='function')window.paintOther(n);
-    }catch(e){}
-  };
+  })}catch(e){console.error('wd-h5',e)}
 }catch(e){}
 
 /* ---------- war cinema ---------- */
@@ -6345,22 +6362,18 @@ setInterval(function(){
 },1500);
 setTimeout(function(){
   try{
-    if(typeof onCountryClick!=='function')return;
-    var _occGeo=onCountryClick;
-    onCountryClick=function(f,l){
-      try{
+    /* V59 wave-2: guard نبرد (بیرونی‌ترین، مثل قبل) + اعداد فارسی کشو */
+    WD_CLICK_HOOKS.pre.unshift(function(f,l){
         if(typeof battleBusy!=='undefined'&&battleBusy){
           if(typeof showToast==='function')showToast('⏳ نبرد در جریان است؛ پایان گزارش را صبر کن...','lose');
-          return;
+          return false;
         }
-      }catch(e){}
-      return _occGeo(f,l);
-    };
-    /* fa digits for the drawer stats right after each click */
-    var _faDraw='#c-pop,#c-def-stat,#c-gold-stat,#c-oil-stat,#c-food-stat,#c-rank-stat';
-    var _prevGeo=onCountryClick;
-    onCountryClick=function(f,l){var r=_prevGeo(f,l);setTimeout(function(){try{var es=D.querySelectorAll(_faDraw);for(var i=0;i<es.length;i++){var t=es[i].textContent;if(t&&/[0-9]/.test(t))es[i].textContent=faNum(t)}}catch(e){}},40);return r};
-  }catch(e){console.log(e)}
+        return undefined;
+    });
+    WD_CLICK_HOOKS.post.push(function(f,l){setTimeout(function(){try{var es=D.querySelectorAll(_faDraw);for(var i=0;i<es.length;i++){var t=es[i].textContent;if(t&&/[0-9]/.test(t))es[i].textContent=faNum(t)}}catch(e){}},40)});
+  }catch(e){console.error('wd-c10',e)}
+  /* fa digits for the drawer stats right after each click */
+  var _faDraw='#c-pop,#c-def-stat,#c-gold-stat,#c-oil-stat,#c-food-stat,#c-rank-stat';
 },2500);
 
 /* ============ 3) تایم‌اوت RPC حمله PvP (جلوگیری از گیر ابدی) ============ */
@@ -6616,15 +6629,12 @@ function drawerIsOpen(){var d=D.getElementById('country-drawer');return !!(d&&d.
 })();
 
 /* ============ 3) پالس روی مسیر عادی کلیک لایه ============ */
+/* V59 wave-2: wrapper حذف شد — پالس/هپتیک به‌صورت pre-hook ثبت شد (همراه guard نبرد در بلاک wd-geo-js) */
 (function wrapOCC(){
   if(typeof onCountryClick!=='function'){setTimeout(wrapOCC,500);return}
-  if(window.onCountryClick&&window.onCountryClick.__wd26)return;
-  var prev=window.onCountryClick;
-  window.onCountryClick=function(f,l){
-    try{var g=(typeof getG==='function')?getG(f.properties.name):null;if(g)pulseAt(g.c);haptic()}catch(e){}
-    return prev(f,l);
-  };
-  window.onCountryClick.__wd26=true;
+  try{if(WD_CLICK_HOOKS){
+    WD_CLICK_HOOKS.pre.push(function(f,l){try{var g=(typeof getG==='function')?getG(f.properties.name):null;if(g)pulseAt(g.c);haptic()}catch(e){}});
+  }}catch(e){console.error('wd-c11',e)}
 })();
 
 /* ============ 4) پادیوم رتبه‌بندی: سکوی طلایی/نقره‌ای/برنزی ============ */
@@ -6981,7 +6991,8 @@ function cosLabelFix(n){try{if(typeof OL==='undefined'||!OL||!OL[n]||!OL[n].getE
  var esc50=function(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
  if(COS.emblem&&COS.emst&&typeof window.wd50EmTag==='function')elx.firstChild.innerHTML=window.wd50EmTag(COS.emblem,COS.emst)+' '+esc50(base);
  else elx.firstChild.textContent=COS.emblem?COS.emblem+' '+base:base}catch(e){}}
-try{var _ac=applyCountryColor;applyCountryColor=function(n){_ac(n);try{cosLabelFix(n)}catch(e){}cosDetect(n)}}catch(e){}
+/* V59 wave-2: wrapper حذف شد — اصلاح لیبل کازمتیک + تشخیص، پس‌هوک applyCountryColor */
+try{WD_COLOR_HOOKS.after.push(function(n){try{cosLabelFix(n)}catch(e){}cosDetect(n)})}catch(e){console.error('wd-h6',e)}
 /* ---------------- hooks: چرخه‌ی حیات بازی ---------------- */
 try{var _rs=restoreState;restoreState=function(st){var r=_rs(st);try{cosArm()}catch(e){}return r}}catch(e){}
 try{var _lw=loadWallet;loadWallet=async function(){var r=await _lw.apply(this,arguments);try{cosVipTick()}catch(e){}return r}}catch(e){}
@@ -8675,7 +8686,8 @@ window.WD30_WARFX={ensure:warfxEnsure,bar:warBar,stamp:stamp,off:warOff};
    و ثبت تاریخچه‌ی جنگ (stamp/WD30HIST) هیچ‌وقت اجرا نمی‌شد */
 function warOff(){try{if(warfx)warfx.classList.remove('on')}catch(e){}}
 /* during battle: center toasts are silenced → routed to the bottom war bar */
-const _st30=showToast;showToast=function(m,k){if(window.__war30){warBar(m,k==='lose');snd(k==='lose'?'alert':'coin')}else _st30(m,k)};
+/* V59 wave-2: wrapper حذف شد — حالت جنگ به‌صورت pre-hook ثبت می‌شود (به‌جای توست، نوار جنگ) */
+try{(WD_TOAST_HOOKS.pre=WD_TOAST_HOOKS.pre||[]).push(function(m,k){if(window.__war30){warBar(m,k==='lose');snd(k==='lose'?'alert':'coin');return false}return undefined})}catch(e){console.error('wd-war-hook',e)}
 /* wrap the whole attack chain (outermost — V28 logistics/border checks stay intact) */
 /* V59: به‌جای wrapper — سینما/مهرها به‌صورت هوک (warfx/warBar/stamp/WD30BC/WD30HIST در همین بلاک‌اند) */
 window.WD_ATTACK_HOOKS=window.WD_ATTACK_HOOKS||{};
@@ -8833,12 +8845,12 @@ function startTargeting(kind){const op=WD54_OPS[kind];if(!op)return;
   showToast(op.ic+' حالت '+op.fa+' فعال شد — کشور هدف را انتخاب کن','win')}
 window.WD30_CANCEL_TARGET=function(){if(targeting){targetStop();return true}return false};
 window.WD30_TARGET=startTargeting;
-const _oc30=onCountryClick;
-onCountryClick=function(f,l){const n=f&&f.properties&&f.properties.name;
+/* V59 wave-2: wrapper حذف شد — حالت هدف‌گیری عملیات جم، pre-hook قطع‌کننده (unshift = بیرونی‌تر از پالس، مثل زنجیره‌ی قبلی) */
+try{WD_CLICK_HOOKS.pre.unshift(function(f,l){const n=f&&f.properties&&f.properties.name;
   if(targeting&&n){const kind=targeting;targetStop();
-    if(conqueredCountries.has(n)||n===myCountryName){showToast('❌ این خاک خودِ توست!','lose');return}
-    if(WD54_OPS[kind])doOp(kind,n);return}
-  _oc30(f,l)};
+    if(conqueredCountries.has(n)||n===myCountryName){showToast('❌ این خاک خودِ توست!','lose');return false}
+    if(WD54_OPS[kind]){doOp(kind,n)}return false}
+  return undefined})}catch(e){console.error('wd-c12',e)}
 function debuff(n,pct,min,ico){window.__wdDebuff[n]={until:Date.now()+min*60000,pct};
   const g=getG(n);if(!g||!map)return;const m=L.marker(g.c,{interactive:false,keyboard:false,icon:L.divIcon({className:'wd-unrest-wrap',iconSize:[0,0],html:'<div class="wd-unrest">'+(ico||(pct>=.15?'🎭':'☄️'))+'<small>'+faNum(min)+' دقیقه</small></div>'}),zIndexOffset:900}).addTo(map);
   const key='debuff_'+n;if(FOG.MK[key])FOG.MK[key].remove();FOG.MK[key]=m;
@@ -9035,7 +9047,7 @@ function drawFronts(){if(typeof map==='undefined'||!map||typeof occupationPct===
   Object.keys(FL30).forEach(k=>{if(!want[k]){try{FL30[k].remove()}catch(e){}delete FL30[k]}});
   Object.keys(want).forEach(k=>{if(!FL30[k]){try{FL30[k]=L.polyline(want[k],{className:'wd-front',interactive:false,keyboard:false,weight:2.6}).addTo(map)}catch(e){}}
     else{try{FL30[k].setLatLngs(want[k])}catch(e){}}})}
-window.addEventListener('load',()=>{setInterval(drawFronts,4000)});
+window.addEventListener('load',()=>{/* V59 wave-2 §10: گارد تب مخفی */setInterval(function(){if(!document.hidden)drawFronts()},4000)});
 })();
 </script>
 <style id="v31-css">
@@ -11806,8 +11818,9 @@ let drHooked=false;
 setInterval(()=>{if(drHooked||D.hidden)return;
   if(typeof window.onCountryClick==='function'&&typeof OTH!=='undefined'){drHooked=true;hookDrawer()}},2500);
 function hookDrawer(){
-  try{const prev=window.onCountryClick;
-    window.onCountryClick=function(f,l){prev(f,l);
+  /* V59 wave-2: wrapper حذف شد — چیپ انتقام + دعوت دوئر برای کشور دیگران، پس‌هوک کلیک */
+  try{
+    WD_CLICK_HOOKS.post.push(function(f,l){
       try{const n=f.properties.name,o=window.OTH&&window.OTH[n];if(!o)return;
         const d=H('drawer-actions');if(!d)return;
         const myNick=(typeof ACC!=='undefined'&&ACC&&ACC.nick)||'';
@@ -11822,7 +11835,8 @@ function hookDrawer(){
             if(r.ok&&r.d&&r.d.ok){toast('⚔️ دعوت دوئر برای '+o.nick+' ارسال شد — ۳۰ دقیقه فرصت پذیرش','win');open34('duel')}
             else toast(errFa(r),'lose')});
           d.appendChild(b)}
-      }catch(e){console.log(e)}}}catch(e){console.log(e)}}
+      }catch(e){console.log(e)}})
+  }catch(e){console.log(e)}}
 })();
 </script>
 <style id="v35-rank-css">
@@ -12403,7 +12417,7 @@ var esc39=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c)
 /* ---------- 0) expose the lexical supabase client on window (V35 rank module reads window.sb) ---------- */
 function sbBridge(){try{if(typeof sb!=='undefined'&&sb&&window.sb!==sb)window.sb=sb}catch(e){}
   try{if(typeof OTH!=='undefined'&&window.OTH!==OTH)window.OTH=OTH}catch(e){}}
-sbBridge();setInterval(sbBridge,4000);
+sbBridge();/* V59 wave-2 §10: */setInterval(function(){if(!document.hidden)sbBridge()},4000);
 
 /* ---------- 1) glowing gem chip — writers call WD39_GEM instead of plain textContent ---------- */
 var GEM_SVG='<svg class="wd39-gem-ic" viewBox="0 0 24 24" aria-hidden="true">'+
@@ -12539,7 +12553,7 @@ function injectCharts(){
 }
 var mo39=new MutationObserver(function(){setTimeout(injectCharts,60)});
 function armCharts(){var w=D.getElementById('wg33-wrap');if(w&&!w.__wd39arm){w.__wd39arm=1;mo39.observe(w,{childList:true});setTimeout(injectCharts,60)}}
-setInterval(armCharts,2000);
+/* V59 wave-2 §10: */setInterval(function(){if(!document.hidden)armCharts()},2000);
 
 /* ---------- 4) watchdog کشوی کشور: دکمه‌ی «عملیات زمینی» همیشه پیروزمند است ----------
    زنجیره‌ی onCountryClick پس از ده‌ها نسخه شکننده شده بود (رقیب قدیمی openPvP فوری برنده می‌شد)
@@ -14068,14 +14082,15 @@ function wrapLucky(){try{if(window._wd43lk)return;var _lo=window.luckyOpen;if(ty
   ov.appendChild(el('span','🎁 باکس شانسی باز می‌شود…','lt'));D.body.appendChild(ov);
   setTimeout(function(){ov.classList.add('done');jingle('lucky')},1200);
   setTimeout(function(){ov.remove();_lo.apply(this,arguments)},1850)}catch(e){return _lo.apply(this,arguments)}}}catch(e){}}
-function wrapApplyColor(){try{if(window._wd43ac)return;var _ac=window.applyCountryColor;if(typeof _ac!=='function')return;window._wd43ac=1;
- window.applyCountryColor=function(n){var r=_ac.apply(this,arguments);
+/* V59 wave-2: wrapper حذف شد — جوهر رنگی wd43 روی پرچم، پس‌هوک applyCountryColor */
+function wrapApplyColor(){try{if(window._wd43ac)return;window._wd43ac=1;
+ WD_COLOR_HOOKS.after.push(function(n){
   try{var C=window.COS||window.COS27;if(C&&C.hue!=null&&typeof FL!=='undefined'&&FL[n]&&FL[n].el&&FL[n].el.isConnected){
    var ink=el('span');ink.className='wd43-ink';ink.style.setProperty('--wd43-hc','hsl('+C.hue+',85%,60%)');
    ink.style.position='absolute';ink.style.left='50%';ink.style.top='50%';
    if(!getComputedStyle(FL[n].el).position||getComputedStyle(FL[n].el).position==='static')FL[n].el.style.position='relative';
    FL[n].el.appendChild(ink);setTimeout(function(){ink.remove()},1250)}}catch(e){}
-  return r}}catch(e){}}
+ })}catch(e){}}
 function wrapRenderShop(){try{if(window._wd43rs)return;var _rs=window.renderShop;if(typeof _rs!=='function')return;window._wd43rs=1;
  window.renderShop=function(){var r=_rs.apply(this,arguments);setTimeout(decorateShop,40);return r}}catch(e){}}
 function wrapRanks(){try{if(window._wd43rk)return;var a=window.renderRank,b2=window.renderRank28,got=0;
@@ -14204,7 +14219,7 @@ try{
   }
 }catch(e){}
 /* C) چیپ قدیمی «آغازگر» اگر از نسخه‌ی کش‌شده‌ای مانده، حذف شود */
-setInterval(function(){try{var c=D.getElementById('wd-lvlchip');if(c)c.remove()}catch(e){}},5000);
+/* V59 wave-2 §10: این حلقه‌ی ۵ثانیه‌ایِ ابدی حذف شد — چیپ سطح خودِ wd46 در همان بازسازی سه‌ثانیه‌ای قبلی پاک می‌شود */
 /* D) همگام‌سازی کلاس بدنه با باز/بسته بودن کارت آموزش (برای مخفی‌کردن چیپ‌های زیرش) */
 try{
   var mo45=new MutationObserver(function(){
@@ -14719,10 +14734,9 @@ window.wdPatOvRebuild=patOv_rebuild;
 var patBoot=setInterval(function(){try{if(typeof map==='undefined'||!map)return;var n=0;try{n=Object.keys(layersByName).length}catch(e){}if(n>50){clearInterval(patBoot);patOv_rebuild(true)}}catch(e){}},1200);
 setInterval(function(){try{if(!document.hidden)patOv_rebuild(false)}catch(e){}},3000);
 /* بعد از فتح جدید هم فوری بازسازی */
-try{
-  var _ac50w=window.applyCountryColor;
-  window.applyCountryColor=function(n){var r=_ac50w.apply(this,arguments);try{patSig='';clearTimeout(window.__wd50pt);window.__wd50pt=setTimeout(function(){patOv_rebuild(false)},250)}catch(e){}return r};
-}catch(e){}
+/* بعد از فتح جدید هم فوری بازسازی */
+/* V59 wave-2: wrapper حذف شد — بازسازی الگوی wd50 پس از رنگ‌آمیزی، پس‌هوک applyCountryColor */
+try{WD_COLOR_HOOKS.after.push(function(n){try{patSig='';clearTimeout(window.__wd50pt);window.__wd50pt=setTimeout(function(){patOv_rebuild(false)},250)}catch(e){}})}catch(e){console.error('wd-h8',e)}
 
 /* ---------------- 2) بخش «طرح» داخل انتخابگر رنگ ---------------- */
 window.WD50_PATTERN_SECTION=function(box){
@@ -15402,20 +15416,8 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
   /* V59: بازتعریف baseStyle حذف شد — تک‌منبع در هسته */
   }catch(e){}
 
-  /* ۲) رنگ بازیکنان دیگر: اشباع ۶۸→۴۲٪ (به‌جای نئون) + گارد تکراری:
+  /* ۲) رنگ بازیکنان دیگر: V59 wave-2 — بازتعریف paintOther حذف شد؛ تک‌منبع در هسته (رنگ ۴۲٪ + گارد __wd56p + لیبل)
      بعد از هر حمله/سینک دیگر «همه‌ی» کشورها دوباره رنگ نمی‌شوند — فقط تغییرکرده‌ها */
-  try{
-    window.paintOther=function(n){
-      var l=(typeof layersByName!=='undefined')&&layersByName[n],
-          o=(typeof OTH!=='undefined')&&OTH[n];
-      if(!l||!o)return;
-      var key=o.nick+'|'+(o.cap?1:0);
-      if(l.__wd56p===key){try{otherLabel(n,o)}catch(e){}return}
-      l.__wd56p=key;
-      l.setStyle({fillColor:'hsl('+nickHue(o.nick)+',42%,52%)',fillOpacity:.9,
-        color:'rgba(255,255,255,.85)',weight:o.cap?2.4:1.6});
-      try{otherLabel(n,o)}catch(e){}};
-  }catch(e){}
 
   /* ۳) mainRing کش می‌شود — برچسب‌ها/حلقه‌ی انتخاب دیگر در هر جابه‌جایی نقشه هندسه را از نو حساب نمی‌کنند */
   try{
@@ -15554,18 +15556,8 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
           ست می‌کند و بازنویسی ما بدون آن، همه‌ی جغرافیا را روی گوشی‌های DPR>2 جابه‌جا/بیرون می‌کشید.
           رندر استوک Leaflet (retina 2x) برگشت؛ شارپ بودن ساحل‌ها با smoothFactor در baseStyle حفظ شد ---- */
 
-  /* ---- ۳) «خط باگی» روی کشورها (مغولستان/روسیه): خط زرد خط‌چین جبهه (frontL) + شعله‌های 🔥🪖
-          روی هر کشورِ با تصرف جزئی همیشه باقی می‌ماندند و از save هم دوباره ساخته می‌شدند.
-          حالا دیگر هیچ‌وقت رسم نمی‌شوند — نشان پیشروی فقط داخل سینمای نبرد می‌ماند ---- */
-  try{
-    if(typeof window.drawHatch==='function'&&!window.drawHatch.__wd58){
-      var _dh=window.drawHatch;
-      window.drawHatch=function(n,v){var r=_dh.apply(this,arguments);
-        try{if(typeof frontL!=='undefined'&&frontL&&frontL[n]){frontL[n].remove();delete frontL[n]}}catch(e){}
-        return r};
-      window.drawHatch.__wd58=1}
-    window.flames=function(){};
-  }catch(e){}
+  /* ---- ۳) «خط باگی» روی کشورها: V59 wave-2 — wrapper پاک‌کننده‌ی frontL و no-op شعله‌ها حذف شد؛
+          رفتار یکسان حالا داخل تک‌تعریفی drawHatch/flames در هسته پیاده شده است (هیچ خط جبهه/شعله‌ای رسم نمی‌شود) ---- */
 
   /* ---- ۴) رتبه‌بندی: لیست ثابت «قدرت‌های نظامی جهان» (داده‌ی فریز‌شده‌ی محلی) حذف شد —
           جای آن خلاصه‌ی زنده‌ی سرور (تاپ ۵ واقعی از جدول scores) می‌نشیند ---- */
