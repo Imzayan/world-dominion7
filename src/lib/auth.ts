@@ -55,6 +55,18 @@ export type SessionUser = {
   deviceId: string | null
 }
 
+/* V54 — ناک‌های ادمین از env (ADMIN_NICKS، جدا با کاما). پیش‌فرض: صاحب بازی.
+   روی سرور تازه‌ی مایکت هم فقط این نام‌ها ادمین می‌شوند. */
+const ADMIN_NICKS = (process.env.ADMIN_NICKS || 'alireza')
+  .split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean)
+
+/** live list of reserved admin nicks (env-configurable) */
+export function adminNicks(): string[] {
+  return ADMIN_NICKS
+}
+
 export async function getSessionUser(): Promise<SessionUser | null> {
   try {
     const store = await cookies()
@@ -74,7 +86,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       id: session.user.id,
       email: session.user.email,
       nick: session.user.nick,
-      isAdmin: session.user.isAdmin || session.user.nickLower === 'alireza',
+      isAdmin: session.user.isAdmin || ADMIN_NICKS.includes(session.user.nickLower),
       deviceId: session.user.deviceId,
     }
   } catch {

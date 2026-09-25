@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { hashPassword, newToken, setSessionCookie, supaUser } from '@/lib/auth'
+import { hashPassword, newToken, setSessionCookie, supaUser, adminNicks } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
     }
 
     const nickLower = nick.toLowerCase()
+    /* V54: ثبت‌نام با نام ادمین مجاز است و isAdmin می‌گیرد (اولین ثبت‌نامِ صاحب بازی روی سرور تازه).
+       یکتایی nick مانع دوباره ثبت‌شدن آن نام توسط دیگران است — راهنمای راه‌اندازی: صاحب بازی اولین ثبت‌نام باشد. */
     const existingNick = await db.user.findUnique({ where: { nickLower } })
     if (existingNick) {
       return NextResponse.json({
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
         nickLower,
         passwordHash: hashPassword(password),
         deviceId,
-        isAdmin: nickLower === 'alireza',
+        isAdmin: adminNicks().includes(nickLower),
       },
     }).catch((e: { code?: string }) => {
       if (e?.code === 'P2002') {

@@ -2292,7 +2292,14 @@ function renderSites(){const b=S$('sites-body'),t=S$('sites-title');if(!b)return
    <script>
     /* ===== v3: economy rebalance, Gem shop, real calendar, ownership on the map, more infrastructure ===== */
 /* ---- SHOP CONFIG: put your payment-link URLs here (Stripe Payment Link, Zarinpal, ...). Empty url = button disabled ---- */
-const SHOP={packs:[{gems:50,price:'۰٫۹۹ دلار',url:''},{gems:250,price:'۳٫۹۹ دلار',url:''},{gems:600,price:'۷٫۹۹ دلار',url:''},{gems:1500,price:'۱۷٫۹۹ دلار',url:''}]};
+/* V54 — پک‌های جم: دقیقاً ۴ بسته از ۱۰۰ تا ۱۰۰۰ جم. هرچه بسته بزرگ‌تر، هر جم ارزان‌تر
+   (برچسب «ارزش خرید» روی کارت‌ها) — پرداخت واقعی با انتشار مایکت فعال می‌شود */
+const SHOP={packs:[
+  {gems:100,price:'۹۹٬۰۰۰ تومان',perGem:'۹۹۰',name:'شروع',tier:'',tierCls:'',url:''},
+  {gems:300,price:'۲۶۹٬۰۰۰ تومان',perGem:'۸۹۷',name:'جنگاور',tier:'✅ ارزش خرید دارد',tierCls:'t1',url:''},
+  {gems:550,price:'۴۴۹٬۰۰۰ تومان',perGem:'۸۱۶',name:'فاتح',tier:'✅ ارزش بیشتر',tierCls:'t2',url:''},
+  {gems:1000,price:'۶۹۹٬۰۰۰ تومان',perGem:'۶۹۹',name:'امپراتور',tier:'👑 بهترین ارزش',tierCls:'t3',url:''}
+]};
 let GEMS=0,BOOST=0,WALLET_OK=false;
 const boostMult=()=>Date.now()<BOOST?2:1;
 const PSC={gold:.5,oil:.15,food:.5};
@@ -6869,9 +6876,21 @@ function tabBar(){var t=el('div','','cos27-tabs');
 function shopCard(ic,name,desc,btn){var r=el('div','','cos27-card');r.append(el('div',ic,'cos27-ico'));
  var tx=el('div','','cos27-tx');tx.append(el('b',name));if(desc)tx.append(el('small',desc));r.append(tx);
  if(btn)r.append(btn);return r}
-function tabRes(c){c.append(el('div','➕ خرید جم (پرداخت واقعی)','cos27-h'));
- SHOP.packs.forEach(function(p){var b=p.url?el('button','خرید','cos27-buy alt',function(){window.open(p.url,'_blank')}):(function(){var d=el('button','به‌زودی','cos27-buy off');d.disabled=true;return d})();
-  c.append(shopCard('💎',faN(p.gems)+' جم',p.price,b))});
+/* V54 — کارت بسته‌ی جم: مبلغ، نام، برچسب ارزش، قیمت هر جم و دکمه */
+function packCard(p){const r=el('div','','wd54-pack'+(p.tierCls?' '+p.tierCls:''));
+  const head=el('div','','wd54-pack-head');
+  head.append(el('div','💎','wd54-pack-gem'));
+  const mid=el('div','','wd54-pack-mid');
+  mid.append(el('b',faN(p.gems)+' جم — پک '+p.name,'wd54-pack-amt'));
+  mid.append(el('small','هر جم ≈ '+p.perGem+' تومان'+(p.tier?'':' — مناسب برای شروع'),'wd54-pack-per'));
+  head.append(mid);
+  if(p.tier){const bd=el('span',p.tier,'wd54-badge '+p.tierCls);head.append(bd)}
+  const row=el('div','','wd54-pack-row');
+  row.append(el('b',p.price,'wd54-pack-price'));
+  const btn=p.url?el('button','خرید','cos27-buy alt',function(){window.open(p.url,'_blank')}):(function(){var d=el('button','به‌زودی','cos27-buy off');d.disabled=true;return d})();
+  row.append(btn);r.append(head,row);return r}
+function tabRes(c){c.append(el('div','💎 خرید جم — ۴ بسته (پرداخت واقعی؛ با انتشار مایکت فعال می‌شود)','cos27-h'));
+ SHOP.packs.forEach(function(p){c.append(packCard(p))});
  c.append(el('div','🛒 بوست و منابع','cos27-h'));
  GEM_ITEMS.forEach(function(it){c.append(shopCard(it.i,it.t,null,el('button','💎 '+faN(it.c),'cos27-buy',function(){spendGem(it)})))})}
 function tabBeauty(c){c.append(el('div','🎨 زیبایی‌شناسی — کاملاً نمایشی، صفر تأثیر بر قدرت','cos27-h'));
@@ -8862,8 +8881,28 @@ window.WD30_FOG={get on(){return FOG.on},set on(v){FOG.on=v;localStorage.setItem
   reveal(list,min){list.forEach(n=>FOG.revealed[n]=Date.now()+(min||10)*60000);computeFog()},compute:computeFog};
 window.addEventListener('load',()=>{setTimeout(function(){if(FOG.on)computeFog()},4000);setInterval(function(){if(FOG.on)computeFog()},9000)});
 
-/* ---------- 9) special ops: کودتا + رگبار شهاب ---------- */
+/* ---------- 9) V54 special ops — ۴ عملیات حمله‌ای جم (کودتا و شهاب حذف شدند) ---------- */
 window.__wdDebuff=window.__wdDebuff||{};window.__wdUnrest=window.__wdUnrest||{};
+/* V54: پیکربندی عملیات‌ها — قیمت/کول‌داون/سقف باید با SPECIAL_OPS سمت سرور یکی باشد */
+const WD54_OPS={
+  cyber:{fa:'نفوذ سایبری',ic:'🛰️',cost:200,cdH:12,weekly:60,pct:.20,dur:90,bump:0,cls:'cyber',snd:'coup',
+    hint:'🛰️ کشور هدف برای نفوذ سایبری را روی نقشه بزن',
+    cine:['🛰️','نفوذ سایبری موفق!','شبکه‌ی دفاعی %C فلج شد — دفاع تا ۹۰ دقیقه ۲۰٪ افت می‌کند','c-cyan','coup'],
+    done:'🛰️ دفاع %C تا ۹۰ دقیقه فلج است — اطلاعات دشمن لو رفت'},
+  commando:{fa:'راید کماندویی',ic:'🪂',cost:280,cdH:24,weekly:40,pct:.15,dur:120,bump:20,cls:'commando',snd:'coup',
+    hint:'🪂 کشور هدف برای راید کماندو را روی نقشه بزن',
+    cine:['🪂','راید کماندو موفق بود!','نیروهای ویژه در %C پیاده شدند — ۲۰٪ خاک بدون یک گلوله','c-violet','coup'],
+    done:'🪂 ۲۰٪ خاک %C آزاد شد — مدافع ۲ ساعت گیج است'},
+  missile:{fa:'موشک پنچر',ic:'🚀',cost:350,cdH:24,weekly:30,pct:.30,dur:120,bump:10,cls:'missile',snd:'meteor',
+    hint:'🚀 کشور هدف برای موشک پنچر را روی نقشه بزن',
+    cine:['🚀','موشک پنچر شلیک شد!','پناهگاه‌های %C نابود شدند — دفاع تا ۱۲۰ دقیقه ۳۰٪ ضعیف','c-orange','meteor'],
+    done:'🚀 پناهگاه‌های %C نابود شد — حالا زمان حمله است'},
+  nuke:{fa:'ضربه‌ی هسته‌ای',ic:'☢️',cost:500,cdH:48,weekly:20,pct:.40,dur:180,bump:25,cls:'nuke',snd:'meteor',
+    hint:'☢️ کشور هدف برای ضربه‌ی هسته‌ای را روی نقشه بزن',
+    cine:['☢️','ضربه‌ی هسته‌ای تاکتیکی!','آسمان %C آتش گرفت — دفاع تا ۱۸۰ دقیقه ۴۰٪ سقوط کرد','c-red','boom'],
+    done:'☢️ %C در آتش است — دفاع ۴۰٪ سقوط کرد'}
+};
+window.WD54_OPS=WD54_OPS;
 let targeting=null,targetT=null,escT=null;
 function cdKey(kind){return 'wd30cd_'+kind}
 function cdLeft(kind){try{const v=Number(localStorage.getItem(cdKey(kind))||0);return v>Date.now()?v:0}catch(e){return 0}}
@@ -8876,73 +8915,66 @@ function targetHint(msg){let h=H('wd-target-hint');if(!h){h=D.createElement('div
   h.onclick=function(){targetStop()};h.classList.add('on');D.body.classList.add('wd-targeting')}
 function targetStop(){const h=H('wd-target-hint');if(h)h.classList.remove('on');D.body.classList.remove('wd-targeting');targeting=null;
   if(targetT){clearTimeout(targetT);targetT=null}if(escT){D.removeEventListener('keydown',escT);escT=null}}
-function startTargeting(kind){if(!myCountryName){showToast('❌ اول پایتخت انتخاب کن','lose');return}
+function startTargeting(kind){const op=WD54_OPS[kind];if(!op)return;
+  if(!myCountryName){showToast('❌ اول پایتخت انتخاب کن','lose');return}
   if(!sb||!ACC.uid||!WALLET_OK){showToast('❌ عملیات ویژه فقط با حساب آنلاین فعال است','lose');return}
   const left=cdLeft(kind);
-  if(left){showToast('⏳ '+(kind==='coup'?'کودتای بعدی':'شهاب‌سنگ بعدی')+': '+faDate(left),'lose');return}
-  /* V50: چک وضعیت واقعی سرور قبل از حالت هدف‌گیری — دیگه پیام مبهم نمی‌آید (V53: نسخه‌ی تکراری حذف شد) */
+  if(left){showToast('⏳ '+op.fa+' بعدی: '+faDate(left),'lose');return}
+  /* چک وضعیت واقعی سرور قبل از حالت هدف‌گیری (کول‌داون + سقف هفتگی) */
   try{const st50=window.__wd30st;
-    if(st50&&st50[kind+'_next']&&Date.parse(st50[kind+'_next'])>Date.now()){showToast('⏳ '+(kind==='coup'?'کودتای بعدی':'شهاب‌سنگ بعدی')+': '+faDate(st50[kind+'_next']),'lose');return}
-    if(kind==='meteor'&&st50&&st50.meteor_left===0){showToast('🌩️ سهمیه‌ی هفته‌ی سرور پر شد — تا '+faDate(st50.meteor_reset),'lose');return}}catch(e){}
-  targeting=kind;closeAllOverlays();targetHint(kind==='coup'?'🎭 کشور هدف برای کودتا را روی نقشه بزن':'☄️ کشور هدف را برای رگبار شهاب روی نقشه بزن');
+    if(st50&&st50[kind+'_next']&&Date.parse(st50[kind+'_next'])>Date.now()){showToast('⏳ '+op.fa+' بعدی: '+faDate(st50[kind+'_next']),'lose');return}
+    if(st50&&st50[kind+'_left']===0){showToast('🌩️ سهمیه‌ی هفته‌ی سرور برای '+op.fa+' پر شد — تا '+faDate(st50[kind+'_reset']?Date.parse(st50[kind+'_reset']):0),'lose');return}}catch(e){}
+  targeting=kind;closeAllOverlays();targetHint(op.hint);
   if(targetT)clearTimeout(targetT);targetT=setTimeout(targetStop,45000);   /* ضد گیرکردن: لغو خودکار */
   if(escT)D.removeEventListener('keydown',escT);escT=function(ev){if(ev&&ev.key==='Escape')targetStop()};D.addEventListener('keydown',escT);
-  showToast(kind==='coup'?'🎭 حالت کودتا فعال شد — کشور هدف را انتخاب کن':'☄️ حالت شهاب فعال شد — کشور هدف را انتخاب کن','win')}
+  showToast(op.ic+' حالت '+op.fa+' فعال شد — کشور هدف را انتخاب کن','win')}
 window.WD30_CANCEL_TARGET=function(){if(targeting){targetStop();return true}return false};
 window.WD30_TARGET=startTargeting;
 const _oc30=onCountryClick;
 onCountryClick=function(f,l){const n=f&&f.properties&&f.properties.name;
   if(targeting&&n){const kind=targeting;targetStop();
     if(conqueredCountries.has(n)||n===myCountryName){showToast('❌ این خاک خودِ توست!','lose');return}
-    if(kind==='coup')doCoup(n);else doMeteor(n);return}
+    if(WD54_OPS[kind])doOp(kind,n);return}
   _oc30(f,l)};
-function debuff(n,pct,min){window.__wdDebuff[n]={until:Date.now()+min*60000,pct};
-  const g=getG(n);if(!g||!map)return;const m=L.marker(g.c,{interactive:false,keyboard:false,icon:L.divIcon({className:'wd-unrest-wrap',iconSize:[0,0],html:'<div class="wd-unrest">'+(pct>=.15?'🎭':'☄️')+'<small>'+faNum(min)+' دقیقه</small></div>'}),zIndexOffset:900}).addTo(map);
+function debuff(n,pct,min,ico){window.__wdDebuff[n]={until:Date.now()+min*60000,pct};
+  const g=getG(n);if(!g||!map)return;const m=L.marker(g.c,{interactive:false,keyboard:false,icon:L.divIcon({className:'wd-unrest-wrap',iconSize:[0,0],html:'<div class="wd-unrest">'+(ico||(pct>=.15?'🎭':'☄️'))+'<small>'+faNum(min)+' دقیقه</small></div>'}),zIndexOffset:900}).addTo(map);
   const key='debuff_'+n;if(FOG.MK[key])FOG.MK[key].remove();FOG.MK[key]=m;
   setTimeout(()=>{try{m.remove();delete FOG.MK[key];delete window.__wdDebuff[n]}catch(e){}},min*60000)}
-function unrest(n,min){window.__wdUnrest[n]=Date.now()+min*60000;debuff(n,.15,min)}
-async function doCoup(n){const fa=getCountryData(n).fa;
-  if(battleBusy){showToast('⏳ وسط نبرد نمی‌توانی کودتا بزنی','lose');return}
-  const r=await sb.rpc('use_special',{p_item:'coup',p_country:n,p_server:Math.max(1,Number(window.SRV)||1)}).catch(()=>null);
+async function doOp(kind,n){const op=WD54_OPS[kind];if(!op)return;const fa=getCountryData(n).fa;
+  if(battleBusy){showToast('⏳ وسط نبرد نمی‌توانی عملیات بزنی','lose');return}
+  const r=await sb.rpc('use_special',{p_item:kind,p_country:n,p_server:Math.max(1,Number(window.SRV)||1)}).catch(()=>null);
   const d=r&&r.data;if(!d||!d.ok){
-    if(d&&d.next_ok)cdStore('coup',d.next_ok);
-    const msg=d&&d.error==='funds'?'❌ ۱۰۰ Gem لازم داری':d&&d.error==='cooldown'?'⏳ کودتای بعدی: '+faDate(d.next_ok):'❌ عملیات انجام نشد';
-    showToast(msg,'lose');GEMS=d&&d.gems!=null?d.gems:GEMS;return}
-  cdStore('coup',d.next_ok);
-  GEMS=d.gems;unrest(n,30);
-  occupationPct[n]=Math.min(95,(occupationPct[n]||0)+18);setHatch(n,occupationPct[n],true,occupationPct[n]-18);applyCountryColor(n);
-  snd('coup');if(d.owner_nick)debuff(n,.15,360);
-  WD30CINE('🎭','کودتا موفق بود!','🐍 در '+fa+' شورش برپا شد — '+faNum(18)+'٪ خاک بدون یک گلوله','c-violet','coup');
-  WD30BC('coup',{country:fa,target:d.owner_nick||''});
-  news('🎭 کودتا در '+fa+(d.owner_nick?' (خاک '+d.owner_nick+')':'')+' — '+faNum(18)+'٪ اشغال بدون جنگ');
-  WD30HIST({t:Date.now(),type:'epic',txt:'در '+fa+' کودتا برپا کردی'+(d.owner_nick?' (خاک '+d.owner_nick+')':''),ico:'🎭'});
-  showToast('🎭 کودتا انجام شد — مدافع ۶ ساعت ضعیف‌تر است','win');updateUI();saveNow&&saveNow()}
-async function doMeteor(n){const fa=getCountryData(n).fa;
-  const r=await sb.rpc('use_special',{p_item:'meteor',p_country:n,p_server:Math.max(1,Number(window.SRV)||1)}).catch(()=>null);
-  const d=r&&r.data;if(!d||!d.ok){
-    if(d&&d.next_ok)cdStore('meteor',d.next_ok);
+    if(d&&d.next_ok)cdStore(kind,d.next_ok);
     let msg='❌ عملیات انجام نشد';
-    if(d&&d.error==='funds')msg='❌ ۸۰ Gem لازم داری';
-    else if(d&&d.error==='cooldown')msg='⏳ شهاب‌سنگ بعدی: '+faDate(d.next_ok);
-    else if(d&&d.error==='weekly_cap')msg='🌩️ سهمیه‌ی هفته‌ی سرور پر شد (۳ در هفته) — '+faDate(d.next_ok);
+    if(d&&d.error==='funds')msg='❌ '+faNum(op.cost)+' جم لازم داری';
+    else if(d&&d.error==='cooldown')msg='⏳ '+op.fa+' بعدی: '+faDate(d.next_ok);
+    else if(d&&d.error==='weekly_cap')msg='🌩️ سهمیه‌ی هفته‌ی سرور برای '+op.fa+' پر شد — '+faDate(d.next_ok);
+    else if(d&&d.error==='truce')msg='🕊️ آتش‌بس المپیاد — عملیات حمله‌ای ممنوع است';
+    else if(d&&d.error==='own')msg='❌ این خاک خودِ توست!';
     showToast(msg,'lose');GEMS=d&&d.gems!=null?d.gems:GEMS;return}
-  cdStore('meteor',d.next_ok);GEMS=d.gems;
-  const g=getG(n);snd('meteor');
-  if(g&&map){const pt=map.latLngToContainerPoint(g.c);const rect=map.getContainer().getBoundingClientRect();
-    const tx=rect.left+pt.x,ty=rect.top+pt.y;
-    for(let i=0;i<6;i++){setTimeout(()=>{const fromX=tx+(Math.random()*260-130),fromY=ty-window.innerHeight*.55;
-      const m=D.createElement('div');m.className='meteor';m.style.left=fromX+'px';m.style.top=fromY+'px';
-      m.style.setProperty('--ang','32deg');m.style.setProperty('--dx',(tx-fromX)+'px');m.style.setProperty('--dy',(ty-fromY)+'px');
-      m.style.animation='w30meteor '+(.55+Math.random()*.25)+'s linear forwards';D.body.appendChild(m);
-      setTimeout(()=>{m.remove();if(typeof boomAt==='function'&&g.c)boomAt(g.c[0],g.c[1],i%2===0);if(typeof shake==='function'&&i===5)shake()},620)},i*170)}}
-  setTimeout(()=>{debuff(n,.13,30);
-    WD30CINE('☄️','رگبار شهاب‌سنگ!','🔥 دفاع '+fa+' تا ۳۰ دقیقه '+faNum(13)+'٪ ضعیف شد','','meteor');
-    WD30BC('meteor',{country:fa,target:d.owner_nick||''});
-    news('☄️ رگبار شهاب‌سنگ بر '+fa+(d.owner_nick?' (خاک '+d.owner_nick+')':'')+' بارید — دفاع زخمی شد');
-    WD30HIST({t:Date.now(),type:'epic',txt:'بر '+fa+' رگبار شهاب‌سنگ انداختی',ico:'☄️'});
-    showToast('☄️ دفاع '+fa+' زخمی شد — حالا زمان حمله است','win');updateUI()},1400);
-  if(d.owner_nick)debuff(n,.13,30);updateUI();saveNow&&saveNow()}
-window.WD30_COUP=doCoup;window.WD30_METEOR=doMeteor;
+  cdStore(kind,d.next_ok);GEMS=d.gems;
+  /* V54: افکت‌های بصری جدا با گارد — هر خطای نمایشی هرگز اثر اصلی عملیات را نمی‌خورد */
+  try{
+    if(op.bump>0){occupationPct[n]=Math.min(95,(occupationPct[n]||0)+op.bump);setHatch(n,occupationPct[n],true,occupationPct[n]-op.bump);applyCountryColor(n)}
+    if(kind==='missile'||kind==='nuke'){ /* بارش مهمات از آسمان — برای موشک ۶ و برای هسته‌ای ۱۰ ضربه */
+      const g=getG(n);
+      if(g&&map){const pt=map.latLngToContainerPoint(g.c);const rect=map.getContainer().getBoundingClientRect();
+        const tx=rect.left+pt.x,ty=rect.top+pt.y;const cnt=kind==='nuke'?10:6;
+        for(let i=0;i<cnt;i++){setTimeout(()=>{const fromX=tx+(Math.random()*260-130),fromY=ty-window.innerHeight*.55;
+          const m=D.createElement('div');m.className='meteor';m.style.left=fromX+'px';m.style.top=fromY+'px';
+          m.style.setProperty('--ang','32deg');m.style.setProperty('--dx',(tx-fromX)+'px');m.style.setProperty('--dy',(ty-fromY)+'px');
+          m.style.animation='w30meteor '+(.55+Math.random()*.25)+'s linear forwards';D.body.appendChild(m);
+          setTimeout(()=>{m.remove();if(typeof boomAt==='function'&&g.c)boomAt(g.c[0],g.c[1],i%2===0);if(typeof shake==='function'&&i===cnt-1)shake()},620)},i*(kind==='nuke'?130:170))}}}
+    else if(typeof blasts==='function')blasts(n,3);
+    if(op.pct>0)debuff(n,op.pct,op.dur,op.ic);
+    snd(op.snd);
+    WD30CINE(op.cine[0],op.cine[1],op.cine[2].replace('%C',fa),op.cine[3],op.cine[4]);
+    WD30BC(kind,{country:fa,target:d.owner_nick||''});
+    news(op.ic+' '+op.fa+' بر '+fa+(d.owner_nick?' (خاک '+d.owner_nick+')':'')+' انجام شد — '+op.fa+' ثبت شد');
+    WD30HIST({t:Date.now(),type:'epic',txt:op.fa+' روی '+fa+' اجرا کردی'+(d.owner_nick?' (خاک '+d.owner_nick+')':''),ico:op.ic});
+  }catch(e){}
+  showToast(op.done.replace('%C',fa),'win');updateUI();saveNow&&saveNow()}
+window.WD30_OP=doOp;
 
 /* ---------- 11) lobby upgrade: world strip + ویژه tab ---------- */
 function worldStrip(){const s=seasonState(),g=window.WD30_GOAL();
@@ -8955,28 +8987,31 @@ function worldStrip(){const s=seasonState(),g=window.WD30_GOAL();
   const tick=()=>{const st=seasonState();if(!sc.isConnected)return;const h=Math.floor(st.left/3600000),m2=Math.floor(st.left%3600000/60000);
     sc.textContent='⏳ '+faNum(h)+' ساعت تا پایان فصل';setTimeout(tick,30000)};tick();
   return wrap}
-function soCard(kind){const coup=kind==='coup';
-  const card=D.createElement('div');card.className='wd-so-card'+(coup?'':' meteor');
-  const ico=D.createElement('div');ico.className='wd-so-ico';ico.textContent=coup?'🎭':'☄️';
+function soCard(kind){const op=WD54_OPS[kind];if(!op)return null;
+  const card=D.createElement('div');card.className='wd-so-card'+(op.cls?' wd54-'+op.cls:'');
+  const ico=D.createElement('div');ico.className='wd-so-ico';ico.textContent=op.ic;
   const body=D.createElement('div');body.className='wd-so-body';
-  body.innerHTML=coup?'<b>🎭 عملیات مخفی: کودتا</b><small>روی یک کشور غیرپایتخت شورش مصنوعی برپا می‌کنی — '+faNum(18)+'٪ اشغال بدون جنگ. مدافع ۶ ساعت ضعیف می‌شود.</small><div class="wd-so-cd"></div>'
-    :'<b>☄️ رگبار شهاب‌سنگ</b><small>ضربه‌ی آسمانی یک‌باره: دفاع کشور هدف تا ۳۰ دقیقه '+faNum(13)+'٪ ضعیف می‌شود. کمیاب: کل سرور فقط ۳ بار در هفته!</small><div class="wd-so-cd"></div>';
-  const btn=D.createElement('button');btn.className='wd-go-btn';btn.textContent=coup?'۱۰۰ 💎':'۸۰ 💎';
+  const eff=[];
+  if(op.bump>0)eff.push('+'+faNum(op.bump)+'٪ اشغال بدون جنگ');
+  if(op.pct>0)eff.push('دفاع هدف '+faNum(Math.round(op.pct*100))+'٪ ضعیف به‌مدت '+faNum(op.dur)+' دقیقه');
+  body.innerHTML='<b>'+op.ic+' '+op.fa+'</b><small>'+eff.join(' + ')+' — سقف سرور: '+faNum(op.weekly)+' در هفته</small><div class="wd-so-cd"></div>';
+  const btn=D.createElement('button');btn.className='wd-go-btn';btn.textContent=faNum(op.cost)+' 💎';
   btn.addEventListener('click',()=>startTargeting(kind));
   card.append(ico,body,btn);
   const cd=()=>{const el=card.querySelector('.wd-so-cd');if(!el)return;
-    /* V50: وضعیت واقعی سرور (کول‌داون دقیق + سهمیهٔ هفته) به‌جای ساعت مبهم */
+    /* وضعیت واقعی سرور (کول‌داون دقیق + سهمیه‌ی هفته) به‌جای ساعت مبهم */
     const left=cdLeft(kind);const st=window.__wd30st||null;let txt=null,col='#7dff9e';
     if(st&&st[kind+'_next']&&Date.parse(st[kind+'_next'])>Date.now()){txt='⏳ آمادهِ بعدی: '+faDate(Date.parse(st[kind+'_next']));col='#ffb27d'}
-    else if(kind==='meteor'&&st&&st.meteor_left===0){txt='🌩️ سهمیهِ هفتهِ سرور پر شد — تا '+faDate(st.meteor_reset?Date.parse(st.meteor_reset):0);col='#ffb27d'}
+    else if(st&&st[kind+'_left']===0){txt='🌩️ سهمیهِ هفتهِ سرور پر شد — تا '+faDate(st[kind+'_reset']?Date.parse(st[kind+'_reset']):0);col='#ffb27d'}
     else if(left){txt='⏳ آمادهِ بعدی: '+faDate(left);col='#ffb27d'}
     else txt='✅ آمادهِ اجرا';
     el.textContent=txt;el.style.color=col};cd();
   card.__cdTick=cd;return card}
 function specialPanel(p){p.textContent='';
   const h=D.createElement('div');h.className='sites-h';h.textContent='🎬 عملیات‌های ویژه (سینمایی)';p.append(h);
-  const sc=soCard('coup'),sm=soCard('meteor');p.append(sc,sm);
-  if(!window.__wd30cdTick){window.__wd30cdTick=setInterval(()=>{try{sc.__cdTick&&sc.__cdTick();sm.__cdTick&&sm.__cdTick()}catch(e){}},20000)}
+  const cards=Object.keys(WD54_OPS).map(k=>soCard(k)).filter(Boolean);
+  cards.forEach(c=>p.append(c));
+  if(!window.__wd30cdTick){window.__wd30cdTick=setInterval(()=>{try{cards.forEach(c=>c.__cdTick&&c.__cdTick())}catch(e){}},20000)}
   const h2=D.createElement('div');h2.className='sites-h';h2.textContent='📖 هویت امپراتوری';p.append(h2);
   const b1=D.createElement('button');b1.className='action-btn btn-cyan';b1.style.width='100%';b1.textContent='📖 تاریخچه امپراتوری من (تایم‌لاین)';
   b1.addEventListener('click',()=>WD30TL_OPEN());p.append(b1);
@@ -8995,12 +9030,13 @@ function specialPanel(p){p.textContent='';
       if(pane&&!pane.querySelector('.wd-world-strip'))pane.prepend(worldStrip())}catch(e){}return _rl()}}
 })();
 
-/* ---------- 12) shop: special ops section — V53: بخش مجزای حمله‌ای، حالا در بالای شاپ جم ---------- */
+/* ---------- 12) shop: special ops section — V54: چهار عملیات جدید حمله‌ای، در بالای شاپ جم ---------- */
 const _rs30=renderShop;renderShop=function(){_rs30();const b=H('shop-body');if(!b)return;
   const h=D.createElement('div');h.className='sites-h';h.textContent='⚔️ عملیات حمله‌ای (جم)';
-  const info=D.createElement('div');info.className='sites-info';info.textContent='کودتا و رگبار شهاب‌سنگ — دو عملیات ویژه‌ی حمله با جم؛ کول‌داون سخت‌گیرانه از سرور (ضد P2W)';
-  const sc=soCard('coup'),sm=soCard('meteor');
-  b.prepend(sm);b.prepend(sc);b.prepend(info);b.prepend(h)};
+  const info=D.createElement('div');info.className='sites-info';info.textContent='نفوذ سایبری، راید کماندو، موشک پنچر و ضربه‌ی هسته‌ای — چهار عملیات ویژه‌ی حمله (۲۰۰ تا ۵۰۰ جم) با کول‌داون و سقف هفتگی سخت‌گیرانه از سرور (ضد P2W)';
+  const frag=D.createDocumentFragment();
+  Object.keys(WD54_OPS).forEach(k=>{const c=soCard(k);if(c)frag.appendChild(c)});
+  b.prepend(frag);b.prepend(info);b.prepend(h)};
 
 /* ---------- 13) admin: season reset button ---------- */
 const _ra30=renderAdmin;renderAdmin=function(){_ra30();const b=H('admin-body');if(!b)return;
@@ -9380,7 +9416,7 @@ window.WD31_SERVER=function(){openPage('wd-srvpage','click');refreshServer();
    PAGE 2 — المپیک جهانی (صفحه‌ی کاملاً جدا و تمام‌صفحه)
 ================================================================ */
 let olT=null,olBuilt=false;
-const OL_META={empire:{t:'🏴 امپراتوری بزرگ',u:'کشور'},power:{t:'⭐ قدرت برتر',u:'امتیاز'},warrior:{t:'⚔️ جنگاوری — ۷ روز',u:'فتح PvP'},coup:{t:'🎭 جسارت — ۷ روز',u:'کودتا'},meteor:{t:'☄️ آسمان‌شکن — ۷ روز',u:'شهاب'},trade:{t:'🤝 تاجر — ۷ روز',u:'معامله'},today:{t:'🎯 ستاره‌ی امروز',u:'فتح'}};
+const OL_META={empire:{t:'🏴 امپراتوری بزرگ',u:'کشور'},power:{t:'⭐ قدرت برتر',u:'امتیاز'},warrior:{t:'⚔️ جنگاوری — ۷ روز',u:'فتح PvP'},cyber:{t:'🛰️ هکر برتر — ۷ روز',u:'نفوذ سایبری'},commando:{t:'🪂 کماندو — ۷ روز',u:'راید کماندو'},missile:{t:'🚀 توپخانه — ۷ روز',u:'موشک پنچر'},nuke:{t:'☢️ بازدارندگی — ۷ روز',u:'ضربه‌ی هسته‌ای'},trade:{t:'🤝 تاجر — ۷ روز',u:'معامله'},today:{t:'🎯 ستاره‌ی امروز',u:'فتح'}};
 function olShell(w){
   if(olBuilt)return;olBuilt=true;
   w.innerHTML=
@@ -14914,12 +14950,7 @@ body.wd-autolite .hchip,body.wd-autolite .res-card,body.wd-autolite .nav-btn{box
 body.wd-autolite .leaflet-marker-icon img{box-shadow:none!important}
 body.wd-autolite .leaflet-overlay-pane path{transition:none!important}
 body.wd-autolite .wd-em{animation:none!important}
-/* نوار دکمه‌ی مراسم المپیک داخل هاب */
-#wd51-cerbar{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);z-index:150500;display:none;gap:8px}
-#wd51-cerbar .wd51-cerb{background:linear-gradient(135deg,rgba(20,40,70,.96),rgba(30,16,60,.96));border:1.5px solid #ffd75e;
-  color:#ffe9a8;font-weight:900;font-size:11.5px;padding:9px 14px;border-radius:14px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.55);font-family:inherit}
-#wd51-cerbar .wd51-cerb.alt{border-color:#7fd7ff;color:#c9ecff}
-#wd51-cerbar .wd51-cerb:active{transform:scale(.95)}
+/* V54: نوار مراسم المپیک حذف شد (کنترل از پنل ادمین) */
 /* نشان‌های V51 */
 .wd-em-phoenix{background:radial-gradient(circle at 34% 30%,#ffe3b0,#ff6a2a 45%,#8a1a05 78%,#2a0600);border-color:#ffb35e;box-shadow:0 0 10px rgba(255,120,40,.85),inset 0 0 6px rgba(255,230,170,.55);animation:wd51rise 2.4s ease-in-out infinite}
 @keyframes wd51rise{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
@@ -15029,28 +15060,7 @@ try{ensureChip();
   }
   try{if(typeof window.WD33_OPEN_CEREMONY==='function')window.WD33_OPEN_CEREMONY=wrapCer(window.WD33_OPEN_CEREMONY)}catch(e){}
   try{if(typeof window.WD33_CLOSE_CEREMONY==='function')window.WD33_CLOSE_CEREMONY=wrapCer(window.WD33_CLOSE_CEREMONY)}catch(e){}
-  /* نوار «پخش مراسم» داخل هاب المپیک — در همه‌ی فازها */
-  var bar=null,mo=null;
-  function ensureBar(){
-    try{
-      var wrap=D.getElementById('wg33-wrap');var page=D.getElementById('wd-games');
-      if(!wrap||!page||!page.classList.contains('on')){if(bar)bar.style.display='none';return}
-      if(!bar){bar=D.createElement('div');bar.id='wd51-cerbar';
-        var b1=D.createElement('button');b1.className='wd51-cerb';b1.textContent='🎬 مراسم افتتاحیه';
-        var b2=D.createElement('button');b2.className='wd51-cerb alt';b2.textContent='🏁 مراسم اختتامیه';
-        b1.addEventListener('click',function(){try{window.WD33_OPEN_CEREMONY(window.__wg33data||null)}catch(e){}});
-        b2.addEventListener('click',function(){try{window.WD33_CLOSE_CEREMONY(window.__wg33data||null)}catch(e){}});
-        bar.appendChild(b1);bar.appendChild(b2);
-        wrap.parentNode.appendChild(bar);
-        if(!mo){mo=new MutationObserver(function(){setTimeout(ensureBar,80)});
-          try{mo.observe(wrap,{childList:true})}catch(e){}}}
-      bar.style.display='flex';
-    }catch(e){}
-  }
-  try{
-    setTimeout(ensureBar,3500);
-    var iv=setInterval(function(){try{var p=D.getElementById('wd-games');if(p&&p.classList.contains('on'))ensureBar()}catch(e){}},5000);
-  }catch(e){}
+  /* V54: نوار «پخش مراسم» از هاب المپیک حذف شد — افتتاحیه/اختتامیه فقط از کنترل ادمین و چرخه‌ی خود بازی اجرا می‌شود */
 })();
 })();
    </script>
@@ -15146,7 +15156,7 @@ function ensureCard(){
 }
 setInterval(function(){if(!D.hidden)ensureCard()},3500);
 setTimeout(ensureCard,6000);
-/* ---------- ۲) جعبه‌ی «کنترل المپیک» در پنل ادمین — گیت با حقیقت سرور (is_admin) ---------- */
+/* ---------- ۲) جعبه‌ی «کنترل المپیک» در پنل ادمین — V54: همیشه برای ادمین کلاینتی دیده می‌شود و وضعیت سرور شفاف است ---------- */
 var __adminOk=null;
 function adminCheck(){
   if(__adminOk!==null)return Promise.resolve(__adminOk);
@@ -15159,7 +15169,7 @@ function ensureAdminBox(){
     if(D.getElementById('wd53-olybox'))return;
     var box=D.createElement('div');box.id='wd53-olybox';
     box.innerHTML='<div class="wd53-ph">🎮 کنترل المپیک — شروع و پایان دوره در دست توست</div>'+
-      '<div class="wd53-ph" id="wd53-olyph">⏳ …</div>'+
+      '<div class="wd53-ph" id="wd53-olyph">⏳ در حال دریافت وضعیت از سرور…</div>'+
       '<div class="wd53-olyad">'+
       '<button class="action-btn btn-green" id="wd53-olyopen">▶️ شروع فوری بازی‌ها (افتتاحیه + آتش‌بس)</button>'+
       '<button class="action-btn btn-red" id="wd53-olyclose">🏁 پایان فوری دوره (اختتامیه + قهرمانی)</button>'+
@@ -15171,8 +15181,9 @@ function ensureAdminBox(){
       sb.rpc('oly_admin_shift',{p_mode:mode}).then(function(r){
         try{
           var x=r&&r.data;
-          if(!x||!x.ok){
-            var msg=(x&&x.reason==='admin')?'❌ فقط مدیر بازی':(x&&x.reason==='phase')?'⚠️ در این فاز مجاز نیست':'❌ سرور هنوز آپدیت نشده';
+          if(r&&r.error){showToast('❌ خطای سرور: '+(r.error.message||'نامشخص'),'lose')}
+          else if(!x||!x.ok){
+            var msg=(x&&x.reason==='admin')?'❌ سرور حساب تو را ادمین نمی‌داند (nick ادمین را در ADMIN_NICKS سرور بررسی کن)':(x&&x.reason==='phase')?'⚠️ در فاز فعلی مجاز نیست — وضعیت بالا را ببین':'❌ انجام نشد';
             showToast(msg,'lose');
           }else{
             showToast(mode==='reset'?'↩️ برنامه‌ی عادی برگشت':'✅ انجام شد — فاز جدید: '+(PH[x.phase]||x.phase),'win');
@@ -15180,13 +15191,16 @@ function ensureAdminBox(){
           }
         }catch(e){}
         busy(false,btn);refreshPhase();
-      }).catch(function(){showToast('❌ خطای اتصال','lose');busy(false,btn)});
+      }).catch(function(){showToast('❌ خطای اتصال — دوباره تلاش کن','lose');busy(false,btn)});
     };
     var refreshPhase=function(){
       try{sb.rpc('olympic_status',{p_server:srv()}).then(function(r){
         try{var x=r&&r.data;var g=(x&&x.games)?x.games:x;
           var el=D.getElementById('wd53-olyph');
-          if(el&&g&&g.phase)el.textContent='وضعیت فعلی: '+(PH[g.phase]||g.phase)+' • دوره‌ی '+faN(g.edition||0);
+          if(el&&g&&g.phase){el.textContent='وضعیت فعلی: '+(PH[g.phase]||g.phase)+' • دوره‌ی '+faN(g.edition||0);
+            var bo=D.getElementById('wd53-olyopen'),bc=D.getElementById('wd53-olyclose');
+            if(bo)bo.disabled=(g.phase==='live'||g.phase==='after');
+            if(bc)bc.disabled=(g.phase!=='live');}
         }catch(e){}
       })}catch(e){}
     };
@@ -15194,10 +15208,61 @@ function ensureAdminBox(){
     if(bo)bo.addEventListener('click',function(){shift('open',bo)});
     if(bc)bc.addEventListener('click',function(){shift('close',bc)});
     if(br)br.addEventListener('click',function(){shift('reset',br)});
-    refreshPhase();
+    adminCheck().then(function(okad){
+      var ph=D.getElementById('wd53-olyph');
+      if(!okad&&ph&&ph.textContent.indexOf('وضعیت')!==0)ph.textContent='⛔ سرور هنوز حساب تو را ادمین نمی‌شناسد — دکمه‌ها جواب نمی‌دهند (ADMIN_NICKS سرور)';
+      refreshPhase();
+    });
+    /* V54: همگرایی وضعیت — هر ۵ ثانیه تا باز بودن پنل، دکمه‌ها و خط وضعیت تازه می‌شوند */
+    if(!window.__wd53olyTick){window.__wd53olyTick=setInterval(function(){
+      try{var m2=D.getElementById('m-admin');
+        if(m2&&m2.classList.contains('active')&&D.getElementById('wd53-olybox'))refreshPhase()}catch(e){}},5000)}
   }catch(e){}
 }
-setInterval(function(){if(!D.hidden)adminCheck().then(function(okad){if(okad)ensureAdminBox()})},2500);
+setInterval(function(){if(!D.hidden)adminCheck().then(function(okad){if(okad||isAdmin())ensureAdminBox()})},2500);
+})();
+   </script>
+   <style id="v54-css">
+/* ===== V54: پک‌های جم + عملیات‌های جدید حمله‌ای + نشان سرور تستی ===== */
+.wd54-pack{display:flex;flex-direction:column;gap:8px;background:linear-gradient(140deg,rgba(14,26,50,.92),rgba(22,14,44,.94));border:1px solid rgba(140,120,255,.35);border-radius:15px;padding:11px 12px;margin-bottom:9px}
+.wd54-pack.t1{border-color:rgba(80,220,140,.45)}
+.wd54-pack.t2{border-color:rgba(90,190,255,.5)}
+.wd54-pack.t3{border-color:rgba(255,214,60,.65);background:linear-gradient(140deg,rgba(44,34,4,.9),rgba(30,18,50,.94))}
+.wd54-pack-head{display:flex;align-items:center;gap:10px}
+.wd54-pack-gem{font-size:26px;filter:drop-shadow(0 0 8px rgba(170,120,255,.8))}
+.wd54-pack-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.wd54-pack-amt{font-weight:900;font-size:13px;color:#fff}
+.wd54-pack-per{font-size:10px;color:#9fb6d4}
+.wd54-badge{font-size:9.5px;font-weight:900;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.wd54-badge.t1{background:rgba(60,200,120,.16);color:#7dff9e;border:1px solid rgba(60,200,120,.5)}
+.wd54-badge.t2{background:rgba(80,170,255,.16);color:#9ed4ff;border:1px solid rgba(80,170,255,.5)}
+.wd54-badge.t3{background:rgba(255,214,60,.14);color:#ffe08a;border:1px solid rgba(255,214,60,.6)}
+.wd54-pack-row{display:flex;align-items:center;gap:9px}
+.wd54-pack-price{flex:1;font-weight:900;font-size:12.5px;color:#ffd98a}
+.wd54-pack-row .cos27-buy{min-width:86px}
+.wd-so-card.wd54-cyber{background:linear-gradient(140deg,rgba(6,28,44,.92),rgba(6,14,24,.95));border-color:rgba(70,220,255,.4)}
+.wd-so-card.wd54-cyber .wd-so-ico{filter:drop-shadow(0 0 10px rgba(70,220,255,.8))}
+.wd-so-card.wd54-commando{background:linear-gradient(140deg,rgba(30,8,40,.92),rgba(10,6,20,.95));border-color:rgba(200,110,255,.35)}
+.wd-so-card.wd54-missile{background:linear-gradient(140deg,rgba(40,16,4,.92),rgba(18,8,4,.95));border-color:rgba(255,150,60,.4)}
+.wd-so-card.wd54-missile .wd-so-ico{filter:drop-shadow(0 0 10px rgba(255,150,50,.8))}
+.wd-so-card.wd54-nuke{background:linear-gradient(140deg,rgba(44,4,4,.92),rgba(20,6,6,.95));border-color:rgba(255,90,70,.5)}
+.wd-so-card.wd54-nuke .wd-so-ico{filter:drop-shadow(0 0 12px rgba(255,90,50,.9))}
+.wd-cine-card.c-cyan{background:linear-gradient(150deg,rgba(4,20,28,.96),rgba(8,48,64,.94) 55%,rgba(4,16,24,.96));border-color:rgba(90,220,255,.55)}
+.wd-cine-card.c-orange{background:linear-gradient(150deg,rgba(30,14,2,.96),rgba(74,34,6,.94) 55%,rgba(24,12,4,.96));border-color:rgba(255,160,80,.6)}
+.wd-cine-card.c-red{background:linear-gradient(150deg,rgba(34,4,4,.96),rgba(84,14,10,.94) 55%,rgba(24,6,6,.96));border-color:rgba(255,100,80,.65)}
+#wd54-testchip{position:fixed;bottom:82px;left:10px;z-index:150000;font-size:10px;font-weight:900;color:#ffe08a;background:rgba(40,30,4,.85);border:1px solid rgba(255,214,60,.55);border-radius:99px;padding:4px 11px;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+   </style>
+   <script id="v54-js">
+/* ============ V54: نشان سرور تستی — روی سرور اصلی مایکت WD_SERVER_MODE='prod' می‌شود ============ */
+(function(){
+  'use strict';
+  var D=document;
+  if(window.WD_SERVER_MODE!=='prod'){
+    window.WD_SERVER_MODE='test';
+    try{D.title+=(D.title.indexOf('سرور تستی')<0?' — 🧪 سرور تستی':'')}catch(e){}
+    function chip(){if(D.getElementById('wd54-testchip'))return;var c=D.createElement('div');c.id='wd54-testchip';c.textContent='🧪 سرور تستی — نسخه‌ی عرضه: سرور جدید مایکت';D.body.appendChild(c)}
+    if(D.body)chip();else D.addEventListener('DOMContentLoaded',chip);
+  }
 })();
    </script>
 </body>

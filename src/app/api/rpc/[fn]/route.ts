@@ -32,6 +32,15 @@ const EMST_COSTS: Record<string, number> = {
 const WEEKLY_REWARDS: Record<number, number> = { 1: 5000, 2: 2500, 3: 1000 }
 const WEEKLY_CATEGORIES = ['score', 'kills', 'economy', 'recruits'] as const
 
+/* V54 — عملیات‌های حمله‌ای جم (جای کودتا/شهاب): قیمت، کول‌داون شخصی و سقف هفتگی کل سرور.
+   قیمت‌ها باید با OPS سمت کلاینت یکی باشد. */
+const SPECIAL_OPS: Record<string, { cost: number; cd: number; weekly: number }> = {
+  cyber: { cost: 200, cd: 12 * 3600_000, weekly: 60 },
+  commando: { cost: 280, cd: 24 * 3600_000, weekly: 40 },
+  missile: { cost: 350, cd: 24 * 3600_000, weekly: 30 },
+  nuke: { cost: 500, cd: 48 * 3600_000, weekly: 20 },
+}
+
 function weekKey(d = new Date()): string {
   const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
   const day = date.getUTCDay() || 7
@@ -307,7 +316,7 @@ async function olympicCompute(server: number): Promise<OlAgg> {
   })
   const todayUTC = new Date()
   todayUTC.setUTCHours(0, 0, 0, 0)
-  const cnt: Record<string, Record<string, number>> = { warrior: {}, coup: {}, meteor: {}, trade: {}, today: {} }
+  const cnt: Record<string, Record<string, number>> = { warrior: {}, cyber: {}, commando: {}, missile: {}, nuke: {}, trade: {}, today: {} }
   const bump = (k: string, who: string | null) => {
     const w = (who || '').trim()
     if (!w) return
@@ -315,8 +324,10 @@ async function olympicCompute(server: number): Promise<OlAgg> {
   }
   for (const n of news) {
     if (n.action === 'pvp_capture') bump('warrior', n.actorNick)
-    else if (n.action === 'coup') bump('coup', n.actorNick)
-    else if (n.action === 'meteor') bump('meteor', n.actorNick)
+    else if (n.action === 'cyber') bump('cyber', n.actorNick)
+    else if (n.action === 'commando') bump('commando', n.actorNick)
+    else if (n.action === 'missile') bump('missile', n.actorNick)
+    else if (n.action === 'nuke') bump('nuke', n.actorNick)
     else if (n.action === 'trade') bump('trade', n.actorNick)
     if (n.createdAt >= todayUTC && ['capture', 'conquer', 'pvp_capture', 'pvp_attack'].indexOf(n.action) > -1) bump('today', n.actorNick)
   }
@@ -326,8 +337,10 @@ async function olympicCompute(server: number): Promise<OlAgg> {
     { key: 'empire', top: [...rows].sort((a, b) => b.conquered - a.conquered).slice(0, 3).map((r) => ({ nick: r.nick, val: r.conquered })) },
     { key: 'power', top: rows.slice(0, 3).map((r) => ({ nick: r.nick, val: r.score })) },
     { key: 'warrior', top: topOf(cnt.warrior) },
-    { key: 'coup', top: topOf(cnt.coup) },
-    { key: 'meteor', top: topOf(cnt.meteor) },
+    { key: 'cyber', top: topOf(cnt.cyber) },
+    { key: 'commando', top: topOf(cnt.commando) },
+    { key: 'missile', top: topOf(cnt.missile) },
+    { key: 'nuke', top: topOf(cnt.nuke) },
     { key: 'trade', top: topOf(cnt.trade) },
     { key: 'today', top: topOf(cnt.today) },
   ]
@@ -975,19 +988,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R(r.ok)
       }
 
-      /* ---------------- V30 special ops (server-enforced limits) ----------------
-         coup  : 100 gems, 1 per 24h per player  — artificial unrest on a foreign country
-         V50:  meteor:  80 gems, 1 per 6h per player AND max 30 per rolling 7 days server-wide (قبلاً ۷۲ساعت و ۳ در هفته بود → عملاً غیرقابل استفاده) */
+      /* ---------------- V54 special ops (server-enforced limits) ----------------
+         کودتا و شهاب‌سنگ حذف شدند. چهار عملیات جدید (قیمت ۲۰۰ تا ۵۰۰ جم، سقف هفتگی سرور):
+         cyber    نفوذ سایبری        ۲۰۰ جم، هر ۱۲ ساعت، حداکثر ۶۰ در هفته
+         commando راید کماندویی     ۲۸۰ جم، هر ۲۴ ساعت، حداکثر ۴۰ در هفته
+         missile  موشک پنچر           ۳۵۰ جم، هر ۲۴ ساعت، حداکثر ۳۰ در هفته
+         nuke     ضربه‌ی هسته‌ای      ۵۰۰ جم، هر ۴۸ ساعت، حداکثر ۲۰ در هفته */
       case 'use_special': {
         if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
         const item = String(args.p_item || '')
         const country = String(args.p_country || '')
         const server = Math.max(1, Number(args.p_server) || 1)
-        if (!['coup', 'meteor'].includes(item)) return R({ ok: false, error: 'item' })
+        if (!Object.keys(SPECIAL_OPS).includes(item)) return R({ ok: false, error: 'item' })
         if (!country) return R({ ok: false, error: 'country' })
-        const costs: Record<string, number> = { coup: 100, meteor: 80 }
-        const cooldownMs: Record<string, number> = { coup: 24 * 3600_000, meteor: 6 * 3600_000 }
-        const cost = costs[item]
+        const cost = SPECIAL_OPS[item].cost
+        const cooldownMs = SPECIAL_OPS[item].cd
         /* V33.1: validate the TARGET before any charge — gems were burning on no-op strikes */
         const terr = await db.territory.findUnique({ where: { server_country: { server, country } } })
         if (!terr) return R({ ok: false, error: 'country' })
@@ -995,15 +1010,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const w = await ensureWallet(user.id)
         if (w.gems < cost) return R({ ok: false, error: 'funds' })
         const last = await db.specialUse.findFirst({ where: { userId: user.id, item }, orderBy: { usedAt: 'desc' } })
-        if (last && Date.now() - last.usedAt.getTime() < cooldownMs[item]) {
-          return R({ ok: false, error: 'cooldown', next_ok: new Date(last.usedAt.getTime() + cooldownMs[item]).toISOString() })
+        if (last && Date.now() - last.usedAt.getTime() < cooldownMs) {
+          return R({ ok: false, error: 'cooldown', next_ok: new Date(last.usedAt.getTime() + cooldownMs).toISOString() })
         }
-        if (item === 'meteor') {
-          /* V50: rolling-week global cap — 30 strikes (قبلاً ۳ بود و آیتم عملاً قفل می‌شد) */
+        /* V54: rolling-week global cap per op (سقف هفتگی هر عملیات روی کل سرور) */
+        {
+          const weekly = SPECIAL_OPS[item].weekly
           const since = new Date(Date.now() - 7 * 24 * 3600_000)
-          const used = await db.specialUse.count({ where: { item: 'meteor', usedAt: { gte: since } } })
-          if (used >= 30) {
-            const oldest = await db.specialUse.findFirst({ where: { item: 'meteor', usedAt: { gte: since } }, orderBy: { usedAt: 'asc' } })
+          const used = await db.specialUse.count({ where: { item, usedAt: { gte: since } } })
+          if (used >= weekly) {
+            const oldest = await db.specialUse.findFirst({ where: { item, usedAt: { gte: since } }, orderBy: { usedAt: 'asc' } })
             return R({ ok: false, error: 'weekly_cap', next_ok: oldest ? new Date(oldest.usedAt.getTime() + 7 * 24 * 3600_000).toISOString() : null })
           }
         }
@@ -1019,30 +1035,28 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         await addNews(server, item, country, user.nick, terr.nick ? terr.nick : null)
         /* V34: special strikes also feed the war-heatmap */
         try { await db.battleLog.create({ data: { server, kind: item, country, attacker: user.nick, defender: terr.nick || null, win: true } }) } catch (e) { console.log('blog', e) }
-        return R({ ok: true, gems: nw.gems, owner_nick: terr.nick ? terr.nick : null, next_ok: new Date(Date.now() + cooldownMs[item]).toISOString() })
+        return R({ ok: true, gems: nw.gems, owner_nick: terr.nick ? terr.nick : null, next_ok: new Date(Date.now() + cooldownMs).toISOString() })
       }
 
-      /* ---------------- V50 special ops live status (برای نمایش واقعی کول‌داون/سهمیه روی کارت) ---------------- */
+      /* ---------------- V54 special ops live status (کول‌داون/سقف واقعی برای هر ۴ عملیات) ---------------- */
       case 'special_status': {
         const server = Math.max(1, Number(args.p_server) || 1)
         void server
-        const cds: Record<string, number> = { coup: 24 * 3600_000, meteor: 6 * 3600_000 }
-        const lastCoup = await db.specialUse.findFirst({ where: { userId: user.id, item: 'coup' }, orderBy: { usedAt: 'desc' } })
-        const lastMet = await db.specialUse.findFirst({ where: { userId: user.id, item: 'meteor' }, orderBy: { usedAt: 'desc' } })
         const since = new Date(Date.now() - 7 * 24 * 3600_000)
-        const usedMet = await db.specialUse.count({ where: { item: 'meteor', usedAt: { gte: since } } })
-        let metReset: string | null = null
-        if (usedMet >= 30) {
-          const oldest = await db.specialUse.findFirst({ where: { item: 'meteor', usedAt: { gte: since } }, orderBy: { usedAt: 'asc' } })
-          metReset = oldest ? new Date(oldest.usedAt.getTime() + 7 * 24 * 3600_000).toISOString() : null
+        const out: Record<string, unknown> = { ok: true }
+        for (const [kind, cfg] of Object.entries(SPECIAL_OPS)) {
+          const last = await db.specialUse.findFirst({ where: { userId: user.id, item: kind }, orderBy: { usedAt: 'desc' } })
+          const usedWeek = await db.specialUse.count({ where: { item: kind, usedAt: { gte: since } } })
+          let reset: string | null = null
+          if (usedWeek >= cfg.weekly) {
+            const oldest = await db.specialUse.findFirst({ where: { item: kind, usedAt: { gte: since } }, orderBy: { usedAt: 'asc' } })
+            reset = oldest ? new Date(oldest.usedAt.getTime() + 7 * 24 * 3600_000).toISOString() : null
+          }
+          out[kind + '_next'] = last ? new Date(last.usedAt.getTime() + cfg.cd).toISOString() : null
+          out[kind + '_left'] = Math.max(0, cfg.weekly - usedWeek)
+          out[kind + '_reset'] = reset
         }
-        return R({
-          ok: true,
-          coup_next: lastCoup ? new Date(lastCoup.usedAt.getTime() + cds.coup).toISOString() : null,
-          meteor_next: lastMet ? new Date(lastMet.usedAt.getTime() + cds.meteor).toISOString() : null,
-          meteor_left: Math.max(0, 30 - usedMet),
-          meteor_reset: metReset,
-        })
+        return R(out)
       }
 
       /* ---------------- V30 season reset (admin only) ----------------
@@ -1189,6 +1203,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       case 'olympic_status': {
         const server = Math.max(1, Number(args.p_server || 1))
         try { await ensureGamesClosed() } catch (e) { console.log('olstatus', e) }
+        /* V54 FIX: وضعیت شیفت ادمین را از DB تازه کن (کش ۱۵s) — بدون این، روی نمونه‌های serverless
+           فاز بعد از شروع/پایان فوری ممکن بود تا همیشه کهنه بماند و دکمه‌های ادمین بی‌اثر به نظر برسند */
+        try { await olyShiftRefresh() } catch (e) { console.log('olstatus-shift', e) }
         const latest = await refreshChampCountry(server, await latestChampion(server))
         const g = gamesPhase()
         const evs = await eventSwitches()
