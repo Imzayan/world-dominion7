@@ -976,3 +976,21 @@ Work Log:
 Stage Summary:
 - V58b (5f467cc) روی پروداکشن زنده است؛ باگ «طراحی افتاده بیرون» برطرف شد
 - درس ماندگار در worklog: تست‌های موبایل باید cores>=6 + dsf=3 تزریق کنند و چک پیکسلی داشته باشند
+
+---
+Task ID: V59-architecture-wave1
+Agent: Super Z (main)
+Task: بازسازی معماری طبق دستور ۳۱ بندی کاربر — موج اول (Audit + Patch Cleanup)
+
+Work Log:
+- Audit کامل: ۵۹ بلوک نسخه‌دار (v7 تا v58)، ۱۰۲ setInterval، ۲ تعریف attackTarget + ۹ wrapper، ۴ تعریف baseStyle، زنجیره ۳لایه openModal، کد مرده (v1+resolveBattle=87 خط)
+- attackTarget واحد شد: حذف ۹ wrapper (V13 مرز/تنش، V22 سینما، V28 مالکیت+sync، pvp route، wd5 دکترین، wd6/wd7 XP، V30 سینما/مهر، V33 آتش‌بس+interval ۲ثانیه‌ای) → یک تابع با رجیستری fail-safe با ۶ هوک؛ صفر بازنویسی باقی ماند
+- برابری رفتاری حفظ شد: قفل V52 فقط بعد از اعتبارسنجی، گارد پایتخت اول‌تر از مرز (پارتی قدیمی زنجیره)، ضریب فراسرزمینی، ضدحمله V41، بستن خودکار V50
+- baseStyle تک‌منبع در هسته (فرمول خاکستری + hash h*37 برای رنگ دقیق)؛ حذف V48/V56/V58
+- openModal تک‌منبع + wdModalHook (market/tax/army)؛ openModalSafe delegate خالص
+- تست: attack-smoke 10/10 (نبرد کامل با هوک‌ها روی لایو!)، apk-sim 28/28، map-visual 20/20، 80 بلوک 0 خطا — همه روی پروداکشن هم اجرا شد
+- deploy: 5f467cc..2e79f9e → Vercel live md5 b1776c46 == commit
+
+Stage Summary:
+- V59 wave-1 روی پروداکشن: -۹۱ خط خالص (زنجیره‌ها حذف)، معماری هوک واحد
+- باقی‌مانده برای موج ۲: تایمرهای hidden (۱۰۲ مورد)، ادغام بقیه توابع تکراری (addXP/drawHatch/render/...)، BACK گوشی برای بستن Modal (نیاز به MainActivity+APK)، server-authoritative فتح تک‌نفره، MAX_COUNTRIES مرکزی، فیکس News جعلی، Audit امنیت API
