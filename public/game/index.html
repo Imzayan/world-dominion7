@@ -2329,9 +2329,10 @@ buildFlags=function(){const ks=Object.keys(layersByName).filter(n=>N2C[n.toLower
 const OL={};
 const plNick=()=>(typeof ACC!=='undefined'&&ACC.nick)||'شما';
 function plHue(){let h=11;for(const c of plNick())h=(h*37+c.charCodeAt(0))%360;return h}
+/* V57: اسم من فقط روی کشور اصلی (پایتخت) — نه روی هر کشوری که گرفته می‌شود */
 function ownLabel(n,st){const g=getG(n),has=OL[n];
-  if(st==='neutral'||!g){if(has){has.remove();delete OL[n]}return}
-  const t=(st==='capital'?'⭐ ':'')+plNick();
+  if(st!=='capital'||!g){if(has){has.remove();delete OL[n]}return}
+  const t='⭐ '+plNick();
   if(has){has.getElement().firstChild.textContent=t;return}
   const d=document.createElement('div');d.className='own';d.textContent=t;
   OL[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:500,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
@@ -2631,8 +2632,11 @@ async function fetchTerr(){const r=await sb.from('territories').select('country,
   const oth={},mine=new Set();(r.data||[]).forEach(x=>{if(x.user_id===ACC.uid)mine.add(x.country);else oth[x.country]={nick:x.nick,cap:x.is_capital}});return{oth,mine}}
 /* labels + colors for other players' countries */
 const OL2={};
-function otherLabel(n,o){const g=getG(n);if(!g)return;const t=(o.cap?'⭐ ':'')+o.nick;
-  if(OL2[n]){OL2[n].getElement().firstChild.textContent=t;return}
+/* V57: اسم بازیکن دیگر هم فقط روی پایتختش — نه روی هر کشوری که گرفته */
+function otherLabel(n,o){const g=getG(n),has=OL2[n];
+  if(!g||!o||!o.cap){if(has){has.remove();delete OL2[n]}return}
+  const t='⭐ '+o.nick;
+  if(has){has.getElement().firstChild.textContent=t;return}
   const d=document.createElement('div');d.className='own oth';d.textContent=t;d.style.borderColor=`hsl(${nickHue(o.nick)},80%,65%)`;
   OL2[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:480,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
 function paintOther(n){const l=layersByName[n],o=OTH[n];if(!l||!o)return;
@@ -5882,35 +5886,14 @@ function sigOf(nick){
 }
 var OUT={};
 function ringPolys(l){try{var ll=l.getLatLngs();return Array.isArray(ll[0][0])?ll:[ll]}catch(e){return[]}}
+/* V57: دور دولایه (هاله + خط‌چین) از روی کشورهای مالک‌دار حذف شد — همان «دو خطی» که روی کشورها
+   افتاده بود و چشم را خسته می‌کرد. مالکیت با رنگ خود کشور و نشان ⭐ پایتخت کاملاً مشخص است.
+   تابع‌ها عمداً no-op نگه داشته شدند تا همه‌ی فراخوانی‌های قبلی بی‌خطر بمانند و خط‌های قبلی هم پاک شوند. */
 function drawOwnerOutline(n){
-  var o=null;try{if(typeof OTH!=='undefined')o=OTH[n]}catch(e){}
-  var l=null;try{if(typeof layersByName!=='undefined')l=layersByName[n]}catch(e){}
-  var mp=null;try{if(typeof map!=='undefined')mp=map}catch(e){}
-  if(!o||!l||!mp)return;
-  clearOutline(n);
-  var s=sigOf(o.nick),arr=[],polys=ringPolys(l);
-  var renderer=null;try{renderer=l._renderer||undefined}catch(e){}
-  for(var i=0;i<polys.length;i++){
-    arr.push(L.polygon(polys[i],{renderer:renderer,interactive:false,keyboard:false,color:s.glow,weight:7,opacity:.95,fill:false,className:'wd-own-glow'}));
-    arr.push(L.polygon(polys[i],{renderer:renderer,interactive:false,keyboard:false,color:s.color,weight:2.6,opacity:1,fill:false,dashArray:s.dash,className:'wd-own-dash'}));
-  }
-  arr.forEach(function(x){try{x.addTo(mp)}catch(e){}});
-  OUT[n]=arr;
+  try{clearOutline(n)}catch(e){}
 }
 function drawMyOutline(n){
-  var l=null;try{if(typeof layersByName!=='undefined')l=layersByName[n]}catch(e){}
-  var mp=null;try{if(typeof map!=='undefined')mp=map}catch(e){}
-  if(!l||!mp)return;
-  var key='__me__'+n;
-  clearOutline(key);
-  var arr=[],polys=ringPolys(l);
-  var renderer=null;try{renderer=l._renderer||undefined}catch(e){}
-  for(var i=0;i<polys.length;i++){
-    arr.push(L.polygon(polys[i],{renderer:renderer,interactive:false,keyboard:false,color:'rgba(255,204,0,.4)',weight:6,opacity:.9,fill:false,className:'wd-own-glow'}));
-    arr.push(L.polygon(polys[i],{renderer:renderer,interactive:false,keyboard:false,color:'#ffd45a',weight:2.4,opacity:1,fill:false,dashArray:'10 5',className:'wd-own-dash'}));
-  }
-  arr.forEach(function(x){try{x.addTo(mp)}catch(e){}});
-  OUT[key]=arr;
+  try{clearOutline('__me__'+n)}catch(e){}
 }
 function clearOutline(n){(OUT[n]||[]).forEach(function(x){try{x.remove()}catch(e){}});delete OUT[n]}
 try{
@@ -9591,16 +9574,29 @@ window.WD_OL_CHAMP=null;
 try{window.WD_OL_CHAMP=JSON.parse(localStorage.getItem('wd32champ_'+srvN())||'null')}catch(e){}
 window.WD32_isChamp=function(nick){try{const c=window.WD_OL_CHAMP;return !!(c&&c.nick&&nick&&c.nick===nick)}catch(e){return false}};
 
-/* ---------- golden crown marker on the champion's capital (visible to everyone on the map) ---------- */
+/* ---------- V57: قهرمان المپیک دیگر روی نقشه نیست (بزرگ و وسط چشم بود) —
+   جایش یک نشان کوچک در «بالای بالای صفحه» (داخل نوار بالا، جای برند) است؛
+   لمسش صفحه‌ی کامل المپیک را باز می‌کند. همه‌ی فراخوانی‌های قبلی placeCrown سالم می‌مانند. ---------- */
 let crownMk=null;
+function updChampPill(){try{
+  const c=window.WD_OL_CHAMP,bar=D.querySelector('.top-bar');
+  if(!bar)return;
+  let p=D.getElementById('wd57-champ');
+  if(!c||!c.nick){if(p)p.classList.remove('on');bar.classList.remove('has-champ');return}
+  if(!p){
+    p=D.createElement('button');p.id='wd57-champ';p.type='button';
+    p.innerHTML='<span class="wd57-c">👑</span><span class="wd57-l">قهرمان المپیک</span><b></b>';
+    p.addEventListener('click',function(){try{window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}});
+    const rg=bar.querySelector('.resource-group');
+    if(rg)bar.insertBefore(p,rg);else bar.appendChild(p)}
+  p.querySelector('b').textContent=c.nick;
+  p.classList.add('on');bar.classList.add('has-champ');
+}catch(e){}}
+window.WD57_CHAMP_PILL=updChampPill;
 function placeCrown(){try{
-  const c=window.WD_OL_CHAMP;
+  /* V57: تاج روی نقشه حذف شد — فقط پاک‌سازی نشان قبلی + تازه‌سازی نشان بالای صفحه */
   if(crownMk){try{crownMk.remove()}catch(e){}crownMk=null}
-  if(!c||!c.country||!c.nick)return;
-  if(typeof getG!=='function'||typeof map==='undefined'||!map||typeof L==='undefined')return;
-  const g=getG(c.country);if(!g||!g.c)return;
-  crownMk=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:1150,
-    icon:L.divIcon({className:'wd32-crown-wrap',iconSize:[0,0],html:'<div class="wd32-crown">👑<small>قهرمان المپیک — '+esc32(c.nick)+'</small></div>'})}).addTo(map);
+  updChampPill();
 }catch(e){}}
 function esc32(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 window.WD32_PLACE_CROWN=placeCrown;
@@ -10353,7 +10349,11 @@ function checkCeremonies(d){
     }
     if(g.phase==='live'&&!localStorage.getItem('wd33open_'+g.edition)&&typeof window.WD33_OPEN_CEREMONY==='function'){
       localStorage.setItem('wd33open_'+g.edition,'1');setTimeout(()=>{try{window.WD33_OPEN_CEREMONY()}catch(e){}},1200)}
-    if(g.phase==='after'&&Date.now()-(Date.parse(d.close_at||0)||0)<864e5&&
+    /* V57 FIX: گارد زمانی قبلی خراب بود — چون «اختلاف منفی» هم از شرط می‌گذشت، وقتی close_at در
+       آینده بود پرچم wd33close_ پیش از پخش مراسم سوزانده می‌شد و دیگر هیچ‌وقت اختتامیه پخش نمی‌شد.
+       حالا فقط وقتی مراسم پخش می‌شود که close_at واقعاً گذشته باشد (تا ۲۴ ساعت بعد). */
+    const cl57=Date.parse(d.close_at||0)||0;
+    if(g.phase==='after'&&cl57>0&&Date.now()>=cl57-60000&&Date.now()-cl57<864e5&&
        !localStorage.getItem('wd33close_'+g.edition)&&typeof window.WD33_CLOSE_CEREMONY==='function'){
       const rec=(d.archive||[]).find(a=>a.edition===g.edition);
       /* V40: پرچم حتی بدون قهرمان هم ست می‌شود — قبلاً دوره‌های بدون مدال برای همیشه «بسته‌نشده» می‌ماندند */
@@ -11443,20 +11443,10 @@ GAMES.wrestle=(el,done)=>{
     else tm33(()=>{showToast2(got?'💪 بردی! +'+faN(got):'😮 باختی — دیدار بعدی','win');show()},700)};
   show();
 };
-/* ---------- golden champion flag on the map (24h after closing) ---------- */
+/* ---------- V57: پرچم طلایی قهرمان هم از نقشه حذف شد — نشان کوچک بالای صفحه جای آن را می‌گیرد ---------- */
 let gfMk=null;
 function placeGoldenFlag(){try{
-  const g=(typeof window.WD33_PHASE==='function')?window.WD33_PHASE():null;
   if(gfMk){try{gfMk.remove()}catch(e){}gfMk=null}
-  if(!g||g.phase!=='after')return;
-  if(Date.now()-g.closeAt>864e5)return;
-  const c=window.WD_OL_CHAMP;if(!c||!c.country||!c.nick)return;
-  if(typeof getG!=='function'||typeof map==='undefined'||!map||typeof L==='undefined')return;
-  let cc=null;try{if(typeof FL!=='undefined'&&FL[c.country]&&FL[c.country].code)cc=FL[c.country].code}catch(e){}
-  if(!cc)return;
-  const gt=getG(c.country);if(!gt||!gt.c)return;
-  gfMk=L.marker(gt.c,{interactive:false,keyboard:false,zIndexOffset:1140,
-    icon:L.divIcon({className:'wd33-gflag-wrap',iconSize:[0,0],html:'<div class="wd33-gflag"><img src="/cdn/flags/w80/'+cc+'.png" alt=""><small>🏆 قهرمان جهان — '+esc(c.nick)+'</small></div>'})}).addTo(map);
 }catch(e){}}
 setTimeout(placeGoldenFlag,16000);setInterval(()=>{if(!document.hidden)placeGoldenFlag()},120000);
 window.WD33_GFLAG=placeGoldenFlag; /* test/manual hook */
@@ -15226,6 +15216,9 @@ function ensureAdminBox(){
             showToast(mode==='reset'?'↩️ برنامه‌ی عادی برگشت':'✅ انجام شد — فاز جدید: '+(PH[x.phase]||x.phase),'win');
             /* V55: فاز جدید فوراً authoritative می‌شود — اختتامیه بی‌درنگ برای خود ادمین هم تمام است */
             try{if(typeof window.WD55_SETPHASE==='function')window.WD55_SETPHASE({edition:x.edition,phase:x.phase})}catch(e){}
+            /* V57: اختتامیه = رویداد فوری و پیداست — مراسم همان لحظه پخش می‌شود، تاج/پرچم نقشه پاک و
+               همه‌ی آثار المپیک بسته می‌شوند؛ دیگر هیچ‌وقت «زدیم ولی هیچ اتفاقی نیفتاد» نیست */
+            try{if(mode==='close'&&x.close&&typeof window.WD33_END_NOW==='function')window.WD33_END_NOW(x.close)}catch(e){}
             try{if(typeof wgRefresh==='function')wgRefresh(true)}catch(e){}
             try{if(typeof window.WD33_POLL==='function')window.WD33_POLL()}catch(e){}
           }
@@ -15242,7 +15235,10 @@ function ensureAdminBox(){
           if(el&&g&&g.phase){el.textContent='وضعیت فعلی: '+(PH[g.phase]||g.phase)+' • دوره‌ی '+faN(g.edition||0);
             var bo=D.getElementById('wd53-olyopen'),bc=D.getElementById('wd53-olyclose');
             if(bo)bo.disabled=(g.phase==='live'||g.phase==='after');
-            if(bc)bc.disabled=(g.phase!=='live');}
+            /* V57: در فاز after هم دکمه‌ی اختتامیه فعال می‌ماند — با فشردنش مراسم با داده‌ی واقعی
+               سرور دوباره پخش می‌شود (بدون تغییر وضعیت) تا «پایان المپیک» همیشه دیدنی باشد */
+            if(bc){bc.disabled=(g.phase!=='live'&&g.phase!=='after');
+              bc.textContent=(g.phase==='after')?'🏁 پخش مراسم اختتامیه (دوره بسته است)':'🏁 پایان فوری دوره (اختتامیه + قهرمانی)'}}
         }catch(e){}
       })}catch(e){}
     };
@@ -15587,6 +15583,46 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
     var armT=setInterval(function(){try{if(armMenu())clearInterval(armT)}catch(e){}},800);
     setTimeout(function(){clearInterval(armT)},25000);
   }catch(e){}
+})();
+   </script>
+   <style id="v57-css">
+/* ===== V57: نشان کوچک قهرمان المپیک در بالای بالای صفحه (جای تاج بزرگ وسط نقشه) ===== */
+#wd57-champ{display:none;align-items:center;gap:5px;max-width:52vw;margin-inline-start:8px;padding:3px 10px;border-radius:99px;
+  background:linear-gradient(135deg,rgba(58,42,4,.94),rgba(24,16,2,.94));border:1px solid rgba(255,204,0,.55);
+  color:#ffe08a;font-size:10px;font-weight:900;font-family:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;
+  box-shadow:0 2px 10px rgba(0,0,0,.4)}
+#wd57-champ.on{display:inline-flex}
+#wd57-champ b{color:#fff;font-weight:900;max-width:20vw;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#wd57-champ .wd57-c{flex:none;font-size:11px}
+#wd57-champ .wd57-l{color:#ffd75e;flex:none}
+/* روی صفحه‌های باریک، نشان جای برند را می‌گیرد تا نوار بالا شلوغ نشود */
+@media(max-width:760px){.top-bar.has-champ .brand{display:none}}
+/* مراسم اختتامیه‌ی فوری ادمین: مطمئن می‌شویم روی همه‌چیز دیده می‌شود */
+#wd33-cer{z-index:180000}
+   </style>
+   <script id="v57-js">
+/* ============ V57: پایان فوری و پیدای المپیک — مراسم همان لحظه، نقشه تمیز ============
+   قبلاً ادمین اختتامیه را می‌زد ولی هیچ رویداد پیدایی نمی‌دید: مراسم فقط از چرخه‌ی poll
+   (و آن هم یک‌بار در هر دوره) پخش می‌شد، تاج بزرگ قهرمان و پرچم طلایی روی نقشه باقی می‌ماندند
+   و نوار زنده هم روشن بود — نتیجه از دید کاربر: «المپیک تمام نمی‌شود».
+   حالا: END_NOW با داده‌ی واقعی سرور بلافاصله مراسم را پخش می‌کند و همه‌ی آثار نقشه را پاک می‌کند. */
+(function(){
+  'use strict';
+  window.WD33_END_NOW=function(close){try{
+    var ed=(close&&close.edition)||(window.WD33_PHASE&&window.WD33_PHASE().edition);
+    if(ed){try{localStorage.setItem('wd33close_'+ed,'1')}catch(e){}}
+    /* نقشه تمیز: تاج و پرچم طلایی قهرمان حذف، نشان کوچک بالای صفحه تازه */
+    try{window.WD32_PLACE_CROWN&&window.WD32_PLACE_CROWN()}catch(e){}
+    try{window.WD33_GFLAG&&window.WD33_GFLAG()}catch(e){}
+    /* نوار زنده‌ی المپیک بسته شود */
+    try{var s=document.getElementById('wd33-strip');if(s)s.classList.remove('on')}catch(e){}
+    /* مراسم اختتامیه بلافاصله — با آرشیو واقعی همین دوره از پاسخ سرور */
+    if(close&&typeof window.WD33_CLOSE_CEREMONY==='function'){
+      var arch={edition:close.edition,champion_nick:close.champ_nick||null,champion_country:close.champ_country||null,
+        host_city:close.host_city||'',host_country:close.host_country||'',host_cc:close.host_cc||'',table:close.table||[]};
+      setTimeout(function(){try{window.WD33_CLOSE_CEREMONY({archive:[arch]})}catch(e){}},350)}
+    try{showToast('🏁 المپیک این دوره پایان یافت'+(close&&close.champ_nick?' — قهرمان: '+close.champ_nick:''),'win')}catch(e){}
+  }catch(e){}};
 })();
    </script>
 </body>

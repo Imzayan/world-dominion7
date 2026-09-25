@@ -1455,16 +1455,37 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           await setSetting('oly_shift', { edition: g0.edition, openAt: olNow(), closeAt: null })
           olyShiftMem = { edition: g0.edition, openAt: olNow() }; olyShiftAt = Date.now()
         } else if (mode === 'close') {
-          if (g0.phase !== 'live') return R({ ok: false, reason: 'phase' })
-          /* پایان فوری باید بلافاصله اثر کند — اگر شروع چند ثانیه قبل بوده، بازه‌ی live به حداقل ۶۰ ثانیه فشرده می‌شود */
-          const cAt = olNow()
-          const oAt = Math.min((typeof olyShiftMem.openAt === 'number' && olyShiftMem.openAt > 0) ? olyShiftMem.openAt : cAt - 86400000, cAt - 60000)
-          await setSetting('oly_shift', { edition: g0.edition, openAt: oAt, closeAt: cAt })
-          olyShiftMem = { edition: g0.edition, openAt: oAt, closeAt: cAt }; olyShiftAt = Date.now()
+          /* V57: در فاز after هم بسته است (idempotent) — ادمین می‌تواند مراسم را دوباره ببیند؛
+             فقط از pre/reg رد می‌شود. پایان فوری باید بلافاصله اثر کند — اگر شروع چند ثانیه قبل بوده،
+             بازه‌ی live به حداقل ۶۰ ثانیه فشرده می‌شود */
+          if (g0.phase !== 'live' && g0.phase !== 'after') return R({ ok: false, reason: 'phase' })
+          if (g0.phase === 'live') {
+            const cAt = olNow()
+            const oAt = Math.min((typeof olyShiftMem.openAt === 'number' && olyShiftMem.openAt > 0) ? olyShiftMem.openAt : cAt - 86400000, cAt - 60000)
+            await setSetting('oly_shift', { edition: g0.edition, openAt: oAt, closeAt: cAt })
+            olyShiftMem = { edition: g0.edition, openAt: oAt, closeAt: cAt }; olyShiftAt = Date.now()
+          }
         } else return R({ ok: false, reason: 'mode' })
         try { await ensureGamesClosed() } catch (e) { console.log('olyshiftclose', e) }
         const g = gamesPhase()
-        return R({ ok: true, phase: g.phase, edition: g.edition })
+        /* V57: داده‌ی اختتامیه در همان پاسخ — کلاینت ادمین مراسم را «همان لحظه» با قهرمان واقعی
+           این دوره پخش می‌کند (حتی وقتی دوره قبلاً بسته شده و دکمه فقط پخش‌دوباره است) */
+        let close: {
+          edition: number; champ_nick: string | null; champ_country: string | null;
+          host_city: string; host_country: string; host_cc: string;
+          table: { country: string; countryFa: string; g: number; s: number; b: number; total: number }[]
+        } | null = null
+        if (mode === 'close') {
+          try {
+            const arch = await db.olympicArchive.findUnique({ where: { edition: g.edition } })
+            if (arch) close = {
+              edition: arch.edition, champ_nick: arch.championNick, champ_country: arch.championCountry,
+              host_city: arch.hostCity, host_country: arch.hostCountry, host_cc: arch.hostCc,
+              table: JSON.parse(arch.tableJson || '[]').slice(0, 3),
+            }
+          } catch (e) { console.log('olyshiftarch', e) }
+        }
+        return R({ ok: true, phase: g.phase, edition: g.edition, close })
       }
 
       /* ============ V53 — مزایده‌ی میزبانی المپیک با جم (هر دوره جدا) ============
