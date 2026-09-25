@@ -938,3 +938,24 @@ Work Log:
 
 Stage Summary:
 - V57 همچنان روی پروداکشن فعال و سالم است؛ هیچ تغییر کدی در این دور لازم نبود؛ توکن برای پوش‌های بعدی ذخیره نشد (یک‌بارمصرف)
+
+---
+Task ID: V58b-map-critical-fix
+Agent: Super Z (main)
+Task: رفع فاجعه‌ی بصری نقشه پس از استقرار V58 («طراحی افتاده بیرون / داغونش کردی»)
+
+Work Log:
+- سندباکس به چک‌پوینت قدیم برگشته بود → git reset --hard origin/main (53623fa = V58)؛ md5 محلی == لایو (39630a9b) تأیید شد
+- ریشه‌یابی: V58 رندر Canvas را override کرده بود (گارد dpr>2.05 && cores>=6) و transform را setTransform(m,0,0,m,0,0) ست می‌کرد — در حالی که Leaflet استوک translate(-bounds.min) دارد (کانواس روی bounds.min موقعیت‌دهی می‌شود) → روی هر گوشی DPR>2 (تقریباً همه‌ی گوشی‌های مدرن) تمام جغرافیا جابه‌جا رسم می‌شد
+- چرا تست قبلی 28/28 پاس شده بود؟ headless Chromium cores=2 گزارش می‌کند → گارد باگ هرگز فعال نمی‌شد؛ probe نشان داد cores=2 در هدلس، پس cores=8 را با addInitScript تزریق کردم
+- اثبات: لاگ transform هر _draw → سطرهای a=3,e=0,f=0 (بدون translate) در کنار سطرهای صحیح a=2؛ چون _redraw افزایشی فقط _redrawBounds را پاک می‌کند، «کشورهای شبح» روی نقشه انباشته می‌شوند — اسکرین‌شات لایو: توده‌ی خاکستری غول‌پیکر در اقیانوس هند جنوبی + fragment شناور
+- فیکس: حذف کامل بلاک Hi-DPI از v58-js؛ رندر استوک retina-2x برگشت؛ خاکستری بی‌مالک‌ها (sat 0) + smoothFactor .55 + حذف خط جبهه/شعله + رنکینگ زنده + المپیک واقعی همه حفظ شدند
+- اعتبارسنجی بصری: اسکرین‌شات fixed در همان state = نقشه تمیز (اروپا/آفریقا سالم، اقیانوس پاک)؛ probe-ghosts: تفاوت قطعی لایو/فیکس
+- تست‌ها: map-visual-v58b 20/20 (dsf 3/2/1، anchor-pixel، coverage 32٪، بدون __wd58، بدون pageerror)؛ apk-sim-v58 (دو assert معکوس شد: hack REMOVED) 28/28؛ check-html-js 80 بلوک 0 خطا
+- کامیت 5f467cc روی 53623fa؛ push نیازمند PAT جدید (credential در ریست سندباکس پاک شده) — نسخه با تاخیر به پروداکشن می‌رود
+- versionCode در latest.json دست نخورد (8)؛ APK نیازی به rebuild ندارد (must-revalidate خودش HTML جدید را می‌کشد)
+
+Stage Summary:
+- ریشه: از دست رفتن translate(-bounds.min) در transform کانواس = همه‌چیز جابه‌جا؛ فیکس = حذف override (بازگشت به رندر استوک)
+- درس ماندگار: هر تست موبایل باید hardwareConcurrency>=6 و deviceScaleFactor=3 را تزریق کند + چک پیکسلی (anchor/coverage) نه فقط بررسی نصب بودن patch
+- pending: push با token کاربر → سپس اجرای map-visual-v58b و apk-sim-v58 روی لایو به‌عنوان شاهد نهایی
