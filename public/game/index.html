@@ -219,9 +219,9 @@
 #waves::after{background:repeating-linear-gradient(100deg,transparent 0 34px,rgba(255,255,255,.06) 35px 37px,transparent 38px 80px);animation:drift 28s linear infinite reverse}
 @keyframes drift{to{transform:translate(70px,35px)}}
 .flag-wrap{background:none;border:0}
-.flag{position:absolute;left:0;top:0;transform:translate(-50%,-50%);border-radius:1px;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.55);opacity:.92;pointer-events:none;transition:width .25s,height .25s}
+.flag{position:absolute;left:0;top:0;transform:translate(-50%,-50%);border-radius:1px;object-fit:cover;box-shadow:0 1px 3px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.35);opacity:.95;pointer-events:none;transition:width .25s,height .25s}
 .flag.big{animation:wave 3.4s ease-in-out infinite}
-.flag.cap{box-shadow:0 0 10px #00ff88,0 0 0 1.5px #00ff88}
+.flag.cap{box-shadow:0 0 0 1.5px rgba(0,255,136,.8)}
 @keyframes wave{0%,100%{transform:translate(-50%,-50%) skewY(1.5deg)}50%{transform:translate(-50%,-50%) skewY(-1.5deg)}}
 .dflag{width:24px;height:16px;border-radius:2px;vertical-align:middle;box-shadow:0 0 0 1px #fff6}
 .rt{animation:none}
@@ -1313,6 +1313,8 @@ function onCountryClick(feature, layer) {
   activeLayer = layer;
   if (prevActive && prevActive !== activeEngName) applyCountryColor(prevActive);
   applyCountryColor(activeEngName);
+  /* V61: اولین انتخاب کل نقشه را dim می‌کند (dim همیشه روشن می‌ماند؛ دفعات بعد فقط prev/next بازرنگ می‌خورند) */
+  if(!window.__wdDimOn){window.__wdDimOn=true;try{Object.keys(layersByName).forEach(n=>{if(n!==activeEngName)applyCountryColor(n)})}catch(e){}}
 
   const defShown = (occ > 0 && occ < 100) ? Math.round(c.def * (1 - occ / 100)) : c.def;
 
@@ -1621,7 +1623,7 @@ const hueOf=n=>{let h=7;for(const c of n)h=(h*31+c.charCodeAt(0))%360;return h};
    بازتعریف‌های V48/V56/V58 حذف شدند. hash همان h*37 برای حفظ دقیق رنگ هر کشور */
 function baseStyle(n){let h=11;const s=String(n||'');
   for(let i=0;i<s.length;i++)h=(h*37+s.charCodeAt(i))%360;
-  return{color:'rgba(10,14,20,.6)',weight:.7,smoothFactor:.55,
+  return{color:'rgba(10,14,20,.65)',weight:1,smoothFactor:.55,
     fillColor:'hsl(0,0%,'+(42+((h*7919)%6))+'%)',fillOpacity:.92}}
 
 // ISO codes for flags (Intl names + aliases for geojson spellings)
@@ -1648,9 +1650,10 @@ function buildFlags(){
 function sizeFlags(){ // big countries -> bigger flags, tiny ones -> smaller / hidden until zoomed in
   if(!map)return;Object.values(FL).forEach(f=>{const el=f.el;if(!el||!el.isConnected)return;
     const a=map.latLngToContainerPoint([f.g.s,f.g.w]),b=map.latLngToContainerPoint([f.g.n,f.g.e]);
-    const s=Math.min(Math.abs(b.x-a.x)*.3,Math.abs(b.y-a.y)*.55,38);
+    /* V61: پرچم = اطلاعات ثانویه — سقف ۲۶px (قبلاً ۳۸) و آستانه‌ی big پایین‌تر */
+    const s=Math.min(Math.abs(b.x-a.x)*.22,Math.abs(b.y-a.y)*.42,26);
     if(s<10){el.style.display='none';return}
-    el.style.display='';el.style.width=s+'px';el.style.height=s*.66+'px';el.classList.toggle('big',s>=28)})}
+    el.style.display='';el.style.width=s+'px';el.style.height=s*.66+'px';el.classList.toggle('big',s>=22)})}
 function setFlag(n){const f=FL[n];if(!f||!f.el||!f.el.isConnected)return;const own=FL[myCountryName],s=statusOf(n);
   const u=flagUrl(s!=='neutral'&&own?own.code:f.code);if(f.el.getAttribute('src')!==u){f.el.dataset.fb='';f.el.src=u}f.el.classList.toggle('cap',s!=='neutral')}
 
@@ -1659,15 +1662,19 @@ function setFlag(n){const f=FL[n];if(!f||!f.el||!f.el.isConnected)return;const o
    ۸ wrapper قدیمی (V7 refresh، هوی مالک، paintOther، خط‌چین دست‌نشانده، outline، کازمتیک،
    جوهر wd43، الگوی wd50) به WD_COLOR_HOOKS.after منتقل شدند — ترتیب ثبت = ترتیب بلاک‌ها = ترتیب اجرای قبلی */
 window.WD_COLOR_HOOKS={after:[]};
-function applyCountryColor(n){const l=layersByName[n];if(!l)return;const s=statusOf(n),occ=occupationPct[n]||0;
-  if(s==='capital')l.setStyle({fillColor:'#00d97e',fillOpacity:.75,color:'#fff',weight:2.5});
-  else if(s==='conquered')l.setStyle({fillColor:'#12b5e5',fillOpacity:.72,color:'#fff',weight:2});
-  else if(n===activeEngName)l.setStyle({fillColor:'#ffcc00',fillOpacity:.7,color:'#fff',weight:2.5});
+/* V61: Dim ملایم — بعد از اولین انتخاب، بقیه‌ی کشورها کمی محو می‌شوند تا فقط کشور انتخاب‌شده بدرخشد.
+   تک‌منبع: این کمکی در سه نقاش مصرف می‌شود (پایه، هوک هوی خودی، paintOther). ضریب .82 = «کمی Dim» */
+function wdDimOf(n){const off=(typeof activeEngName!=='undefined')&&activeEngName&&activeEngName!==n;
+  return off?(o=>Math.round(o*.82*100)/100):(o=>o)}
+function applyCountryColor(n){const l=layersByName[n];if(!l)return;const s=statusOf(n),occ=occupationPct[n]||0,dm=wdDimOf(n);
+  if(s==='capital')l.setStyle({fillColor:'#00d97e',fillOpacity:dm(.75),color:'#fff',weight:2.5});
+  else if(s==='conquered')l.setStyle({fillColor:'#12b5e5',fillOpacity:dm(.72),color:'#fff',weight:2});
+  else if(n===activeEngName)l.setStyle({fillColor:'#ffcc00',fillOpacity:.7,color:'#fff',weight:3});
   /* V59w2-fix «رنگش می‌پره»: کشور مال بازیکن دیگر (OTH) قبلاً این‌جا خاکستری می‌شد و گارد V56
      در paintOther جلوی ترمیم را می‌گرفت (بعد از انتخاب/لغو انتخاب/mouseout رنگ مالک می‌پرید).
      حالا پایه خودش رنگ مالک را تک‌منبعی اعمال می‌کند؛ گارد V56 فقط برای sync بدون force می‌ماند */
   else if(OTH[n])paintOther(n,true);
-  else l.setStyle(occ>0?Object.assign(baseStyle(n),{color:'#ffcc00',weight:2}):baseStyle(n));
+  else{const b=baseStyle(n);l.setStyle(occ>0?Object.assign(b,{color:'#ffcc00',weight:2,fillOpacity:dm(b.fillOpacity)}):Object.assign(b,{fillOpacity:dm(b.fillOpacity)}))}
   setFlag(n);
   for(const h of WD_COLOR_HOOKS.after){try{h(n)}catch(e){console.error('wd-color-hook',e)}}}
 function afterGeo(){try{buildFlags()}catch(e){console.log(e)}}
@@ -2250,9 +2257,9 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){if(!myCountryName)return;const n=f.pr
 #waves::before,#waves::after{display:none!important}
 .own-wrap{background:none;border:0}
 .own{position:absolute;left:0;top:0;transform:translate(-50%,13px);white-space:nowrap;font-size:9px;font-weight:900;color:#fff;background:rgba(0,0,0,.68);border:1px solid rgba(255,255,255,.55);border-radius:8px;padding:0 6px;line-height:14px}
-/* V48: اسم مالک حالا در «همه‌ی» زوم‌ها دیده می‌شود — دیگر لازم نیست برای دیدن نام بازیکن زوم کنی.
-   در زوم پایین فقط کمی کوچک‌تر می‌شود */
-.leaflet-container:not(.z3) .own{font-size:8px;line-height:12px;padding:0 4px;opacity:.96}
+/* V61 LOD: زوم پایین = فقط پرچم (نام مخفی)؛ زوم ۳+ = پرچم+نام؛ z5 = +تعداد قلمرو */
+.leaflet-container:not(.z3) .own{display:none}
+.own b{margin-inline-start:4px;font-weight:700;opacity:.85}
    </style>
    <script>
     /* ===== v3: economy rebalance, Gem shop, real calendar, ownership on the map, more infrastructure ===== */
@@ -2295,15 +2302,23 @@ const OL={};
 const plNick=()=>(typeof ACC!=='undefined'&&ACC.nick)||'شما';
 function plHue(){let h=11;for(const c of plNick())h=(h*37+c.charCodeAt(0))%360;return h}
 /* V57: اسم من فقط روی کشور اصلی (پایتخت) — نه روی هر کشوری که گرفته می‌شود */
+/* V61: در زوم بالا (z5) لیبل = نام + تعداد قلمرو امپراتوری (Flag+Name+info)؛ پایین‌تر فقط نام.
+   OTH/OTH-count در اسکریپت بعدی تعریف می‌شوند — این توابع فقط در زمان اجرا فراخوانی می‌شوند */
+function wdOwnLabelHTML(t,cnt){try{if(typeof map!=='undefined'&&map&&map.getZoom&&map.getZoom()>=5&&cnt!=null)return t+' <b>· '+cnt+'</b>'}catch(e){}return t}
+function wdCountOf(nick){let c=0;for(const k in OTH)if(OTH[k]&&OTH[k].nick===nick)c++;return c}
+function wdOwnInfoRefresh(){try{if(typeof map==='undefined'||!map||!map.getZoom)return;
+  Object.keys(OL).forEach(n=>{const e=OL[n]&&OL[n].getElement();if(e&&e.firstChild)e.firstChild.innerHTML=wdOwnLabelHTML('⭐ '+plNick(),wdTerrCount())});
+  Object.keys(OL2).forEach(n=>{const o=OTH[n],e=OL2[n]&&OL2[n].getElement();if(o&&e&&e.firstChild)e.firstChild.innerHTML=wdOwnLabelHTML('⭐ '+o.nick,wdCountOf(o.nick))})}catch(e){}}
 function ownLabel(n,st){const g=getG(n),has=OL[n];
   if(st!=='capital'||!g){if(has){has.remove();delete OL[n]}return}
   const t='⭐ '+plNick();
-  if(has){has.getElement().firstChild.textContent=t;return}
-  const d=document.createElement('div');d.className='own';d.textContent=t;
+  if(has){has.getElement().firstChild.innerHTML=wdOwnLabelHTML(t,wdTerrCount());return}
+  const d=document.createElement('div');d.className='own';d.innerHTML=wdOwnLabelHTML(t,wdTerrCount());
   OL[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:500,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
 /* V59 wave-2: wrapper حذف شد — رنگ امپراتوری خودی (hsl مالک) + لیبل، پس‌هوک applyCountryColor */
-try{WD_COLOR_HOOKS.after.push(function(n){const l=layersByName[n],st=statusOf(n);
-    if(l&&st!=='neutral')l.setStyle({fillColor:`hsl(${plHue()},78%,${st==='capital'?36:46}%)`,fillOpacity:.9,color:st==='capital'?'#ffd84d':'#fff',weight:st==='capital'?3:2});
+try{WD_COLOR_HOOKS.after.push(function(n){const l=layersByName[n],st=statusOf(n),dm=wdDimOf(n);
+    /* V61: اشباع ۷۸→۶۲٪ — واضح ولی نه oversaturated؛ + dim */
+    if(l&&st!=='neutral')l.setStyle({fillColor:`hsl(${plHue()},62%,${st==='capital'?38:47}%)`,fillOpacity:dm(.9),color:st==='capital'?'#ffd84d':'#fff',weight:st==='capital'?3:2});
     ownLabel(n,st)})}catch(e){console.error('wd-h2',e)};
 (function(){
   const ag=afterGeo;afterGeo=function(){ag();try{const z=()=>map.getContainer().classList.toggle('z3',map.getZoom()>=3);map.on('zoomend',z);z()}catch(e){}}})();
@@ -2603,8 +2618,8 @@ const OL2={};
 function otherLabel(n,o){const g=getG(n),has=OL2[n];
   if(!g||!o||!o.cap){if(has){has.remove();delete OL2[n]}return}
   const t='⭐ '+o.nick;
-  if(has){has.getElement().firstChild.textContent=t;return}
-  const d=document.createElement('div');d.className='own oth';d.textContent=t;d.style.borderColor=`hsl(${nickHue(o.nick)},80%,65%)`;
+  if(has){has.getElement().firstChild.innerHTML=wdOwnLabelHTML(t,wdCountOf(o.nick));return}
+  const d=document.createElement('div');d.className='own oth';d.innerHTML=wdOwnLabelHTML(t,wdCountOf(o.nick));d.style.borderColor=`hsl(${nickHue(o.nick)},80%,65%)`;
   OL2[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:480,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
 /* V59 wave-2: تک‌تعریفی paintOther — رنگ V56 (اشباع ۴۲٪ روشن‌تر برای خوانایی روی گوشی) + گارد __wd56p
    (بعد از هر حمله/سینک فقط کشورهای تغییرکرده رنگ می‌خورند) + لیبل مالک؛ wrapper های 22-core و V56 حذف شدند */
@@ -2613,15 +2628,15 @@ function paintOther(n,force){const l=layersByName[n],o=OTH[n];if(!l||!o)return;
   /* V59w2-fix: پارامتر force — وقتی مسیر پایه style را بازنویسی کرده (انتخاب/mouseout) گارد V56 نباید ترمیم را رد کند */
   if(!force&&l.__wd56p===key){try{otherLabel(n,o)}catch(e){}return}
   l.__wd56p=key;
-  l.setStyle({fillColor:'hsl('+nickHue(o.nick)+',42%,52%)',fillOpacity:.9,
-    color:'rgba(255,255,255,.85)',weight:o.cap?2.4:1.6});
+  l.setStyle({fillColor:'hsl('+nickHue(o.nick)+',42%,52%)',fillOpacity:wdDimOf(n)(.9),
+    color:'rgba(255,255,255,.85)',weight:o.cap?2:1.4});
   try{otherLabel(n,o)}catch(e){}}
 function applyOthers(nw){const old=OTH;OTH=nw;
   Object.keys(old).forEach(n=>{if(!nw[n]){if(OL2[n]){OL2[n].remove();delete OL2[n]}try{applyCountryColor(n)}catch(e){}}});
   Object.keys(nw).forEach(n=>paintOther(n));renderSrvChip()}
 /* V59 wave-2: paintOther برای کشورهای دیگران، پس‌هوک applyCountryColor (بعد از فیکس، پایه خودش OTH را می‌کشد؛ این هوک فقط ترمیم تغییر key مالک است) */
 try{WD_COLOR_HOOKS.after.push(function(n){if(OTH[n])paintOther(n)})}catch(e){console.error('wd-h3',e)};
-(function(){const ag=afterGeo;afterGeo=function(){ag();try{Object.keys(OTH).forEach(n=>paintOther(n))}catch(e){}}})();
+(function(){const ag=afterGeo;afterGeo=function(){ag();try{Object.keys(OTH).forEach(n=>paintOther(n));if(typeof wdLabelDeclutter==='function')wdLabelDeclutter()}catch(e){}}})();
 /* V60sec: تک‌مسیر نوشتن قلمرو = RPC territory_sync (سرورمحرر) — اینسرت/دلیلت مستقیم جدول
    آتش‌بس المپیک، سقف ۱۵ کشور، نرخ تصرف و اثبات سیو را دور می‌زد؛ داوری فقط سمت سرور است.
    رفتارهای سالم حفظ شد: بوت‌استرپ پایتخت، first-come-first-served (lost)، سینک آفلاین (تریکل ۵تایی)،
@@ -5550,8 +5565,8 @@ setTimeout(clean,500);setTimeout(clean,1500);
 /* --- leaderboard king crown --- */
 .lr-row b.wd-crown{margin-right:3px}
 /* --- selection pulse ring on the map --- */
-@keyframes wd-ring{0%{opacity:.85;transform:scale(.4)}100%{opacity:0;transform:scale(2.6)}}
-.wd-selring{width:34px;height:34px;border:2px solid rgba(255,215,100,.85);border-radius:50%;margin:-17px 0 0 -17px;transform-origin:center;animation:wd-ring 1.5s ease-out infinite}
+/* V61: حلقه‌ی انتخاب ثابت + هاله‌ی بسیار ملایم — انیمیشن دائمی حذف شد (نویز بصری/کامپوزیتور) */
+.wd-selring{width:34px;height:34px;border:2px solid rgba(255,215,100,.85);border-radius:50%;margin:-17px 0 0 -17px;box-shadow:0 0 10px rgba(255,215,100,.28),inset 0 0 6px rgba(255,215,100,.14)}
 /* --- smoother modals --- */
 .modal-card{animation:wd-modalin .22s cubic-bezier(.34,1.4,.64,1)}
 @keyframes wd-modalin{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
@@ -5625,7 +5640,7 @@ function mapUpgrade(){
   try{
     Object.keys(layersByName).forEach(function(n){
       var l=layersByName[n];
-      l.on('mouseover',function(){ if(!l._wdHover){l._wdHover=true;try{l.setStyle({weight:2,color:'#eaf6ff',opacity:.95,fillOpacity:Math.min(1,(l.options.fillOpacity||.9)+.06)})}catch(e){}} });
+      l.on('mouseover',function(){ if(!l._wdHover&&n!==activeEngName){l._wdHover=true;try{l.setStyle({weight:2,color:'#eaf6ff',opacity:.95,fillOpacity:Math.min(1,(l.options.fillOpacity||.9)+.06)})}catch(e){}} });
       l.on('mouseout',function(){ l._wdHover=false;try{applyCountryColor(n)}catch(e){} });
     });
   }catch(e){console.log('hover',e)}
@@ -15628,7 +15643,9 @@ window.WD50_PATURI=wdPatURI;
 /* V50-REV2: نقشه با preferCanvas رندر می‌شود → طرح با اورلی SVG اختصاصی روی قلمرو خودت می‌نشیند */
 function curHue(){var C=window.COS||window.COS27;if(C&&C.hue!=null)return C.hue;try{if(typeof plHue==='function')return plHue()}catch(e){}return 205}
 function patTargets(){var a=[];try{if(typeof myCountryName!=='undefined'&&myCountryName)a.push(myCountryName);
-  if(typeof conqueredCountries!=='undefined')conqueredCountries.forEach(function(n){a.push(n)})}catch(e){}return a}
+  /* V61-fix: dedupe — پایتخت معمولاً در conquered هم هست؛ تکرار یعنی اورلی دوبل روی پایتخت
+     و رد یتیم که patOv_clear نمی‌تواند پاکش کند */
+  if(typeof conqueredCountries!=='undefined')conqueredCountries.forEach(function(n){if(a.indexOf(n)<0)a.push(n)})}catch(e){}return a}
 var patR=null,patOv={},patSig='';
 function patR_ensure(){try{
   if(patR)return patR;
@@ -15647,7 +15664,9 @@ function patDefs_ensure(){
     return true;
   }catch(e){return false}
 }
-function patOv_clear(){for(var k in patOv){try{patOv[k].remove()}catch(e){}}patOv={}}
+function patOv_clear(){for(var k in patOv){try{patOv[k].remove()}catch(e){}}patOv={};
+  /* V61-fix: جاروی DOM — هر اورلی یتیم از rebuildهای قبلی هم حذف می‌شود (ضد دوبل‌رنگی پایتخت) */
+  try{var c=(typeof patR!=='undefined')&&patR&&patR._container;if(c){var dead=c.querySelectorAll('.wd-pat-ov');for(var i=0;i<dead.length;i++){try{dead[i].parentNode.removeChild(dead[i])}catch(e){}}}}catch(e){}}
 function patOv_rebuild(force){
   try{
     if(typeof map==='undefined'||!map||typeof statusOf!=='function')return;
@@ -15674,6 +15693,9 @@ function patOv_rebuild(force){
 window.wdPatOvRebuild=patOv_rebuild;
 /* بعد از آماده‌شدن نقشه + هر تغییر مالکیت/رنگ (سیگنچک) بازسازی */
 var patBoot=setInterval(function(){try{if(typeof map==='undefined'||!map)return;var n=0;try{n=Object.keys(layersByName).length}catch(e){}if(n>50){clearInterval(patBoot);patOv_rebuild(true)}}catch(e){}},1200);
+/* V61: LOD طرح زینتی — کلاس z5 (زوم ۵+) کنار z3/z4 موجود؛ opacity خودش در wd61-mapcss تعریف شده */
+try{var z5t=function(){try{map.getContainer().classList.toggle('z5',map.getZoom()>=5)}catch(e){}};
+  var z5boot=setInterval(function(){try{if(typeof map!=='undefined'&&map){clearInterval(z5boot);map.on('zoomend',z5t);z5t()}}catch(e){}},1200)}catch(e){}
 setInterval(function(){try{if(!document.hidden)patOv_rebuild(false)}catch(e){}},3000);
 /* بعد از فتح جدید هم فوری بازسازی */
 /* بعد از فتح جدید هم فوری بازسازی */
@@ -16545,6 +16567,37 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
       window.WD33_END_NOW.__wd58=1;
     }
   }catch(e){}
+})();
+   </script>
+   <style id="wd61-mapcss">
+    /* ============ V61: CLEAN MAP — سلسله‌مراتب: کشور > انتخاب > قلمرو > اطلاعات > طرح زینتی ============ */
+    /* ۱) LOD طرح زینتی: opacity مؤثر ≈ ۷٪/۱۳٪/۱۸٪/۲۲٪ بر اساس زوم — در نمای جهانی تقریباً مخفی،
+       با زوم کمی واضح‌تر؛ طرح زیر اطلاعات بازیکن (markerPane) می‌ماند و در این آستافا مرز/رنگ کشور را نمی‌پوشاند */
+.wd-pat-ov{opacity:.08;transition:opacity .4s ease}
+.leaflet-container.z3 .wd-pat-ov{opacity:.13}
+.leaflet-container.z4 .wd-pat-ov{opacity:.18}
+.leaflet-container.z5 .wd-pat-ov{opacity:.22}
+body.wd-autolite .wd-pat-ov{opacity:.1!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){.wd-pat-ov{transition:none!important}}
+    /* ۲) صفر انیمیشن دائمی روی افکت‌های نقشه (گارانتی — ریشه‌ها در بلاک‌های خودی حذف شدند) */
+.wd-pat-ov,.wd-selring{animation:none!important}
+   </style>
+   <script id="wd61-map-js">
+    /* ============ V61: CLEAN MAP JS — ضدتداخل لیبل پایتخت‌ها + هوک زوم (تک‌منبع) ============ */
+(function(){
+'use strict';
+function wdLabelDeclutter(){try{if(typeof map==='undefined'||!map)return;
+  const D=map.getZoom()>=5?30:38,kept=[],list=[];
+  Object.keys(OL).forEach(n=>{const m=OL[n],e=m.getElement();if(e)list.push({e,p:map.latLngToContainerPoint(m.getLatLng()),own:1})});
+  Object.keys(OL2).forEach(n=>{const m=OL2[n],e=m.getElement();if(e)list.push({e,p:map.latLngToContainerPoint(m.getLatLng()),own:0})});
+  list.sort((a,b)=>b.own-a.own);
+  list.forEach(o=>{const bad=kept.some(q=>Math.abs(q.x-o.p.x)<D&&Math.abs(q.y-o.p.y)<D);
+    o.e.style.display=bad?'none':'';if(!bad)kept.push(o.p)})}catch(e){}}
+window.wdLabelDeclutter=wdLabelDeclutter;
+function boot(){try{if(typeof map==='undefined'||!map)return false;
+  map.on('zoomend',function(){try{wdLabelDeclutter();wdOwnInfoRefresh()}catch(e){}});
+  return true}catch(e){return false}}
+if(!boot()){var t=setInterval(function(){try{if(boot())clearInterval(t)}catch(e){clearInterval(t)}} ,1200)}
 })();
    </script>
 </body>
