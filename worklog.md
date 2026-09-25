@@ -1065,3 +1065,27 @@ Stage Summary:
 - باقی‌مانده موج O3: بازطراحی Skill Loop رشته‌ها (حذف RNG-محوری simها طبق PHASE 15/16/46) + Difficulty Adaptive + Combo/Clutch + Low FX + Arena/Result UI
 - ۴ عدد Math.min(1000) باقی‌مانده در بلوک v41-sim متعلق به نمایش‌های محلی غیر-المپیکی همان موتور است — در O3 همراه بازطراحی حل می‌شود
 - versionCode 8 و latest.json دست‌نخورده؛ APK بدون rebuild جدید را می‌کشد
+
+---
+Task ID: V60-olympics-wave-O2
+Agent: Super Z (main)
+Task: موج دوم مگا-رفکتور Olympics طبق ۵۳ فاز — لایه‌ی رقابتی (رکورد پنج‌سطحی، Ghost Rival، دستاورد، پروفایل مهارت، حلقه‌ی Record Broken، پنل ادمین آنتی‌چیت)
+
+Work Log:
+- گزارش A-F پیش از تغییر کد ارائه شد (§31)؛ ممیزی: ۹ هندلر RPC + olyScore + ۷ مدل Prisma + بلوک‌های IIFE کلاینت (دسترسی فقط از WD33_API)
+- اسکیمای additive: OlympicProfile (رینگ ۱۰ نتیجه، bestEver همه‌ی دوره‌ها، prCount، bullseyes) + OlympicAchieve + ستون OlympicRecord.matchId (منبع شبح/رپلی)
+- src/lib/olyProfile.ts تک‌منبع: Skill=۵۵٪ اخیر+۴۵٪ بلندمدت نرمال‌شده به رفرنس هر رشته×مدل، Consistency از CV، Potential از روند — فقط مسابقه‌ی رسمی (ضد sandbagging P50)؛ ۱۱ دستاورد واقعی + bullseyesFromTelemetry
+- سرور: olympic_submit حالا prev_best/pr/passed/next_best/new_badges برمی‌گرداند + پروفایل را bump می‌کند + رکورد را به match می‌بندد + خبر هدفمند olympic_record_lost (P28)؛ RPC تازه olympic_profile و olympic_ghost (کش ۳۰s)؛ olympic_rank + next_best/country_best؛ olympic_games + my_records؛ oly_verify + اکشن tel (بازمحاسبه‌ی سروری برای ادمین) و مسیر confirm پروفایل را هم به‌روز می‌کند؛ تاج‌گذاری دستاورد champion می‌دهد
+- باگ‌های یافت‌شده در تست و فیکس ریشه‌ای: ① off-by-one نمایش تلاش‌ها (gate خودش increment می‌کرد، پاسخ +۱ اضافه می‌داد — از O1) ② رتبه بدون tie-break (دو امتیاز مساوی هر دو #۱ — حالا هم‌راستا با ترتیب جدول با lastAt) ③ تشخیص تازگی دستاورد در unlock
+- کلاینت (تک‌منبع درجا + بلوک v60-o2): TELE.observer registry + closeStage hook؛ intro33 انتخابگر شبح (جهانی/شخصی/خاموش، localStorage)؛ openGame33 پیش‌بارگیری شبح؛ finish33 = صفحه‌ی نتیجه‌ی P33 (PR با دلتا، پرش از X نفر، 🔥 فاصله تا رتبه بعد، چیپ نشان‌ها، دکمه‌های پخش)؛ wgLoadRank فاصله/جابه‌جایی ⬆️+N/صدر کشور؛ renderHub نقطه‌ی تزریق کارت‌های O2؛ تیکر خبر دو نسخه‌ی شخصی/عمومی record_lost
+- بلوک v60-o2: موتور شبح (نوار HUD + خط زمانی تصمیم با evLabel واحد برای dec/rnd/du + برچسب پایان هر موتور + پیشرفت زمانی)؛ رپلی‌ویور کانواسی (تیک رویداد + نقطه‌ی طلایی نتیجه + playhead + چیپ‌ها + شمارنده)؛ کارت‌های هاب (بنر RECORD BROKEN با ماشین حالت my_records+localStorage + [پس بگیر!]، پروفایل مهارت با نوارها و sparkline رشد، دستاوردها ۱۱تایی قفل/باز)؛ پنل ادمین آنتی‌چیت (صف + تأیید/رد + پیش‌نمایش تله‌متری با بازمحاسبه)
+- کشف معماری: بازی‌های زنده همگی موتور sim هستند (V41 همه را override می‌کند) → مسیرهای tap در شبح حذف شدند (کد مرده ممنوع)؛ مدل شبح = خط زمانی تصمیم
+- باگ حیاتی تست‌محور: ReferenceError «score is not defined» در finish33 (متغیر وجود نداشت — هر نتیجه‌ی رسمی کرش می‌کرد!) → r.score سروری
+- تست: oly-o2-unit 20/20؛ oly-o2-flow 34/34 (سرور واقعی+DB: authority 920≠99999، رینگ، دستاورد، خبر هدفمند، شبح، gap، tie-break، خط لوله ادمین)؛ oly-o2-ui 23/23 (شبح در بازی زنده، نتیجه، رپلی، هاب، بنر، ادمین)؛ رگرسیون‌ها: oly-unit 39/39، oly-flow 12/12، oly-server 8/8، wave2 13/13، apk-sim 28/28، map-visual 20/20، attack-smoke 10/10، ۸۱ بلوک ۰ خطا، tsc پاک
+- deploy: e6c7843..5ccd321 → Vercel؛ live md5 a0ad567f == local؛ سوت UI کامل روی پروداکشن 23/23؛ apk-sim/map-visual/attack-smoke روی لایو همه سبز
+
+Stage Summary:
+- موج O2 روی پروداکشن (5ccd321): حلقه‌ی کامل TRAIN→COMPETE→PR→رتبه→Ghost→Record Broken→دستاورد→پروفایل فعال است؛ داور سرور + صف راستی‌آزمایی حالا UI ادمین دارد
+- باقی‌مانده موج O3: بازطراحی Skill Loop رشته‌ها (حذف RNG-محوری و کف امتیاز ۱۴۰/۱۵۰ در فرمول‌های sim طبق PHASE 15/16/46)، Difficulty Adaptive (P17)، Combo/Clutch (P19/20)، Low FX Mode (P36)، ۴ عدد Math.min(1000) باقی‌مانده در نمایش‌های v41-sim
+- درس ماندگار: signup در تست‌ها کوکی session را می‌دزدد (بعد از signup دوم حتماً re-login)؛ user.delete روی FK بی‌صدا شکست می‌خورد — پاک‌سازی تست با nick prefix؛ ارقام RTL در ترمینال بصری حذف می‌شوند — hex dump مرجع است
+- versionCode 8 و latest.json دست‌نخورده؛ APK بدون rebuild جدید را می‌کشد
