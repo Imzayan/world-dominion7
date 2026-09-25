@@ -15430,5 +15430,164 @@ function esc55(s){return String(s==null?'':s).replace(/[<>&]/g,'')}
 function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile'?'🚀':'☢️'}
 })();
    </script>
+   <style id="wd56-calm-css">
+    /* ============ V56: CALM MAP — نقشه‌ی آرام، سبک و متمرکز ============ */
+    /* ۱) نوار راهنمای همیشگی و پوشش‌های تیره‌ی تمام‌صفحه حذف می‌شوند */
+    #status-banner{display:none!important}
+    #vignette,#wd-vignette{display:none!important}
+    #map::before{display:none!important}
+    /* ۲) اقیانوس آرام و یک‌دست — بدون خیرگی و لایه‌های اضافه */
+    #map,.leaflet-container{background:linear-gradient(180deg,#17415d 0%,#0e3149 55%,#0b2840 100%)!important}
+    #waves{background:linear-gradient(180deg,#17415d 0%,#0e3149 55%,#0b2840 100%)!important}
+    /* ۳) مرز قلمروها ثابت است — بدون انیمیشن مورچه‌ای */
+    .wd-own-dash{animation:none!important}
+    .wd-own-glow{filter:none!important}
+    /* ۴) برچسب کشورها: متن ساده بدون قاب — ده‌ها جعبه‌ی اضافه از نقشه برداشته می‌شود */
+    .wd-clabel{background:none!important;border:0!important;padding:0!important;
+      font-size:8.5px!important;opacity:.82!important;color:#d9e9f7!important;
+      text-shadow:0 1px 3px rgba(0,8,18,.95),0 0 6px rgba(0,20,40,.55)!important}
+    /* ۵) برچسب مالکیت آرام‌تر */
+    .own,.own.oth{background:rgba(2,10,20,.55)!important;border-color:rgba(255,255,255,.28)!important}
+    /* ۶) تاج قهرمان المپیک: کوچک، ثابت و بدون چشمک — دیگر جلوی نقشه را نمی‌گیرد */
+    .wd32-crown{font-size:12px!important;animation:none!important;filter:drop-shadow(0 1px 3px rgba(0,0,0,.65))!important}
+    .wd32-crown small{font-size:7px!important;padding:0 5px!important}
+    /* ۷) دکمه‌ی المپیک: جمع‌وجور (۷۲→۴۸) و بدون چرخش/پالس */
+    #hud-olympic{width:48px!important;height:48px!important;border-width:2px!important;
+      box-shadow:0 6px 18px rgba(0,0,0,.5)!important}
+    #hud-olympic::before{display:none!important}
+    #hud-olympic svg{width:26px!important;height:26px!important}
+    #hud-olympic .wdol-fab-label{font-size:7.5px!important;padding:1px 7px!important;bottom:-13px!important}
+    #hud-olympic .wdol-fab-dot{width:12px!important;height:12px!important;border-width:2px!important}
+    #hud-olympic.wg33-live{animation:none!important}
+    /* ۸) چیپ‌های HUD: یک ردیف تمیز — شمارنده‌ی تکراری و دکمه‌ی صدا (در تنظیمات موجود است) حذف */
+    #hud-t2,#hud-snd{display:none!important}
+    /* ۹) دکمه‌ی ابزار پایین: کوچک‌تر و آرام‌تر */
+    #wd7-btn{width:44px!important;height:44px!important;bottom:74px!important;font-size:20px!important;z-index:9998!important}
+    /* ۱۰) تیکر خبر فقط دسکتاپ — روی موبایل حرکت دائمی حذف می‌شود */
+    @media(pointer:coarse){#ticker{display:none!important}}
+    /* ۱۰-ب) نوار زنده‌ی المپیک هم روی موبایل حذف — دکمه‌ی المپیک کافی است */
+    @media(pointer:coarse){#wd33-strip{display:none!important}}
+    /* ۱۱) پالس نورانی چیپ زیرساخت خاموش */
+    #wd-infra-chip::after{display:none!important}
+    /* ۱۲) پرچم‌های باقی‌مانده (مالکیت‌دار): کوچک و آرام — بدون هاله‌ی سفید */
+    .flag{box-shadow:0 1px 3px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.3)!important;opacity:.95!important}
+    /* ۱۳) کارت‌های منابع: بدون هاله‌های رنگی رقابتی — یک قاب ساده و آرام */
+    .res-card{box-shadow:0 1px 6px rgba(0,0,0,.4)!important;border:1px solid rgba(30,60,100,.45)!important}
+    /* ۱۴) حلقه‌ی رنگین‌کمانی چرخان دور کارت‌ها/چیپ‌ها حذف می‌شود (ثابت و یک‌رنگ) */
+    .res-card::before,.hchip::before{display:none!important}
+   </style>
+   <script id="wd56-calm-js">
+    /* ============ V56: CALM MAP — پالت آرام + کاهش هنگ حمله ============ */
+    (function(){
+  'use strict';
+  var D=document;
+  function $(id){return D.getElementById(id)}
+
+  /* ۱) پالت زمین: خاکستری-آبیِ ملایم و کم‌اشباع. رنگ بازیکن‌ها = تنها اطلاعات رنگی نقشه
+     (قبلاً ۱۷۷ کشور رنگین‌کمانی پرجسور بودند = خستگی چشم) */
+  try{
+    window.baseStyle=function(n){var h=11,s=String(n||'');
+      for(var i=0;i<s.length;i++)h=(h*37+s.charCodeAt(i))%360;
+      return {color:'rgba(8,16,26,.55)',weight:.7,
+        fillColor:'hsl('+h+',13%,'+(41+((h*7919)%6))+'%)',fillOpacity:.92}};
+  }catch(e){}
+
+  /* ۲) رنگ بازیکنان دیگر: اشباع ۶۸→۴۲٪ (به‌جای نئون) + گارد تکراری:
+     بعد از هر حمله/سینک دیگر «همه‌ی» کشورها دوباره رنگ نمی‌شوند — فقط تغییرکرده‌ها */
+  try{
+    window.paintOther=function(n){
+      var l=(typeof layersByName!=='undefined')&&layersByName[n],
+          o=(typeof OTH!=='undefined')&&OTH[n];
+      if(!l||!o)return;
+      var key=o.nick+'|'+(o.cap?1:0);
+      if(l.__wd56p===key){try{otherLabel(n,o)}catch(e){}return}
+      l.__wd56p=key;
+      l.setStyle({fillColor:'hsl('+nickHue(o.nick)+',42%,52%)',fillOpacity:.9,
+        color:'rgba(255,255,255,.85)',weight:o.cap?2.4:1.6});
+      try{otherLabel(n,o)}catch(e){}};
+  }catch(e){}
+
+  /* ۳) mainRing کش می‌شود — برچسب‌ها/حلقه‌ی انتخاب دیگر در هر جابه‌جایی نقشه هندسه را از نو حساب نمی‌کنند */
+  try{
+    if(typeof mainRing==='function'&&!mainRing.__wd56){var _mr=mainRing;
+      window.mainRing=function(l){
+        try{if(l&&l.__wd56MR)return l.__wd56MR}catch(e){}
+        var r=_mr.apply(this,arguments);
+        try{if(l&&r)l.__wd56MR=r}catch(e){}
+        return r};
+      window.mainRing.__wd56=1}
+  }catch(e){}
+
+  /* ۳-ب) پرچم‌ها فقط برای «مالکیت» — کشورهای آزاد دیگر پرچم درخشان ندارند
+     (۱۷۰+ مستطیل رنگیِ پرچم = بار اصلی خستگی چشم) و پرچم مالکیت‌دارها کوچک می‌شود */
+  try{
+    if(typeof sizeFlags==='function'&&!sizeFlags.__wd56){
+      window.sizeFlags=function(){try{
+        if(typeof map==='undefined'||!map||typeof FL==='undefined')return;
+        Object.keys(FL).forEach(function(n){
+          var f=FL[n],el=f&&f.el;if(!el||!el.isConnected)return;
+          var s='neutral';try{s=statusOf(n)}catch(e){}
+          var isOth=false;try{isOth=!!(typeof OTH!=='undefined'&&OTH[n])}catch(e){}
+          if(s==='neutral'&&!isOth){el.style.display='none';return}
+          var a=map.latLngToContainerPoint([f.g.s,f.g.w]),b=map.latLngToContainerPoint([f.g.n,f.g.e]);
+          var sc=Math.min(Math.abs(b.x-a.x)*.3,Math.abs(b.y-a.y)*.55,20);
+          if(sc<10){el.style.display='none';return}
+          el.style.display='';el.style.width=sc+'px';el.style.height=sc*.66+'px';
+          el.classList.remove('big');
+        })
+      }catch(e){}};
+      window.sizeFlags.__wd56=1}
+  }catch(e){}
+
+  /* ۴) شبکه‌ی گراتیکول (۱۷ خط) بعد از ساخت نقشه حذف می‌شود — هم آرام‌تر هم سبک‌تر */
+  try{
+    var killGrat=function(){try{
+      if(typeof map==='undefined'||!map||typeof map.eachLayer!=='function')return;
+      var dead=[];map.eachLayer(function(l){
+        if(l&&l.options&&l.options.color==='#7fb4dd')dead.push(l)});
+      dead.forEach(function(l){try{map.removeLayer(l)}catch(e){}})
+    }catch(e){}};
+    setTimeout(killGrat,2500);setTimeout(killGrat,7000);
+  }catch(e){}
+
+  /* ۵) هشدارهای نوار وضعیتِ حذف‌شده به toast منتقل می‌شود تا چیزی از دست نرود */
+  try{
+    if(typeof initServer==='function'&&!initServer.__wd56){var _is=initServer;
+      window.initServer=function(){var r=_is.apply(this,arguments);
+        setTimeout(function(){try{var b=$('status-banner');
+          if(b&&/⚠️/.test(b.textContent||''))showToast(b.textContent,'lose')}catch(e){}},2500);
+        return r};
+      window.initServer.__wd56=1}
+  }catch(e){}
+
+  /* ۶) روزنامه به منوی اصلی برمی‌گردد (داک قدیمی از V25 حذف شده بود و راهی نداشت).
+     منو IIFE-خصوصی است — با MutationObserver به هر بازسازی بدنه‌ی منو وصل می‌شود */
+  try{
+    var wd56Inject=function(body){
+      try{
+        var g=body.querySelector('.wd-menu-grid');
+        if(g&&!D.getElementById('wd56-news-item')){
+          var it=D.createElement('div');it.id='wd56-news-item';it.className='wd-menu-item';
+          it.innerHTML='<i>📰</i><span><b>روزنامه</b><small>رویدادهای جهان</small></span>';
+          it.onclick=function(){try{
+            var m=D.getElementById('wd-menu');
+            if(m){var x=D.getElementById('wd-menu-close');if(x)x.click()}
+            if(typeof window.renderNews==='function'){window.renderNews();openModal('wd-news')}
+          }catch(e){}};
+          g.appendChild(it);
+        }
+      }catch(e){}};
+    var armMenu=function(){
+      var body=D.getElementById('wd-menu-body');
+      if(!body||body.__wd56obs)return !!body;
+      body.__wd56obs=1;
+      try{new MutationObserver(function(){wd56Inject(body)}).observe(body,{childList:true,subtree:false})}catch(e){}
+      wd56Inject(body); /* اگر منو همین حالا باز است */
+      return true};
+    var armT=setInterval(function(){try{if(armMenu())clearInterval(armT)}catch(e){}},800);
+    setTimeout(function(){clearInterval(armT)},25000);
+  }catch(e){}
+})();
+   </script>
 </body>
 </html>
