@@ -2593,7 +2593,7 @@ async function saveNow(){if(!ACC.ready||!myCountryName)return;if(sb)await saveOn
 setInterval(()=>{if(!document.hidden)saveNow()},8000);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow()});addEventListener('pagehide',saveNow);
 A$('auth').addEventListener('click',e=>e.stopImmediatePropagation());
 A$('acc-chip').addEventListener('click',async()=>{if(!await wdConfirm('از حساب خارج می‌شوی؟','خروج'))return;await saveNow();try{localStorage.removeItem('wd_last')}catch(e){}try{if(sb)await sb.auth.signOut()}catch(e){}location.reload()});
-A$('btn-m-rank').addEventListener('click',async()=>{saveNow();fillWorldRank();const card=document.querySelector('#m-rank .modal-card');let box=A$('live-rank');if(!box){box=mk('div');box.id='live-rank';card.appendChild(box)}
+A$('btn-m-rank').addEventListener('click',async()=>{await saveNow();fillWorldRank();const card=document.querySelector('#m-rank .modal-card');let box=A$('live-rank');if(!box){box=mk('div');box.id='live-rank';card.appendChild(box)}
   box.textContent='';if(sb)await rankOnline(box);else rankLocal(box)});
 
 /* Startup: resume the remembered login (no need to type name/password again) */
@@ -15213,7 +15213,7 @@ function ensureAdminBox(){
             var msg=(x&&x.reason==='admin')?'❌ سرور حساب تو را ادمین نمی‌داند (nick ادمین را در ADMIN_NICKS سرور بررسی کن)':(x&&x.reason==='phase')?'⚠️ در فاز فعلی مجاز نیست — وضعیت بالا را ببین':'❌ انجام نشد';
             showToast(msg,'lose');
           }else{
-            showToast(mode==='reset'?'↩️ برنامه‌ی عادی برگشت':'✅ انجام شد — فاز جدید: '+(PH[x.phase]||x.phase),'win');
+            showToast(mode==='reset'?'↩️ برنامه‌ی عادی برگشت':(mode==='open'?'🎬 افتتاحیه انجام شد — بازی‌ها زنده شد و جوایز دور قبل قبلاً واریز شده بود':(mode==='close'?'🏁 اختتامیه انجام شد — جوایز (قهرمان + نقره + برنز + شرکت‌کنندگان) واریز شد':'✅ انجام شد — فاز جدید: '+(PH[x.phase]||x.phase))),'win');
             /* V55: فاز جدید فوراً authoritative می‌شود — اختتامیه بی‌درنگ برای خود ادمین هم تمام است */
             try{if(typeof window.WD55_SETPHASE==='function')window.WD55_SETPHASE({edition:x.edition,phase:x.phase})}catch(e){}
             /* V57: اختتامیه = رویداد فوری و پیداست — مراسم همان لحظه پخش می‌شود، تاج/پرچم نقشه پاک و
@@ -15234,7 +15234,9 @@ function ensureAdminBox(){
           var el=D.getElementById('wd53-olyph');
           if(el&&g&&g.phase){el.textContent='وضعیت فعلی: '+(PH[g.phase]||g.phase)+' • دوره‌ی '+faN(g.edition||0);
             var bo=D.getElementById('wd53-olyopen'),bc=D.getElementById('wd53-olyclose');
-            if(bo)bo.disabled=(g.phase==='live'||g.phase==='after');
+            /* V58: افتتاحیه از فاز after هم کار می‌کند — دور جدید واقعی (شماره‌ی دوره جلو می‌رود) */
+            if(bo){bo.disabled=(g.phase==='live');
+              bo.textContent=(g.phase==='after')?'🎬 شروع دور جدید المپیک (افتتاحیه‌ی دوره‌ی تازه)':'▶️ شروع فوری بازی‌ها (افتتاحیه + آتش‌بس)'}
             /* V57: در فاز after هم دکمه‌ی اختتامیه فعال می‌ماند — با فشردنش مراسم با داده‌ی واقعی
                سرور دوباره پخش می‌شود (بدون تغییر وضعیت) تا «پایان المپیک» همیشه دیدنی باشد */
             if(bc){bc.disabled=(g.phase!=='live'&&g.phase!=='after');
@@ -15623,6 +15625,104 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
       setTimeout(function(){try{window.WD33_CLOSE_CEREMONY({archive:[arch]})}catch(e){}},350)}
     try{showToast('🏁 المپیک این دوره پایان یافت'+(close&&close.champ_nick?' — قهرمان: '+close.champ_nick:''),'win')}catch(e){}
   }catch(e){}};
+})();
+   </script>
+   <script id="v58-js">
+/* ============ V58: نقشه‌ی خاکستری + حذف خط جبهه‌ی باگ‌دار + کیفیت Hi-DPI + رنکینگ زنده ============ */
+(function(){
+  'use strict';
+  var D=document;
+  /* ---- ۱) کشورهای بدون مالک کاملاً خاکستری و بی‌رنگ (اشباع صفر) — فقط قلمرو بازیکن‌ها رنگ دارد.
+          smoothFactor نصف شد → خط ساحل و مرزها دقیق‌تر و شارپ‌تر رندر می‌شوند ---- */
+  try{
+    window.baseStyle=function(n){var h=11,s=String(n||'');
+      for(var i=0;i<s.length;i++)h=(h*37+s.charCodeAt(i))%360;
+      return {color:'rgba(10,14,20,.6)',weight:.7,smoothFactor:.55,
+        fillColor:'hsl(0,0%,'+(42+((h*7919)%6))+'%)',fillOpacity:.92}};
+  }catch(e){}
+
+  /* ---- ۲) کیفیت نقشه روی گوشی‌های مدرن: Leaflet کانواس را فقط ۲x رندر می‌کند؛ روی نمایشگرهای
+          DPR>2 نقشه تار دیده می‌شود. بعد از هر رندر عادی، یک‌بار دیگر با DPR واقعی (تا ۳x) رسم می‌کنیم.
+          گارد سخت‌افزاری: فقط DPR>2 و ≥۶ هسته CPU تا لگ نیفتد ---- */
+  try{
+    if(window.L&&L.Canvas&&L.Canvas.prototype&&L.Canvas.prototype._update&&!L.Canvas.prototype.__wd58){
+      var _up=L.Canvas.prototype._update;
+      L.Canvas.prototype._update=function(){
+        var r=_up.apply(this,arguments);
+        try{
+          var map=this._map;if(!map||map._animatingZoom||!this._bounds||!this._container)return r;
+          var dpr=window.devicePixelRatio||1,cores=navigator.hardwareConcurrency||4;
+          if(dpr>2.05&&cores>=6){
+            var size=this._bounds.getSize(),m=Math.min(3,Math.round(dpr)),c=this._container;
+            c.width=Math.round(size.x*m);c.height=Math.round(size.y*m);
+            c.style.width=size.x+'px';c.style.height=size.y+'px';
+            var ctx=this._ctx=c.getContext('2d');
+            ctx.setTransform(m,0,0,m,0,0);ctx.lineCap='round';ctx.lineJoin='round';
+            if(typeof this._draw==='function')this._draw();
+          }
+        }catch(e){}
+        return r};
+      L.Canvas.prototype.__wd58=1;
+    }
+  }catch(e){}
+
+  /* ---- ۳) «خط باگی» روی کشورها (مغولستان/روسیه): خط زرد خط‌چین جبهه (frontL) + شعله‌های 🔥🪖
+          روی هر کشورِ با تصرف جزئی همیشه باقی می‌ماندند و از save هم دوباره ساخته می‌شدند.
+          حالا دیگر هیچ‌وقت رسم نمی‌شوند — نشان پیشروی فقط داخل سینمای نبرد می‌ماند ---- */
+  try{
+    if(typeof window.drawHatch==='function'&&!window.drawHatch.__wd58){
+      var _dh=window.drawHatch;
+      window.drawHatch=function(n,v){var r=_dh.apply(this,arguments);
+        try{if(typeof frontL!=='undefined'&&frontL&&frontL[n]){frontL[n].remove();delete frontL[n]}}catch(e){}
+        return r};
+      window.drawHatch.__wd58=1}
+    window.flames=function(){};
+  }catch(e){}
+
+  /* ---- ۴) رتبه‌بندی: لیست ثابت «قدرت‌های نظامی جهان» (داده‌ی فریز‌شده‌ی محلی) حذف شد —
+          جای آن خلاصه‌ی زنده‌ی سرور (تاپ ۵ واقعی از جدول scores) می‌نشیند ---- */
+  try{
+    window.fillWorldRank=function(){var c=D.getElementById('world-rank');if(!c)return;
+      c.textContent='';
+      var h=D.createElement('div');
+      h.style.cssText='font-size:9px;font-weight:800;color:#6f8db0;text-align:center;direction:rtl;padding:2px 0 4px';
+      h.textContent='🌍 خلاصه‌ی زنده‌ی سرور '+(typeof SRV!=='undefined'?SRV:1)+' — جدول کامل و لحظه‌ای پایین';
+      c.appendChild(h);
+      if(typeof sb==='undefined'||!sb)return;
+      sb.from('scores').select('user_id,nick,conquered,score').eq('server',(typeof SRV!=='undefined'?SRV:1)).order('score',{ascending:false}).limit(5)
+        .then(function(r){try{
+          if(r&&r.error)return;
+          var rows=r.data||[],med=['🥇','🥈','🥉','🎖️','🎖️'];
+          c.textContent='';
+          var h2=D.createElement('div');
+          h2.style.cssText='font-size:9px;font-weight:800;color:#6f8db0;text-align:center;direction:rtl;padding:2px 0 4px';
+          h2.textContent='🌍 خلاصه‌ی زنده‌ی سرور '+(typeof SRV!=='undefined'?SRV:1)+' — جدول کامل و لحظه‌ای پایین';
+          c.appendChild(h2);
+          rows.forEach(function(x,i){
+            var d=D.createElement('div');
+            d.style.cssText='background:#09203d;padding:7px 8px;border-radius:8px;font-size:10px;display:flex;justify-content:space-between;direction:rtl;gap:8px';
+            var sp=D.createElement('span');sp.textContent=(med[i]||'🎖️')+' '+(i+1)+'. '+(x.nick||'—');
+            var b=D.createElement('b');b.textContent=(x.conquered||0)+' کشور';
+            d.appendChild(sp);d.appendChild(b);c.appendChild(d)});
+        }catch(e){}}).catch(function(){})};
+  }catch(e){}
+
+  /* ---- ۵) مراسم اختتامیه: نوار جوایز — کاربر باید «ببیند» جوایز واقعاً واریز شده‌اند ---- */
+  try{
+    if(typeof window.WD33_END_NOW==='function'&&!window.WD33_END_NOW.__wd58){
+      var _en=window.WD33_END_NOW;
+      window.WD33_END_NOW=function(close){_en.apply(this,arguments);
+        try{setTimeout(function(){
+          var c=D.getElementById('wd33-cer');if(!c)return;
+          var old=D.getElementById('wd58-rewards');if(old)old.remove();
+          var d=D.createElement('div');d.id='wd58-rewards';
+          d.style.cssText='margin:12px auto 0;max-width:360px;background:rgba(4,20,14,.88);border:1px solid rgba(0,255,136,.45);border-radius:12px;padding:9px 12px;font-size:11px;line-height:2;color:#c9ffe4;text-align:center;direction:rtl;position:relative;z-index:2';
+          d.innerHTML='<b style="color:#7dff9e">🎁 جوایز این دوره واریز شد</b><br>🥇 قهرمان: 💎۴ + 🪙۱۰۰٬۰۰۰ طلا + منابع + بوست ۲۴ ساعته<br>🥈 نقره: 💎۲ + 🪙۳۰٬۰۰۰ طلا &nbsp;•&nbsp; 🥉 برنز: 💎۱ + 🪙۱۰٬۰۰۰ طلا<br>🏅 همه‌ی شرکت‌کنندگان: 💎۳';
+          c.appendChild(d);
+        },650)}catch(e){}};
+      window.WD33_END_NOW.__wd58=1;
+    }
+  }catch(e){}
 })();
    </script>
 </body>

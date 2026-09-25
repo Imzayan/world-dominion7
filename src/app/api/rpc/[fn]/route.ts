@@ -458,11 +458,15 @@ const hostOf = (edition: number) => HOSTS[hashEd(edition) % HOSTS.length]
    gamesPhase سینک می‌ماند (مسیر داغ PvP)؛ حافظه با تاخیر حداکثر ۱۵ ثانیه از DB تازه می‌شود. */
 let olyShiftMem: { edition?: number; openAt?: number; closeAt?: number } = {}
 let olyShiftAt = 0
+/* V58: شمارنده‌ی دورهای دستی — وقتی ادمین از فاز after دکمه‌ی افتتاحیه را می‌زند، یک دور واقعاً جدید
+   شروع می‌شود: شماره‌ی دوره جلو می‌رود تا جدول مدال‌ها، رکوردها، آرشیو و مزایده‌ی میزبان همه از صفر */
+let olyEdOffMem = 0
 async function olyShiftRefresh(force = false) {
   if (!force && Date.now() - olyShiftAt < 15000) return
   try {
     const v = await getSetting<{ edition?: number; openAt?: number; closeAt?: number } | null>('oly_shift', null)
     olyShiftMem = v || {}
+    try { olyEdOffMem = Math.max(0, Number(await getSetting<number>('oly_edoff', 0)) || 0) } catch (e) {}
     olyShiftAt = Date.now()
   } catch (e) { console.log('olyshift', e) }
 }
@@ -476,7 +480,8 @@ async function olyHostGet(ed: number) {
 }
 
 function gamesPhase(now = olNow()) {
-  const edition = Math.floor((now - ED_ANCHOR) / ED_LEN) + 1
+  /* V58: edition مؤثر = دوره‌ی زمانی + شمارنده‌ی دورهای دستی ادمین (دور جدید واقعی) */
+  const edition = Math.floor((now - ED_ANCHOR) / ED_LEN) + 1 + (olyEdOffMem | 0)
   const start = ED_ANCHOR + (edition - 1) * ED_LEN
   const regAt = start + ED_REG
   /* V53: شیفت ادمین فقط برای همان دوره اعمال می‌شود — شروع فوری (openAt=now) یا پایان فوری (closeAt=now) */
@@ -607,11 +612,35 @@ async function closeGamesEdition(edition: number) {
       await addNews(0, 'olympic_champion', null, champ.nick, null)
     }
   }
-  /* participation reward: +3 gems for everyone who actually played (atomic increment) */
+  /* participation reward: +3 gems for everyone who actually played (atomic increment)
+     V58: اگر ردیف کیف پول هنوز ساخته نشده بود، اول ساخته شود — جم شرکت‌کنندگان هیچ‌وقت گم نشود */
   for (const uid of uids) {
     try {
-      await db.wallet.update({ where: { userId: uid }, data: { gems: { increment: 3 } } })
+      const inc = await db.wallet.updateMany({ where: { userId: uid }, data: { gems: { increment: 3 } } })
+      if (inc.count === 0) { await ensureWallet(uid); await db.wallet.update({ where: { userId: uid }, data: { gems: { increment: 3 } } }) }
     } catch (e) { console.log('partgem', e) }
+  }
+  /* V58: جایزه‌ی نقره و برنز — قبلاً فقط قهرمان جایزه داشت؛ حالا سکوی کامل جایزه می‌گیرد:
+     نقره: ۲ جم + ۳۰٬۰۰۰ طلا | برنز: ۱ جم + ۱۰٬۰۰۰ طلا (idempotent — فقط برنده‌ی claim اینجا می‌رسد) */
+  const podRewards: [number, number, number][] = [[1, 2, 30000], [2, 1, 10000]]
+  for (const [idx, gems, gold] of podRewards) {
+    const p = players[idx]
+    if (!p) continue
+    try {
+      const u2 = await db.user.findFirst({ where: { nickLower: p.nick.toLowerCase() } })
+      if (!u2 || (champ && p.nick.toLowerCase() === champ.nick.toLowerCase())) continue
+      const inc2 = await db.wallet.updateMany({ where: { userId: u2.id }, data: { gems: { increment: gems } } })
+      if (inc2.count === 0) { await ensureWallet(u2.id); await db.wallet.update({ where: { userId: u2.id }, data: { gems: { increment: gems } } }) }
+      const sv2 = await db.save.findUnique({ where: { userId: u2.id } })
+      if (sv2) {
+        let ob: Record<string, unknown> = {}
+        try { ob = JSON.parse(sv2.state || '{}') || {} } catch { ob = {} }
+        const rs = (ob.res || {}) as Record<string, number>
+        rs.gold = Math.max(0, Math.round(Number(rs.gold) || 0)) + gold
+        ob.res = rs
+        await db.save.update({ where: { userId: u2.id }, data: { state: JSON.stringify(ob) } })
+      }
+    } catch (e) { console.log('podreward', e) }
   }
   await addNews(0, 'olympic_close', null, champ ? champ.nick : null, champCountry ? champCountry.countryFa : null)
   return { edition, table, champ }
@@ -997,6 +1026,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (win) {
           const r = await transferTerritory(server, country, user.id, user.nick)
           if (!r.ok) return R({ ok: false })
+          /* V58: امتیاز رتبه‌بندی همان لحظه جلو می‌رود — بدون انتظار برای سیکل سیو کلاینت (۸ ثانیه‌ای)
+             recompute سیو بعدی همان مقدار مطلق را می‌گذارد؛ این فقط سرعت دیده‌شدن رویداد در رنکینگ است */
+          try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: 1000 } } }) } catch (e) { console.log('pvpscore', e) }
           /* V34: the defender who just lost land earns a 72h revenge right (+25%, once) */
           try { await db.revengeMark.create({ data: { server, userId: t.userId, targetUid: user.id, targetNick: user.nick, expiresAt: new Date(Date.now() + 72 * 3600_000) } }) } catch (e) { console.log('revmk', e) }
           if (duel) { try { duelWon = await resolveDuel(server, user.id, t.userId, user.id, user.nick, t.nick) } catch (e) { console.log('duelres', e) } }
@@ -1024,6 +1056,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (now - last < 15_000) return R(false)
         lastCapture.set(user.id, now)
         const r = await transferTerritory(server, country, user.id, user.nick)
+        /* V58: تصرف سرزمین آزاد هم فوراً در رتبه‌بندی دیده شود */
+        if (r.ok) { try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: 1000 } } }) } catch (e) { console.log('capscore', e) } }
         return R(r.ok)
       }
 
@@ -1451,9 +1485,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           return R({ ok: true, phase: g.phase, edition: g.edition })
         }
         if (mode === 'open') {
-          if (g0.phase === 'live' || g0.phase === 'after') return R({ ok: false, reason: 'phase' })
-          await setSetting('oly_shift', { edition: g0.edition, openAt: olNow(), closeAt: null })
-          olyShiftMem = { edition: g0.edition, openAt: olNow() }; olyShiftAt = Date.now()
+          /* V58: افتتاحیه‌ی واقعی — از فاز after هم مجاز است و یک «دور جدید» واقعی شروع می‌کند:
+             شماره‌ی دوره جلو می‌رود (جدول مدال/رکورد/آرشیو/میزبان از صفر) و بازی‌ها همان لحظه زنده می‌شوند.
+             از pre/reg مثل قبل فقط شروع زودتر همان دوره است. */
+          if (g0.phase === 'live') return R({ ok: false, reason: 'phase' })
+          if (g0.phase === 'after') {
+            const off = await getSetting<number>('oly_edoff', 0).catch(() => 0)
+            const nextOff = Math.max(0, Number(off) || 0) + 1
+            await setSetting('oly_edoff', nextOff)
+            olyEdOffMem = nextOff
+            const newEd = g0.edition + 1
+            await setSetting('oly_shift', { edition: newEd, openAt: olNow(), closeAt: null })
+            olyShiftMem = { edition: newEd, openAt: olNow() }; olyShiftAt = Date.now()
+            olyHostCache = null
+          } else {
+            await setSetting('oly_shift', { edition: g0.edition, openAt: olNow(), closeAt: null })
+            olyShiftMem = { edition: g0.edition, openAt: olNow() }; olyShiftAt = Date.now()
+          }
         } else if (mode === 'close') {
           /* V57: در فاز after هم بسته است (idempotent) — ادمین می‌تواند مراسم را دوباره ببیند؛
              فقط از pre/reg رد می‌شود. پایان فوری باید بلافاصله اثر کند — اگر شروع چند ثانیه قبل بوده،
