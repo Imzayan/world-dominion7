@@ -1020,3 +1020,23 @@ Stage Summary:
 - V59 wave-2 آماده: زنجیره‌های باقی‌مانده تک‌منبع شدند (≈۹۰ خط حذف)، باگ XP حمله و باگ جاسوسی APK ریشه‌ای فیکس، سقف ۱۵ کشوره دوطرفه، تب مخفی صرفه‌جوی منابع، خبر جعلی حذف، rate-limit فعال
 - deferred: دکمه Back گوشی (نیاز به تغییر MainActivity + rebuild APK + تصمیم versionCode) — موج ۳
 - pending: push با token کاربر → سپس اجرای کامل تست‌ها روی لایو
+
+---
+Task ID: V59-oth-color-fix
+Agent: Super Z (main)
+Task: فیکس باگ کاربر «رو هر کشور میزنم بعد برمیدارم رنگش می‌پره» — پرش/از دست رفتن رنگ کشورهای بازیکن‌دار (OTH) بعد از انتخاب+لغو انتخاب / mouseout لمس / zoom
+
+Work Log:
+- بازسازی محیط پس از ریست سندباکس: fetch + تأیید وضعیت — لایو = V59 Wave-1 (2e79f9e)، محلی = Wave-2 (7be7ce6، push نشده)
+- Audit کد (§1): ریشه در تعارض دو نویسنده‌ی style — مسیر پایه applyCountryColor برای OTH خاکستری baseStyle می‌کشید و گارد V56 (__wd56p===key) در paintOther ترمیم را رد می‌کرد (شرط «مالک عوض نشده» با بازنویسی style توسط پایه نقض می‌شد). دو مسیر فعال‌ساز: onCountryClick:1314 (applyCountryColor(prevActive)) و mouseout لمس:5583. zoom بی‌تقصیر (هیچ handler رنگی روی zoomend نیست)
+- بازتولید با Playwright موبایل (dsf3، cores8، کلیک واقعی): طوفان هارنس حل شد — (۱) canvas لایفلت بزرگ‌تر از viewport و transform-shifted است (canvasCss = containerPt − tx/ty)، (۲) redraw با rAF batch می‌شود (بافر stale)، (۳) آلفای زرد انتخابی 179 است (آستانه 200 ردش می‌کرد)، (۴) مودال auth مهمان کلیک را می‌بلعید
+- اثبات باگ پیش از فیکس: رنگ مالک hsl(104,42%,52%)=[109,184,81] → tap → زرد [255,204,0] → لغو انتخاب → خاکستری [117,117,117] = دقیقاً baseStyle('Algeria') — exit 2 «LOST»
+- فیکس تک‌منبعی (§12): paintOther(n,force) + شاخه OTH داخل خود applyCountryColor (اولویت زرد انتخاب حفظ شد) + اصلاح دو forEach که index را به paintOther می‌دادند (applyOthers/afterGeo)؛ گارد V56 فقط برای مسیر sync بدون force ماند؛ فیکس جایزه: باقی‌مانده‌ی hover (fillOpacity+0.06) روی OTH حالا واقعاً ترمیم می‌شود
+- تست محلی: repro جدید 7/7 FIXED + 80 بلوک 0 خطا + wave2 13/13 + map-visual 20/20 + apk-sim 28/28 + attack-smoke 10/10
+- دیپلوی: push 2e79f9e..b4d0af5 → main با PAT یک‌بارمصرف کاربر؛ live md5 750b4ec8 == local
+- راستی‌آزمایی production: repro 7/7 روی لایو + wave2 13/13 + apk-sim 28/28 + map-visual 20/20 + prod-clean-shot (ratio=2، patched=false، صفر pageerror)
+
+Stage Summary:
+- باگ «رنگش می‌پره» ریشه‌ای فیکس شد و روی پروداکشن (V59 Wave-2 + fix، b4d0af5) زنده است
+- درس ماندگار: هر تست پیکسلی باید transform-offset کانواس + rAF flush + آستانه آلفای هر fillOpacity را لحاظ کند؛ شواهد: upload/oth-color-lost.png (قبل) و oth-color-fixed.png (بعد)
+- versionCode 8 و latest.json دست‌نخورده؛ APK بدون rebuild خودکار HTML جدید را می‌کشد
