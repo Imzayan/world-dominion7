@@ -1630,6 +1630,10 @@ function applyCountryColor(n){const l=layersByName[n];if(!l)return;const s=statu
   if(s==='capital')l.setStyle({fillColor:'#00d97e',fillOpacity:.75,color:'#fff',weight:2.5});
   else if(s==='conquered')l.setStyle({fillColor:'#12b5e5',fillOpacity:.72,color:'#fff',weight:2});
   else if(n===activeEngName)l.setStyle({fillColor:'#ffcc00',fillOpacity:.7,color:'#fff',weight:2.5});
+  /* V59w2-fix «رنگش می‌پره»: کشور مال بازیکن دیگر (OTH) قبلاً این‌جا خاکستری می‌شد و گارد V56
+     در paintOther جلوی ترمیم را می‌گرفت (بعد از انتخاب/لغو انتخاب/mouseout رنگ مالک می‌پرید).
+     حالا پایه خودش رنگ مالک را تک‌منبعی اعمال می‌کند؛ گارد V56 فقط برای sync بدون force می‌ماند */
+  else if(OTH[n])paintOther(n,true);
   else l.setStyle(occ>0?Object.assign(baseStyle(n),{color:'#ffcc00',weight:2}):baseStyle(n));
   setFlag(n);
   for(const h of WD_COLOR_HOOKS.after){try{h(n)}catch(e){console.error('wd-color-hook',e)}}}
@@ -2571,19 +2575,20 @@ function otherLabel(n,o){const g=getG(n),has=OL2[n];
   OL2[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:480,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
 /* V59 wave-2: تک‌تعریفی paintOther — رنگ V56 (اشباع ۴۲٪ روشن‌تر برای خوانایی روی گوشی) + گارد __wd56p
    (بعد از هر حمله/سینک فقط کشورهای تغییرکرده رنگ می‌خورند) + لیبل مالک؛ wrapper های 22-core و V56 حذف شدند */
-function paintOther(n){const l=layersByName[n],o=OTH[n];if(!l||!o)return;
+function paintOther(n,force){const l=layersByName[n],o=OTH[n];if(!l||!o)return;
   const key=o.nick+'|'+(o.cap?1:0);
-  if(l.__wd56p===key){try{otherLabel(n,o)}catch(e){}return}
+  /* V59w2-fix: پارامتر force — وقتی مسیر پایه style را بازنویسی کرده (انتخاب/mouseout) گارد V56 نباید ترمیم را رد کند */
+  if(!force&&l.__wd56p===key){try{otherLabel(n,o)}catch(e){}return}
   l.__wd56p=key;
   l.setStyle({fillColor:'hsl('+nickHue(o.nick)+',42%,52%)',fillOpacity:.9,
     color:'rgba(255,255,255,.85)',weight:o.cap?2.4:1.6});
   try{otherLabel(n,o)}catch(e){}}
 function applyOthers(nw){const old=OTH;OTH=nw;
   Object.keys(old).forEach(n=>{if(!nw[n]){if(OL2[n]){OL2[n].remove();delete OL2[n]}try{applyCountryColor(n)}catch(e){}}});
-  Object.keys(nw).forEach(paintOther);renderSrvChip()}
-/* V59 wave-2: wrapper حذف شد — paintOther برای کشورهای دیگران، پس‌هوک applyCountryColor */
+  Object.keys(nw).forEach(n=>paintOther(n));renderSrvChip()}
+/* V59 wave-2: paintOther برای کشورهای دیگران، پس‌هوک applyCountryColor (بعد از فیکس، پایه خودش OTH را می‌کشد؛ این هوک فقط ترمیم تغییر key مالک است) */
 try{WD_COLOR_HOOKS.after.push(function(n){if(OTH[n])paintOther(n)})}catch(e){console.error('wd-h3',e)};
-(function(){const ag=afterGeo;afterGeo=function(){ag();try{Object.keys(OTH).forEach(paintOther)}catch(e){}}})();
+(function(){const ag=afterGeo;afterGeo=function(){ag();try{Object.keys(OTH).forEach(n=>paintOther(n))}catch(e){}}})();
 /* keep my territories in the shared table (first come, first served) */
 async function syncTerr(){if(syncBusy||!sb||!ACC.uid||!ACC.ready||MP_OK!==true)return;syncBusy=true;
   try{await loadStats();let f=await fetchTerr();DBMINE=f.mine;
