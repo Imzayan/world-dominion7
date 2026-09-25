@@ -1164,3 +1164,18 @@ Stage Summary:
 - V60sec کامل شد: فتح تک‌نفره حالا server-authoritative است (تک‌مسیر نوشتن قلمرو = territory_sync) و سه سوراخ API عمومی بسته شد (جعل رتبه، قلمرو آزاد، اسکن باز)
 - صفر تغییر اسکیمای DB؛ رکورد/مدال/حلقه‌ی المپیک O1-O4 دست‌نخورده؛ versionCode 8 و latest.json دست‌نخورده
 - pending (کاربر): توکن یک‌بارمصرف push برای اعزام به Vercel (تست‌ها روی سرور لوکال prod-like سبزند)
+
+---
+Task ID: V60sec-deploy
+Agent: Super Z (main)
+Task: اعزام V60sec به پروداکشن با توکن push یک‌بارمصرف کاربر (بند معلق از V60sec)
+
+Work Log:
+- سه‌طرفه پیش از push: live=5095ef92 (07e9023 / V60-O4-final) == origin/main؛ local=d34909e (9baeecb6) یک کامییت جلوتر — دقیقاً بند معلق worklog
+- push با URL یک‌بارمصرف (توکن در .git/config ذخیره نشد): 07e9023..d34909e main -> main
+- poll live: md5 live = 9baeecb64a0bae8b957f1b5434c82c29 == local → دیپلوی Vercel کامل
+- smoke پروداکشن: apk-sim-v58 با WD_BASE لایو = 28/28 PASS، صفر pageerror
+
+Stage Summary:
+- V60sec روی پروداکشن فعال است: فتح تک‌نفره server-authoritative (territory_sync تک‌مسیر) + بسته‌شدن سه سوراخ API عمومی (جعل رتبه، قلمرو آزاد، اسکن باز)
+- توکن push استفاده‌شده و دیگر لازم نیست؛ versionCode 8 و latest.json دست‌نخورده
