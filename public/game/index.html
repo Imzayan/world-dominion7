@@ -2622,23 +2622,25 @@ function applyOthers(nw){const old=OTH;OTH=nw;
 /* V59 wave-2: paintOther برای کشورهای دیگران، پس‌هوک applyCountryColor (بعد از فیکس، پایه خودش OTH را می‌کشد؛ این هوک فقط ترمیم تغییر key مالک است) */
 try{WD_COLOR_HOOKS.after.push(function(n){if(OTH[n])paintOther(n)})}catch(e){console.error('wd-h3',e)};
 (function(){const ag=afterGeo;afterGeo=function(){ag();try{Object.keys(OTH).forEach(n=>paintOther(n))}catch(e){}}})();
-/* keep my territories in the shared table (first come, first served) */
+/* V60sec: تک‌مسیر نوشتن قلمرو = RPC territory_sync (سرورمحرر) — اینسرت/دلیلت مستقیم جدول
+   آتش‌بس المپیک، سقف ۱۵ کشور، نرخ تصرف و اثبات سیو را دور می‌زد؛ داوری فقط سمت سرور است.
+   رفتارهای سالم حفظ شد: بوت‌استرپ پایتخت، first-come-first-served (lost)، سینک آفلاین (تریکل ۵تایی)،
+   رهاکردن زمین‌های ازدست‌رفته، بیرق پایتخت تک‌تایی (حالا سمت سرور نرمال می‌شود) */
 async function syncTerr(){if(syncBusy||!sb||!ACC.uid||!ACC.ready||MP_OK!==true)return;syncBusy=true;
-  try{await loadStats();let f=await fetchTerr();DBMINE=f.mine;
+  try{try{await saveNow()}catch(e){} /* سیو تازه ⇒ اثبات مالکیت برای داور سرور */
+    await loadStats();let f=await fetchTerr();DBMINE=f.mine;
     const held=new Set(conqueredCountries);if(myCountryName)held.add(myCountryName);const lost=[];
     held.forEach(n=>{if(f.oth[n])lost.push(n)});
-    for(const n of held){if(DBMINE.has(n)||f.oth[n])continue;
-      const r=await sb.from('territories').insert({server:SRV,country:n,user_id:ACC.uid,nick:ACC.nick,is_capital:n===myCountryName});
-      if(!r.error)DBMINE.add(n);else if(r.error.code==='23505')lost.push(n);else console.log(r.error)}
+    const r=await sb.rpc('territory_sync',{p_server:SRV,p_held:[...held],p_capital:myCountryName||null});
+    if(!r.error&&r.data){DBMINE=new Set((r.data.mine||[]).map(x=>x.country));(r.data.lost||[]).forEach(n=>{if(!lost.includes(n))lost.push(n)})}
+    else if(r.error)console.log(r.error);
     if(lost.length){lost.forEach(n=>{conqueredCountries.delete(n);delete occupationPct[n];held.delete(n)});
       if(!myCountryName||lost.includes(myCountryName)){const oc=myCountryName,nc=[...held][0]||null;if(!nc){conqueredCountries.clear()}myCountryName=nc;
         setTimeout(()=>showToast(nc?'⭐ پایتخت قبلی‌ات به بازیکن دیگری رسید؛ پایتخت جدید: '+((getCountryData(nc)||{}).fa||nc):'🏴 همه‌ی کشورهایت از دست رفت؛ یک پایتخت جدید انتخاب کن','lose'),1600)}
       f=await fetchTerr();lost.forEach(n=>{try{applyCountryColor(n)}catch(e){}});updateUI();
       showToast('⚠️ '+lost.length+' کشور در این سرور قبلاً به بازیکن دیگری رسیده بود و از قلمرو تو خارج شد','lose')}
-    const gone=[...DBMINE].filter(n=>!held.has(n));
-    if(gone.length){const r=await sb.from('territories').delete().eq('user_id',ACC.uid).eq('server',SRV).in('country',gone);if(!r.error)gone.forEach(n=>DBMINE.delete(n))}
     applyOthers(f.oth);
-    if(!SRV_OK&&myCountryName){const r=await sb.from('scores').update({server:SRV}).eq('user_id',ACC.uid).select('server');if(!r.error&&r.data&&r.data.length)SRV_OK=true}}
+    if(!SRV_OK&&myCountryName){const r2=await sb.from('scores').update({server:SRV}).eq('user_id',ACC.uid).select('server');if(!r2.error&&r2.data&&r2.data.length)SRV_OK=true}}
   catch(e){console.log(e)}
   syncBusy=false}
 async function initServer(){if(!sb||!ACC.uid)return;await loadStats();

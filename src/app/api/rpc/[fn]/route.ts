@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic'
    Implements every sb.rpc(...) call the game makes:
    get_wallet, spend_gems, is_admin, claim_admin_grants,
    claim_weekly_rewards, release_inactive_territories,
-   pvp_attack, pvp_capture_territory, get_world_news,
+   pvp_attack, pvp_capture_territory, territory_sync (V60sec), get_world_news,
    get_world_chat, wd_init_player, wd_get_state, olympics (V31)
    ============================================================ */
 
@@ -1256,6 +1256,67 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* V58: تصرف سرزمین آزاد هم فوراً در رتبه‌بندی دیده شود */
         if (r.ok) { try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: 1000 } } }) } catch (e) { console.log('capscore', e) } }
         return R(r.ok)
+      }
+
+      /* ---------------- V60sec — فتح تک‌نفره‌ی سرورمحرر (تک‌مسیر نوشتن قلمرو) ----------------
+         تا V60 کلاینت ردیف‌های territories را مستقیم می‌نوشت (insert/delete از shim جدول) —
+         مسیری که آتش‌بس المپیک، سقف ۱۵ کشور، نرخ تصرف و یکنواختی سیو را دور می‌زد.
+         حالا تنها مسیر نوشتن همین RPC است؛ سیاست‌ها:
+         ۱) اثبات: هر ادعای تازه باید در سیوی که سرور ذخیره کرده باشد (conq ∪ my)
+         ۲) آتش‌بس المپیک: فقط بوت‌استرپ نخستین کشور (پایتخت) مجاز است
+         ۳) سقف MAX_COUNTRIES + بودجه ۵ فتح تازه در هر فراخوانی (سیک ۳۰ثانیه‌ای سینک)
+         ۴) رهاکردن زمین‌هایی که کلاینت دیگر نگه نمی‌دارد (فقط ردیف‌های خود کاربر)
+         ۵) first-come-first-served با قید یکتا (P2002 → lost) + بیرق پایتخت تک‌تایی */
+      case 'territory_sync': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const capital = args.p_capital ? String(args.p_capital) : null
+        const heldRaw = Array.isArray(args.p_held)
+          ? [...new Set((args.p_held as unknown[]).map((c) => String(c || '').trim()).filter(Boolean))].slice(0, MAX_COUNTRIES + 2)
+          : []
+        const current = await db.territory.findMany({ where: { userId: user.id, server } })
+        const mine = new Set(current.map((t) => t.country))
+        /* releases — زمین‌هایی که دیگر نگه نمی‌دارم (فقط ردیف‌های خودم) */
+        const gone = [...mine].filter((c) => !heldRaw.includes(c))
+        if (gone.length) await db.territory.deleteMany({ where: { userId: user.id, server, country: { in: gone } } })
+        for (const g of gone) mine.delete(g)
+        /* proof — سیوی که سرور خودش ذخیره کرده، مرجع اثبات مالکیت است */
+        const save = await db.save.findUnique({ where: { userId: user.id } })
+        let st: { conq?: unknown; my?: unknown } = {}
+        try { st = save ? JSON.parse(save.state || '{}') : {} } catch { /* no proof available */ }
+        const proof = new Set<string>(Array.isArray(st.conq) ? (st.conq as unknown[]).map((c) => String(c)) : [])
+        if (st.my) proof.add(String(st.my))
+        const truce = gamesPhase().phase === 'live' && (await evOn('olympic'))
+        /* پایتخت اولویت داوری — بوت‌استرپ حتی وسط آتش‌بس فقط یک کشور می‌دهد */
+        const ordered = capital && heldRaw.includes(capital) ? [capital, ...heldRaw.filter((c) => c !== capital)] : heldRaw
+        const bootstrap = mine.size === 0
+        let budget = truce ? (bootstrap ? 1 : 0) : 5
+        const granted: string[] = [], denied: string[] = [], lost: string[] = []
+        let cnt = mine.size
+        for (const c of ordered) {
+          if (mine.has(c)) continue
+          if (!proof.has(c)) { denied.push(c); continue }
+          if (cnt >= MAX_COUNTRIES || budget <= 0) { denied.push(c); continue }
+          try {
+            await db.territory.create({ data: { server, country: c, userId: user.id, nick: user.nick, isCapital: !!capital && c === capital } })
+            budget--; cnt++; mine.add(c); granted.push(c)
+          } catch (e) {
+            if ((e as { code?: string })?.code === 'P2002') lost.push(c)
+            else throw e
+          }
+        }
+        /* بیرق پایتخت تک‌تایی — جابه‌جایی پایتخت میان کشورهایِ همین بازیکن هم درست می‌نشیند */
+        if (capital && mine.has(capital)) {
+          await db.territory.updateMany({ where: { userId: user.id, server, isCapital: true, country: { not: capital } }, data: { isCapital: false } }).catch(() => {})
+          await db.territory.updateMany({ where: { userId: user.id, server, country: capital, isCapital: false }, data: { isCapital: true } }).catch(() => {})
+        }
+        /* serverStat فقط وقتی وضعیت واقعاً عوض شد — سینک ۳۰ثانیه‌ای هر بازیکن نباید اسکن بیندازد */
+        if (granted.length || gone.length) {
+          const rows = await db.territory.groupBy({ by: ['userId'], where: { server } })
+          const taken = await db.territory.count({ where: { server } })
+          await db.serverStat.upsert({ where: { server }, create: { server, taken, players: rows.length }, update: { taken, players: rows.length } }).catch(() => {})
+        }
+        const mineRows = await db.territory.findMany({ where: { userId: user.id, server }, select: { country: true, isCapital: true } })
+        return R({ ok: true, granted, denied, lost, gone, truce, mine: mineRows.map((r) => ({ country: r.country, is_capital: r.isCapital })) })
       }
 
       /* ---------------- V54 special ops (server-enforced limits) ----------------

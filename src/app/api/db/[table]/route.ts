@@ -20,6 +20,7 @@ interface TableSpec {
   publicRead?: boolean   // readable without session
   adminWrite?: boolean   // only admins may insert
   readOnly?: boolean
+  rpcOnly?: boolean      // V60sec: writes ONLY via /api/rpc — the table shim serves reads
 }
 
 const T: Record<string, TableSpec> = {
@@ -49,6 +50,10 @@ const T: Record<string, TableSpec> = {
     types: { server: 'int', is_capital: 'bool' },
     owned: true,
     publicRead: true,
+    /* V60sec: فتح تک‌نفره دیگر از این جدول عبور نمی‌کند — تنها مسیر نوشتن
+       RPC territory_sync است (آتش‌بس + سقف ۱۵ کشور + نرخ + اثبات سیو)؛
+     اینسرت/دلیلت مستقیم کلاینت هر چهار لایه را دور می‌زد */
+    rpcOnly: true,
   },
   admin_grants: {
     model: 'adminGrant',
@@ -223,7 +228,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ table: stri
     const rows = await model[spec.model].findMany({
       where,
       ...(q.order ? { orderBy: { [spec.cols[q.order.col] || 'id']: q.order.asc ? 'asc' : 'desc' } } : {}),
-      ...(q.limit ? { take: Math.min(q.limit, 1000) } : {}),
+      /* V60sec: سقف پیش‌فرض — کوئری بی‌limit روی جدول‌های رشدکننده (scores) اسکن باز بود */
+      take: Math.min(q.limit || 1000, 1000),
     })
     let data = rows.map((r) => serialize(r, spec, q.select))
     if (q.maybeSingle) data = data.length ? [data[0]] : [null]
@@ -242,13 +248,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ table: str
   const { table } = await ctx.params
   const spec = T[table]
   if (!spec) return NextResponse.json({ data: null, error: err('relation "' + table + '" does not exist', '42P01') })
-  if (spec.readOnly) return NextResponse.json({ data: null, error: err('permission denied') })
+  if (spec.rpcOnly || spec.readOnly) return NextResponse.json({ data: null, error: err('permission denied') })
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ data: null, error: err('not authenticated', '401') })
   if (spec.adminWrite && !user.isAdmin) return NextResponse.json({ data: null, error: err('permission denied') })
   let body: { payloads?: unknown; query?: Query } = {}
   try { body = await req.json() } catch {}
-  const list = Array.isArray(body.payloads) ? body.payloads : [body.payloads]
+  /* V60sec: هر درخواست حداکثر ۵۰ ردیف — توده‌ی نامحدود payloads یک بردار سربار DB بود */
+  const list = (Array.isArray(body.payloads) ? body.payloads : [body.payloads]).slice(0, 50)
   const model = db as unknown as Record<string, { create: (a: object) => Promise<Record<string, unknown>> }>
   try {
     const created: Record<string, unknown>[] = []
@@ -274,7 +281,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ table: st
   const { table } = await ctx.params
   const spec = T[table]
   if (!spec) return NextResponse.json({ data: null, error: err('relation "' + table + '" does not exist', '42P01') })
-  if (spec.readOnly) return NextResponse.json({ data: null, error: err('permission denied') })
+  if (spec.rpcOnly || spec.readOnly) return NextResponse.json({ data: null, error: err('permission denied') })
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ data: null, error: err('not authenticated', '401') })
   /* V33.1: adminWrite tables (admin_grants) were PATCHable by ANY user → free resource minting */
@@ -308,7 +315,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ table: s
   const { table } = await ctx.params
   const spec = T[table]
   if (!spec) return NextResponse.json({ data: null, error: err('relation "' + table + '" does not exist', '42P01') })
-  if (spec.readOnly) return NextResponse.json({ data: null, error: err('permission denied') })
+  if (spec.rpcOnly || spec.readOnly) return NextResponse.json({ data: null, error: err('permission denied') })
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ data: null, error: err('not authenticated', '401') })
   /* V33.1: adminWrite tables (admin_grants) were DELETEable by ANY user → could wipe everyone's grants */
@@ -352,6 +359,15 @@ async function preparePayload(table: string, spec: TableSpec, raw: Record<string
   if (table === 'saves') {
     data.nick = user.nick
     if (typeof data.state !== 'string' || !data.state) data.state = '{}'
+    /* V60sec: سقف حجم سیو — JSON چندمگابایتی مسیر باد کردن جدول saves بود */
+    if ((data.state as string).length > 524288) throw new Error('save state too large')
+  }
+  if (table === 'scores') {
+    /* V60sec: متریک‌های رتبه‌بندی (score/conquered/kills/economy/recruits) فقط از
+       recomputeScore روی سیو می‌آیند — تا امروز PATCH مستقیم کلاینت رتبه‌ی جهانی را
+       جعل می‌کرد؛ تنها ستون مشروعِ کلاینت server است (سوییچ سرور در initServer) */
+    for (const k of Object.keys(data)) if (k !== 'server') delete data[k]
+    if (isUpdate && !('server' in data)) throw new Error('nothing to update')
   }
   if (table === 'territories') data.nick = user.nick
   if (table === 'world_chat') {
