@@ -2264,13 +2264,13 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){if(!myCountryName)return;const n=f.pr
    <script>
     /* ===== v3: economy rebalance, Gem shop, real calendar, ownership on the map, more infrastructure ===== */
 /* ---- SHOP CONFIG: put your payment-link URLs here (Stripe Payment Link, Zarinpal, ...). Empty url = button disabled ---- */
-/* PriceSync-300 — پک‌های جم: دقیقاً ۴ بسته از ۱۰۰ تا ۱۰۰۰ جم — هر جم ۳۰۰ تومان (هماهنگ با پنل مایکت).
-   با نرخ ثابت، همه‌ی پک‌ها ارزش یکسان دارند؛ برچسب «ارزش» فقط با بونوس پلکانی واقعی معنا پیدا می‌کند.
+/* PriceSync-v2 — پک‌های جم: قیمت‌های نهایی ثبت‌شده در پنل مایکت — ۳۰٬۰۰۰ / ۸۵٬۰۰۰ / ۱۵۰٬۰۰۰ / ۳۰۰٬۰۰۰ تومان.
+   نرخ هر جم: ۳۰۰ / ۲۸۳ / ۲۷۳ / ۳۰۰ — بسته‌ی ۵۵۰ جم بهترین نرخ را دارد.
    این نسخه فقط نمایشی است — قیمت مرجع همیشه SHOP_PACKS سمت سرور است. پرداخت واقعی با انتشار مایکت فعال می‌شود */
 const SHOP={packs:[
   {gems:100,price:'۳۰٬۰۰۰ تومان',perGem:'۳۰۰',name:'شروع',tier:'',tierCls:'',url:''},
-  {gems:300,price:'۹۰٬۰۰۰ تومان',perGem:'۳۰۰',name:'جنگاور',tier:'',tierCls:'',url:''},
-  {gems:550,price:'۱۶۵٬۰۰۰ تومان',perGem:'۳۰۰',name:'فاتح',tier:'',tierCls:'',url:''},
+  {gems:300,price:'۸۵٬۰۰۰ تومان',perGem:'۲۸۳',name:'جنگاور',tier:'',tierCls:'',url:''},
+  {gems:550,price:'۱۵۰٬۰۰۰ تومان',perGem:'۲۷۳',name:'فاتح',tier:'',tierCls:'',url:''},
   {gems:1000,price:'۳۰۰٬۰۰۰ تومان',perGem:'۳۰۰',name:'امپراتور',tier:'',tierCls:'',url:''}
 ]};
 let GEMS=0,BOOST=0,WALLET_OK=false;
