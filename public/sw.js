@@ -1,9 +1,12 @@
-/* World Dominion — service worker v5: "stable on any connection" strategy
+/* World Dominion — service worker v6: "instant boot + self-healing version" strategy
    - vendor libs + borders + flags: cache-first (same-origin, VPN-independent)
-   - game HTML: fresh-first with 3s patience → cached copy instantly on slow
-     networks while the fresh copy keeps downloading in the background
+   - game HTML: stale-while-revalidate → cached copy paints instantly on ANY network,
+     background fetch keeps it fresh; the page's V63 self-heal beacon swaps + reloads
+     once per release (v.txt) so users never stay pinned to an old build
+   - cold start (no cache): plain streaming navigation — SW never becomes a failure point
+   - /game/v.txt and ?wdFresh= bypass: always straight network, never cached here
    - API/SSE traffic is never intercepted */
-const CACHE = 'wd-v5';
+const CACHE = 'wd-v6';
 const IMMUTABLE = [
   '/cdn/leaflet/leaflet.min.js',
   '/cdn/leaflet/leaflet.min.css',
@@ -31,6 +34,7 @@ self.addEventListener('fetch', (e) => {
   try { url = new URL(req.url); } catch (_) { return; }
   if (url.origin !== location.origin) return;      // cross-origin: plain network, no interception
   if (url.pathname.startsWith('/api/')) return;    // API + realtime SSE: never cached
+  if (url.pathname === '/game/v.txt') return;      // V63 version beacon: always fresh, never intercepted
 
   // 1) immutable vendor + self-hosted flags → cache-first
   if (IMMUTABLE.indexOf(url.pathname) !== -1 || url.pathname.indexOf('/cdn/flags/') === 0) {
@@ -46,8 +50,9 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 2) game HTML (any entry URL) → smart strategy
-  if (url.pathname === '/' || url.pathname === '/game' || url.pathname === '/game/' || url.pathname === '/game/index.html') {
+  // 2) game HTML (any entry URL) → SWR; ?wdFresh= bypasses so the self-heal fetches truth
+  const isHtml = url.pathname === '/' || url.pathname === '/game' || url.pathname === '/game/' || url.pathname === '/game/index.html';
+  if (isHtml && url.search.indexOf('wdFresh=') === -1) {
     e.respondWith(htmlStrategy(req));
     return;
   }
@@ -68,27 +73,10 @@ async function htmlStrategy(req) {
   const cache = await caches.open(CACHE);
   const target = '/game/index.html';
   const cached = await cache.match(target);
-  let netSettled = false;
-  const net = fetch(req).then((res) => {
-    netSettled = true;
-    if (res && res.ok) {
-      const cp = res.clone();
-      cache.put(target, cp).catch(() => {});
-    }
-    return res;
-  }).catch(() => null);
-
-  const slow = new Promise((r) => setTimeout(() => r('slow'), 3000));
-  const winner = await Promise.race([net.then((r) => (r ? r : 'fail')), slow]);
-
-  if (winner !== 'slow') {
-    const res = winner === 'fail' ? null : winner;
-    if (res) return res;
-    if (cached) return cached;
-    return Response.error();
-  }
-  // network still running after 3s → instant cached load; fresh copy lands for next visit
-  if (cached) return cached;
-  const res = await net;
-  return res || Response.error();
+  if (!cached) return fetch(req); // cold: plain streaming navigation, no SW-induced failure
+  // warm: instant paint + silent background refresh for the next boot
+  fetch(req).then((res) => {
+    if (res && res.ok) cache.put(target, res.clone()).catch(() => {});
+  }).catch(() => {});
+  return cached;
 }

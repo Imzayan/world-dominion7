@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
+  <script>window.__WD_V=63;/* V63 version beacon — self-heal swap uses /game/v.txt */</script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -3204,6 +3205,25 @@ function wdConfirm(msg,yesLabel){return new Promise(res=>{
   if(localStorage.getItem('wd_twa')==='1'&&typeof SHOP!=='undefined'&&SHOP.packs)SHOP.packs.forEach(p=>p.url='')}catch(e){}})();
 /* offline shell + cached map assets */
 if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(e=>console.log('sw',e)));
+/* V63 self-heal: if a newer build is live, fetch it once (bypasses SW via ?wdFresh=),
+   swap the cached HTML, reload — once per target version (sessionStorage guard, no loops) */
+(function(){try{
+  var MY=(window.__WD_V||0)|0;if(!MY)return;
+  var S=null;try{S=window.sessionStorage}catch(e){return}if(!S)return;
+  fetch('/game/v.txt?nc='+Date.now(),{cache:'no-store'}).then(function(r){return r&&r.ok?r.text():''}).then(function(t){
+    var V=parseInt(String(t||'').trim(),10);
+    if(!(V>MY)){try{for(var i=0;i<S.length;i++){var k=S.key(i);if(k&&k.indexOf('wdHeal')===0){S.removeItem(k);i--}}}catch(e){}return}
+    if(S.getItem('wdHeal'+V)==='1')return;
+    try{S.setItem('wdHeal'+V,'1')}catch(e){return}
+    fetch('/game/index.html?wdFresh='+Date.now(),{cache:'no-store'}).then(function(r){return r&&r.ok?r.text():''}).then(function(txt){
+      if(!txt||txt.indexOf('__WD_V='+V)<0)return;
+      var done=false;var finish=function(){if(!done){done=true;try{location.reload()}catch(e){}}};
+      if(window.caches&&caches.keys){caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.open(k).then(function(c){return c.put('/game/index.html',new Response(txt,{headers:{'Content-Type':'text/html; charset=utf-8'}}))}).catch(function(e){})}))}).then(finish,finish)}
+      else finish();
+      setTimeout(finish,4000);
+    }).catch(function(e){});
+  }).catch(function(e){});
+}catch(e){}})();
    </script>
    <script id="v7-fixes">
     /* v7: Gems/boost come from the server wallet after login */
@@ -10318,8 +10338,8 @@ async function wgRefresh(force){
   try{
     if(typeof sb==='undefined'||!sb)return;
     if(typeof ACC==='undefined'||!ACC||!ACC.uid){strip33Update(null);return}
-    const r=await rpc33('olympic_games',{p_server:srvN()});
-    if(!r.ok||!r.d){ /* V62: خطا = کارت قابل‌مشاهده + تلاش دوباره — دیگر صفحه‌ی خالی نیست */
+    const r=await Promise.race([rpc33('olympic_games',{p_server:srvN()}),new Promise(res=>setTimeout(()=>res({ok:false,e:{message:'timeout'}}),10000))]);
+    if(!r.ok||!r.d){ /* V62: خطا = کارت قابل‌مشاهده + تلاش دوباره — دیگر صفحه‌ی خالی نیست | V63: هنگ شبکه هم همان کارت را می‌دهد */
       const wr=H('wg33-wrap');
       if(wr&&wgOpenFlag&&!wr.children.length){
         wr.innerHTML='<div style="text-align:center;padding:34px 18px"><div style="font-size:36px">📡</div>'+
