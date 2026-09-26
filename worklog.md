@@ -1245,3 +1245,20 @@ Stage Summary:
 - V62 live in production; all 5 user reports verified fixed on live: flags visible at boot w/o zoom, sea light-blue single canonical rule, server page opens with content (8625 chars), olympic hub opens with content (20871 chars, error-card fallback), lag reduced (waves layer + permanent animations removed, 8 competing sea !important rules → 1)
 - test matrix: live map-visual-v62 16/16 + apk-sim 28/28; local e2e-v58 24/24
 - new permanent guards: V58b retina guard (e2e), env-independent boot-flag check (map-visual-v62)
+
+---
+Task ID: V63-delivery-fix
+Agent: main (Super Z)
+Task: user reported olympic + server pages still blank on real APK device (screenshot failed to upload) — root-cause the delivery gap and close it
+
+Work Log:
+- Audit: live headers correct (max-age=0 must-revalidate, etag V62) + APK dex confirms shell loads the right URL — but public/game/index.html registers SW v5 whose htmlStrategy = 3s-patience race: on slow networks the 1.36MB HTML's headers can lose the race → instant STALE cached boot; WebView also keeps the old DOM alive across app resumes (no navigation) → V62 fixes never reached the device
+- Audit of page code under fresh HTML: openPage/refreshServer paint shell immediately (server page cannot be blank); residual gap found: rpc33 has NO timeout → olympic hub hangs forever on hanging networks (error card only painted on failure, not hang)
+- V63: sw.js v6 — stale-while-revalidate for HTML (instant cached paint + background refresh), cold start = plain streaming navigation (SW can never be the failure point), /game/v.txt + ?wdFresh= bypasses, wd-v5 caches deleted on activate; index.html — __WD_V=63 head beacon + self-heal (v.txt → wdFresh fetch → marker-verified swap of cached HTML → ONE sessionStorage-guarded reload per version, loop-proof); olympic wgRefresh 10s Promise.race hang guard reusing the V62 error card (single implementation); public/game/v.txt=63 (manual bump protocol per release)
+- New tools: scripts/verify-v63.mjs (7/7 syntax+marker), scripts/sw-selfheal-v63.mjs (stale-seed → SW serves 62 → heal to 63 → guarded reload → real touch taps on both reported pages)
+- Tests: local self-heal 8/8, e2e-v58 24/24 (seed), apk-sim 28/28; live: self-heal 8/8 (stale mechanism + heal + taps: server page 8842 chars, olympic hub 20871 chars), map-visual-v62 16/16, apk-sim 28/28, zero pageerror everywhere; deploy verified html a66c8eb8 + sw 4a896cb2 + v.txt 63 all == local
+
+Stage Summary:
+- Delivery root cause closed: users can no longer be pinned to stale builds; every future release auto-delivers within ~1-2s of boot (one visible reload per version)
+- Both reported pages verified to open with content on live fresh build; hang-mode now shows the error card + retry instead of blank
+- Release protocol note: bump window.__WD_V (index.html head) AND public/game/v.txt together on every HTML-affecting deploy
