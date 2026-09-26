@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=70;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=71;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -831,22 +831,7 @@
        ✕
       </span>
      </div>
-     <div style="display:flex; justify-content:space-between; background:#081c33; padding:10px; border-radius:10px; align-items:center; margin-bottom:8px;">
-      <span style="font-size:11px;">
-       🛢️ خرید ۱۵۰ بشکه نفت
-      </span>
-      <button class="action-btn btn-green" id="act-buy-oil" style="width:auto; padding:6px 12px; margin:0;">
-       ۲۵۰ طلا
-      </button>
-     </div>
-     <div style="display:flex; justify-content:space-between; background:#081c33; padding:10px; border-radius:10px; align-items:center;">
-      <span style="font-size:11px;">
-       🌾 خرید ۳۰۰ واحد غذا
-      </span>
-      <button class="action-btn btn-green" id="act-buy-food" style="width:auto; padding:6px 12px; margin:0;">
-       ۱۵۰ طلا
-      </button>
-     </div>
+     <!-- V71: دو ردیف خرید ثابت قدیمی (act-buy-oil/act-buy-food) حذف شد — محتوای این مودال از اولین بازشدن توسط بازار WD28 رندر می‌شود -->
     </div>
    </div>
    <!-- ============ رتبه‌بندی ============ -->
@@ -1576,12 +1561,7 @@ function bindStaticListeners() {
   });
 
   document.getElementById("act-tax").addEventListener("click", collectTax);
-  document.getElementById("act-buy-oil").addEventListener("click", () => {
-    buyMarket('oil');
-  });
-  document.getElementById("act-buy-food").addEventListener("click", () => {
-    buyMarket('food');
-  });
+  /* V71: بایندهای act-buy-oil/act-buy-food حذف شد — دکمه‌ها و buyMarket مرده بودند */
 }
 
 function collectTax() {
@@ -1825,8 +1805,7 @@ async function attackTarget(n){
   if(activeEngName===n)onCountryClick({properties:{name:n}},layersByName[n]);
   try{if(typeof syncTerr==='function')syncTerr()}catch(e){}            /* [V28 post] همگام‌سازی سرور */
 }
-function decay(){/* V41: پیشروی هرگز خودبه‌خود کم نمی‌شود (قبلاً هر ۵ ثانیه ۱.۵٪ سوزانده می‌شد!) —
-  فقط ضدحمله‌ی مدافع آن را عقب می‌راند (در لحظه‌ی «دفع شدن» موج حمله اعمال می‌شود) */}
+/* V71: decay() نو-اپ حذف شد — پیشروی فقط با ضدحمله‌ی مدافع عقب می‌راند */
 
 // ---- misc wiring ----
 /* V59 wave-2: wrapper حذف شد — پرچم کنار نام کشور، پس‌هوک کلیک */
@@ -1918,22 +1897,15 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){if(!myCountryName)return;const n=f.pr
   if(st==='conquered'&&n!==myCountryName&&r){r.textContent+=` • 🔥 ناآرامی: ${Math.round(unrest[n]||25)}٪`;const b=document.createElement('button');b.className='action-btn btn-gold';b.textContent='🕊️ آرام‌سازی (۳۰۰ طلا)';
     b.addEventListener('click',()=>{if(playerRes.gold<300){showToast('❌ طلای کافی نیست','lose');return}playerRes.gold-=300;unrest[n]=Math.max(0,(unrest[n]||25)-40);updateUI();showToast('🕊️ ناآرامی کاهش یافت','win');onCountryClick(f,l)});H$('drawer-actions').appendChild(b)}})}catch(e){console.error('wd-c2',e)}
 // --- day/night terminator + graticule ---
-let nightPoly=null;
-function nightPts(){const d=Date.now()/864e5+2440587.5-2451545,R=Math.PI/180,g=(357.529+.98560028*d)*R,q=280.459+.98564736*d,Lm=(q+1.915*Math.sin(g)+.02*Math.sin(2*g))*R,e=23.439*R,
-  ra=Math.atan2(Math.cos(e)*Math.sin(Lm),Math.cos(Lm));let dec=Math.asin(Math.sin(e)*Math.sin(Lm));if(Math.abs(dec)<.001)dec=.001;
-  const gm=((18.697374558+24.06570982441908*d)%24)*15*R;let sl=(ra-gm)/R;sl=((sl+540)%360)-180;
-  const pts=[];for(let lo=-180;lo<=180;lo+=4)pts.push([Math.atan(-Math.cos((lo-sl)*R)/Math.tan(dec))/R,lo]);const p=dec>0?-90:90;return pts.concat([[p,180],[p,-180]])}
-function addNight(){}/* V68: بدنه‌ی مرده (return اول) حذف شد — بدنه‌ی خالی برای سازگاری فراخوانی‌های قدیمی */
+/* V71: nightPts/addNight/addGrid (شب/شبکه‌ی رادار) حذف شدند — از V45/V59 نو-اپ و بدون فراخوانی زنده بودند */
 const _ag=afterGeo;afterGeo=function(){_ag()};
-function addGrid(){const o={color:'#7fdcff',weight:.6,opacity:.18,interactive:false};
-  for(let la=-60;la<=60;la+=30)L.polyline([[la,-180],[la,180]],o).addTo(map);for(let lo=-150;lo<=180;lo+=30)L.polyline([[-85,lo],[85,lo]],o).addTo(map)}
 addEventListener('load',()=>{try{
   const v=document.createElement('div');v.id='vignette';document.body.appendChild(v);
   const s=document.createElement('div');s.id='hud-strip';s.innerHTML='<div class="hchip" id="hud-date">📅</div><div class="hchip" id="hud-snd">🔊</div>';document.body.appendChild(s);
   const t=document.createElement('div');t.id='ticker';t.innerHTML='<span id="tk"></span>';document.body.appendChild(t);
   H$('hud-snd').addEventListener('click',()=>{muted=!muted;H$('hud-snd').textContent=muted?'🔇':'🔊'});
   showDate();if(!NEWS.length){ const t=H$('tk'); if(t)t.textContent='در حال انتظار برای نخستین رویداد ثبت‌شده در سرور…'; }
-  if(typeof map!=='undefined'&&map)addGrid();/* V59 wave-2 §10: ساعت/اقتصاد بازی در تب مخفی متوقف می‌شود */
+  /* V59 wave-2 §10: ساعت/اقتصاد بازی در تب مخفی متوقف می‌شود */
   setInterval(function(){if(!document.hidden)gameTick()},1000)}catch(e){console.log(e)}});
    </script>
    <style>
@@ -2292,8 +2264,7 @@ function popIncomeTick(){let t=0;conqueredCountries.forEach(n=>{t+=2+popM(n)*.01
 /* ---- real calendar (Persian date + time from the device clock) ---- */
 showDate=function(){const e=H$('hud-date');if(!e)return;let s;const d=new Date();
   try{s=d.toLocaleString('fa-IR-u-ca-persian',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(x){s=d.toLocaleString()}e.textContent='📅 '+s};
-/* ---- no radar grid / night overlay ---- */
-addGrid=function(){};
+/* V71: addGrid کاملاً حذف شد (بدنه، override و فراخوانی) */
 /* ---- natural land colors ---- */
 /* V45: نسخه‌ی روشن — همان فرمول نسخه‌ی پایین؛ hueهای تیره روی گوشی سیاه دیده نمی‌شوند */
 /* V59: بازتعریف V48 حذف شد — baseStyle تک‌منبع شد */
@@ -2674,7 +2645,8 @@ async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
   try{const r=await sb.from('scores').select('server').eq('user_id',ACC.uid).maybeSingle();
     if(r.data&&r.data.server){SRV=r.data.server;SRV_OK=true}else{SRV=pickServer();SRV_OK=false}}catch(e){SRV=pickServer()}
   renderSrvChip();try{await sb.rpc('release_inactive_territories')}catch(e){}await syncTerr();
-  setInterval(()=>{if(!document.hidden)syncTerr()},SYNC_MS);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncTerr()})}
+  if(!window.__wdSyncLoop){window.__wdSyncLoop=true; /* V71: گارد یک‌بار — قبلاً هر لاگین +۱ interval و +۱ listener انباشته می‌شد */
+    setInterval(()=>{if(!document.hidden)syncTerr()},SYNC_MS);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncTerr()})}}
 const _eo=enterOnline;enterOnline=async function(u,nick){await _eo(u,nick);initServer()};
 /* other players' countries can't be attacked/claimed (PvP comes later) */
 /* V59: wrapper V28 حذف شد — چک مالکیت لحظه‌ای + syncTerr داخل attackTarget واحد ادغام شد */
@@ -2863,16 +2835,11 @@ const TR={buys:[],sells:[]};let lastCap=0;
 const recentN=a=>{const t=Date.now();while(a.length&&t-a[0]>180000)a.shift();return a.length};
 function capStore(){const t=Math.max(1,conqueredCountries.size);
   /* V40: سقف نفت حالا از همان oilStorageCap می‌آید که UI نشان می‌دهد (قبلاً متفاوت بود و ارتقای انبار بی‌اثر بود!) — سقف غذا هم بزرگ‌تر شد */
-  const oc=(typeof window.oilStorageCap==='function')?window.oilStorageCap():6000+1500*t,fc=9000+2500*t;let cut=false;
+  const oc=(typeof window.oilStorageCap==='function')?window.oilStorageCap():6000+1200*t,fc=9000+2500*t;let cut=false; /* V71: fallback کهنه‌ی 1500 با فرمول زنده/سرور (1200) هم‌تراز شد */
   if(playerRes.oil>oc){playerRes.oil=oc;cut=true}if(playerRes.food>fc){playerRes.food=fc;cut=true}
   if(cut&&Date.now()-lastCap>60000){lastCap=Date.now();showToast('📦 انبارها پر است؛ مازاد تولید از بین می‌رود (ظرفیت نفت '+oc.toLocaleString()+'، غذا '+fc.toLocaleString()+')','lose')}return cut}
 setInterval(()=>{if(myCountryName&&capStore())updateUI()},3000);
-function buyMarket(kind){const c=kind==='oil'?{b:250,g:150,i:'🛢️',n:'بشکه نفت',id:'act-buy-oil'}:{b:150,g:300,i:'🌾',n:'واحد غذا',id:'act-buy-food'};
-  const price=Math.round(c.b*(1+.12*recentN(TR.buys)));
-  if(playerRes.gold<price){showToast('❌ طلای کافی نیست ('+price+' طلا لازم است)','lose');return}
-  playerRes.gold-=price;playerRes[kind]+=c.g;TR.buys.push(Date.now());capStore();updateUI();
-  const b=S$(c.id);if(b)b.textContent=Math.round(c.b*(1+.12*recentN(TR.buys)))+' طلا';
-  showToast(c.i+' '+c.g+' '+c.n+' خریداری شد ('+price+' طلا)','win')}
+/* V71: buyMarket حذف شد — دکمه‌های قدیمی #act-buy-oil/#act-buy-food از اولین بازشدن بازار با WD28 بازنویسی می‌شدند */
 barterTrade=function(gt,ga,rt,ra){if(playerRes[gt]<ga){showToast('❌ موجودی کافی برای این مبادله ندارید!','lose');return}
   const r=recentN(TR.sells),got=Math.round(ra*Math.max(.4,1-.12*r));playerRes[gt]-=ga;playerRes[rt]+=got;TR.sells.push(Date.now());capStore();updateUI();
   showToast('🔄 مبادله با موفقیت انجام شد: '+got+' دریافت شد'+(r?' (نرخ به‌خاطر معاملات پشت‌سرهم کمتر شد)':''),'win')};
@@ -3213,8 +3180,8 @@ function wdConfirm(msg,yesLabel){return new Promise(res=>{
   document.getElementById('wd-confirm-msg').textContent=msg;y.textContent=yesLabel||'تأیید';box.classList.add('on');
   const done=v=>{box.classList.remove('on');y.onclick=n.onclick=null;res(v)};y.onclick=()=>done(true);n.onclick=()=>done(false)})}
 /* Google Play policy: inside the Android app digital goods must use Play Billing, so external payment links are disabled there */
-(function(){try{if(document.referrer&&document.referrer.indexOf('android-app://')===0)localStorage.setItem('wd_twa','1');
-  if(localStorage.getItem('wd_twa')==='1'&&typeof SHOP!=='undefined'&&SHOP.packs)SHOP.packs.forEach(p=>p.url='')}catch(e){}})();
+(function(){try{if(document.referrer&&document.referrer.indexOf('android-app://')===0)localStorage.setItem('wd_twa','1')}catch(e){}})();
+/* V71: گارد مرده‌ی SHOP.packs حذف شد — SHOP هرگز تعریف نمی‌شد؛ سیاست پرداخت درون‌برنامه‌ای اکنون در فروشگاه V2 سرور-محور است */
 /* offline shell + cached map assets */
 if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(e=>console.log('sw',e)));
 /* V63 self-heal: if a newer build is live, fetch it once (bypasses SW via ?wdFresh=),
@@ -3312,216 +3279,6 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){
     b.textContent='🏳️ رها کردن این کشور (−'+Math.round(ABANDON_PCT*100)+'٪ ارتش و منابع)';
     b.addEventListener('click',()=>releaseCountry(n));d.appendChild(b)})}catch(e){console.error('wd-c6',e)}
    </script>
-   <div aria-hidden="true" id="wd-v2-badge">
-    PVP BATTLE v2
-   </div>
-   <style id="wd-pvp-realtime-css">
-    #wd-pvp-arena{margin:8px 0;padding:10px;border:1px solid rgba(0,240,255,.25);border-radius:14px;background:linear-gradient(180deg,#071a30,#04101e);overflow:hidden}
-.wd-pvp-head{display:grid;grid-template-columns:1fr 70px 1fr;align-items:center;gap:7px}
-.wd-pvp-side{padding:7px;border-radius:10px;background:#0a2038;border:1px solid #194373;text-align:center}
-.wd-pvp-side.att{box-shadow:0 0 16px rgba(0,210,255,.22)}
-.wd-pvp-side.def{box-shadow:0 0 16px rgba(255,60,100,.18)}
-.wd-pvp-name{font-size:10px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wd-pvp-power{font-size:8px;color:#8ab4f8;margin-top:3px}
-.wd-pvp-vs{font-size:22px;text-align:center}
-.wd-hp{height:9px;border-radius:10px;background:#07111e;border:1px solid #173653;overflow:hidden;margin-top:5px}
-.wd-hp i{display:block;height:100%;width:100%;transition:width .55s ease}
-.wd-hp-att i{background:linear-gradient(90deg,#00d2ff,#00ff88)}
-.wd-hp-def i{background:linear-gradient(90deg,#ff315f,#ff9a3d)}
-.wd-pvp-field{position:relative;height:112px;margin-top:9px;border-radius:11px;overflow:hidden;background:radial-gradient(circle at 50% 50%,rgba(255,190,50,.18),transparent 32%),linear-gradient(180deg,#102a40,#071522)}
-.wd-pvp-field:after{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed rgba(255,255,255,.14)}
-.wd-soldier{position:absolute;top:39px;font-size:27px;z-index:3;filter:drop-shadow(0 0 7px rgba(255,255,255,.35));transition:left .65s ease,transform .25s ease}
-.wd-soldier.a{left:8%}.wd-soldier.d{right:8%}
-.wd-soldier.fire-a{animation:wdChargeA .65s ease}.wd-soldier.fire-d{animation:wdChargeD .65s ease}
-@keyframes wdChargeA{50%{left:42%;transform:scale(1.22)}100%{left:28%;transform:scale(1)}}
-@keyframes wdChargeD{50%{right:42%;transform:scale(1.22)}100%{right:28%;transform:scale(1)}}
-.wd-shot{position:absolute;top:49px;font-size:18px;z-index:4;animation:wdShot .55s linear forwards}
-.wd-shot.a{left:18%}.wd-shot.d{right:18%}
-@keyframes wdShot{to{left:48%;opacity:0;transform:scale(1.7)}}
-.wd-burst{position:absolute;left:50%;top:38px;transform:translateX(-50%);font-size:31px;opacity:0;z-index:5}
-.wd-burst.show{animation:wdBurst .5s ease}
-@keyframes wdBurst{20%{opacity:1;transform:translateX(-50%) scale(.7)}70%{opacity:1;transform:translateX(-50%) scale(1.35)}100%{opacity:0;transform:translateX(-50%) scale(1.7)}}
-.wd-pvp-log{height:34px;overflow:hidden;text-align:center;font-size:9px;color:#b8d4f7;padding-top:6px}
-.wd-pvp-round{font-size:9px;color:#6ee7ff;text-align:center;margin-top:3px}
-   </style>
-   <script id="wd-pvp-realtime">
-    /* ===== World Dominion: REALTIME PLAYER-vs-PLAYER battle layer =====
-   This patch is intentionally layered on top of the existing combat system in this exact build.
-   Free-country attacks keep the original engine; player-owned countries use a shared Supabase battle channel.
-*/
-(function(){
-  const WD = { ch:null, server:null, ready:false, battles:new Map(), timers:new Map(), lastStart:0 };
-
-  function unitsPower(){
-    try{return Math.max(0,Math.round(calculateTotalAttack()))}catch(e){return 0}
-  }
-  function unitSnapshot(){
-    const out={}; try{Object.keys(ARMY_UNITS).forEach(k=>out[k]=Math.max(0,Math.round(ARMY_UNITS[k].count||0)))}catch(e){}
-    return out;
-  }
-  function totalUnits(s){
-    return Object.values(s||{}).reduce((a,b)=>a+(+b||0),0)
-  }
-  function ensureArena(title,attName,defName,attPower,defPower){
-    const box=S$("m-battle");
-    if(!box)return;
-    let a=S$("wd-pvp-arena");
-    if(!a){
-      const card=box.querySelector(".modal-card");
-      a=document.createElement("div");a.id="wd-pvp-arena";
-      card.insertBefore(a, card.querySelector("#battle-result-text"));
-    }
-    a.innerHTML=`
-      <div class="wd-pvp-head" dir="rtl">
-        <div class="wd-pvp-side att"><div class="wd-pvp-name">⚔️ ${attName||"مهاجم"}</div><div class="wd-pvp-power">قدرت: ${Number(attPower||0).toLocaleString("fa-IR")}</div><div class="wd-hp wd-hp-att"><i id="wd-hpa"></i></div></div>
-        <div class="wd-pvp-vs">⚔️</div>
-        <div class="wd-pvp-side def"><div class="wd-pvp-name">🛡️ ${defName||"مدافع"}</div><div class="wd-pvp-power">قدرت: ${Number(defPower||0).toLocaleString("fa-IR")}</div><div class="wd-hp wd-hp-def"><i id="wd-hpd"></i></div></div>
-      </div>
-      <div class="wd-pvp-field" id="wd-pvp-field"><div class="wd-soldier a" id="wd-sa">🪖🐅</div><div class="wd-soldier d" id="wd-sd">🛡️🪖</div><div class="wd-burst" id="wd-burst">💥</div></div>
-      <div class="wd-pvp-round" id="wd-pround">آماده‌سازی جبهه...</div>
-      <div class="wd-pvp-log" id="wd-plog">${title||"نبرد بازیکنان"}</div>`;
-  }
-  function openArena(title,attName,defName,ap,dp){
-    ensureArena(title,attName,defName,ap,dp);
-    openModal("m-battle");
-    const c=S$("battle-close-btn");if(c)c.style.display="none";
-  }
-  function setHp(a,d,ma,md){
-    const x=S$("wd-hpa"),y=S$("wd-hpd");
-    if(x)x.style.width=Math.max(0,Math.min(100,a/Math.max(1,ma)*100))+"%";
-    if(y)y.style.width=Math.max(0,Math.min(100,d/Math.max(1,md)*100))+"%";
-  }
-  function fx(side){
-    const field=S$("wd-pvp-field"),burst=S$("wd-burst");
-    if(!field)return;
-    const shot=document.createElement("span");shot.className="wd-shot "+(side==="a"?"a":"d");shot.textContent=side==="a"?"🚀":"💥";field.appendChild(shot);
-    setTimeout(()=>shot.remove(),650);
-    const s=S$(side==="a"?"wd-sa":"wd-sd");if(s){s.classList.remove("fire-a","fire-d");void s.offsetWidth;s.classList.add(side==="a"?"fire-a":"fire-d")}
-    if(burst){burst.classList.remove("show");void burst.offsetWidth;burst.classList.add("show")}
-  }
-  function applyRound(b,r){
-    const maxA=b.maxA,maxD=b.maxD;
-    setHp(r.a,r.d,maxA,maxD);
-    const round=S$("wd-pround"),log=S$("wd-plog");
-    if(round)round.textContent=`راند ${r.n} از ${b.rounds} — ${r.text}`;
-    if(log)log.textContent=r.text;
-    fx(r.hit==="d"?"d":"a");
-    const pct=Math.max(0,Math.min(100,Math.round((1-r.d/maxD)*100)));
-    const bar=S$("battle-progress-bar");if(bar)bar.style.width=pct+"%";
-    const lab=S$("battle-pct-label");if(lab)lab.textContent=pct+"%";
-  }
-  function showEnd(b,result){
-    const txt=S$("battle-result-text");
-    if(txt)txt.innerHTML=result.win
-      ? `🏆 <b style="color:var(--green-glow)">پیروزی در نبرد بازیکنان!</b><br>${b.countryFa} به تصرف مهاجم درآمد.`
-      : `🛡️ <b style="color:#ff9a3d">مدافع حمله را دفع کرد.</b><br>${b.countryFa} همچنان تحت کنترل مدافع است.`;
-    const c=S$("battle-close-btn");if(c)c.style.display="block";
-  }
-  async function channelForServer(){
-    if(!sb||!ACC.uid)return null;
-    if(WD.ch&&WD.server===SRV)return WD.ch;
-    try{if(WD.ch)await sb.removeChannel(WD.ch)}catch(e){}
-    WD.server=SRV;
-    const ch=sb.channel("wd-pvp-"+SRV,{config:{broadcast:{self:false}}});
-    ch.on("broadcast",{event:"pvp_challenge"},async({payload})=>{
-      if(!payload||payload.attacker_uid===ACC.uid||payload.server!==SRV)return;
-      if(payload.target_uid!==ACC.uid)return;
-      const power=unitsPower();
-      const units=unitSnapshot();
-      openArena(`⚔️ ${payload.attacker_nick} به ${payload.countryFa} حمله کرد`,payload.attacker_nick,ACC.nick,payload.attacker_power,power);
-      const msg={...payload,defender_uid:ACC.uid,defender_nick:ACC.nick,defender_power:power,defender_units:units};
-      await ch.send({type:"broadcast",event:"pvp_ready",payload:msg});
-    });
-    ch.on("broadcast",{event:"pvp_round"},({payload})=>{
-      if(!payload||payload.server!==SRV)return;
-      if(payload.attacker_uid!==ACC.uid&&payload.defender_uid!==ACC.uid)return;
-      const b=WD.battles.get(payload.id)||payload;
-      WD.battles.set(payload.id,b);applyRound(b,payload.round);
-    });
-    ch.on("broadcast",{event:"pvp_end"},({payload})=>{
-      if(!payload||payload.server!==SRV)return;
-      if(payload.attacker_uid!==ACC.uid&&payload.defender_uid!==ACC.uid)return;
-      const b=WD.battles.get(payload.id)||payload;showEnd(b,payload);
-      if(payload.win&&payload.attacker_uid===ACC.uid){conqueredCountries.add(payload.country);occupationPct[payload.country]=100;overrides[payload.country]={...getCountryData(payload.country),def:Math.round(getCountryData(payload.country).def*.1)};setTimeout(syncTerr,300)}
-      if(payload.win&&payload.defender_uid===ACC.uid){delete OTH[payload.country];setTimeout(syncTerr,300)}
-      updateUI();
-    });
-    const sub=await ch.subscribe();
-    if(sub==="SUBSCRIBED"||sub?.status==="SUBSCRIBED"){WD.ready=true;return ch}
-    return null;
-  }
-  async function pvpAttack(country){
-    if(!sb||!ACC.uid||MP_OK!==true){showToast("⚠️ برای حمله به بازیکن باید آنلاین باشی.","lose");return}
-    if(Date.now()-WD.lastStart<2500)return;
-    WD.lastStart=Date.now();
-    const q=await sb.from("territories").select("user_id,nick,is_capital").eq("server",SRV).eq("country",country).maybeSingle();
-    if(q.error||!q.data||q.data.user_id===ACC.uid){showToast("⚠️ مالکیت کشور تغییر کرده؛ دوباره باز کن.","lose");return}
-    const owner=q.data;
-    const target=getCountryData(country),ap=unitsPower();
-    if(ap<=0){showToast("❌ ارتش کافی برای حمله نداری.","lose");return}
-    const ch=await channelForServer();if(!ch){showToast("❌ اتصال نبرد آنلاین برقرار نشد.","lose");return}
-    const id=ACC.uid+"-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);
-    const b={id,server:SRV,country,countryFa:target.fa,attacker_uid:ACC.uid,attacker_nick:ACC.nick,target_uid:owner.user_id,target_nick:owner.nick,maxA:ap,maxD:0,rounds:8};
-    WD.battles.set(id,b);
-    openArena(`⚔️ حمله به ${target.fa}`,ACC.nick,owner.nick,ap,Math.max(target.def,1));
-    const c=S$("battle-close-btn");if(c)c.style.display="none";
-    let ready=null;
-    const handler=({payload})=>{if(payload&&payload.id===id&&payload.target_uid===ACC.uid){ready=payload}};
-    ch.on("broadcast",{event:"pvp_ready"},handler);
-    await ch.send({type:"broadcast",event:"pvp_challenge",payload:{...b,attacker_power:ap,attacker_units:unitSnapshot()}});
-    const until=Date.now()+5000;
-    while(!ready&&Date.now()<until)await new Promise(r=>setTimeout(r,100));
-    /* If the defender did not answer, the battle is cancelled rather than pretending it was a PvP fight. */
-    if(!ready){
-      document.getElementById("battle-result-text").textContent="⏳ مدافع آنلاین نیست یا پاسخ نداد؛ حمله لغو شد.";
-      const c2=S$("battle-close-btn");if(c2)c2.style.display="block";
-      return;
-    }
-    b.maxD=Math.max(ready.defender_power||target.def,1);b.defender_uid=ready.defender_uid;b.defender_nick=ready.defender_nick;
-    ensureArena(`⚔️ نبرد آنلاین: ${target.fa}`,ACC.nick,b.defender_nick,ap,b.maxD);
-    const startA=ap,startD=b.maxD;
-    let a=startA,d=startD,occ=occupationPct[country]||0;
-    for(let n=1;n<=b.rounds;n++){
-      await new Promise(r=>setTimeout(r,850));
-      const ar=(.86+Math.random()*.28),dr=(.86+Math.random()*.28);
-      const da=Math.max(1,Math.round(startD*.055*ar));
-      const dd=Math.max(1,Math.round(startA*.060*dr));
-      d=Math.max(0,d-da);a=Math.max(0,a-dd);
-      occ=Math.min(100,occ+Math.max(6,Math.round((da/startD)*75)));
-      const winSide=da>=dd?"a":"d";
-      const round={n,a,d,hit:winSide,text:winSide==="a"?"⚔️ موج حمله مهاجم به خط دفاع برخورد کرد":"🛡️ ضدحمله مدافع موج مهاجم را متوقف کرد"};
-      applyRound(b,round);
-      await ch.send({type:"broadcast",event:"pvp_round",payload:{...b,round}});
-      if(d<=0||a<=0)break;
-    }
-    const win=a>d;
-    if(win){
-      /* Final ownership transfer is server-authorized by the SQL function shipped with this build. */
-      let moved=false;
-      try{const rr=await sb.rpc("pvp_capture_territory",{p_server:SRV,p_country:country});moved=!rr.error&&rr.data===true;if(rr.error)console.log(rr.error)}catch(e){console.log(e)}
-      if(!moved){
-        document.getElementById("battle-result-text").innerHTML="⚠️ نبرد برده شد، اما انتقال مالکیت روی سرور انجام نشد؛ چند لحظه بعد دوباره تلاش کن.";
-      }else{
-        conqueredCountries.add(country);occupationPct[country]=100;overrides[country]={...target,def:Math.round(target.def*.1)};
-        const loot=Math.round((target.gold||0)*.35);playerRes.gold+=(loot||0);applyBattleLosses(.16);updateUI();await syncTerr();
-      }
-    }else{applyBattleLosses(.28);updateUI()}
-    await ch.send({type:"broadcast",event:"pvp_end",payload:{...b,win,country,finalA:a,finalD:d,countryFa:target.fa}});
-    showEnd(b,{win,countryFa:target.fa});
-    const bc=S$("battle-close-btn");if(bc)bc.style.display="block";
-    WD.battles.delete(id);
-  }
-  /* V59: به‌جای wrapper — رجیستری هوک؛ attackTarget دیگر بازنویسی نمی‌شود */
-  window.WD_ATTACK_HOOKS=window.WD_ATTACK_HOOKS||{};
-  WD_ATTACK_HOOKS.pvpRoute=function(n){if(OTH[n])return pvpAttack(n)};
-  const oldEnter=enterOnline;
-  window.enterOnline=async function(u,nick){
-    await oldEnter(u,nick);
-    setTimeout(()=>channelForServer(),1200);
-  };
-  window.WD_PVP_REALTIME=WD;
-})();
-   </script>
    <style id="wd5-css">
     #wd5-launcher{position:fixed;right:10px;bottom:74px;z-index:26000;width:52px;height:52px;border-radius:16px;border:1px solid rgba(0,240,255,.55);background:linear-gradient(145deg,#12385c,#071523);color:#fff;box-shadow:0 8px 30px rgba(0,0,0,.45),0 0 18px rgba(0,220,255,.18);font-size:22px;cursor:pointer}
 #wd5-panel{position:fixed;inset:0;z-index:25999;display:none;background:rgba(1,7,14,.72);backdrop-filter:blur(7px);align-items:flex-end;justify-content:center}
@@ -3597,13 +3354,13 @@ const MISSIONS=[
 ];
 
 function researchLevel(k){return Number(st.research[k]||0)}
-function researchMult(k){return 1+researchLevel(k)*.035}
 function completeMission(id){
  const m=MISSIONS.find(x=>x.id===id); if(!m)return;
  const key='m_'+id, done=Number(st.missions[key]||0);
  if(done>=m.goal)return;
  st.missions[key]=done+1;
- if(st.missions[key]>=m.goal){earn({gold:m.r});st.missions[key]=m.goal;toast('🏆 ماموریت کامل شد: '+m.n+' +'+num(m.r)+' طلا')}
+ /* V71: شیر طلای کلاینت حذف شد (تکمیل §26 در V68) — مأموریت WD5 دیگر منبع نمی‌سازد؛ پاداش واقعی فقط از داور سرور */
+ if(st.missions[key]>=m.goal){st.missions[key]=m.goal;toast('🏆 ماموریت کامل شد: '+m.n)}
  save();
 }
 function missionProgress(m){
@@ -3616,24 +3373,9 @@ function missionProgress(m){
 }
 function bump(type){st.stats[type]=(st.stats[type]||0)+1;save();MISSIONS.forEach(m=>{if(m.type===type)completeMission(m.id)})}
 
-function marketBuy(kind){
- const prices={food:0.08,oil:0.12,steel:0.16};
- const r=res(), amount=1000, price=Math.round(amount*prices[kind]);
- if(!price||r.gold<price){toast('❌ طلای کافی نیست');return}
- spend({gold:price}); const o={food:amount,oil:amount,steel:amount};
- earn({[kind]:amount});st.stats.trades++;save();completeMission('trade');toast('📈 معامله موفق: +'+num(amount)+' '+kind)
-}
-function marketSell(kind){
- const prices={food:0.05,oil:0.09,steel:0.12},amount=1000;
- const r=res(); if((r[kind]||0)<amount){toast('❌ منابع کافی نیست');return}
- spend({[kind]:amount});earn({gold:Math.round(amount*prices[kind])});st.stats.trades++;save();completeMission('trade');toast('💰 فروش موفق')
-}
+/* V71: marketBuy/marketSell پنل مرده‌ی WD5 حذف شد — بازار زنده: WD28 + P2P اسکرو سرور */
 
-function research(k){
- const x=RESEARCH[k], lv=researchLevel(k); if(lv>=x.max){toast('✅ این فناوری کامل شده');return}
- if(!spend({gold:x.cost*(lv+1)})){toast('❌ طلای کافی نیست');return}
- st.research[k]=lv+1;save();completeMission('research');toast('🧪 فناوری ارتقا یافت: '+x.n+' Lv.'+(lv+1));render()
-}
+/* V71: research() پنل مرده‌ی WD5 حذف شد — درخت تکنولوژی واقعی = CV_TECH (سرور-مأخذ) */
 
 function spy(){
  const target=(typeof activeEngName!=='undefined'&&activeEngName)||(typeof myCountryName!=='undefined'&&myCountryName);
@@ -3749,10 +3491,8 @@ function render(tab){
    }).catch(function(){});}}catch(e){console.error('wd5-srv',e)}
  }
  b.querySelectorAll('[data-act]').forEach(x=>x.onclick=()=>{const a=x.dataset.act;if(a==='tactic')chooseTactic();if(a==='spy')spy();if(a==='general')generalTrain();if(a==='alliance')diplomacy('alliance')})
- b.querySelectorAll('[data-buy]').forEach(x=>x.onclick=()=>marketBuy(x.dataset.buy));
- b.querySelectorAll('[data-sell]').forEach(x=>x.onclick=()=>marketSell(x.dataset.sell));
  b.querySelectorAll('[data-dip]').forEach(x=>x.onclick=()=>diplomacy(x.dataset.dip));
- b.querySelectorAll('[data-tech]').forEach(x=>x.onclick=()=>research(x.dataset.tech));
+ /* V71: بایندهای data-buy/data-sell/data-tech حذف شدند — توابع‌شان حذف شده‌اند */
 }
 function launch(){
  if($('wd5-launcher'))return;
@@ -3907,8 +3647,7 @@ function crisis(){if(S.crisis&&S.crisis.until>Date.now())return;const arr=[
 function economyTick(){crisis();let m=S.crisis?.mult||1;/* V68 §26: تزریق مستقیم منابع به playerRes حذف شد — کلاینت حق ضرب منبع ندارد؛ اقتصاد واقعی از سرور می‌آید. شبیه‌سازی داخلی WD7 (بازار/ثبات/روز) سر جایش است */Object.keys(S.market).forEach(k=>S.market[k]=Math.max(30,Math.round(S.market[k]*(.985+Math.random()*.03))));S.stability=Math.max(0,Math.min(100,S.stability+(terr()>10?-.2:.1)));S.day=Math.floor((Date.now()-(S.started||Date.now()))/86400000)+1;save()}
 function province(n){if(!S.provinces[n])S.provinces[n]={capital:Math.random()<.15,stability:65+Math.random()*25,industry:1+Math.floor(Math.random()*5),resource:['oil','food','steel','energy'][Math.floor(Math.random()*4)],fort:Math.floor(Math.random()*4)};return S.provinces[n]}
 function generateProvinces(){countries().forEach(n=>province(n));save()}
-function research(k){let cost=1+S.tech[k]*2;if(S.level<cost+1)return toast('🔬 سطح فرمانده برای این تحقیق کافی نیست');S.tech[k]++;addXP(25,'research');S.missions.research++;news('🧪 تحقیق جدید: '+k+' سطح '+S.tech[k]);render()}
-function trade(give,get,amt){if(typeof playerRes==='undefined')return;let p=price(get),q=Math.max(1,Math.floor(amt*price(give)/p));if(playerRes[give]<amt)return toast('❌ منابع کافی نیست');playerRes[give]-=amt;playerRes[get]+=q;S.missions.trade++;addXP(12,'trade');news('💰 تجارت '+amt+' '+give+' → '+q+' '+get);save();if(typeof updateUI==='function')updateUI();render()}
+/* V71: research()/trade() پنل مرده‌ی WD7 حذف شدند — شبیه‌سازی داخلی (S.tech/بازار) سر جایش است؛ درخت واقعی = CV_TECH، تجارت واقعی = WD28+P2P */
 function spy(){let list=countries().filter(n=>n!==me());if(!list.length)return toast('🛰️ هدفی پیدا نشد');let n=list[Math.floor(Math.random()*list.length)],a=aiCountry(n);a.intel=Math.min(100,a.intel+15);S.missions.spy++;addXP(20,'spy');let confidence=Math.min(95,35+S.tech.intel*10);news('🛰️ گزارش اطلاعاتی درباره '+fa(n)+' با اطمینان '+confidence+'٪: قدرت تقریبی '+Math.round(a.power*(.8+Math.random()*.4)));toast('🛰️ گزارش جاسوسی آماده شد');render()}
 function doctrine(){let d=['⚡ برق‌آسا','🛡️ دفاع عمیق','💥 تهاجم همه‌جانبه','🎯 حمله دقیق','🌊 محاصره دریایی'];let x=d[(S.level+S.warScore)%d.length];return x}
 function prepareWar(){let list=countries().filter(n=>n!==me() && !(typeof conqueredCountries!=='undefined'&&conqueredCountries.has(n)));if(!list.length)return toast('🌍 هدف مناسبی وجود ندارد');let n=list[Math.floor(Math.random()*list.length)],a=aiCountry(n);let bonus=1+S.tech.armor*.06+S.tech.air*.05+S.tech.intel*.04;let power=(typeof calculateTotalAttack==='function'?calculateTotalAttack():1000)*bonus;let defense=a.power*(.75+Math.random()*.6)*(a.stability>70?1.1:.9);let ratio=power/Math.max(1,defense);S.warScore+=Math.round(Math.max(1,ratio*10));S.missions.war++;S.general.xp+=25;S.reputation=Math.max(0,S.reputation-(ratio>1?0:2));addXP(35,'war');news((ratio>1?'⚔️ پیروزی تاکتیکی ':'🩸 شکست تاکتیکی ')+fa(n)+' | دکترین '+doctrine());if(ratio>1){a.stability=Math.max(0,a.stability-20);S.missions.conquer++;toast('⚔️ شبیه‌سازی موفق بود؛ برای حمله واقعی از نقشه هدف را انتخاب کن')}else{S.stability=Math.max(0,S.stability-4);toast('🛡️ شبیه‌سازی شکست خورد؛ نیرو و فناوری را ارتقا بده')}save();render()}
@@ -3929,7 +3668,7 @@ if(tab==='intel')c.innerHTML=`<div class="wd7-grid"><div class="wd7-card"><h3>�
 if(tab==='chron')c.innerHTML=`<div class="wd7-card"><h3>📜 Chronicle — تاریخ زنده جهان</h3><div class="wd7-log">${S.chronicle.length?S.chronicle.map(x=>`<div>${new Date(x.t).toLocaleTimeString()} — ${x.m}</div>`).join(''):'هنوز رویداد مهمی ثبت نشده است.'}</div></div>`;
 if(tab==='map')c.innerHTML=`<div class="wd7-grid"><div class="wd7-card"><h3>🗺️ لایه‌های نقشه</h3>${[['political','🟦 سیاسی'],['resources','⛏️ منابع'],['military','⚔️ نظامی'],['economic','💰 اقتصادی'],['diplomatic','🤝 دیپلماتیک']].map(x=>`<button class="wd7-btn ${S.layer===x[0]?'':'alt'}" style="margin:3px" onclick="wd7_layer('${x[0]}')">${x[1]}</button>`).join('')}<p class="wd7-muted">لایه انتخابی: ${S.layer}</p></div><div class="wd7-card"><h3>🏙️ استان‌ها</h3><p class="wd7-muted">هر قلمرو دارای استان‌های مجازی با ثبات، صنعت، استحکامات و منبع است.</p><div class="wd7-row"><span>کشورهای شناخته‌شده</span><b>${countries().length}</b></div><div class="wd7-row"><span>استان‌های مدل‌شده</span><b>${Object.keys(S.provinces).length}</b></div></div></div>`;
 }
-window.wd7_war=prepareWar;window.wd7_spy=spy;window.wd7_event=event;window.wd7_crisis=()=>{S.crisis=null;crisis();render()};window.wd7_trade=trade;window.wd7_dip=diplomacy;window.wd7_alliance=alliance;window.wd7_research=research;window.wd7_layer=layer;window.wd7_doMission=k=>{missionComplete(k);render()};
+window.wd7_war=prepareWar;window.wd7_spy=spy;window.wd7_event=event;window.wd7_crisis=()=>{S.crisis=null;crisis();render()};window.wd7_dip=diplomacy;window.wd7_alliance=alliance;window.wd7_layer=layer;window.wd7_doMission=k=>{missionComplete(k);render()}; /* V71: wd7_trade/wd7_research حذف شدند */
 $('wd7-btn').onclick=()=>{$('wd7-panel').classList.add('open');S.tab='world';render()};$('wd7-close').onclick=()=>$('wd7-panel').classList.remove('open');$('wd7-panel').onclick=e=>{if(e.target===$('wd7-panel'))$('wd7-panel').classList.remove('open')};
 S.started=S.started||Date.now();initAI();generateProvinces();season();economyTick();setInterval(()=>{economyTick();season();missionComplete('war');missionComplete('trade');missionComplete('spy');missionComplete('research');missionComplete('conquer');if($('wd7-panel').classList.contains('open'))render()},30000);
 // Hook core attack without replacing its combat logic: records a global-history layer around real attacks.
@@ -4112,8 +3851,8 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       const cap=oilStorageCap();
       let cut=false;
       if(playerRes.oil>cap){playerRes.oil=cap;cut=true}
-      if(playerRes.food>9000+2500*Math.max(1,conqueredCountries.size)){
-        playerRes.food=9000+2500*Math.max(1,conqueredCountries.size);cut=true
+      if(playerRes.food>9000+2500*conqueredCountries.size){ /* V71: هم‌تراز سرور (9000+2500×terrN) — max(1,) حذف شد */
+        playerRes.food=9000+2500*conqueredCountries.size;cut=true
       }
       return cut;
     };
@@ -4184,45 +3923,6 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     };
   }
 
-  // ---------- Player-vs-player attack ----------
-  async function openPvP(country){
-    const o=(typeof OTH!=='undefined')?OTH[country]:null;
-    if(!o){showToast('❌ این کشور تحت کنترل بازیکن دیگری نیست.','lose');return}
-    const body=$('wd-pvp-body');
-    const target=getCountryData(country);
-    body.innerHTML='<div class="wd-card"><b>🎯 هدف: '+target.fa+'</b><div class="wd-muted">بازیکن: '+String(o.nick||'نامشخص').replace(/[<>&]/g,'')+(o.cap?' • ⭐ پایتخت':'')+'</div>'+
-      '<div class="wd-muted">قدرت حمله تو: '+calculateTotalAttack().toLocaleString()+' • دفاع پایه کشور: '+target.def.toLocaleString()+'</div></div>'+
-      '<button class="action-btn btn-red" id="wd-pvp-go">⚔️ شروع حمله</button>';
-    openModal('wd-pvp');
-    $('wd-pvp-go').onclick=async()=>{
-      const btn=$('wd-pvp-go');btn.disabled=true;
-      try{
-        if(!sb||!ACC.uid){showToast('❌ حمله به بازیکن فقط در حالت آنلاین فعال است.','lose');return}
-        const power=calculateTotalAttack();
-        const result=await sb.rpc('pvp_attack',{
-          p_server:SRV,p_country:country,p_attack:power,p_tactic:(window.WD65TACTIC||null)
-        });
-        if(result.error)throw result.error;
-        const r=result.data;
-        if(r&&r.ok){
-          conqueredCountries.add(country);occupationPct[country]=100;
-          if(o.cap&&myCountryName!==country){ /* target capital captured; game can continue from captured territory */ }
-          delete OTH[country];try{applyCountryColor(country)}catch(e){}
-          addNews((ACC.nick||'بازیکن')+' به '+(o.nick||'بازیکن دیگر')+' حمله کرد و '+target.fa+' را تصرف کرد.');
-          showToast('🏆 حمله موفق بود؛ '+target.fa+' به قلمرو تو پیوست!','win');
-          if(r.duel_won)showToast('🥇 دوئر را بردی — ۱۵٬۰۰۰ طلا + ۲ جم واریز شد','win');
-          await syncTerr();await saveNow();closeModal('wd-pvp');
-        }else{
-          if(r&&r.error==='cap'){showToast('🏛️ سقف '+WD_MAX_COUNTRIES+' کشور پر است؛ اول یکی را رها کن','lose');closeModal('wd-pvp');return}
-          addNews((ACC.nick||'بازیکن')+' به '+(o.nick||'بازیکن دیگر')+' برای تصرف '+target.fa+' حمله کرد اما موفق نشد.');
-          showToast('⚔️ حمله ناموفق بود؛ دفاع دشمن قوی‌تر بود.','lose');closeModal('wd-pvp');
-        }
-      }catch(e){
-        console.log(e);
-        showToast('❌ حمله آنلاین در دسترس نیست؛ اتصال اینترنت را بررسی کن.','lose');
-      }finally{btn.disabled=false}
-    };
-  }
 
   // Replace the old "PvP not active" drawer text with a real button.
   /* V59 wave-2: wrapper حذف شد — دکمه حمله PvP به کشور دیگران، پس‌هوک کلیک.
@@ -4727,7 +4427,6 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
 }
    </style>
    <style>
-    #wd-v2-badge{position:fixed;left:-9999px;top:-9999px}
    </style>
    <style id="wd-v13-stability-css">
     /* V9 STABILITY: one command button, no overlapping floating controls */
@@ -4783,24 +4482,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
   const content=$('wd7-content');
   if(content){new MutationObserver(injectTools).observe(content,{childList:true});injectTools()}
 
-  // Harden V7 trade: only resources that actually exist in playerRes can be traded.
-  const safeTrade=(give,get,amt)=>{
-    try{
-      if(typeof playerRes==='undefined') return showToast('❌ منابع هنوز آماده نیستند.','lose');
-      const valid=['gold','oil','food','steel'];
-      if(!valid.includes(give)||!valid.includes(get)||give===get) return showToast('❌ این معامله معتبر نیست.','lose');
-      const amount=Math.max(1,Math.floor(Number(amt)||0));
-      if(!Number.isFinite(playerRes[give]) || playerRes[give]<amount) return showToast('❌ منابع کافی نیست.','lose');
-      const baseGive=({gold:100,oil:140,food:100,steel:180})[give];
-      const baseGet=({gold:100,oil:140,food:100,steel:180})[get];
-      const q=Math.max(1,Math.floor(amount*baseGive/baseGet));
-      playerRes[give]-=amount; playerRes[get]=(Number(playerRes[get])||0)+q;
-      if(typeof updateUI==='function')updateUI();
-      showToast('💱 معامله انجام شد: '+amount+' '+give+' → '+q+' '+get,'win');
-      if(window.wd7_doMission){};
-    }catch(e){console.warn('safe trade',e);showToast('❌ معامله انجام نشد.','lose')}
-  };
-  window.wd7_trade=safeTrade;
+  /* V71: safeTrade حذف شد — مسیرهای زنده‌ی تجارت: بازار WD28 + P2P اسکرو سرور؛ پنل WD7 هرگز باز نمی‌شود */
 
   // Prevent dead buttons caused by stale/missing data after an old localStorage version.
   try{
@@ -8784,10 +8466,10 @@ const WD54_OPS={
     hint:'🛰️ کشور هدف برای نفوذ سایبری را روی نقشه بزن',
     cine:['🛰️','نفوذ سایبری موفق!','شبکه‌ی دفاعی %C فلج شد — دفاع تا ۹۰ دقیقه ۲۰٪ افت می‌کند','c-cyan','coup'],
     done:'🛰️ دفاع %C تا ۹۰ دقیقه فلج است — اطلاعات دشمن لو رفت'},
-  commando:{fa:'راید کماندویی',ic:'🪂',cost:280,cdH:24,weekly:40,pct:.15,dur:120,bump:20,cls:'commando',snd:'coup',
+  commando:{fa:'راید کماندویی',ic:'🪂',cost:280,cdH:24,weekly:40,pct:0,atk:.20,dur:120,bump:0,cls:'commando',snd:'coup',
     hint:'🪂 کشور هدف برای راید کماندو را روی نقشه بزن',
-    cine:['🪂','راید کماندو موفق بود!','نیروهای ویژه در %C پیاده شدند — ۲۰٪ خاک بدون یک گلوله','c-violet','coup'],
-    done:'🪂 ۲۰٪ خاک %C آزاد شد — مدافع ۲ ساعت گیج است'},
+    cine:['🪂','راید کماندو موفق بود!','نیروهای ویژه در %C پیاده شدند — حمله‌ی بعدی تو در PvP ۲۰٪ قدرتمندتر است','c-violet','coup'],
+    done:'🪂 راید اجرا شد — قدرت حمله‌ات در PvP روی %C تا ۱۲۰ دقیقه +۲۰٪ است'},/* V71: هم‌تراز سرور — کماندو = +۲۰٪ قدرت حمله مهاجم (نه −۱۵٪ دفاع/اشغال نمایشی جعلی) */
   missile:{fa:'موشک پنچر',ic:'🚀',cost:350,cdH:24,weekly:30,pct:.30,dur:120,bump:10,cls:'missile',snd:'meteor',
     hint:'🚀 کشور هدف برای موشک پنچر را روی نقشه بزن',
     cine:['🚀','موشک پنچر شلیک شد!','پناهگاه‌های %C نابود شدند — دفاع تا ۱۲۰ دقیقه ۳۰٪ ضعیف','c-orange','meteor'],
@@ -8892,6 +8574,7 @@ function soCard(kind){const op=WD54_OPS[kind];if(!op)return null;
   const eff=[];
   if(op.bump>0)eff.push('+'+faNum(op.bump)+'٪ اشغال بدون جنگ');
   if(op.pct>0)eff.push('دفاع هدف '+faNum(Math.round(op.pct*100))+'٪ ضعیف به‌مدت '+faNum(op.dur)+' دقیقه');
+  if(op.atk>0)eff.push('قدرت حمله‌ی تو در PvP روی این هدف +'+faNum(Math.round(op.atk*100))+'٪ به‌مدت '+faNum(op.dur)+' دقیقه'); /* V71: اثر واقعی سرور */
   eff.push('⚡ اثر واقعی در نبرد PvP هم اعمال می‌شود');
   body.innerHTML='<b>'+op.ic+' '+op.fa+'</b><small>'+eff.join(' + ')+' — سقف سرور: '+faNum(op.weekly)+' در هفته</small><div class="wd-so-cd"></div>';
   const btn=D.createElement('button');btn.className='wd-go-btn';btn.textContent=faNum(op.cost)+' 💎';
@@ -10152,9 +9835,9 @@ function renderHub(){
       GD_KEYS.map(k=>{const m=GD33[k];const mine=regd.indexOf(k)>-1;const e=ent[k];const feat=SCHED33[g.gameDay].indexOf(k)>-1;
         return '<div class="wd31-row"><span class="wd31-rk" style="font-size:17px;background:none">'+m.ic+'</span>'+
         '<span class="who">'+esc(m.fa)+(feat?' <span class="chip33 wd32-tag" style="font-size:8.5px">امروز</span>':'')+(mine?'':' <span class="wd31-mini">(ثبت‌نام نکرده‌ای)</span>')+
-        (e?'<br><span class="wd31-mini">بهترین رکوردت: '+faN(e.best)+' • '+faN(e.attempts)+'/۵ تلاش</span>':'<br><span class="wd31-mini">'+esc(m.tip)+'</span>')+'</span>'+
-        (mine&&(!e||e.attempts<5)?'<button class="wg33-play" style="width:auto;padding:9px 18px" data-play="'+k+'">بازی کن</button>':
-         mine?'<span class="chip33 wd32-tag" style="font-size:9px">✓ ۵/۵</span>':'<span class="wd31-mini">🔒</span>')+'</div>'}).join('')+
+        (e?'<br><span class="wd31-mini">بهترین رکوردت: '+faN(e.best)+' • '+faN(e.attempts)+'/'+faN(ATT_MAX||5)+' تلاش</span>':'<br><span class="wd31-mini">'+esc(m.tip)+'</span>')+'</span>'+
+        (mine&&(!e||e.attempts<(ATT_MAX||5))?'<button class="wg33-play" style="width:auto;padding:9px 18px" data-play="'+k+'">بازی کن</button>':
+         mine?'<span class="chip33 wd32-tag" style="font-size:9px">✓ '+faN(ATT_MAX||5)+'/'+faN(ATT_MAX||5)+'</span>':'<span class="wd31-mini">🔒</span>')+'</div>'}).join('')+
       '<button class="wg33-play ghost" id="wg33-replay">🎬 پخش دوباره‌ی مراسم افتتاحیه</button></div>';
     h+=liveFeedCard(d);
     h+='<div class="wd31-card">'+secTitle('🗓️','مسابقه‌ی اصلی هر روز')+'<div class="wd31-mini" style="font-size:11px;line-height:2">'+
@@ -11007,601 +10690,16 @@ async function finish33(bd,key,norm,raw,e0){
   bd.querySelector('.wg33-result').append(wrap);
 }
 
-/* ================= 10 GAMES ================= */
+/* ================= GAMES registry ================= */
 const GAMES={};
-/* 1 — sprint: real 100m course — runner travels the lane past 10m..90m marks to the finish tape (score formula unchanged: taps*12) */
-GAMES.sprint=(el,done)=>{
-  const S=window.ST38;
-  el.innerHTML='<div class="gm33-track" style="position:relative"><div class="w38-course">'+
-      [10,20,30,40,50,60,70,80,90].map(m=>'<span class="w38-mark" style="left:'+(m)+'%">'+faN(m)+'</span>').join('')+
-      '<div class="w38-finish"></div><div class="w38-tape" id="g33tape" style="right:13px;width:0"></div></div>'+
-    '<span class="gm35-lane" id="g33lane"></span><span class="gm33-zone" style="left:0">👆</span><span class="gm33-zone" style="right:0">👆</span><span class="gm33-runner" id="g33run">🏃</span></div>'+
-    '<div><span class="w38-meter" id="g33mtr">۰ متر از ۱۰۰</span></div>'+
-    '<div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step" style="color:#7fd8ff">مثل برق بزن! ⚡</div>';
-  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),lane=el.querySelector('#g33lane'),
-    mtr=el.querySelector('#g33mtr'),tape=el.querySelector('#g33tape');
-  let taps=0,t0=0,met=0,broke=false;const DUR=8000;let fin=false;
-  const MS=[25,50,75];let mi=0;
-  on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
-    if(!t0){t0=performance.now();if(lane)lane.classList.add('run');if(S)S.say('تفنگ شلیک شد — شروع!');JUICE.cam('follow')}
-    taps++;sndK2('click');TELE.ev('p',performance.now()-TELE.t0); /* O1 تله‌متری */
-    FX.spark(ev.clientX,ev.clientY,['#ffd75e','#fff','#ff9d3c'],7,90,0.4);
-    if(taps%3===0)FX.dust(ev.clientX,ev.clientY+10);
-    const W=el.querySelector('.gm33-track').clientWidth||340;
-    const x=Math.min(W-36,taps*4.4);
-    run.style.transform='translateX('+x+'px)';
-    met=Math.round(taps*1.6);
-    if(mtr)mtr.textContent=faN(Math.min(100,met))+' متر از ۱۰۰';
-    if(!broke&&met>=100&&tape){broke=true;tape.classList.add('broken');FX.flash('#fff',.4);
-      /* V39: اسلوموشن سینمایی لحظه‌ی پاره‌شدن نوار + موج خروشان استادیوم */
-      JUICE.slow(950);JUICE.zoom();sndK2('crowd');FX.conf(70);
-      const c=FX.pt(run);FX.text(c.x,c.y-40,'🏁 گوش تا گوش!','#7dff9e',22);if(S)S.say('خط پایان پاره شد — تماشاگران دیوانه شدند!')}
-    else if(mi<MS.length&&met>=MS[mi]){mi++;if(S)S.say(faN(MS[mi-1])+' متر! '+(mi===1?'قدم‌ها گرم شد':'ریتم عالی است'))}
-    sc.textContent=faN(taps);
-    if(taps%10===0)FX.punch(run)},{passive:false});
-  loop33(()=>{const p=Math.min(1,(performance.now()-t0-600)/DUR);tb.style.width=Math.max(0,100-p*100)+'%';
-    if(!fin&&t0&&performance.now()-t0-600>=DUR){fin=true;if(lane)lane.classList.remove('run');
-      JUICE.camOff();if(taps>=50)sndK2('crowd');
-      FX.flash('#fff',.35);const c=FX.pt(run);
-      FX.text(c.x,c.y-40,taps>=65?'🔥 اسطوره!':taps>=50?'عالی!':'پایان','#ffd75e',22);
-      if(S&&!broke)S.say('پایان زمان — '+(taps>=50?'رکورد قابل احترام':'استادیوم انتظار بازگشتت را دارد'));
-      done(taps*12)}});
-};
-/* 2 — archery: 70m range — gusting wind changes target sway, arrows stick where they land (score formula unchanged: pts*20) */
-GAMES.archery=(el,done)=>{
-  const S=window.ST38;
-  el.innerHTML='<div><span class="w38-wind" id="g33wind"><span class="fl">🚩</span> باد: آرام</span><span class="w38-meter" style="margin-inline-start:7px">فاصله: ۷۰ متر</span></div>'+
-    '<div class="gm33-track" style="height:130px;position:relative"><div class="gm33-rings" id="g33tg">🎯</div><div class="gm33-flash" id="g33fl"></div></div>'+
-    '<div class="gm33-score" id="g33s">۰ / ۵۰</div><div class="gm33-step" id="g33st">تیر ۱ از ۵ — باد را بخوان، بعد شلیک کن</div>';
-  const tg=el.querySelector('#g33tg'),fl=el.querySelector('#g33fl'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st'),
-    windEl=el.querySelector('#g33wind');
-  const W=el.querySelector('.gm33-track').clientWidth||340;
-  let shot=0,pts=0,t0=performance.now();let fin=false;
-  const BASE=[1,1.35,1.7,2.1,2.5];
-  const WNAMES=['آرام','تند','طوفانی'];
-  let wind=0;
-  const gust=()=>{wind=Math.floor(Math.random()*3);
-    if(windEl)windEl.innerHTML='<span class="fl">🚩</span> باد: '+WNAMES[wind];
-    if(S&&shot<5)S.say(['باد آرام شد — لحظه‌ی طلایی شلیک','هشدار: باد تندید! هدف ناپایدار شد','طوفان! مرکز هدف را بگیر یا صبر کن'][wind]||'')};
-  gust();tm33(function gustLoop(){if(fin)return;gust();tm33(gustLoop,4200+Math.random()*2600)},4200);
-  loop33(()=>{const t=(performance.now()-t0)/1000;
-    const spd=BASE[Math.min(4,shot)]*(1+wind*.55);
-    const x=(W/2-42)+Math.sin(t*spd)*(W/2-60);
-    tg.style.transform='translateX('+x+'px)'});
-  on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
-    if(shot>=5||fin)return;
-    const rect=tg.getBoundingClientRect(),px=ev.clientX-(rect.left+rect.width/2);
-    const d=Math.abs(px);const p=d<10?10:d<20?9:d<32?8:d<46?6:d<64?4:2;
-    pts+=p;shot++;TELE.ev('shot',performance.now()-TELE.t0,p);sc.textContent=faN(pts)+' / ۵۰';st.textContent='تیر '+faN(Math.min(5,shot+1))+' از ۵';
-    sndK2('swoosh'); /* V39: صدای پرواز تیر */
-    /* V38: تیر در هدف فرو می‌رود و می‌ماند — زاویه‌ی تصادفی مثل هدف واقعی */
-    try{const tr=tg.getBoundingClientRect();
-      const stick=D.createElement('div');stick.className='gm33-stuck';
-      stick.style.left=(rect.left-tr.left)+(tr.width/2)+(px-2)+'px';
-      stick.style.top=(tr.height/2)+(Math.random()*14-7)+'px';
-      stick.style.transform='rotate('+(Math.random()*24-12)+'deg)';
-      tg.appendChild(stick)}catch(e){}
-    /* V35: حلقه‌ی برخورد + امتیاز شناور + انفجار کمانه */
-    FX.ring(ev.clientX,ev.clientY,p>=9?'rgba(125,255,158,.95)':p>=6?'rgba(255,215,94,.9)':'rgba(255,139,160,.85)',6,p>=9?64:40);
-    FX.spark(ev.clientX,ev.clientY,p>=9?['#7dff9e','#ffd75e','#fff']:['#ffb02e','#ff8ba0'],p>=9?16:8,110,0.6);
-    FX.text(ev.clientX,ev.clientY-14,(p>=9?'🎯 ':'')+faN(p),p>=9?'#7dff9e':p>=6?'#ffd75e':'#ff8ba0',p>=9?22:16);
-    fl.innerHTML='<span style="color:'+(p>=9?'#7dff9e':p>=6?'#ffd75e':'#ff8ba0')+'">'+(p>=9?'💥 ':'')+faN(p)+'</span>';
-    if(p>=9){FX.shake();JUICE.slow(620);JUICE.zoom();sndK2('crowd');if(S)S.say('دهِ طلایی! سالن از فریاد لرزید')}
-    else if(S&&p>=6)S.say('تیر خوب — داورها سر تکان دادند');
-    tm33(()=>{fl.innerHTML=''},600);sndK2(p>=8?'coin':'click');
-    if(shot>=5){fin=true;const c=FX.pt(tg);FX.text(c.x,c.y-50,pts>=40?'کمانگیر افسانه‌ای!':pts>=28?'تیرانداز ماهر':'پایان','#ffd75e',20);
-      if(S)S.say(pts>=40?'پنج تیر، پنج قصه — ایستو در تاریخ ثبت شد':'پنج تیر تمام — پرچم باد هنوز سرفه‌جاست');
-      done(pts*20)}});
-};
-/* 3 — swim: 100m freestyle — two pool lengths, wall turns every 25m with flip animation (score formula unchanged: strokes*14) */
-GAMES.swim=(el,done)=>{
-  const S=window.ST38;
-  el.innerHTML='<div class="gm33-track" style="position:relative;overflow:hidden"><span class="gm35-water"></span><span class="gm35-wave" style="bottom:18px"></span><span class="gm35-wave" style="bottom:44px;opacity:.3"></span><span class="gm33-zone" style="left:0">👈</span><span class="gm33-zone" style="right:0">👉</span><span class="gm33-runner" id="g33run" style="z-index:2">🏊</span></div>'+
-    '<div><span class="w38-meter" id="g33mtr">۰ متر از ۱۰۰</span></div>'+
-    '<div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step">یکی‌درمیان! هر ۲۵ متر دیوارِ چرخش است</div>';
-  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),mtr=el.querySelector('#g33mtr');
-  let strokes=0,last=-1,t0=0,met=0,turn=0;const DUR=10000;let fin=false;
-  const trk=el.querySelector('.gm33-track');
-  on33(trk,'pointerdown',ev=>{ev.preventDefault();
-    if(!t0){t0=performance.now();if(S)S.say('بوق استارت — آب را بشکاف!');JUICE.cam('swim')}
-    const side=ev.clientX<window.innerWidth/2?0:1;
-    if(side!==last){strokes++;last=side;sndK2('click');TELE.ev('p',performance.now()-TELE.t0,side);
-      FX.splash(ev.clientX,ev.clientY); /* V39: پاشش واقعی آب */
-      FX.spark(ev.clientX,ev.clientY,['#9adcff','#fff','#39e6d0'],5,70,0.5);
-      FX.ring(ev.clientX,ev.clientY,'rgba(153,220,255,.85)',5,44);
-      const W=trk.clientWidth||340;
-      run.style.transform='translateX('+Math.min(W-34,strokes*4.6)+'px)';
-      met=Math.round(strokes*1.15);
-      if(mtr)mtr.textContent=faN(Math.min(100,met))+' متر از ۱۰۰';
-      if(met>=25*(turn+1)&&turn<4){turn++;sndK2('stamp');sndK2('splash');
-        run.style.transition='transform .3s';run.style.transform+=' rotateY(180deg)';
-        tm33(()=>{run.style.transition='';run.style.transform='translateX('+Math.min(trk.clientWidth||340,Math.min(W-34,strokes*4.6))+'px)'},320);
-        FX.flash('#9adcff',.22);const cT=FX.pt(run);FX.splash(cT.x,cT.y,16);
-        if(S)S.say(['چرخش در دیوار ۲۵ متری — بی‌درنگ!','دیوار ۵۰ متری! نیمه‌ی راه','چرخش ۷۵ متری — آب زیر پا می‌سوزد','دیوار آخر — سیرت را تمام کن!'][turn-1]||'')}
-      sc.textContent=faN(strokes)}
-    else{sc.style.color='#ff8ba0';FX.shake()}
-    setTimeout(()=>{sc.style.color=''},250)},{passive:false});
-  loop33(()=>{if(!t0)return;const p=Math.min(1,(performance.now()-t0)/DUR);tb.style.width=(100-p*100)+'%';
-    if(!fin&&p>=1){fin=true;const c=FX.pt(run);JUICE.camOff();
-      if(strokes>=85){JUICE.slow(700);sndK2('crowd')}
-      FX.text(c.x,c.y-40,strokes>=110?'🐋 موج‌سوار!':strokes>=85?'شناگر طلایی':'پایان','#9adcff',21);
-      if(strokes>=110)FX.conf(60);
-      if(S)S.say(strokes>=110?'موج‌سوار تالار!':'پایان مسافت — کرونومتر حرف آخر را زد');
-      done(strokes*14)}});
-};
-/* 4 — gym: floor routine before a judges panel — E-score flashes after each move (score formula unchanged) */
-GAMES.gym=(el,done)=>{
-  const S=window.ST38;
-  el.innerHTML='<div class="gm35-combo" id="g33cmb"></div>'+
-    '<div style="display:flex;gap:8px;justify-content:center;direction:ltr"><span class="w38-load" style="margin:0">داور ۱: —</span><span class="w38-load" style="margin:0">داور ۲: —</span><span class="w38-load" style="margin:0">داور ۳: —</span></div>'+
-    '<div class="gm33-arrowbig" id="g33ar">⬆️</div><div class="gm33-timer" style="width:min(60vw,240px)"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-pad"><button class="up" data-d="0">⬆️</button><button class="lf" data-d="2">⬅️</button><button class="dn" data-d="1">⬇️</button><button class="rt" data-d="3">➡️</button></div>';
-  const AR=['⬆️','⬇️','⬅️','➡️'];
-  const ar=el.querySelector('#g33ar'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),cmb=el.querySelector('#g33cmb');
-  const judges=[...el.querySelectorAll('.w38-load')];
-  let step=0,pts=0,miss=0,stepT0=performance.now(),cur=0,gen=0,fin=false,combo=0;
-  JUICE.cam('orbit'); /* V39: دوربین مداری هنگام چرخش‌های هوایی */
-  const win=[1600,1600,1450,1450,1300,1300,1150,1150,1000,1000,850,850];
-  const MOVES=['پرش پشت','چرخش هوایی','تعادل تک‌پا','پشتک','سالتوی دوتایی'];
-  const end=()=>{fin=true;if(combo>=5)FX.conf(50);
-    /* V39: فرود پایانی — نور از زیر پا + سوت داور + بستن دوربین */
-    JUICE.camOff();FX.flash('#ffd75e',.22);sndK2('whistle');FX.shake();
-    if(S)S.say(miss>=4?'روتین نیمه‌کاره ماند — داورها امتیاز سخت گرفتند':'روتین تمام شد! داورها یادداشت‌هایشان را بستند');
-    done(pts)};
-  const judgeFlash=(fast)=>{
-    judges.forEach((j,i)=>{const e=(8.4+Math.random()*(fast?1.5:0.9)).toFixed(1);
-      j.textContent='داور '+faN(i+1)+': '+faN(e).replace('.','٫');j.style.color=fast?'#7dff9e':'#ffe08a';
-      j.style.transform='scale(1.12)';tm33(()=>{j.style.transform=''},180)})};
-  const next=()=>{if(fin)return;
-    if(step>=12||miss>=4){end();return}
-    cur=Math.floor(Math.random()*4);ar.textContent=AR[cur];
-    if(step===4&&S)S.say('نیمه‌ی روتین — سخت‌ترین حرکت‌ها از اینجا شروع می‌شود');
-    stepT0=performance.now();gen++};
-  loop33(()=>{if(fin)return;
-    const w=win[Math.min(11,step)];const p=(performance.now()-stepT0)/w;
-    if(tb)tb.style.width=Math.max(0,100-p*100)+'%';
-    if(p>=1){miss++;combo=0;if(cmb)cmb.textContent='';TELE.ev('mv',performance.now()-TELE.t0,0,0);FX.shake();sndK2('alert');if(S&&miss===1)S.say('حرکت جا افتاد! تمرکز کن');next()}});
-  el.querySelectorAll('.gm33-pad button').forEach(b=>b.addEventListener('pointerdown',ev=>{ev.preventDefault();
-    if(fin)return;
-    const w=win[Math.min(11,step)];const el3=performance.now()-stepT0;
-    if(Number(b.getAttribute('data-d'))===cur){
-      const fast=el3<w*.4;const gained=70+(fast?30:0);
-      pts+=gained;step++;combo++;sndK2('coin');sc.textContent=faN(pts);TELE.ev('mv',performance.now()-TELE.t0,1,fast?1:0);
-      FX.punch(ar);FX.spark(FX.pt(ar).x,FX.pt(ar).y,fast?['#7dff9e','#ffd75e']:['#ffd75e'],fast?14:8,95,0.5);
-      if(fast){const p2=FX.pt(ar);FX.text(p2.x,p2.y-50,'بی‌نقص! +'+faN(gained),'#7dff9e',18)}
-      if(combo===3)judgeFlash(fast);
-      if(cmb&&combo>=3){cmb.textContent='🔥 کمبو ×'+faN(combo)}
-      if(S&&step===8)S.say('هشت حرکت تمام — تماشاگران روی پا هستند!');
-      next()}
-    else{miss++;combo=0;if(cmb)cmb.textContent='';TELE.ev('mv',performance.now()-TELE.t0,0,0);FX.shake();sndK2('alert');if(S)S.say('کج‌فرود آمدی — داور خطا یادداشت کرد');next()}},{passive:false}));
-  next();
-};
-/* 5 — weight: barbell ladder ۱۲۰→۲۴۰kg — three referee lights judge each lift (score formula unchanged) */
-GAMES.weight=(el,done)=>{
-  const S=window.ST38;
-  const KG=['۱۲۰','۱۵۰','۱۸۰','۲۱۰','۲۴۰'];
-  el.innerHTML='<div><span class="w38-load" id="g33kg">وزنه: ۱۲۰ کیلو</span></div>'+
-    '<div class="gm33-bar" id="g33bar" style="position:relative"><span class="gm35-crowdstat"></span><div class="gm33-gold" id="g33z"></div><div class="gm33-marker" id="g33m">🏋️</div></div>'+
-    '<div class="w38-lights" id="g33lights"><span class="w38-light"></span><span class="w38-light"></span><span class="w38-light"></span></div>'+
-    '<div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">حرکت ۱ از ۵ — دقیق در ناحیه‌ی طلایی بزن</div>';
-  const bar=el.querySelector('#g33bar'),z=el.querySelector('#g33z'),m=el.querySelector('#g33m'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st'),
-    lights=[...el.querySelectorAll('.w38-light')],kg=el.querySelector('#g33kg');
-  const H=bar.clientHeight||190;
-  let lift=0,pts=0,t0=performance.now();let fin=false;
-  JUICE.cam('low'); /* V39: دوربین قهرمانانه از پایین به بالا */
-  const ZC=[.30,.34,.30,.38,.34],ZH=[46,40,36,32,28],SPD=[2.1,2.4,2.7,3.0,3.4];
-  loop33(()=>{const t=(performance.now()-t0)/1000;
-    const y=H/2+Math.sin(t*SPD[Math.min(4,lift)])*(H/2-30);
-    m.style.top=(y-8)+'px'});
-  const drawZone=()=>{const zc=ZC[Math.min(4,lift)]*H,zh=ZH[Math.min(4,lift)];
-    z.style.top=(zc-zh)+'px';z.style.height=(zh*2)+'px'};
-  drawZone();
-  on33(bar,'pointerdown',ev=>{ev.preventDefault();
-    if(lift>=5||fin)return;
-    const zc=ZC[Math.min(4,lift)]*H,zh=ZH[Math.min(4,lift)];
-    const my=((Number(m.style.top.replace('px',''))||0)+8);
-    const d=Math.abs(my-zc);
-    const p=Math.max(0,1-d/(zh*2.2));
-    const got=Math.round(200*p);pts+=got;lift++;TELE.ev('lift',performance.now()-TELE.t0,p);
-    /* V39: خم‌شدن میله زیر وزنه + ارتعاش + اسلوموشن حرکت بی‌نقص */
-    bar.classList.add('wg39-bend');tm33(()=>bar.classList.remove('wg39-bend'),1050);
-    if(p>.85)JUICE.slow(560);
-    sc.textContent=faN(pts);st.textContent='حرکت '+faN(Math.min(5,lift+1))+' از ۵';
-    /* V38: سه داور — چراغ سفید/سرخ */
-    const ok=p>.6;
-    lights.forEach((L2,i)=>{const good=ok||(p>.45&&i===0); /* نزدیک بود = یک چراغ سفید خوانده شد */
-      L2.className='w38-light '+(good?'g':'r')});
-    if(kg&&lift<5)kg.textContent='وزنه: '+KG[Math.min(4,lift)]+' کیلو';
-    /* V35: هاله + جرقه بر اساس دقت */
-    const mc=FX.pt(bar,0.5,my/H);
-    FX.ring(mc.x,mc.y,ok?'rgba(125,255,158,.95)':'rgba(255,179,46,.9)',8,ok?70:40);
-    FX.spark(mc.x,mc.y,ok?['#7dff9e','#ffd75e','#fff']:['#8a8f9e','#5a6070'],ok?14:6,120,.7);
-    bar.classList.remove('gm35-aura');void bar.offsetWidth;if(ok)bar.classList.add('gm35-aura');
-    if(p>.85){FX.text(mc.x,mc.y-30,'⚡ مهاربند فولادین!','#7dff9e',17);sndK2('crowd');if(S)S.say(KG[Math.min(4,lift-1)]+' کیلو بالا آمد — سه چراغ سفید!')}
-    else if(ok){FX.text(mc.x,mc.y-30,'💪 برداشتن!','#ffd75e',16);if(S)S.say('حرکت ثبت شد — داورها اجازه دادند')}
-    else{FX.shake();if(S)S.say('چراغ‌های سرخ! وزنه سنگین‌تر از امروز بود')}
-    sndK2(ok?'coin':'click');
-    if(lift>=5){fin=true;JUICE.camOff();if(pts>=700){FX.conf(80);FX.flash('#ffd75e',.3);sndK2('crowd')}
-      if(S)S.say(pts>=700?'تمام وزن‌ها فتح شد — سالن آهنین کف زد':'پنج حرکت تمام — میله روی زمین افتاد');
-      done(pts)}else drawZone()},{passive:false});
-};
-/* 6 — cycling: mountain road race — your rhythm moves you up a live field of two rivals (score formula unchanged: avg*1000) */
-GAMES.cycling=(el,done)=>{
-  const S=window.ST38;
-  el.innerHTML='<div><span class="w38-pos" id="g33pos">🚴 جایگاه: ۳ از ۳</span><span class="w38-meter" style="margin-inline-start:7px" id="g33km">۰٫۰ کیلومتر</span></div>'+
-    '<div class="gm33-track" style="position:relative;overflow:hidden"><span class="gm35-speedlines" id="g33sl"></span>'+
-    '<span class="w38-rival" id="g33r1" style="left:30%;bottom:22px">🚴<small>رقیب A</small></span><span class="w38-rival" id="g33r2" style="left:60%;bottom:2px">🚴<small>رقیب B</small></span>'+
-    '<span class="gm33-runner" id="g33run" style="left:8%;z-index:3;bottom:12px">🚴</span></div>'+
-    '<div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-cad"><i id="g33c"></i></div><div class="gm33-score" id="g33s">—</div><div class="gm33-step">هر ~نیم‌ثانیه یک ضربه — ثبات یعنی سبقت</div>';
-  const tb=el.querySelector('#g33t'),cd=el.querySelector('#g33c'),sc=el.querySelector('#g33s'),sl=el.querySelector('#g33sl'),run=el.querySelector('#g33run'),
-    pos=el.querySelector('#g33pos'),km=el.querySelector('#g33km'),r1=el.querySelector('#g33r1'),r2=el.querySelector('#g33r2');
-  let t0=0,last=0,sum=0,n=0;const DUR=20000;let fin=false;
-  JUICE.cam('follow'); /* V39: نمای پشت‌سر رکاب‌زن با پارالاکس جاده */
-  /* رقبا با ضرب‌آهنگ ثابت جلو می‌روند؛ ضرب‌آهنگ تو تعیین می‌کند سبقت بگیری یا جا بمانی */
-  let myDist=0,rvA=0,rvB=0,passedA=false,passedB=false,started=false,tPrev=0;
-  on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
-    const now=performance.now();if(!t0){t0=now;last=now;tPrev=now;started=true;if(S)S.say('پرچم شروع! پاس کوهستانی پیش روست');return}
-    const dt=now-last;last=now;
-    const q=Math.max(0,1-Math.abs(dt-400)/250);sum+=q;n++;TELE.ev('pedal',performance.now()-TELE.t0,dt);
-    const avg=sum/n;sc.textContent=faN(Math.round(avg*1000));
-    cd.style.width=(avg*100)+'%';sndK2('click');
-    /* V35: خطوط سرعت وقتی ریتم درست است + جرقه‌ی چرخ */
-    if(sl)sl.classList.toggle('on',q>.6);
-    FX.spark(ev.clientX,ev.clientY,q>.6?['#ffd75e','#39e6d0']:['#5a6070'],q>.6?8:4,80,.5);
-    if(n%8===0&&run)FX.punch(run)},{passive:false});
-  loop33(()=>{if(!t0)return;const now=performance.now();
-    const dts=(now-tPrev)/1000;tPrev=now;
-    const p=Math.min(1,(now-t0)/DUR);tb.style.width=(100-p*100)+'%';
-    /* مسافت‌ها فقط وقتی بازیکن پدال زده جلو می‌رود */
-    const avg=n>=1?sum/n:0;
-    myDist+=avg*9.5*dts; rvA+=7.2*dts; rvB+=5.4*dts;
-    if(km)km.textContent=faN((myDist/1000).toFixed(1)).replace('.','٫')+' کیلومتر';
-    /* سبقت‌ها */
-    if(!passedA&&myDist>rvA&&r1){passedA=true;r1.style.opacity='.55';FX.conf(22);if(S)S.say('سبقت از رقیب A! جاده مال توست')}
-    if(!passedB&&myDist>rvB&&r2){passedB=true;r2.style.opacity='.55';FX.conf(22);if(S)S.say('رقیب B هم عقب ماند — پیشتاز جاده!')}
-    if(pos)pos.textContent='🚴 جایگاه: '+faN(1+((rvA>myDist)?1:0)+((rvB>myDist)?1:0))+' از ۳';
-    if(!fin&&p>=1){fin=true;const avg2=n>=8?sum/n:sum/Math.max(1,n)*0.6;
-      if(sl)sl.classList.remove('on');
-      JUICE.camOff();
-      if(avg2>.8){FX.conf(60);JUICE.slow(600);JUICE.zoom();sndK2('crowd');FX.flash('#ffd75e',.28); /* V39: انفجار نور خط پایان */
-        const cF=FX.pt(run);FX.ring(cF.x,cF.y,'rgba(255,215,94,.9)',16,120)}
-      if(S)S.say(avg2>.8?'خط پایان با آغوش باز از تو استقبال کرد':'پایان مسابقه — پیست انتظار تمرین بیشتری دارد');
-      done(Math.round(avg2*1000))}});
-};
-/* 7 — chess: 4 mate-in-1 puzzles vs a grandmaster — winning piece glides across the board (score formula unchanged) */
-const CHESS33=[
- {pc:{wK:'g1',wR:'e1',bK:'g8',bP1:'f7',bP2:'g7',bP3:'h7'},opts:['Re8#','Re7+','Rb1'],ans:0,mv:{f:'e1',t:'e8',pc:'♖'}},
- {pc:{wK:'g1',wQ:'h5',wB:'c2',bK:'h8',bP1:'g7'},opts:['Qh7#','Qe8+','Qg5'],ans:0,mv:{f:'h5',t:'h7',pc:'♕'}},
- {pc:{wK:'a1',wN:'d6',wR:'g1',bK:'h8',bP1:'h7'},opts:['Nf7#','Ne8','Rxg7'],ans:0,mv:{f:'d6',t:'f7',pc:'♘'}},
- {pc:{wK:'c2',wQ:'d1',wR:'a1',bK:'a4'},opts:['Qb3#','Qd4+','Ra3+'],ans:0,mv:{f:'d1',t:'b3',pc:'♕'}}];
-const GL33={wK:'♔',wQ:'♕',wR:'♖',wN:'♘',wB:'♗',bK:'♚',bP1:'♟',bP2:'♟',bP3:'♟'};
-GAMES.chess=(el,done)=>{
-  const S=window.ST38;
-  let pi=0,pts=0,fin=false,t0=performance.now(),gen=0;
-  const show=()=>{
-    gen++;
-    if(pi>=CHESS33.length||fin){fin=true;done(pts);return}
-    const P=CHESS33[pi],myGen=gen;t0=performance.now();
-    const cells=[];const sq={};Object.keys(P.pc).forEach(k=>{sq[P.pc[k]]=GL33[k]||'♟'});
-    for(let r=8;r>=1;r--)for(let c=0;c<8;c++){
-      const name='abcdefgh'[c]+r;
-      cells.push('<span data-sq="'+name+'" style="background:'+((r+c)%2?'rgba(255,255,255,.06)':'rgba(0,0,0,.28)')+'">'+(sq[name]||'')+'</span>')}
-    const order=[0,1,2].sort(()=>Math.random()-.5);
-    el.innerHTML='<div class="gm33-step" style="color:#ffe08a;font-weight:900">مات در یک حرکت — حرکت شماره‌ی '+faN(pi+1)+' از ۴</div>'+
-      '<div class="gm33-chess gm35-chess" id="g33bd2">'+cells.join('')+'</div><div class="gm33-opts">'+
-      order.map(i=>'<button data-i="'+i+'">'+P.opts[i]+'</button>').join('')+'</div>'+
-      '<div class="gm33-timer" style="width:min(88vw,340px)"><i id="g33t" style="width:100%"></i></div>'+
-      '<div><span class="w38-clock" id="g33clk">⏱️ صبر می‌کند…</span></div>';
-    const tb=el.querySelector('#g33t');
-    loop33(()=>{if(gen!==myGen||fin)return;const p=Math.min(1,(performance.now()-t0)/15000);if(tb)tb.style.width=(100-p*100)+'%';
-      if(p>=1){TELE.ev('puz',performance.now()-TELE.t0,pi,0,15000);sndK2('alert');FX.shake();pi++;show()}});
-    el.querySelectorAll('.gm33-opts button').forEach(b=>b.addEventListener('pointerdown',ev=>{ev.preventDefault();
-      if(fin)return;
-      const i=Number(b.getAttribute('data-i'));
-      if(i===P.ans){const dt=performance.now()-t0;pts+=200+(dt<6000?50:dt<10000?25:0);sndK2('coin');TELE.ev('puz',performance.now()-TELE.t0,pi,1,Math.round(dt));
-        /* V38: مهره‌ی برنده از خانه‌ی مبدا به مقصد پرواز می‌کند */
-        const bd2=el.querySelector('#g33bd2');
-        const fromCell=bd2&&bd2.querySelector('[data-sq="'+P.mv.f+'"]');
-        const toCell=bd2&&bd2.querySelector('[data-sq="'+P.mv.t+'"]');
-        if(fromCell&&toCell){
-          const fr=fromCell.getBoundingClientRect(),tr2=toCell.getBoundingClientRect(),br=bd2.getBoundingClientRect();
-          const fly=D.createElement('span');fly.className='w38-piece-fly';fly.textContent=P.mv.pc;
-          fly.style.left=(fr.left-br.left+fr.width/2-13)+'px';fly.style.top=(fr.top-br.top+fr.height/2-16)+'px';
-          bd2.appendChild(fly);
-          requestAnimationFrame(()=>requestAnimationFrame(()=>{
-            fly.style.left=(tr2.left-br.left+tr2.width/2-13)+'px';fly.style.top=(tr2.top-br.top+tr2.height/2-16)+'px';
-            fly.style.transform='scale(1.25)'}));
-          tm33(()=>{toCell.classList.add('mv');if(fly)fly.remove();
-            /* V39: زوم کیش‌ومات + شکستن شاه */
-            JUICE.slow(620);JUICE.zoom();sndK2('gong');
-            const tc=FX.pt(toCell);FX.spark(tc.x,tc.y,['#ffd75e','#fff','#7fd8ff'],18,150,.8);FX.ring(tc.x,tc.y,'rgba(255,215,94,.9)',8,70)},560)}
-        else if(bd2&&P.mv){const idx=(8-parseInt(P.mv.t[1]))*8+'abcdefgh'.indexOf(P.mv.t[0]);const cellEl=bd2.children[parseInt(idx)];if(cellEl)cellEl.classList.add('mv')}
-        const st2=D.createElement('div');st2.className='gm35-stamp';st2.textContent='مات! ♛';el.appendChild(st2);
-        FX.flash('#ffd75e',.3);FX.conf(30);
-        if(S)S.say(['مات! استاد بزرگ گیج شد','شاه در دام افتاد — تالار منفجر شد','حرکت منتخب — این را کتاب‌ها ثبت می‌کنند','مات در یک حرکت — امضای تو'][pi]||'مات!');
-        pi++;tm33(show,700)}
-      else{TELE.ev('puz',performance.now()-TELE.t0,pi,0,Math.round(performance.now()-t0));fin=true;FX.shake();FX.text(FX.pt(el).x,FX.pt(el).y*.4,'اشتباه بود…','#ff8ba0',20);
-        if(S)S.say('حرکت اشتباه — استاد بزرگ با آرامش دستت را فشرد');done(pts)}},{passive:false}));
-  };
-  show();
-};
-/* 8 — volley: beach rally — ball flies a real parabola over the net with a ground shadow; rival receives on the far side (score formula unchanged: spikes*22) */
-/* V40 — والیبال ساحلی: بازسازی سینمایی کامل بر اساس طرح ۶ نقطه‌ای کاربر
-   ① زمین پرسپکتیو واقعی (rotateX + خطوط همگرا) ② سیر پارابولیک توپ + اسپین + سایه‌ی بیضی متحرک
-   ③ بازیکن SVG چندفریمی (آماده/پرش/ضربه) ④ دوربین دینامیک (زوم نزدیک تور + لرزش لحظه‌ی ضربه)
-   ⑤ تماشاگران پرچم‌به‌دست با پارالاکس ⑥ نور استادیوم + سایه‌ی نرم تور/تیرک‌ها
-   فرمول امتیاز دست‌نخورده: spikes*22 — سه سرویس */
-GAMES.volley=(el,done)=>{
-  const S=window.ST38;
-  const crowd=()=>{
-    const f=['🇮🇷','🎉','🇧🇷','🎉','🇫🇷','🇯🇵','🎉','🇩🇪','🇬🇧','🎉','🇮🇹','🎉','🇪🇸','🎉','🇺🇸','🎉','🇷🇺','🎉','🇨🇳','🎉','🇪🇬','🎉','🇦🇺'];
-    let a='',b2='';
-    for(let i=0;i<f.length;i++){a+='<span>'+f[i]+'</span>';b2+='<span>'+(f[f.length-1-i])+'</span>'}
-    return '<div class="w40-vb-crowd r1">'+a+'</div><div class="w40-vb-crowd r2">'+b2+'</div>';
-  };
-  const playerSVG='<svg viewBox="0 0 44 60" width="44" height="60">'+
-    '<g class="v40p v40-idle">'+
-      '<circle cx="22" cy="9" r="6" fill="#e8b98a"/><path d="M16 6 q6 -6 12 0 l-1 3 q-5 -3 -10 0z" fill="#2b3a67"/>'+
-      '<rect x="17" y="15" width="10" height="13" rx="3" fill="#e04848"/>'+
-      '<rect x="13" y="16" width="4" height="12" rx="2" fill="#e8b98a" transform="rotate(14 15 16)"/>'+
-      '<rect x="27" y="16" width="4" height="12" rx="2" fill="#e8b98a" transform="rotate(-14 29 16)"/>'+
-      '<rect x="17" y="28" width="4" height="14" rx="2" fill="#1f2c50"/><rect x="23" y="28" width="4" height="14" rx="2" fill="#1f2c50"/>'+
-      '<rect x="15" y="41" width="7" height="4" rx="2" fill="#f4f4f4"/><rect x="22" y="41" width="7" height="4" rx="2" fill="#f4f4f4"/></g>'+
-    '<g class="v40p v40-ready" style="display:none">'+
-      '<circle cx="22" cy="12" r="6" fill="#e8b98a"/><path d="M16 9 q6 -6 12 0 l-1 3 q-5 -3 -10 0z" fill="#2b3a67"/>'+
-      '<rect x="17" y="18" width="10" height="12" rx="3" fill="#e04848"/>'+
-      '<rect x="11" y="20" width="12" height="4" rx="2" fill="#e8b98a"/>'+
-      '<rect x="21" y="20" width="12" height="4" rx="2" fill="#e8b98a"/>'+
-      '<rect x="16" y="30" width="5" height="10" rx="2" fill="#1f2c50" transform="rotate(18 18 30)"/>'+
-      '<rect x="23" y="30" width="5" height="10" rx="2" fill="#1f2c50" transform="rotate(-18 25 30)"/>'+
-      '<rect x="12" y="39" width="8" height="4" rx="2" fill="#f4f4f4"/><rect x="24" y="39" width="8" height="4" rx="2" fill="#f4f4f4"/></g>'+
-    '<g class="v40p v40-jump" style="display:none">'+
-      '<circle cx="22" cy="6" r="6" fill="#e8b98a"/><path d="M16 3 q6 -6 12 0 l-1 3 q-5 -3 -10 0z" fill="#2b3a67"/>'+
-      '<rect x="17" y="12" width="10" height="12" rx="3" fill="#e04848"/>'+
-      '<rect x="27" y="8" width="4" height="11" rx="2" fill="#e8b98a" transform="rotate(-38 29 8)"/>'+
-      '<rect x="13" y="8" width="4" height="11" rx="2" fill="#e8b98a" transform="rotate(38 15 8)"/>'+
-      '<rect x="17" y="24" width="5" height="9" rx="2" fill="#1f2c50" transform="rotate(30 19 24)"/>'+
-      '<rect x="22" y="24" width="5" height="9" rx="2" fill="#1f2c50" transform="rotate(-42 24 24)"/>'+
-      '<rect x="13" y="32" width="7" height="4" rx="2" fill="#f4f4f4"/><rect x="24" y="30" width="7" height="4" rx="2" fill="#f4f4f4"/></g>'+
-    '<g class="v40p v40-hit" style="display:none">'+
-      '<circle cx="24" cy="7" r="6" fill="#e8b98a"/><path d="M18 4 q6 -6 12 0 l-1 3 q-5 -3 -10 0z" fill="#2b3a67"/>'+
-      '<rect x="19" y="13" width="10" height="12" rx="3" fill="#e04848"/>'+
-      '<rect x="28" y="0" width="4" height="15" rx="2" fill="#e8b98a" transform="rotate(-16 30 0)"/>'+
-      '<rect x="12" y="14" width="4" height="11" rx="2" fill="#e8b98a" transform="rotate(24 14 14)"/>'+
-      '<rect x="18" y="25" width="5" height="10" rx="2" fill="#1f2c50" transform="rotate(12 20 25)"/>'+
-      '<rect x="24" y="25" width="5" height="10" rx="2" fill="#1f2c50" transform="rotate(-16 26 25)"/>'+
-      '<rect x="16" y="34" width="7" height="4" rx="2" fill="#f4f4f4"/><rect x="24" y="34" width="7" height="4" rx="2" fill="#f4f4f4"/></g>'+
-    '</svg>';
-  el.innerHTML='<div class="w40-vb-scene" id="v40sc">'+crowd()+
-    '<div class="w40-vb-light"></div>'+
-    '<div class="w40-vb-arena">'+
-      '<div class="w40-vb-persp"><div class="w40-vb-plane">'+
-        '<div class="w40-vb-court"></div><div class="w40-vb-spot"></div></div></div>'+
-      '<div class="w40-vb-netsh"></div>'+
-      '<div class="w40-vb-net"><i class="p l"></i><i class="mesh"></i><i class="p r"></i><i class="tape"></i></div>'+
-      '<div class="w40-vb-pshadow" id="v40ps"></div>'+
-      '<div class="w40-vb-player" id="v40pl">'+playerSVG+'</div>'+
-      '<div class="w40-vb-shadow" id="v40sh"></div>'+
-      '<div class="w40-vb-ball" id="v40b">🏐</div>'+
-      '<div class="w40-vb-hitzone"></div>'+
-    '</div></div>'+
-    '<div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">سرویس ۱ • رالی ۰ — وقتی توپ در زون سبز است بزن!</div>';
-  const scene=el.querySelector('#v40sc'),b=el.querySelector('#v40b'),st=el.querySelector('#g33st'),
-    sh=el.querySelector('#v40sh'),pl=el.querySelector('#v40pl'),ps=el.querySelector('#v40ps'),
-    net=el.querySelector('.w40-vb-net'),arena=el.querySelector('.w40-vb-arena'),score=el.querySelector('#g33s');
-  const frames={idle:pl.querySelector('.v40-idle'),ready:pl.querySelector('.v40-ready'),jump:pl.querySelector('.v40-jump'),hit:pl.querySelector('.v40-hit')};
-  let curF='idle';
-  const setFrame=f=>{if(!frames[f]||curF===f)return;frames[curF].style.display='none';frames[f].style.display='';curF=f};
-  const W=(arena.clientWidth>60?arena.clientWidth:340)||340,H=(arena.clientHeight>60?arena.clientHeight:210)||210;
-  JUICE.cam('court');
-  const nearY=H*.80, farY=H*.355, arcH=H*.457; /* خطوط پایه‌ی نزدیک/دور — دقیقاً هم‌تراز صفحه‌ی پرسپکتیو CSS */
-  let spikes=0,serves=1,t0=performance.now(),per=2.2,fin=false,jumpT=0,zoomed=false;
-  loop33(()=>{const t=(performance.now()-t0)/1000;
-    const ph=(t*per)%1, k=ph<.5?ph*2:(1-ph)*2;
-    const arc=Math.sin(k*Math.PI);
-    const x=26+(W-78)*k;
-    const gy=farY+(nearY-farY)*k;
-    const y=Math.max(-8,gy-10-arc*arcH+Math.sin(t*2.3)*2);
-    b.style.transform='translate('+x+'px,'+y+'px) rotate('+Math.round(x*1.35)+'deg)'; /* ② اسپین توپ */
-    /* سایه‌ی بیضی: جای پای عمق‌نما + کوچک‌تر/کم‌رنگ‌تر وقتی توپ بالا */
-    sh.style.left=(x-9)+'px';sh.style.top=(gy-3)+'px';
-    sh.style.width=Math.max(8,22*(1-arc*.42)*(0.62+0.38*k))+'px';
-    sh.style.opacity=String(Math.max(.08,(0.38-arc*.22)*(0.55+0.45*k)));
-    /* ④ دوربین دینامیک: زوم نرم وقتی توپ به اوج/تور نزدیک است */
-    const wantZoom=k>.34&&k<.66;
-    if(wantZoom!==zoomed){zoomed=wantZoom;scene.style.transform=wantZoom?'scale(1.055)':'scale(1)'}
-    /* ③ فریم‌های بازیکن */
-    if(jumpT&&performance.now()-jumpT<420)setFrame('hit');
-    else if(performance.now()-jumpT<820&&jumpT)setFrame('jump');
-    else setFrame(k>.7?'ready':k>.34?'idle':'ready');
-    /* بازیکن جابه‌جایی افقی جزئی به سمت توپ + سایه‌ی او */
-    const px=(W-86)-Math.max(0,(k-.6))*34;
-    pl.style.left=px+'px';
-    ps.style.left=(px+10)+'px';ps.style.opacity=String(.32-.10*Math.max(0,k-.5));});
-  on33(arena,'pointerdown',ev=>{ev.preventDefault();
-    if(fin)return;
-    const r=b.getBoundingClientRect(),z=el.querySelector('.w40-vb-hitzone').getBoundingClientRect();
-    if(r.right>z.left&&r.left<z.right&&r.top<z.bottom&&r.bottom>z.top){
-      spikes++;per=Math.min(4.6,per*1.09);sndK2('coin');sndK2('thump');TELE.ev('hit',performance.now()-TELE.t0);
-      jumpT=performance.now();setFrame('hit');           /* ③ ضربه */
-      FX.punch(b);FX.spark(ev.clientX,ev.clientY,['#ffd75e','#fff','#ff9d3c'],14,130,.6);
-      FX.ring(ev.clientX,ev.clientY,'rgba(255,215,94,.9)',8,66);
-      FX.text(ev.clientX,ev.clientY-20,'💥 اسپیک!','#ffd75e',18);
-      JUICE.slow(480);FX.shake();                         /* ④ لرزش لحظه‌ی ضربه */
-      net.classList.remove('gm35-netwig');void net.offsetWidth;net.classList.add('gm35-netwig');
-      score.textContent=faN(spikes);st.textContent='سرویس '+faN(serves)+' • رالی '+faN(spikes);
-      if(spikes===5&&S)S.say('رالی پنج تایی! تماشاگران روی ماسه می‌رقصند');
-      if(spikes===9&&S)S.say('رقیب خسته شد — دریافتش کوتاه می‌شود');
-      if(spikes===13&&S)S.say('افسانه‌ای! ساحل طلایی نامت را فریاد می‌زند')}
-    else{serves++;TELE.ev('fault',performance.now()-TELE.t0);per=Math.max(1.8,per*0.85);sndK2('alert');FX.shake();
-      jumpT=0;setFrame('idle');
-      FX.text(ev.clientX,ev.clientY-20,'💔 خطا!','#ff8ba0',17);
-      if(S)S.say(['توپ بیرون رفت — داور پرچم زد','دست‌ها زیر توپ رفت — خطا','سخت زدی، بلند رفت — تمرکز کن'][serves%3]||'خطا!');
-      st.textContent='سرویس '+faN(Math.min(3,serves))+' • رالی '+faN(spikes);
-      if(serves>3){fin=true;JUICE.camOff();
-        if(S)S.say('سه خطا — بازی ساحلی تمام شد؛ ماسه هنوز گرم است');
-        done(spikes*22)}}},{passive:false});
-};
-/* 9 — football: knockout shootout across 3 rounds — keeper dives, every kick is marked on the shootout board (score formula unchanged) */
-GAMES.football=(el,done)=>{
-  const S=window.ST38;
-  let round=0,shot=0,goals=0,pts=0,fin=false;
-  const RN=['یک‌هشتم','نیمه‌نهایی','فینال'],KP=[.33,.5,.65];
-  const HIST=[[],[],[]]; /* نتیجه‌ی هر ضربه برای برد شوت‌اوت */
-  const drawDots=()=>{let h='<div class="w38-dots">';
-    for(let r=0;r<3;r++)for(let s2=0;s2<3;s2++){
-      const v=HIST[r][s2];
-      h+='<span class="w38-dot'+(v===1?' ok':v===0?' no':'')+(r===round&&s2===shot&&!fin?' now':'')+'">'+(v===1?'⚽':v===0?'✕':'')+'</span>'}
-    return h+'</div>'};
-  const show=()=>{
-    el.innerHTML='<div class="gm33-brk">'+RN.map((n,i)=>'<span class="'+(i===round?'on':'')+'">'+n+'</span>').join('')+'</div>'+
-      drawDots()+
-      '<div class="gm33-goal" id="g33g"><div class="gzone" data-z="0" style="left:0">چپ</div><div class="gzone" data-z="1" style="left:33.3%">وسط</div><div class="gzone" data-z="2" style="right:0">راست</div><div class="gkeep" id="g33k" style="left:50%;margin-left:-15px">🧤</div><div class="gball" id="g33b">⚽</div></div>'+
-      '<div class="gm33-score" id="g33s">۰</div><div class="gm33-step" id="g33st">'+RN[round]+' — ضربه‌ی '+faN(shot+1)+' از ۳ — گوشه را انتخاب کن</div>';
-    const k=el.querySelector('#g33k'),b=el.querySelector('#g33b'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st');
-    if(S&&round===0&&shot===0)S.say('مردم استادیوم صدای هم را کور می‌کنند — دور اول شوت‌اوت');
-    el.querySelectorAll('.gzone').forEach(z=>z.addEventListener('pointerdown',ev=>{ev.preventDefault();
-      if(fin)return;
-      const zi=Number(z.getAttribute('data-z'));
-      const kd=Math.random()<KP[Math.min(2,round)]?zi:(zi+1+Math.floor(Math.random()*2))%3;
-      TELE.ev('shot',performance.now()-TELE.t0,zi,kd,kd===zi?0:1,round);
-      k.style.left=(16.5+kd*33.3)+'%';k.style.marginLeft='-15px';
-      k.style.transform='rotate('+(kd===zi?'18deg':'-14deg')+') scale(1.15)'; /* شیرجه‌ی دروازه‌بان */
-      b.style.left=(16.5+zi*33.3)+'%';b.style.bottom='55%';
-      /* V35: گلاید سینمایی توپ + جرقه‌ی شوت */
-      b.style.transition='left .3s cubic-bezier(.2,.9,.3,1),bottom .3s cubic-bezier(.2,.9,.3,1)';
-      FX.spark(FX.pt(b).x,FX.pt(b).y,['#fff','#ffd75e'],6,60,.4);
-      tm33(()=>{
-        if(kd===zi){HIST[round][shot]=0;sndK2('alert');sndK2('thump');FX.shake();FX.text(FX.pt(k).x,FX.pt(k).y-24,'🧤 گرفت!','#ff8ba0',18);
-          st.innerHTML='🧤 گرفت! '+RN[round]+' — ضربه‌ی '+faN(Math.min(3,shot+1+1))+' از ۳';
-          if(S)S.say(['دروازه‌بان خواند! شیرجه‌ی مرگ','گرفته شد — ضربه‌ی بعدی حیاتی است','چنگ طلایی دروازه‌بان!'][shot%3]||'دروازه‌بان برد')}
-        else{HIST[round][shot]=1;goals++;pts+=90;sndK2('cheer');sndK2('crowd');sc.textContent=faN(pts);
-          FX.conf(26);FX.flash('#7dff9e',.25);
-          const gc=FX.pt(b);FX.ring(gc.x,gc.y,'rgba(125,255,158,.95)',10,90);FX.text(gc.x,gc.y-30,'⚽ گُل!','#7dff9e',22);
-          /* V39: اسلوموشن توپ در تور + زوم دوربین */
-          JUICE.slow(850);JUICE.zoom();
-          st.innerHTML='⚽ گُل! '+RN[round]+' — ضربه‌ی '+faN(Math.min(3,shot+1+1))+' از ۳';
-          if(S)S.say(['گُل! تور مثل طبل صدا داد','تور لرزید — دروازه‌بان روی زمین','گوشه‌ی مرگ! امضای تو بر تور'][shot%3]||'گل!')}
-        b.style.bottom='8%';
-        shot++;
-        if(shot>=3){
-          if(goals>=2){pts+=[100,150,200][Math.min(2,round)];sc.textContent=faN(pts);sndK2('cheer');FX.conf(45);FX.text(FX.pt(el).x,FX.pt(el).y*.3,'✅ '+RN[round]+' گذر شد!','#7dff9e',20);
-            if(S)S.say(RN[round]+' گذر شد! '+(round===2?'قهرمان ضربات پنالتی — سرود طنین‌انداز شد':'حریف بعدی قوی‌تر است'))}
-          else if(S)S.say('در '+RN[round]+' حذف شدی — اما ناکاوت ادامه دارد');
-          round++;shot=0;goals=0;
-          if(round>=3){fin=true;JUICE.camOff();if(pts>=600)sndK2('crowd');done(pts)}
-          else tm33(show,900);
-        }},420)},{passive:false}));
-  };
-  show();
-};
-/* 9-b — lj (O1): پرش طول — Run-up + Timing + Takeoff؛ سرعت از ریتم ضربه‌ها، آف‌تیک دقیق روی تخته‌ی طلایی، عبور از تخته = خطا (۳ پرش — فرمول سرور: round(m*45)) */
-GAMES.lj=(el,done)=>{
-  const S=window.ST38;
-  el.innerHTML='<div class="gm33-track" style="position:relative;overflow:hidden">'+
-    '<div style="position:absolute;left:0;right:0;bottom:8px;height:6px;background:rgba(255,255,255,.12);border-radius:3px"></div>'+
-    '<div id="g33board" style="position:absolute;right:14%;bottom:8px;width:6px;height:26px;background:linear-gradient(#ffd75e,#ff9d3c);border-radius:3px;box-shadow:0 0 10px rgba(255,204,0,.6)"></div>'+
-    '<div id="g33pit" style="position:absolute;left:0;right:14%;bottom:0;height:10px;background:linear-gradient(90deg,rgba(184,154,106,0),rgba(184,154,106,.55))"></div>'+
-    '<span class="gm33-runner" id="g33run" style="z-index:2">🦘</span></div>'+
-    '<div><span class="w38-meter" id="g33mtr">پرش ۱ از ۳</span></div>'+
-    '<div class="gm33-timer"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div>'+
-    '<div class="gm33-step" id="g33st">ضربه‌های پیوسته = سرعت — لحظه‌ی رسیدن به تخته‌ی طلایی بپر؛ عبور از آن = خطا</div>';
-  const run=el.querySelector('#g33run'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),st=el.querySelector('#g33st'),mtr=el.querySelector('#g33mtr');
-  let jumps=0,pts=0,sp=0,lastTap=0,t0=0,jumped=false,fin=false;const TRACK_MS=9000;
-  JUICE.cam('low');
-  const reset=()=>{sp=0;lastTap=0;jumped=false;t0=0;run.style.transition='';run.style.transform='translateX(0px)';run.style.opacity='1';tb.style.width='100%'};
-  reset();
-  const doJump=(ranThrough,now)=>{
-    jumped=true;
-    const boardT=0.86*TRACK_MS,dtb=(now-t0)-boardT;
-    let m=0,foul=!!ranThrough;
-    if(!foul&&dtb>280)foul=true;
-    if(!foul){const prec=Math.max(0,1-Math.abs(dtb)/280);m=Math.round((4.4+sp*4.6+prec*2.3)*10)/10;if(m>11.9)m=11.9}
-    jumps++;
-    TELE.ev('jump',performance.now()-TELE.t0,m);
-    if(foul){FX.shake();sndK2('alert');FX.text(FX.pt(run).x,FX.pt(run).y-30,'🚫 خطا!','#ff8ba0',19);if(S)S.say('از تخته رد شدی — پرچم سرخ داور')}
-    else{pts+=Math.round(m*45);sc.textContent=faN(pts);
-      mtr.textContent='پرش '+faN(jumps)+' — '+faN(m).replace('.','٫')+' متر';
-      FX.splash(FX.pt(run).x,FX.pt(run).y+16,10);sndK2('swoosh');
-      run.style.transition='transform .5s cubic-bezier(.2,.8,.3,1)';run.style.transform+=' translateY(-24px)';
-      FX.text(FX.pt(run).x,FX.pt(run).y-44,faN(m).replace('.','٫')+' متر!','#7dff9e',20);
-      if(m>=9){JUICE.slow(650);JUICE.zoom();sndK2('crowd');if(S)S.say('پرش افسانه‌ای! شنی‌ها پرواز کردند')}
-      tm33(()=>{run.style.opacity='0'},500)}
-    tm33(()=>{
-      if(jumps>=3){fin=true;JUICE.camOff();if(pts>=700){FX.conf(60);FX.flash('#ffd75e',.25);sndK2('crowd')}done(pts);return}
-      reset();mtr.textContent='پرش '+faN(jumps+1)+' از ۳';if(S)S.say('سه فرصت داری — سرعت را ببلع، در لحظه‌ی درست پرواز کن');
-    },950)};
-  loop33(()=>{if(fin||jumped||!t0)return;
-    const now=performance.now();const prog=Math.min(1,(now-t0)/TRACK_MS);
-    const W=el.querySelector('.gm33-track').clientWidth||340;
-    run.style.transform='translateX('+(prog*(W-46))+'px)';
-    tb.style.width=Math.max(0,100-prog*100)+'%';
-    if(prog>=1)doJump(true,now)});
-  on33(el.querySelector('.gm33-track'),'pointerdown',ev=>{ev.preventDefault();
-    if(fin||jumped)return;
-    if(!t0){t0=performance.now();if(S)S.say('باند دویدن گرم است — ریتم بساز');JUICE.cam('follow')}
-    const now=performance.now();
-    const dt=now-(lastTap||now-300);lastTap=now;
-    const q=Math.max(0,1-Math.abs(dt-260)/240); /* اوج ریتم ~۳.۸ ضربه در ثانیه */
-    sp=Math.min(1,sp*0.72+q*0.42);
-    sc.textContent=faN(Math.round(sp*100))+'٪';sndK2('click');FX.dust(ev.clientX,ev.clientY+8,5);
-    const prog=Math.min(1,(now-t0)/TRACK_MS);
-    if(prog>=0.86)doJump(false,now);
-    else if(prog>0.8)st.textContent='حالا! بپر! 🔥'},{passive:false});
-};
-/* 10 — wrestle: tug-of-war MATCH (2 of 3 bouts) — center line, walking referee, live match board (score formula unchanged) */
-GAMES.wrestle=(el,done)=>{
-  const S=window.ST38;
-  let bout=0,pts=0,fin=false,winsMe=0,winsRiv=0;
-  const RIV=(window.__wg33data&&window.__wg33data.rivals&&window.__wg33data.rivals.length)?window.__wg33data.rivals.map(r=>({nick:r.nick})):null;
-  const NAMES=RIV?RIV.map(r=>r.nick):['رستم','سهراب','گردآفرید'];
-  const RATE=[8,11,14];
-  const show=()=>{
-    const opp=NAMES[Math.min(bout,NAMES.length-1)]||'حریف';
-    el.innerHTML='<div><span class="w38-board">🥋 تو <b>'+faN(winsMe)+'</b> — <b>'+faN(winsRiv)+'</b> '+esc(opp)+'</span></div>'+
-      '<div class="gm33-rope"><span class="rl"></span><span class="rr2"></span><div class="w38-ref" id="g33ref" style="left:46%">👨‍⚖️</div><div class="rmark" id="g33m"></div></div>'+
-      '<div class="gm33-vs">دیدار '+faN(bout+1)+' از ۳ — دو برد، برنده‌ی میدان</div>'+
-      '<div class="gm33-timer" style="width:min(92vw,480px)"><i id="g33t" style="width:100%"></i></div><div class="gm33-score" id="g33s">۰</div><div class="gm33-step">تند و پیوسته روی طناب بزن — نشان را از خط سرخ عبور بده!</div>';
-    const m=el.querySelector('#g33m'),tb=el.querySelector('#g33t'),sc=el.querySelector('#g33s'),ref=el.querySelector('#g33ref');
-    JUICE.cam('close'); /* V39: دوربین نزدیک و پویا بین دو بازیکن */
-    let p=50,t0=performance.now(),lastT=t0;const DUR=12000;let bfin=false;
-    const W=el.querySelector('.gm33-rope').clientWidth||340;
-    if(S&&bout===0)S.say('طناب کشیده شد — داور عقب رفت؛ همه چیز به مشت‌های تو بسته است');
-    loop33(()=>{if(bfin)return;
-      const now=performance.now();const dt=(now-t0)/1000;const dts=(now-lastT)/1000;lastT=now;
-      p-=RATE[Math.min(2,bout)]*dts;
-      const pr=Math.max(0,Math.min(100,p));
-      m.style.left=(pr/100)*(W-32)+'px';
-      if(ref)ref.style.left=Math.max(2,Math.min(92,(pr/100)*(W-32)-14))+'px'; /* داور کنار کشمکش راه می‌رود */
-      const el2=D.getElementById('g33t');if(el2)el2.style.width=Math.max(0,100-(dt/DUR)*100)+'%';
-      if(pr>=100){bfin=true;const left=Math.max(0,12-dt);const got=250+Math.round(left/DUR*1000*0.15);
-        pts+=got;winsMe++;TELE.ev('bout',performance.now()-TELE.t0,1,Math.round(left*1000));sndK2('cheer');sndK2('thump');sc.textContent=faN(pts);
-        /* V35: پرچم پیروزی روی نشان + لرزش و جرقه */
-        const mc=FX.pt(m);FX.spark(mc.x,mc.y,['#7dff9e','#ffd75e','#fff'],20,150,.8);FX.ring(mc.x,mc.y,'rgba(125,255,158,.9)',10,80);
-        FX.dust(mc.x,mc.y+16,12); /* V39: گرد و خاک زمین‌زدن */
-        FX.text(mc.x,mc.y-40,'🏆 برنده! +'+faN(got),'#7dff9e',20);FX.shake();JUICE.slow(500);
-        if(S)S.say(winsMe>=2?'دو برد از سه — میدان مال توست! داور دستت را بالا برد':'دیدار بعدی حیاتی است — نفس بگیر');
-        nextBout(got)}
-      else if(pr<=0||dt>=DUR){bfin=true;winsRiv++;TELE.ev('bout',performance.now()-TELE.t0,0,0);sndK2('alert');FX.shake();
-        const mc2=FX.pt(m);FX.text(mc2.x,mc2.y-40,'😮 باخت این دیدار','#ff8ba0',18);
-        if(S)S.say(winsRiv>=2?'دو باخت — حریف امشب قوی‌تر بود':'طناب کج رفت — بازگرد و بکش!');
-        nextBout(0)}});
-    on33(el.querySelector('.gm33-rope'),'pointerdown',ev=>{ev.preventDefault();
-      if(bfin)return;p+=2.2;sndK2('click');
-      /* V35: جرقه‌ی کشمکش روی طناب */
-      FX.spark(ev.clientX,ev.clientY,['#ffd75e','#ff9d3c'],5,60,.3)},{passive:false});
-  };
-  const nextBout=(got)=>{bout++;
-    /* سه دیدار کامل برگزار می‌شود تا سقف امتیاز مثل قبل حفظ شود — برد ۲-۰ هم بازی سوم دارد (نمایشی) */
-    if(bout>=3){fin=true;JUICE.camOff();if(pts>=500){FX.conf(80);FX.flash('#ffd75e',.3);sndK2('crowd')}done(pts)}
-    else tm33(()=>{showToast2(got?'💪 بردی! +'+faN(got):'😮 باختی — دیدار بعدی','win');show()},700)};
-  show();
-};
+/* V71: بدنه‌های نسل ۱ هر ۱۱ رشته (~۵۸۶ خط) حذف شد — گیم‌پلی فقط دو تأمین‌کننده دارد:
+   V41 (fallback سیم تاکتیکی) و oly3.js نسل ۳ (مهارتی seed-محور). هیچ مسیر دیگری GAMES را پر نمی‌کند. */
 /* ---------- V57: پرچم طلایی قهرمان هم از نقشه حذف شد — نشان کوچک بالای صفحه جای آن را می‌گیرد ---------- */
 let gfMk=null;
 function placeGoldenFlag(){try{
   if(gfMk){try{gfMk.remove()}catch(e){}gfMk=null}
 }catch(e){}}
-setTimeout(placeGoldenFlag,16000);setInterval(()=>{if(!document.hidden)placeGoldenFlag()},120000);
+/* V71: تایمرهای یادگاری پرچم طلایی حذف شد (setTimeout/setInterval روی نو-اپ) — فقط هوک تست WD33_GFLAG می‌ماند */
 window.WD33_GFLAG=placeGoldenFlag; /* test/manual hook */
 })();
 </script>
@@ -13388,7 +12486,8 @@ function gRace(el,done,cfg){
     let t=0,boost=1,fatigue=1,decisionUsed=0,deciding=false;
     const dur=cfg.dur;
     const timer=setInterval(async()=>{
-      if(H.done||deciding){return}
+      if(H.done){clearInterval(timer);return} /* V71: رهاکردن مسابقه دیگر زامبی ۱۰۰ms نمی‌گذارد — الگوی درست gMatch */
+      if(deciding){return}
       t++;const p=t/dur;
       H.time(Math.min(1,p));H.clockSet(faN(Math.max(0,Math.round(cfg.durReal*(1-p))))+'″');
       fatigue*=fatigueK;
@@ -17775,7 +16874,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               ev.stopPropagation();
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=70';
+              s.src='/game/cv-engine.js?v=71';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17786,6 +16885,6 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=70"></script>
+<script src="/game/oly3.js?v=71"></script>
 </body>
 </html>

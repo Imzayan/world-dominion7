@@ -136,7 +136,7 @@
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     }
     size();
-    window.addEventListener('resize', size);
+    /* V71: addEventListener خام حذف شد — هر نشست بازی یک listener دائمی + نگه‌داشت کانواس می‌ساخت؛ مسیر CL (خط بعد) کافی است */
     A.on33(window, 'resize', function () { size() }); /* پاک‌سازی خودکار با CL */
     return { cv: cv, ctx: ctx, W: function () { return W }, H: function () { return H }, size: size, msg: msg, chip: chip, score: function (v) { var s = document.getElementById('oly3-score'); if (s) s.textContent = faN(Math.round(v)) } };
   }
