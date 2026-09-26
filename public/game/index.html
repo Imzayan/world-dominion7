@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=69;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=70;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -10828,7 +10828,7 @@ async function startAttempt33(bd,key,e0,train){
     const rs=(s&&s.reason)||'net';
     const mm={window:'زمان این رشته تمام شده',attempts:'تلاش‌های رسمی‌ات تمام شده — تمرین آزاد باز است',not_registered:'اول از هاب در این رشته ثبت‌نام کن',disabled:'المپیک فعال نیست',net:'⚠️ اتصال ناموفق — دوباره تلاش کن'};
     showToast2(mm[rs]||('خطا: '+rs),'lose');return}
-  MATCH={id:s.match_id,seed:s.seed,token:s.token||''};ATT_MAX=(Number(s.att_max)||0)>0?Number(s.att_max):ATT_MAX;
+  MATCH={id:s.match_id,seed:s.seed,token:s.token||'',final:!!s.is_final};ATT_MAX=(Number(s.att_max)||0)>0?Number(s.att_max):ATT_MAX;
   if(s.edition)window.WD33_EDITION=s.edition; /* O3: نسخه‌ی دوره از سرور — گیت v1/v2 آینه همیشه هم‌راستا با داور */
   hud({att:e0.attempts,best:e0.best||0});
   runGame(bd,key,(norm,raw)=>{finish33(bd,key,norm,raw,e0)});
@@ -17775,7 +17775,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               ev.stopPropagation();
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=69';
+              s.src='/game/cv-engine.js?v=70';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17786,5 +17786,6 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
+<script src="/game/oly3.js?v=70"></script>
 </body>
 </html>

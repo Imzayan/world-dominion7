@@ -488,10 +488,446 @@ const SIM_V2: Record<string, (ev: TelemEvent[]) => V2ScoreResult> = {
   weight: v2Rounds(1000), archery: v2Rounds(900), gym: v2Rounds(900), lj: v2Rounds(900),
   volley: v2Duel(3, 6), wrestle: v2Duel(2, 4), chess: v2Duel(2, 4),
 }
+/* ============================================================
+   OLY3 — نسل سوم: Gameplay مهارتی واقعی (PHASE 1/2/6/13 رودمپ المپیک)
+   اصل: سرور فقط ورودی‌های واقعی بازیکن (زمان‌بندی ضربه‌ها) را می‌گیرد و
+   «فیزیک مسابقه» را خودش از روی serverSeed بازتولید می‌کند — باد کمان،
+   نوسان میله، دروازه‌بان، بلوکر والیبال، طناب حریف و تخته‌ی پرش همگی
+   تابع قطعیِ seed هستند. هیچ فلگ نتیجه‌ای از کلاینت باور نمی‌شود.
+   فعال‌سازی: مدل tap و (دوره ≥ SKILL3_ED یا mode=train) — نسل‌های قبلی
+   برای آرشیو/شبح دست‌نخورده می‌مانند.
+   آینه‌ی بایت‌به‌بایت همین توابع در کلاینت: public/game/oly3.js
+   ============================================================ */
+export const SKILL3_ED = 10
+export interface ScoreOpts { seed?: string; mode?: string }
+
+function seedOf3(str: string): number {
+  let h = 2166136261 >>> 0
+  const s = String(str || '')
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0 }
+  return h >>> 0
+}
+function rngOf3(seed: string, salt: string): () => number {
+  let a = seedOf3(seed + ':' + salt) | 0
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+const clamp3 = (v: number, lo: number, hi: number) => v < lo ? lo : v > hi ? hi : v
+
+/* ——— ۱) دو ۱۰۰ متر: واکنش به شلیک + گام‌های متناوب + ریتم ——— */
+function v3Sprint(ev: TelemEvent[], _seed: string): ScoreResult {
+  let goT = -1, fs = 0, strides = 0, lastT = -1, lastSide = -1, firstT = -1
+  const gaps: number[] = []
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'go') { if (goT >= 0) return { ok: false, score: 0, reason: 'dup_go' }; goT = t }
+    else if (e[0] === 'fs') fs = Math.max(fs, Math.round(Number(e[2]) || 0))
+    else if (e[0] === 'p') {
+      if (goT < 0) return { ok: false, score: 0, reason: 'no_go' }
+      if (t < goT) return { ok: false, score: 0, reason: 'pre_go' }
+      const side = Math.round(Number(e[2]) || 0)
+      if (side !== 0 && side !== 1) return { ok: false, score: 0, reason: 'bad_side' }
+      if (side === lastSide) return { ok: false, score: 0, reason: 'no_alternation' }
+      if (lastT < 0) {
+        if (t - goT < 100) return { ok: false, score: 0, reason: 'impossible_reaction' } /* قانون دو و میدانی: زیر ۱۰۰ms = تقلبی */
+        firstT = t
+      } else {
+        const g = t - lastT
+        if (g < 150) return { ok: false, score: 0, reason: 'impossible_rate' }
+        gaps.push(g)
+      }
+      lastT = t; lastSide = side; strides++
+      if (strides > 120) return { ok: false, score: 0, reason: 'overrun' }
+    }
+  }
+  if (goT < 0) return { ok: false, score: 0, reason: 'no_run' }
+  if (fs >= 2) return { ok: true, score: 0, flags: ['dq_false_start'] } /* اخراج حتی بدون گام — نتیجه‌ی رسمی صفر */
+  if (strides < 4) return { ok: false, score: 0, reason: 'no_run' }
+  const dist = Math.min(100, strides * 1.9)
+  const rt = firstT - goT
+  const reactPts = rt <= 180 ? 100 : rt <= 250 ? 80 : rt <= 350 ? 60 : rt <= 500 ? 35 : 15
+  let sum = 0; for (const g of gaps) sum += g
+  const mean = gaps.length ? sum / gaps.length : 0
+  let vs = 0; for (const g of gaps) vs += (g - mean) * (g - mean)
+  const sd = gaps.length > 1 ? Math.sqrt(vs / gaps.length) : 0
+  const rhythm = clamp3(1 - sd / 160, 0, 1)
+  return { ok: true, score: Math.round(dist * 7.5) + reactPts + Math.round(rhythm * 180) }
+}
+
+/* ——— ۲) کمان: نوسان قطعی + کنترل نفس (hold) — سرور حلقه را از seed می‌سازد ——— */
+function archRing3(seed: string, i: number, tRel: number, holdMs: number): number {
+  const r = rngOf3(seed, 'arch:' + i)
+  const f1 = 900 + r() * 700, f2 = 500 + r() * 500
+  const p1 = r() * 6.28318, p2 = r() * 6.28318
+  const wind = r() * 2 - 1
+  const sway = 0.6 * Math.sin((tRel / f1) * 6.28318 + p1) + 0.4 * Math.sin((tRel / f2) * 6.28318 + p2)
+  let amp = 1.0 - Math.min(1, holdMs / 2200) * 0.55
+  if (holdMs > 2600) amp += Math.min(0.8, (holdMs - 2600) / 1000 * 0.18)
+  const d = Math.abs(sway + wind * 0.35) * amp
+  return Math.max(0, Math.round((1 - Math.min(1, d)) * 10))
+}
+function v3Archery(ev: TelemEvent[], seed: string): ScoreResult {
+  let shot = 0, drawT = -1, pts = 0, all9 = true
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'draw') {
+      const i = Math.round(Number(e[2]) || 0)
+      if (i !== shot) return { ok: false, score: 0, reason: 'bad_draw' }
+      drawT = t
+    } else if (e[0] === 'shot') {
+      if (drawT < 0) return { ok: false, score: 0, reason: 'no_draw' }
+      const ringC = Math.round(Number(e[2]) || 0)
+      if (!(ringC >= 0 && ringC <= 10)) return { ok: false, score: 0, reason: 'bad_ring' }
+      const hold = t - drawT
+      if (!(hold >= 40 && hold <= 12000)) return { ok: false, score: 0, reason: 'bad_hold' }
+      const ringS = archRing3(seed, shot, t, hold)
+      if (Math.abs(ringC - ringS) > 1) return { ok: false, score: 0, reason: 'ghost_shot' }
+      pts += ringS * 20
+      if (ringS < 9) all9 = false
+      shot++; drawT = -1
+      if (shot > 5) return { ok: false, score: 0, reason: 'too_many_shots' }
+    }
+  }
+  if (shot === 0) return { ok: false, score: 0, reason: 'no_shots' }
+  return { ok: true, score: pts + (shot === 5 && all9 ? 60 : 0) }
+}
+
+/* ——— ۳) شنا: ضربه‌های متناوب + ریتم + چرخش دیوار ——— */
+function v3Swim(ev: TelemEvent[], _seed: string): ScoreResult {
+  let n = 0, lastSide = -1, lastT = -1, turns = 0
+  const gaps: number[] = []
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'p') {
+      const side = Math.round(Number(e[2]) || 0)
+      if (side !== 0 && side !== 1) return { ok: false, score: 0, reason: 'bad_side' }
+      if (side === lastSide) return { ok: false, score: 0, reason: 'no_alternation' }
+      if (lastT >= 0) {
+        const g = t - lastT
+        if (g < 140) return { ok: false, score: 0, reason: 'impossible_rate' }
+        gaps.push(g)
+      }
+      lastT = t; lastSide = side; n++
+      if (n > 120) return { ok: false, score: 0, reason: 'overrun' }
+    } else if (e[0] === 'turn') {
+      const q = Number(e[2]) || 0
+      if (!(q >= 0 && q <= 1)) return { ok: false, score: 0, reason: 'bad_turn' }
+      const walls = [16, 32, 48]
+      if (turns >= 3) return { ok: false, score: 0, reason: 'overrun' }
+      const lo = walls[turns] - 3, hi = walls[turns] + 3
+      if (n < lo || n > hi) return { ok: false, score: 0, reason: 'bad_turn_pos' }
+      turns++
+    }
+  }
+  if (n < 6) return { ok: false, score: 0, reason: 'no_swim' }
+  let sum = 0; for (const g of gaps) sum += g
+  const mean = gaps.length ? sum / gaps.length : 0
+  let vs = 0; for (const g of gaps) vs += (g - mean) * (g - mean)
+  const sd = gaps.length > 1 ? Math.sqrt(vs / gaps.length) : 0
+  const rhythm = clamp3(1 - sd / 170, 0, 1)
+  const dist = Math.min(100, n * 1.55)
+  let tPts = 0; /* سهم چرخش‌ها دوباره از تله‌متری جمع می‌شود */
+  let ti = 0
+  for (const e of ev) { if (e[0] === 'turn') { tPts += Math.round((Number(e[2]) || 0) * 27); ti++; if (ti >= turns) break } }
+  return { ok: true, score: Math.round(dist * 7) + Math.round(rhythm * 200) + Math.min(81, tPts) }
+}
+
+/* ——— ۴) ژیمناستیک: روتین seed-محور + سختی انتخابی + کمبو ——— */
+function gymMove3(seed: string, i: number): { type: number; dir: number } {
+  const r = rngOf3(seed, 'gym:' + i)
+  return { type: Math.floor(r() * 3), dir: Math.floor(r() * 4) } /* type: 0=سوایپ 1=نگه‌داشتن 2=تندزنی */
+}
+function v3Gym(ev: TelemEvent[], seed: string): ScoreResult {
+  let lvl = 0, steps = 0, miss = 0, pts = 0, streak = 0, best = 0
+  for (const e of ev) {
+    if (e[0] === 'diff') {
+      const l = Math.round(Number(e[2]) || 0)
+      if (!(l >= 0 && l <= 2)) return { ok: false, score: 0, reason: 'bad_diff' }
+      if (steps > 0) return { ok: false, score: 0, reason: 'late_diff' }
+      lvl = l
+    } else if (e[0] === 'mv') {
+      const ok = Number(e[2]) ? 1 : 0, fast = Number(e[3]) ? 1 : 0
+      /* OLY3: توالی حرکات seed-محور راستی‌آزمایی می‌شود — سوایپ اشتباه با ok=۱ = رد */
+      const mi = Math.round(Number(e[4]) || 0), kind = Math.round(Number(e[5]) || 0)
+      if (steps >= 10 || miss >= 4) return { ok: false, score: 0, reason: 'overrun' }
+      if (!(mi >= 0 && mi <= 9)) return { ok: false, score: 0, reason: 'bad_seq' }
+      if (mi !== steps) return { ok: false, score: 0, reason: 'bad_seq' }
+      const mvS = gymMove3(seed, mi)
+      if (kind !== mvS.type) return { ok: false, score: 0, reason: 'bad_seq' }
+      if (mvS.type === 0 && ok) {
+        const dir = Math.round(Number(e[6]) || 0)
+        if (dir !== mvS.dir) return { ok: false, score: 0, reason: 'bad_dir' }
+      }
+      if (ok) { pts += 60 + fast * 25; streak++; if (streak > best) best = streak }
+      else { pts -= 20; miss++; streak = 0 }
+      steps++
+    }
+  }
+  if (steps < 5) return { ok: false, score: 0, reason: 'no_routine' }
+  const bonus = best >= 3 ? Math.min(80, (best - 2) * 15) : 0
+  const mult = [1, 1.18, 1.35][lvl]
+  return { ok: true, score: Math.max(0, Math.round((pts + bonus) * mult)) }
+}
+
+/* ——— ۵) وزنه‌برداری: نوسان میله قطعی از seed — دقت را سرور می‌سازد ——— */
+function weightPos3(seed: string, i: number, tRel: number): number {
+  const r = rngOf3(seed, 'wgt:' + i)
+  const period = 900 + r() * 500
+  const ph = r() * 6.28318
+  return Math.sin((tRel / period) * 6.28318 + ph)
+}
+function v3Weight(ev: TelemEvent[], seed: string): ScoreResult {
+  let lifts = 0, pts = 0, streak = 0
+  for (const e of ev) {
+    if (e[0] !== 'lift') continue
+    const t = Number(e[1]) || 0
+    const pC = Number(e[2])
+    if (!(pC >= 0 && pC <= 1)) return { ok: false, score: 0, reason: 'bad_precision' }
+    if (lifts >= 5) return { ok: false, score: 0, reason: 'too_many_lifts' }
+    const pS = 1 - Math.min(1, Math.abs(weightPos3(seed, lifts, t)))
+    if (Math.abs(pC - pS) > 0.2) return { ok: false, score: 0, reason: 'ghost_lift' }
+    pts += Math.round(200 * pS)
+    if (pS >= 0.8) { streak++; pts += Math.min(100, streak * 25) } else streak = 0
+    lifts++
+  }
+  if (lifts === 0) return { ok: false, score: 0, reason: 'no_lifts' }
+  return { ok: true, score: pts }
+}
+
+/* ——— ۶) دوچرخه‌سواری: ریتم در برابر مسیر seed-محور ——— */
+function cycTarget3(seed: string, seg: number): number {
+  const r = rngOf3(seed, 'cyc:' + seg)
+  return [400, 520, 330, 300][Math.floor(r() * 4)]
+}
+function v3Cycling(ev: TelemEvent[], seed: string): ScoreResult {
+  /* OLY3 v2 قرارداد: dt هیچ‌وقت از کلاینت پذیرفته نمی‌شود — سرور آن را از
+     فاصله‌ی واقعی رویدادها می‌سازد؛ توقف طولانی = ریست ریتم (نه رد) */
+  let n = 0, lastT = -1, sumQ = 0
+  const qs: number[] = []
+  for (const e of ev) {
+    if (e[0] !== 'pedal') continue
+    const t = Number(e[1]) || 0
+    if (lastT >= 0) {
+      const dt = t - lastT
+      if (dt > 2600) { qs.length = 0; sumQ = 0; n = 0 } /* توقف/ساحل‌گیری — ریتم ریست */
+      else {
+        const seg = Math.floor(t / 3500)
+        const q = clamp3(1 - Math.abs(dt - cycTarget3(seed, seg)) / 220, 0, 1)
+        qs.push(q); sumQ += q; n++
+        if (n > 160) return { ok: false, score: 0, reason: 'overrun' }
+      }
+    }
+    lastT = t
+  }
+  if (n < 4) return { ok: true, score: 0 }
+  const avg = sumQ / n
+  let vs = 0; for (const q of qs) vs += (q - avg) * (q - avg)
+  const sd = Math.sqrt(vs / n)
+  const cons = clamp3(1 - sd / 0.35, 0, 1)
+  return { ok: true, score: Math.round(avg * 800) + Math.round(cons * 200) }
+}
+
+/* ——— ۷) شطرنج: کتاب مات‌در-یک + انتخاب seed-محور ۳ سؤال ——— */
+/* صفحه: ۶۴ کاراکتر، ردیف ۸ تا ۱، ستون a تا h؛ بزرگ=سفید، کوچک=سیاه، .=خالی */
+const CHESS_BOOK3: Array<{ pos: string; mv: [number, number] }> = [
+  { pos: '......k./.....ppp/......../......../......../......../......../....R..K.', mv: [60, 4] },   /* Re8# */
+  { pos: '.......k/......p./......K./....Q.../......../......../......../......../', mv: [36, 14] },  /* Qg7# */
+  { pos: '......rk/......pp/....b.../....n.../......../......../......../......K.', mv: [28, 22] },   /* Ng6# */
+  { pos: 'k......./.R.....p/..K...../......../......../......../..R...../......../', mv: [58, 2] },   /* Rc8# */
+  { pos: 'k......./..K...../......../......../...B..../....p..Q/......../......../', mv: [46, 6] },   /* Qg8# */
+  { pos: '......k./.....p.p/....n.../.......Q/......../...B..../......../R......./', mv: [47, 15] },  /* Qxh7# */
+  { pos: '.......k/.p....../......K./......../......../......../......../R......./', mv: [56, 0] },   /* Ra8# */
+  { pos: '.......k/R......./.....N../......../......../......../....K.../......../', mv: [8, 15] },   /* Rh7# */
+  { pos: 'k......./......../.K....../......../......../......../......../...R..../', mv: [59, 3] },   /* Rd8# */
+]
+function chessPick3(seed: string): number[] {
+  const r = rngOf3(seed, 'chess')
+  const pick: number[] = []
+  while (pick.length < 3) {
+    const i = Math.floor(r() * CHESS_BOOK3.length)
+    if (pick.indexOf(i) < 0) pick.push(i)
+  }
+  return pick
+}
+function v3Chess(ev: TelemEvent[], seed: string): ScoreResult {
+  const pick = chessPick3(seed)
+  const mvMap: Record<number, [number, number]> = {}
+  for (const e of ev) {
+    if (e[0] !== 'mv') continue
+    const idx = Math.round(Number(e[2]) || 0)
+    const from = Math.round(Number(e[3]) || 0), to = Math.round(Number(e[4]) || 0)
+    if (!(idx >= 0 && idx <= 2)) return { ok: false, score: 0, reason: 'bad_puzzle' }
+    if (mvMap[idx]) return { ok: false, score: 0, reason: 'dup_move' }
+    if (!(from >= 0 && from <= 63 && to >= 0 && to <= 63)) return { ok: false, score: 0, reason: 'bad_square' }
+    mvMap[idx] = [from, to]
+  }
+  let pts = 0, solved = 0
+  const seen = new Set<number>()
+  for (const e of ev) {
+    if (e[0] !== 'puz') continue
+    const t = Number(e[1]) || 0
+    const idx = Math.round(Number(e[2]) || 0), okC = Number(e[3]) ? 1 : 0, dt = Number(e[4]) || 0
+    if (!(idx >= 0 && idx <= 2)) return { ok: false, score: 0, reason: 'bad_puzzle' }
+    if (!seen.has(idx)) {
+      seen.add(idx)
+      const mv = mvMap[idx]
+      const sol = CHESS_BOOK3[pick[idx]].mv
+      /* تایم‌اوت بدون حرکت = پازل ردشده (ok=0 بدون mv) — سازگار */
+      const okS = mv ? ((mv[0] === sol[0] && mv[1] === sol[1]) ? 1 : 0) : 0
+      if (okC !== okS) return { ok: false, score: 0, reason: 'bad_move' }
+      if (!(dt >= 0 && dt <= 90000 && dt <= t + 50)) return { ok: false, score: 0, reason: 'bad_dt' }
+      if (okS) { pts += 200 + (dt < 6000 ? 50 : dt < 10000 ? 25 : 0); solved++ }
+    }
+  }
+  if (!seen.size) return { ok: false, score: 0, reason: 'no_shots' }
+  return { ok: true, score: pts + (solved === 3 ? 60 : 0) }
+}
+
+/* ——— ۸) والیبال: زمان‌بندی ضربه + جهت در برابر بلوکر قطعی seed ——— */
+function v3Volley(ev: TelemEvent[], seed: string): ScoreResult {
+  let hits = 0, faults = 0, pts = 0
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'hit') {
+      const q = Number(e[2]) || 0, dir = Math.round(Number(e[3]) || 0)
+      if (!(q >= 0 && q <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+      if (!(dir >= 0 && dir <= 2)) return { ok: false, score: 0, reason: 'bad_dir' }
+      if (hits >= 24) return { ok: false, score: 0, reason: 'overrun' }
+      const block = Math.floor(rngOf3(seed, 'vol:' + hits)() * 3)
+      const win = dir !== block && q >= 0.30 + Math.min(0.4, hits * 0.04)
+      if (win) { pts += 70 + Math.min(30, hits * 4); hits++ } else { hits = 0; faults++ ; if (faults > 12) return { ok: false, score: 0, reason: 'overrun' } }
+    } else if (e[0] === 'fault') {
+      faults++
+      if (faults > 12) return { ok: false, score: 0, reason: 'overrun' }
+      hits = 0
+    }
+    if (t < 0) return { ok: false, score: 0, reason: 'bad_event' }
+  }
+  if (hits === 0 && pts === 0) return { ok: false, score: 0, reason: 'no_hits' }
+  return { ok: true, score: pts }
+}
+
+/* ——— ۹) فوتبال: پنالتی — دروازه‌بان قطعی از seed، قدرت در باند ——— */
+function v3Football(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, goals = 0, shot = 0, round = 0, shotGlobal = 0
+  for (const e of ev) {
+    if (e[0] !== 'shot') continue
+    if (round > 2) return { ok: false, score: 0, reason: 'overrun' }
+    const zi = Math.round(Number(e[2]) || 0)
+    const powRaw = e.length > 6 ? Number(e[6]) : NaN
+    const pow = Number.isFinite(powRaw) ? powRaw : 0.65 /* سازگاری با شات v1 بدون آرگومان قدرت */
+    if (!(zi >= 0 && zi <= 2)) return { ok: false, score: 0, reason: 'bad_zone' }
+    if (!(pow >= 0 && pow <= 1)) return { ok: false, score: 0, reason: 'bad_pow' }
+    const dive = Math.floor(rngOf3(seed, 'fb:' + shotGlobal)() * 3)
+    const goal = zi !== dive && pow >= 0.35 && pow <= 0.95 ? 1 : 0
+    if (goal) { pts += 90; goals++ }
+    shot++; shotGlobal++
+    if (shot >= 3) {
+      if (goals >= 2) pts += [100, 150, 200][Math.min(2, round)]
+      round++; shot = 0; goals = 0
+    }
+  }
+  if (shotGlobal === 0) return { ok: false, score: 0, reason: 'no_shots' }
+  if (shot > 0) return { ok: false, score: 0, reason: 'incomplete_round' }
+  return { ok: true, score: pts }
+}
+
+/* ——— ۱۰) پرش طول: سرعت دویدن از گام‌ها + تخته‌ی قطعی seed ——— */
+function ljBoard3(seed: string, i: number): number { return 14 + Math.floor(rngOf3(seed, 'lj:' + i)() * 5) }
+function v3LJ(ev: TelemEvent[], seed: string): ScoreResult {
+  let jumps = 0, strides = 0, lastT = -1, lastSide = -1
+  const recent: number[] = []
+  let pts = 0
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'p') {
+      const side = Math.round(Number(e[2]) || 0)
+      if (side !== 0 && side !== 1) return { ok: false, score: 0, reason: 'bad_side' }
+      if (side === lastSide) return { ok: false, score: 0, reason: 'no_alternation' }
+      if (lastT >= 0) {
+        const g = t - lastT
+        if (g < 140) return { ok: false, score: 0, reason: 'impossible_rate' }
+        recent.push(g); if (recent.length > 6) recent.shift()
+      }
+      lastT = t; lastSide = side; strides++
+      if (strides > 160) return { ok: false, score: 0, reason: 'overrun' }
+    } else if (e[0] === 'jump') {
+      const mC = Number(e[2]) || 0
+      if (!(mC >= 0 && mC <= 15)) return { ok: false, score: 0, reason: 'bad_jump' }
+      if (jumps >= 3) return { ok: false, score: 0, reason: 'overrun' }
+      if (strides < 3) return { ok: false, score: 0, reason: 'no_runup' }
+      const board = ljBoard3(seed, jumps) * 1.15
+      const pos = strides * 1.15
+      let sum = 0; for (const g of recent) sum += g
+      const ai = recent.length ? sum / recent.length : 600
+      const speed = clamp3((520 - ai) / 260, 0.15, 1)
+      const prec = 1 - Math.min(1, Math.abs(pos - board) / 1.15)
+      const foul = pos > board + 0.4
+      const mS = foul ? 0 : 4.6 + speed * 3.9 + prec * 1.4
+      if (Math.abs(mC - mS) > 0.7) return { ok: false, score: 0, reason: 'ghost_jump' }
+      pts += Math.round(mS * 45)
+      jumps++; strides = 0; recent.length = 0; lastSide = -1
+    }
+  }
+  if (jumps === 0) return { ok: false, score: 0, reason: 'no_jumps' }
+  return { ok: true, score: pts }
+}
+
+/* ——— ۱۱) کشتی: طناب‌کشی — حریف قطعی از seed، برنده را سرور می‌شمارد ——— */
+function wrestleRival3(seed: string, b: number): { base: number; s1: number; s2: number } {
+  const r = rngOf3(seed, 'wre:' + b)
+  return { base: 2.0 + r() * 0.8, s1: 2500 + r() * 3000, s2: 6500 + r() * 3000 }
+}
+function v3Wrestle(ev: TelemEvent[], seed: string): ScoreResult {
+  let bouts = 0, pts = 0
+  let marker = 50, prevT = -1, crossedAt = -1, boutStartT = -1
+  const startBout = () => { marker = 50; prevT = -1; crossedAt = -1; boutStartT = -1 }
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'p') {
+      if (bouts >= 3) return { ok: false, score: 0, reason: 'overrun' }
+      if (prevT < 0) { prevT = t; boutStartT = t }
+      const dt = t - prevT
+      const rv = wrestleRival3(seed, bouts)
+      let push = rv.base
+      if ((t >= rv.s1 && t < rv.s1 + 800) || (t >= rv.s2 && t < rv.s2 + 800)) push += 2.0
+      marker += push * (dt / 1000)
+      marker -= 1.6
+      prevT = t
+      if (marker <= 20 && crossedAt < 0) crossedAt = t
+      else if (marker >= 80 && crossedAt < 0) crossedAt = -2 /* حریف بیرون انداخت */
+    } else if (e[0] === 'bout') {
+      const winC = Number(e[2]) ? 1 : 0, leftC = Number(e[3]) || 0
+      if (bouts >= 3) return { ok: false, score: 0, reason: 'overrun' }
+      if (!(leftC >= 0 && leftC <= 12000)) return { ok: false, score: 0, reason: 'bad_time' }
+      const winS = crossedAt >= 0 ? 1 : 0
+      if (winC !== winS) return { ok: false, score: 0, reason: 'flag_mismatch' }
+      if (winS) {
+        const leftS = Math.max(0, 12000 - (crossedAt - boutStartT))
+        if (Math.abs(leftC - leftS) > 450) return { ok: false, score: 0, reason: 'bad_time' }
+        pts += 250 + Math.round(leftS / 12000 * 150)
+      }
+      bouts++; startBout()
+    }
+  }
+  if (bouts === 0) return { ok: false, score: 0, reason: 'no_bouts' }
+  return { ok: true, score: pts }
+}
+
+const SKILL3: Record<string, (ev: TelemEvent[], seed: string) => ScoreResult> = {
+  sprint: v3Sprint, archery: v3Archery, swim: v3Swim, gym: v3Gym, weight: v3Weight,
+  cycling: v3Cycling, chess: v3Chess, volley: v3Volley, football: v3Football, wrestle: v3Wrestle, lj: v3LJ,
+}
+
 /* ——— ممیزی اصلی: تله‌متری → امتیازِ سروری ———
    edition ≥ SIM_V2_ED → فرمول نسل ۲ (بدون کف، مهارت‌محور)؛
-   دوره‌های قدیمی همان v1 — هر دو از همان قواعد L1..L9 می‌گذرند. */
-export function computeScore(key: string, tel: Telemetry | null | undefined, edition?: number): ScoreResult & { parts?: ScorePart[] } {
+   دوره‌های قدیمی همان v1 — هر دو از همان قواعد L1..L9 می‌گذرند.
+   OLY3: مدل tap + (دوره ≥ SKILL3_ED یا train) → داور نسل ۳ با seed سرور. */
+export function computeScore(key: string, tel: Telemetry | null | undefined, edition?: number, opts?: ScoreOpts): ScoreResult & { parts?: ScorePart[] } {
   if (!tel || typeof tel !== 'object') return { ok: false, score: 0, reason: 'no_telemetry' }
   const ev = Array.isArray(tel.ev) ? tel.ev : null
   if (!ev) return { ok: false, score: 0, reason: 'no_telemetry' }
@@ -504,6 +940,14 @@ export function computeScore(key: string, tel: Telemetry | null | undefined, edi
     const v2fn = SIM_V2[key]
     if (!v2fn) return { ok: false, score: 0, reason: 'discipline' }
     return withL3L4(v2fn, key, tel, ev)
+  }
+  if (!isSim) {
+    const v3 = SKILL3[key]
+    if (v3 && ((typeof edition === 'number' && edition >= SKILL3_ED) || (opts && opts.mode === 'train'))) {
+      const seed = opts && opts.seed ? String(opts.seed) : ''
+      if (!seed) return { ok: false, score: 0, reason: 'no_seed' }
+      return withL3L4((ev2) => v3(ev2, seed), key, tel, ev)
+    }
   }
   const fn = isSim ? SIM_RECALC[key] : fn0
   if (!fn) return { ok: false, score: 0, reason: 'discipline' }

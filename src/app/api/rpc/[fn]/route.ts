@@ -2225,8 +2225,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (mode === 'official' && g.phase !== 'live') return R({ ok: false, reason: 'window' })
         const _h0 = await olyHostGet(g.edition)
         const hostMax = (_h0 && _h0.uid === user.id) ? 6 : 5
+        let ent0: Awaited<ReturnType<typeof db.olympicEntry.findUnique>> = null
         if (mode === 'official') {
-          const ent0 = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
+          ent0 = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
           if (!ent0) return R({ ok: false, reason: 'not_registered' })
           if (ent0.attempts >= hostMax) return R({ ok: false, reason: 'attempts' })
         }
@@ -2239,7 +2240,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         const seed = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
         const m = await db.olympicMatch.create({ data: { edition: g.edition, userId: user.id, discipline: key, mode, serverSeed: seed, status: 'open' } })
-        return R({ ok: true, match_id: m.id, seed, token: olyToken(m.id, seed), server_ms: Date.now(), mode, att_max: mode === 'official' ? hostMax : 0, edition: g.edition })
+        /* OLY3 PHASE 3: آخرین تلاش رسمی = فینال — بدون تغییر اسکیما */
+        const isFinal = mode === 'official' && !!ent0 && ent0.attempts === hostMax - 1
+        return R({ ok: true, match_id: m.id, seed, token: olyToken(m.id, seed), server_ms: Date.now(), mode, att_max: mode === 'official' ? hostMax : 0, edition: g.edition, is_final: isFinal })
       }
 
       /* ---------------- V33 olympic_register: pick 3 of 10 (reg window + late entry while live) ----------------
@@ -2297,7 +2300,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (typeof tel === 'string') { try { tel = JSON.parse(tel) as Telemetry } catch (e) { tel = null } }
         /* L2/L3/L4: بازمحاسبه + قوانین فیزیکی — رد شدن = تلاش سوخت (official) */
         /* O3: نسخه‌ی امتیازدهی بر اساس دوره — دوره‌ی جاری v1، دوره‌های بعدی v2 (بدون کف، مهارت‌محور) */
-        const res = computeScore(key, tel, g.edition)
+        /* OLY3: seed نشست + mode به داور نسل ۳ پاس می‌شود (بازمحاسبه‌ی فیزیک seed-محور) */
+        const res = computeScore(key, tel, g.edition, { seed: m.serverSeed, mode: m.mode })
         if (!res.ok) {
           await db.olympicMatch.update({ where: { id: m.id }, data: { status: 'rejected', flags: res.reason || 'invalid', clientNonce: nonce, finishedAt: new Date() } }).catch(() => {})
           if (m.mode === 'official') {
@@ -2489,7 +2493,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           const rowT = await db.olympicSuspicious.findUnique({ where: { id } })
           if (!rowT) return R({ ok: false, reason: 'row' })
           let recalc: { ok: boolean; score: number; reason?: string } | null = null
-          try { recalc = computeScore(rowT.discipline, rowT.logJson ? (JSON.parse(rowT.logJson) as Telemetry) : null, rowT.edition) } catch (e) { recalc = null }
+          try {
+            let seedT: string | undefined
+            if (rowT.matchId) { const mm = await db.olympicMatch.findUnique({ where: { id: rowT.matchId }, select: { serverSeed: true } }); seedT = mm ? mm.serverSeed : undefined }
+            recalc = computeScore(rowT.discipline, rowT.logJson ? (JSON.parse(rowT.logJson) as Telemetry) : null, rowT.edition, { seed: seedT })
+          } catch (e) { recalc = null }
           return R({ ok: true, log: rowT.logJson || null, recalc })
         }
         const row = await db.olympicSuspicious.findUnique({ where: { id } }).catch(() => null)
