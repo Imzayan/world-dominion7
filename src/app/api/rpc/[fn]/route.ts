@@ -20,23 +20,323 @@ export const dynamic = 'force-dynamic'
    get_world_chat, wd_init_player, wd_get_state, olympics (V31)
    ============================================================ */
 
-const GEM_COSTS: Record<string, number> = {
-  /* economy boosters (v3) */
-  boost: 20, gold: 15, oil: 15, peace: 12, tax: 6,
-  /* V27 — cosmetics & services: visuals / convenience / collection only, zero combat power (anti-P2W rule) */
-  col_pack: 25, emblem: 20, title: 25, border_glow: 30, fx_conq: 20,
-  lucky: 10, medal_s1: 40, vip7: 45, radar: 30, stats: 15, bundle_cos: 100,
-  /* V43 — زینتی‌های سینمایی جدید (اولویت کاربر: سرود امپراتوری + قاب پروفایل پویا) */
-  anthem: 35, frame: 30, entrance: 25, announce: 22
-}
-/* V51 — نشان‌های ویژه (emst_*) : قیمت باید با EMST سمت کلاینت یکی باشد.
-   قبلاً این کلیدها در GEM_COSTS نبودند → سرور error:'item' برمی‌گرداند و خرید نشان ارور می‌داد. */
+/* V66: قیمت‌های legacy GEM_COSTS/EMST_COSTS در SHOP_ITEMS ادغام شدند (تک‌منبع قیمت).
+   EMST_COSTS فقط برای سازگاری نام emst_* در shopBuy نگه داشته شده است. */
 const EMST_COSTS: Record<string, number> = {
   gold: 25, fire: 30, ice: 30, galaxy: 35, dragon: 40,
   royal: 35, shadow: 30, neon: 45, phoenix: 35, orbit: 50,
 }
 const WEEKLY_REWARDS: Record<number, number> = { 1: 5000, 2: 2500, 3: 1000 }
 const WEEKLY_CATEGORIES = ['score', 'kills', 'economy', 'recruits'] as const
+
+/* ============================================================
+   V66 — SHOP V2: کاتالوگ واحد سمت سرور (تک‌منبع قیمت/نوع/کمیابی)
+   - همه‌ی شناسه‌های قدیمی حفظ شده‌اند (spend_gems قدیمی بدون تغییر کار می‌کند)
+   - kind: consumable(اثر سمت کلاینت طبق الگوی موجود) | cosmetic(گرنت انبار)
+           service(انقضا) | mystery(قرعه‌ی سرور) | bundle | limited(پنجره‌ی زمانی)
+   - هیچ قیمتی از کلاینت پذیرفته نمی‌شود؛ فقط p_item.
+   ============================================================ */
+type ShopKind = 'consumable' | 'cosmetic' | 'service' | 'mystery' | 'bundle' | 'limited'
+type ShopItemDef = {
+  id: string; fa: string; d: string; icon: string
+  price: number; kind: ShopKind; cat: string; rar: string
+  days?: number
+  serverEffect?: 'boost'
+  window?: { from: number; to: number }
+  expands?: 'season'
+  grants?: string[]
+  slot?: string
+  hidden?: boolean
+}
+const RAR_FA: Record<string, string> = { common: 'معمولی', uncommon: 'غیرمعمولی', rare: 'کمیاب', epic: 'حماسی', legendary: 'افسانه‌ای', mythic: 'اسطوره‌ای' }
+const SHOP_ITEMS: ShopItemDef[] = [
+  /* منابع و بوست (مصرفی — الگوی v3) */
+  { id: 'boost', fa: 'دو برابر شدن درآمدها (۱ ساعت)', d: 'همه‌ی درآمدها ۶۰ دقیقه دو برابر.', icon: '⚡', price: 20, kind: 'consumable', cat: 'resource', rar: 'common', serverEffect: 'boost' },
+  { id: 'gold', fa: '۱۵۰۰ طلا فوری', d: 'خزانه‌ی امپراتوری پر می‌شود.', icon: '💰', price: 15, kind: 'consumable', cat: 'resource', rar: 'common' },
+  { id: 'oil', fa: '۱۰۰۰ نفت فوری', d: 'موتور جنگ روشن می‌ماند.', icon: '🛢️', price: 15, kind: 'consumable', cat: 'resource', rar: 'common' },
+  { id: 'peace', fa: 'لغو تحریم‌ها', d: 'تحریم برداشته می‌شود و تنش جهانی کم می‌شود.', icon: '🕊️', price: 12, kind: 'consumable', cat: 'resource', rar: 'common' },
+  { id: 'tax', fa: 'آماده شدن فوری مالیات', d: 'کول‌داون مالیات صفر می‌شود.', icon: '⏩', price: 6, kind: 'consumable', cat: 'resource', rar: 'common' },
+  /* Imperial Identity */
+  { id: 'col_pack', fa: 'رنگ اختصاصی امپراتوری', d: 'رنگ قلمروهایت را خودت انتخاب کن.', icon: '🎨', price: 25, kind: 'cosmetic', cat: 'identity', rar: 'epic', slot: 'hue' },
+  { id: 'emblem', fa: 'نشان اختصاصی', d: 'نماد اختصاصی کنار نامت روی نقشه و رتبه‌بندی.', icon: '🏳️', price: 20, kind: 'cosmetic', cat: 'identity', rar: 'rare', slot: 'emblem' },
+  { id: 'title', fa: 'لقب اختصاصی', d: 'امپراتور، فاتح، سایه… کنار اسمت می‌درخشد.', icon: '👑', price: 25, kind: 'cosmetic', cat: 'identity', rar: 'rare', slot: 'title' },
+  { id: 'emp_nameplate', fa: 'پلاک نام سلطنتی', d: 'نامت در چیپ حساب و رتبه‌بندی با قاب طلایی نمایش داده می‌شود.', icon: '🏷️', price: 18, kind: 'cosmetic', cat: 'identity', rar: 'uncommon', slot: 'nameplate' },
+  { id: 'emp_power_badge', fa: 'نشان قدرت', d: 'نشان ستاره‌ی قدرت کنار نام امپراتوریت.', icon: '🌟', price: 15, kind: 'cosmetic', cat: 'identity', rar: 'uncommon', slot: 'power_badge' },
+  /* Battle Cosmetics — صفر قدرت جنگی، فقط نمایش */
+  { id: 'fx_conq', fa: 'افکت فتح اختصاصی', d: 'هر فتح با انیمیشن مخصوص خودت پخش می‌شود.', icon: '🎆', price: 20, kind: 'cosmetic', cat: 'battle', rar: 'rare', slot: 'fx' },
+  { id: 'fx_storm', fa: 'افکت فتح: طوفان', d: 'طوفان فیروزه‌ای روی سرزمین تازه‌فتح.', icon: '🌀', price: 22, kind: 'cosmetic', cat: 'battle', rar: 'rare', slot: 'fx' },
+  { id: 'fx_comet', fa: 'افکت فتح: شهاب', d: 'شهاب بنفش با رد نور.', icon: '☄️', price: 22, kind: 'cosmetic', cat: 'battle', rar: 'rare', slot: 'fx' },
+  { id: 'war_badge', fa: 'نشان جنگ', d: 'نشان ⚔️ کنار نامت — امضای جنگاور بودن.', icon: '⚔️', price: 12, kind: 'cosmetic', cat: 'battle', rar: 'uncommon', slot: 'war_badge' },
+  { id: 'battle_frame', fa: 'قاب پروفایل جنگی', d: 'قاب سرخ‌وطلایی دور نامت در رتبه‌بندی.', icon: '🛡️', price: 35, kind: 'cosmetic', cat: 'battle', rar: 'epic', slot: 'frame' },
+  /* Map Cosmetics — کلاس‌محور، تک‌فعال، بدون دست‌کاری قانون کانونیک دریا */
+  { id: 'border_glow', fa: 'مرز درخشان متحرک', d: 'مرز قلمروهایت هاله‌ی طلایی می‌گیرد.', icon: '✨', price: 30, kind: 'cosmetic', cat: 'map', rar: 'epic', slot: 'border_glow' },
+  { id: 'map_ocean_azure', fa: 'تم اقیانوس: لاجورد', d: 'دریای روشن لاجوردی — فقط برای نقشه‌ی خودت.', icon: '🌊', price: 28, kind: 'cosmetic', cat: 'map', rar: 'rare', slot: 'map_theme' },
+  { id: 'map_ocean_midnight', fa: 'تم اقیانوس: نیمه‌شب', d: 'دریای عمیق نیمه‌شبی برای فرماندهان شب‌کار.', icon: '🌙', price: 32, kind: 'cosmetic', cat: 'map', rar: 'epic', slot: 'map_theme' },
+  { id: 'map_ocean_jade', fa: 'تم اقیانوس: یشم', d: 'دریای سبز یشمی — امضای امپراتوری شرق.', icon: '💚', price: 28, kind: 'cosmetic', cat: 'map', rar: 'rare', slot: 'map_theme' },
+  { id: 'empire_highlight', fa: 'برجسته‌سازی امپراتوری', d: 'پایتختت با نشان ✦ و هاله‌ی ویژه متمایز می‌شود.', icon: '💠', price: 24, kind: 'cosmetic', cat: 'map', rar: 'rare', slot: 'empire_highlight' },
+  /* Capital Customization */
+  { id: 'cap_aura_gold', fa: 'هاله‌ی پایتخت: طلا', d: 'پرچم پایتختت هاله‌ی طلایی ثابت می‌گیرد.', icon: '🟡', price: 26, kind: 'cosmetic', cat: 'capital', rar: 'rare', slot: 'cap_aura' },
+  { id: 'cap_aura_ice', fa: 'هاله‌ی پایتخت: یخ', d: 'هاله‌ی یخیِ سرد و آرام دور پرچم پایتخت.', icon: '🔵', price: 26, kind: 'cosmetic', cat: 'capital', rar: 'rare', slot: 'cap_aura' },
+  { id: 'cap_aura_flame', fa: 'هاله‌ی پایتخت: شعله', d: 'هاله‌ی آتشین برای پایتخت جنگاورها.', icon: '🔴', price: 26, kind: 'cosmetic', cat: 'capital', rar: 'rare', slot: 'cap_aura' },
+  { id: 'cap_monument', fa: 'بنای یادبود', d: 'بنای 🏛 کنار پرچم پایتختت.', icon: '🏛️', price: 20, kind: 'cosmetic', cat: 'capital', rar: 'uncommon', slot: 'cap_monument' },
+  { id: 'cap_nameplate', fa: 'پلاک پایتخت', d: 'نام پایتختت روی پلاک شیشه‌ای نمایش داده می‌شود.', icon: '🪧', price: 16, kind: 'cosmetic', cat: 'capital', rar: 'uncommon', slot: 'cap_nameplate' },
+  { id: 'cap_theme_royal', fa: 'تم سلطنتی پایتخت', d: 'هاله‌ی طلا + پلاک + بنای یادبود — بسته‌ی کامل سلطنتی.', icon: '🏰', price: 40, kind: 'cosmetic', cat: 'capital', rar: 'legendary', slot: 'cap_theme' },
+  /* زینتی‌های سینمایی (V43) */
+  { id: 'anthem', fa: 'سرود اختصاصی امپراتوری', d: 'ملودی ورود و فتح — سه ملودی قابل انتخاب.', icon: '🎺', price: 35, kind: 'cosmetic', cat: 'cinematic', rar: 'epic', slot: 'anthem' },
+  { id: 'frame', fa: 'قاب پروفایل پویا', d: 'حلقه‌ی نورانی چرخان دور نامت در رتبه‌بندی.', icon: '🖼️', price: 30, kind: 'cosmetic', cat: 'cinematic', rar: 'legendary', slot: 'frame' },
+  { id: 'entrance', fa: 'صحنه‌ی ورود سینمایی', d: 'پرچمت با شعار اختصاصی سینمایی وارد می‌شود.', icon: '🎬', price: 25, kind: 'cosmetic', cat: 'cinematic', rar: 'epic', slot: 'entrance' },
+  { id: 'announce', fa: 'صدای اعلام‌کننده', d: 'گوینده هر فتح را اعلام می‌کند.', icon: '🔊', price: 22, kind: 'cosmetic', cat: 'cinematic', rar: 'rare', slot: 'announce' },
+  /* VIP — راحتی و ظاهر، صفر قدرت جنگی */
+  { id: 'vip7', fa: 'VIP هفتگی', d: '۷ روز: نشان 👑 + جم روزانه‌ی سرور + قاب VIP + فروشگاه VIP.', icon: '📅', price: 45, kind: 'service', cat: 'vip', rar: 'epic', days: 7, slot: 'vip' },
+  { id: 'vip30', fa: 'VIP ماهانه', d: '۳۰ روز با تخفیف: همه‌ی مزایای VIP + نشان ویژه‌ی ماهانه.', icon: '👑', price: 150, kind: 'service', cat: 'vip', rar: 'legendary', days: 30, slot: 'vip' },
+  { id: 'radar', fa: 'رادار حمله (۷ روز)', d: 'حمله‌ها به قلمروت را اول از همه می‌فهمی.', icon: '🔔', price: 30, kind: 'service', cat: 'vip', rar: 'rare', days: 7, slot: 'radar' },
+  { id: 'stats', fa: 'آمار و تحلیل پیشرفته', d: 'نمودار روند امتیاز، قلمرو و طلا. دائمی.', icon: '📊', price: 15, kind: 'service', cat: 'vip', rar: 'common', slot: 'stats' },
+  /* Limited — پنجره‌ی زمانی سمت سرور اعتبارسنجی می‌شود */
+  { id: 'medal_s1', fa: 'مدال فصل', d: 'آیتم کمیاب فصلی — بعد از پایان فصل دیگر گیر نمی‌آید؛ برای همیشه در موزه.', icon: '🏆', price: 40, kind: 'limited', cat: 'limited', rar: 'mythic', expands: 'season' },
+  { id: 'lim_persian_1404', fa: 'مدال یادبود گشایش ۱۴۰۴', d: 'نسخه‌ی محدود جشن یک‌سالگی جهانِ سلطنت — فقط تا پایان مهر ۱۴۰۴.', icon: '🎖️', price: 55, kind: 'limited', cat: 'limited', rar: 'mythic', window: { from: Date.UTC(2026, 8, 20), to: Date.UTC(2026, 9, 21) } },
+  /* Mystery — قرعه فقط سمت سرور، شفاف */
+  { id: 'lucky', fa: 'باکس شانسی روزانه', d: 'قرعه سمت سرور: جم یا آیتم کازمتیک. ۳ بار در روز.', icon: '🎁', price: 10, kind: 'mystery', cat: 'mystery', rar: 'common' },
+  { id: 'mystery_premium', fa: 'صندوق گنج پیشرفته', d: 'شانس بسیار بهتر برای کمیاب‌ها و افسانه‌ای‌ها. قرعه فقط سمت سرور.', icon: '🧰', price: 48, kind: 'mystery', cat: 'mystery', rar: 'legendary' },
+  /* Bundle */
+  { id: 'bundle_cos', fa: 'پک کامل امپراتور', d: 'رنگ + نشان + لقب + مرز درخشان + افکت فتح — به‌جای ۱۲۰، فقط ۱۰۰ جم.', icon: '📦', price: 100, kind: 'bundle', cat: 'identity', rar: 'legendary', grants: ['col_pack', 'emblem', 'title', 'border_glow', 'fx_conq'] },
+  /* پاداش تکمیل مجموعه (فقط از مسیر claim — هرگز در فروشگاه نمایش داده نمی‌شود) */
+  { id: 'col_war_reward', fa: 'لقب «جنگاور افسانه‌ای»', d: 'پاداش تکمیل مجموعه‌ی جنگ.', icon: '⚔️', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'title', hidden: true },
+  { id: 'col_imperial_reward', fa: 'نشان ویژه ‌⚜️ امپراتوری', d: 'پاداش تکمیل مجموعه‌ی امپراتوری.', icon: '⚜️', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'emblem', hidden: true },
+  { id: 'col_royal_reward', fa: 'لقب «حامی تاج‌وتخت»', d: 'پاداش تکمیل مجموعه‌ی سلطنتی.', icon: '💎', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'title', hidden: true },
+  { id: 'col_map_reward', fa: 'نشان ویژه 🧭 نقشه', d: 'پاداش تکمیل مجموعه‌ی نقشه.', icon: '🧭', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'emblem', hidden: true },
+  { id: 'col_season_reward', fa: 'نشان ویژه 🏅 فصل', d: 'پاداش تکمیل مجموعه‌ی فصل.', icon: '🏅', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'emblem', hidden: true },
+  { id: 'col_event_reward', fa: 'نشان ویژه 🎪 ایونت', d: 'پاداش تکمیل مجموعه‌ی ایونت.', icon: '🎪', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'emblem', hidden: true },
+  { id: 'col_limited_reward', fa: 'لقب «نگهبان گنج نادر»', d: 'پاداش تکمیل مجموعه‌ی محدود.', icon: '🔥', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'mythic', slot: 'title', hidden: true },
+]
+/* emst_* — نشان‌های ویژه V50 به کاتالوگ واحد اضافه می‌شوند (قیمت: EMST_COSTS) */
+for (const [emstId, emstCost] of Object.entries(EMST_COSTS)) {
+  const emstRar: Record<string, string> = { gold: 'rare', fire: 'rare', ice: 'rare', galaxy: 'epic', dragon: 'epic', royal: 'epic', shadow: 'rare', neon: 'legendary', phoenix: 'epic', orbit: 'legendary' }
+  SHOP_ITEMS.push({ id: 'emst_' + emstId, fa: 'طرح نشان: ' + emstId, d: 'طرح ویژه‌ی نشان روی نقشه، رتبه‌بندی و پروفایل.', icon: '💠', price: emstCost, kind: 'cosmetic', cat: 'identity', rar: emstRar[emstId] || 'rare', slot: 'emst' })
+}
+const SHOP_ITEM_MAP = new Map(SHOP_ITEMS.map((x) => [x.id, x]))
+
+/* بسته‌های جم — تنها بخشی که پرداخت واقعی دارد؛ url خالی یعنی «به‌زودی» (هیچ قیمتی سمت کلاینت اعمال نمی‌شود) */
+const SHOP_PACKS = [
+  { id: 'gems_100', gems: 100, price: '۹۹٬۰۰۰ تومان', perGem: '۹۹۰', name: 'شروع', tier: '', url: '' },
+  { id: 'gems_300', gems: 300, price: '۲۶۹٬۰۰۰ تومان', perGem: '۸۹۷', name: 'جنگاور', tier: '✅ ارزش خرید دارد', url: '' },
+  { id: 'gems_550', gems: 550, price: '۴۴۹٬۰۰۰ تومان', perGem: '۸۱۶', name: 'فاتح', tier: '✅ ارزش بیشتر', url: '' },
+  { id: 'gems_1000', gems: 1000, price: '۶۹۹٬۰۰۰ تومان', perGem: '۶۹۹', name: 'امپراتور', tier: '👑 بهترین ارزش', url: '' },
+]
+
+/* مجموعه‌ها — members فقط شناسه‌های سرور-شناخته (medal_s1* = هر مدال فصلی) */
+const SHOP_COLLECTIONS: { id: string; fa: string; icon: string; members: string[]; reward: string }[] = [
+  { id: 'war', fa: 'جنگ', icon: '⚔️', members: ['fx_conq', 'fx_storm', 'fx_comet', 'war_badge', 'battle_frame', 'radar'], reward: 'col_war_reward' },
+  { id: 'imperial', fa: 'امپراتوری', icon: '👑', members: ['col_pack', 'emblem', 'title', 'emp_nameplate', 'emp_power_badge', 'emst_gold', 'emst_fire', 'emst_ice', 'emst_galaxy', 'emst_dragon', 'emst_royal', 'emst_shadow', 'emst_neon', 'emst_phoenix', 'emst_orbit'], reward: 'col_imperial_reward' },
+  { id: 'royal', fa: 'سلطنتی', icon: '💎', members: ['vip7', 'vip30', 'frame', 'anthem', 'entrance', 'announce', 'bundle_cos'], reward: 'col_royal_reward' },
+  { id: 'map', fa: 'نقشه', icon: '🗺️', members: ['border_glow', 'map_ocean_azure', 'map_ocean_midnight', 'map_ocean_jade', 'empire_highlight'], reward: 'col_map_reward' },
+  { id: 'season', fa: 'فصل', icon: '🏆', members: ['medal_s1*'], reward: 'col_season_reward' },
+  { id: 'event', fa: 'ایونت', icon: '🎪', members: ['lim_persian_1404'], reward: 'col_event_reward' },
+  { id: 'limited', fa: 'محدود', icon: '🔥', members: ['medal_s1*', 'lim_persian_1404'], reward: 'col_limited_reward' },
+]
+
+/* استخر قرعه — شفاف: همین اعداد به کلاینت نمایش داده می‌شود؛ تاس فقط این‌جا ریخته می‌شود */
+type MysteryTier = { w: number; kind: 'gems' | 'item'; min?: number; max?: number; ids?: string[]; fa: string }
+const SHOP_MYSTERY: Record<string, { fa: string; tiers: MysteryTier[]; dupGems: number }> = {
+  lucky: {
+    fa: 'باکس شانسی روزانه',
+    dupGems: 10,
+    tiers: [
+      { w: 45, kind: 'gems', min: 10, max: 30, fa: 'جم' },
+      { w: 25, kind: 'item', ids: ['emp_nameplate', 'war_badge', 'cap_nameplate', 'cap_monument', 'emp_power_badge'], fa: 'غیرمعمولی' },
+      { w: 20, kind: 'gems', min: 30, max: 60, fa: 'جم' },
+      { w: 10, kind: 'item', ids: ['emblem', 'title', 'cap_aura_gold', 'map_ocean_jade'], fa: 'کمیاب' },
+    ],
+  },
+  mystery_premium: {
+    fa: 'صندوق گنج پیشرفته',
+    dupGems: 45,
+    tiers: [
+      { w: 25, kind: 'gems', min: 60, max: 140, fa: 'جم' },
+      { w: 30, kind: 'item', ids: ['fx_storm', 'fx_comet', 'cap_aura_ice', 'cap_aura_flame', 'map_ocean_azure', 'empire_highlight', 'announce'], fa: 'کمیاب' },
+      { w: 25, kind: 'item', ids: ['battle_frame', 'map_ocean_midnight', 'anthem', 'entrance', 'emst_galaxy', 'emst_royal', 'emst_phoenix'], fa: 'حماسی' },
+      { w: 20, kind: 'item', ids: ['frame', 'cap_theme_royal', 'emst_neon', 'emst_orbit'], fa: 'افسانه‌ای' },
+    ],
+  },
+}
+
+/* فصل جاری برای مدال فصلی (همان منطق تقویم کلاینت — فصل‌های ۳ ماهه) */
+function shopSeasonSlug(d = new Date()): { slug: string; fa: string; to: number } {
+  const m = d.getUTCMonth() + 1
+  const y = d.getUTCFullYear()
+  const q = Math.ceil(m / 3)
+  const names = ['', 'بهار', 'تابستان', 'پاییز', 'زمستان']
+  const endMonth = q * 3
+  const to = Date.UTC(endMonth === 12 ? y + 1 : y, endMonth === 12 ? 0 : endMonth, 1)
+  return { slug: 'season-' + y + '-' + q, fa: names[q] + ' ' + y, to }
+}
+
+/* ابزارهای فروشگاه */
+async function shopOwnedRows(userId: string) {
+  return db.shopInventory.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } })
+}
+async function shopGrant(userId: string, itemId: string, source: string, rar: string, expiresAt: Date | null, meta: Record<string, unknown> = {}) {
+  await db.shopInventory.upsert({
+    where: { userId_itemId: { userId, itemId } },
+    create: { userId, itemId, source, rarity: rar, expiresAt, meta: JSON.stringify(meta) },
+    update: expiresAt ? { expiresAt, meta: JSON.stringify(meta) } : {},
+  })
+}
+function shopWindowOf(def: ShopItemDef, now: number): { ok: boolean; expandTo: string | null; to: number | null } {
+  if (def.expands === 'season') {
+    const s = shopSeasonSlug(new Date(now))
+    return { ok: now < s.to, expandTo: def.id + '@' + s.slug, to: s.to }
+  }
+  if (def.window) return { ok: now >= def.window.from && now < def.window.to, expandTo: null, to: def.window.to }
+  return { ok: true, expandTo: null, to: null }
+}
+function shopRollTier(tiers: MysteryTier[]): MysteryTier {
+  const total = tiers.reduce((a, t) => a + t.w, 0)
+  let r = Math.random() * total
+  for (const t of tiers) { r -= t.w; if (r <= 0) return t }
+  return tiers[tiers.length - 1]
+}
+
+/* موتور واحد خرید — spend_gems (قدیمی) و shop_buy (جدید) هر دو همین‌جا می‌روند.
+   ترتیب: Idempotency → کاتالوگ → پنجره/موجودی → مالکیت → کسر اتمیک → گرنت → Ledger → پاسخ */
+async function shopBuy(userId: string, p_item: string, requestId: string | null) {
+  const rawId = String(p_item || '')
+  const emstBase = rawId.startsWith('emst_') ? rawId.slice(5) : null
+  const def = SHOP_ITEM_MAP.get(rawId) ?? (emstBase && EMST_COSTS[emstBase] != null
+    ? SHOP_ITEM_MAP.get('emst_' + emstBase) ?? null : null)
+  if (!def) return { ok: false, error: 'item' as const }
+  const now = Date.now()
+  const win = shopWindowOf(def, now)
+  if (!win.ok) return { ok: false, error: 'expired' as const, until: win.to }
+  const grantId = win.expandTo || def.id
+
+  /* ۱) Idempotency — همان requestId = همان پاسخ، بدون کسر دوباره */
+  if (requestId) {
+    const prior = await db.shopPurchase.findFirst({
+      where: { userId, requestId, status: 'ok' }, orderBy: { createdAt: 'desc' },
+    })
+    if (prior) {
+      const w0 = await ensureWallet(userId)
+      return { ok: true, gems: w0.gems, boost_until: w0.boostUntil ? w0.boostUntil.toISOString() : null, vip_until: w0.vipUntil ? w0.vipUntil.toISOString() : null, duplicate: true, grant: prior.itemId, item_id: prior.itemId }
+    }
+  }
+
+  const price = def.price
+  const kind = def.kind
+
+  /* ۲) مالکیت — آیتم غیرمصرفیِ دارای انبار دوباره پول نمی‌گیرد */
+  if (kind === 'cosmetic' || kind === 'limited' || kind === 'bundle') {
+    const ids = kind === 'bundle' ? (def.grants || []) : [grantId]
+    const ownedRows = await db.shopInventory.findMany({ where: { userId, itemId: { in: ids } }, select: { itemId: true } })
+    const ownedSet = new Set(ownedRows.map((r) => r.itemId))
+    const missing = ids.filter((x) => !ownedSet.has(x))
+    if (missing.length === 0) {
+      const w0 = await ensureWallet(userId)
+      return { ok: true, gems: w0.gems, boost_until: w0.boostUntil ? w0.boostUntil.toISOString() : null, vip_until: w0.vipUntil ? w0.vipUntil.toISOString() : null, owned: true, grant: def.id, item_id: def.id }
+    }
+  }
+
+  /* ۳) سقف روزانه‌ی باکس شانسی — سمت سرور از روی Ledger (۳ در روز) */
+  if (kind === 'mystery' && def.id === 'lucky') {
+    const dayStart = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z')
+    const todayN = await db.shopPurchase.count({ where: { userId, itemId: 'lucky', status: 'ok', createdAt: { gte: dayStart } } })
+    if (todayN >= 3) return { ok: false, error: 'limit' as const }
+  }
+
+  /* ۴) کسر اتمیک — بدون read-modify-write، بدون ریس-کانديشن، بدون جم منفی */
+  let dec = { count: 0 }
+  if (price > 0) {
+    dec = await db.wallet.updateMany({ where: { userId, gems: { gte: price } }, data: { gems: { decrement: price } } })
+    if (dec.count === 0) {
+      await db.shopPurchase.create({ data: { userId, itemId: def.id, price, status: 'failed', provider: 'shop', meta: JSON.stringify({ reason: 'funds' }) } }).catch(() => {})
+      return { ok: false, error: 'funds' as const }
+    }
+  }
+
+  /* ۵) گرنت — هر خطا = بازگشت کامل جم (الگوی اثبات‌شده‌ی use_special) */
+  try {
+    let reward: Record<string, unknown> | null = null
+    if (kind === 'consumable') {
+      /* اثر بوست سمت سرور (الگوی قدیمی spend_gems حفظ شد) — بقیه‌ی مصرفی‌ها اثر کلاینت دارند (ذخیره‌ی بازی خودِ بازیکن) */
+      if (def.serverEffect === 'boost') {
+        const w2 = await ensureWallet(userId)
+        const until = new Date(Math.max(now, w2.boostUntil ? w2.boostUntil.getTime() : 0) + 3600_000)
+        await db.wallet.update({ where: { userId }, data: { boostUntil: until } })
+      }
+    } else if (kind === 'cosmetic' || kind === 'limited') {
+      await shopGrant(userId, grantId, 'shop', def.rar, null, { price })
+    } else if (kind === 'bundle') {
+      for (const g of def.grants || []) {
+        const gd = SHOP_ITEM_MAP.get(g)
+        await shopGrant(userId, g, 'shop', gd ? gd.rar : 'common', null, { bundle: def.id })
+      }
+    } else if (kind === 'service') {
+      const w2 = await ensureWallet(userId)
+      if (def.id === 'vip7' || def.id === 'vip30') {
+        const base = w2.vipUntil && w2.vipUntil.getTime() > now ? w2.vipUntil.getTime() : now
+        const until = new Date(base + (def.days || 7) * 86400_000)
+        await db.wallet.update({ where: { userId }, data: { vipUntil: until } })
+        await shopGrant(userId, def.id, 'shop', def.rar, until, { days: def.days })
+      } else if (def.days) {
+        const inv = await db.shopInventory.findUnique({ where: { userId_itemId: { userId, itemId: def.id } } })
+        const base = inv?.expiresAt && inv.expiresAt.getTime() > now ? inv.expiresAt.getTime() : now
+        await shopGrant(userId, def.id, 'shop', def.rar, new Date(base + def.days * 86400_000), {})
+      } else {
+        await shopGrant(userId, def.id, 'shop', def.rar, null, {})
+      }
+    } else if (kind === 'mystery') {
+      const mdef = SHOP_MYSTERY[def.id]
+      if (!mdef) throw new Error('mystery_def_missing')
+      const tiers = mdef.tiers
+      let granted = false
+      for (let attempt = 0; attempt < 8 && !granted; attempt++) {
+        const tier = shopRollTier(tiers)
+        if (tier.kind === 'gems') {
+          const amt = (tier.min || 5) + Math.floor(Math.random() * ((tier.max || 10) - (tier.min || 5) + 1))
+          await db.wallet.update({ where: { userId }, data: { gems: { increment: amt } } })
+          reward = { type: 'gems', amount: amt, tier: tier.fa }
+          granted = true
+        } else {
+          const pool = (tier.ids || []).filter((x) => x)
+          if (!pool.length) continue
+          const pick = pool[Math.floor(Math.random() * pool.length)]
+          const has = await db.shopInventory.findUnique({ where: { userId_itemId: { userId, itemId: pick } } })
+          if (has) continue /* ضدتکرار — دوباره در tiers می‌چرخیم */
+          const pd = SHOP_ITEM_MAP.get(pick)
+          await shopGrant(userId, pick, 'mystery', pd ? pd.rar : 'rare', null, { from: def.id })
+          reward = { type: 'item', item: pick, fa: pd ? pd.fa : pick, icon: pd ? pd.icon : '🎁', tier: tier.fa }
+          granted = true
+        }
+      }
+      if (!granted) {
+        /* همه‌ی استخرِ آیتمی از قبل مالِ کاربر بود → جم جایگزین (پاداش ضدتکرار) */
+        const amt = mdef.dupGems
+        await db.wallet.update({ where: { userId }, data: { gems: { increment: amt } } })
+        reward = { type: 'gems', amount: amt, tier: 'پاداش ضدتکرار' }
+      }
+    }
+
+    /* ۶) Ledger موفق */
+    await db.shopPurchase.create({
+      data: { userId, itemId: grantId, price, status: 'ok', provider: kind === 'mystery' ? 'mystery' : 'shop', requestId, meta: JSON.stringify({ kind, reward }) },
+    })
+    const nw = await ensureWallet(userId)
+    return {
+      ok: true, gems: nw.gems,
+      boost_until: nw.boostUntil ? nw.boostUntil.toISOString() : null,
+      vip_until: nw.vipUntil ? nw.vipUntil.toISOString() : null,
+      grant: kind === 'mystery' ? null : grantId,
+      reward, item_id: def.id, expires: kind === 'service' && def.days ? shopServiceExpiry(userId, def.id) : null,
+    }
+  } catch (e) {
+    if (price > 0) await db.wallet.update({ where: { userId }, data: { gems: { increment: price } } }).catch(() => {})
+    throw e
+  }
+}
+async function shopServiceExpiry(userId: string, itemId: string): Promise<string | null> {
+  const inv = await db.shopInventory.findUnique({ where: { userId_itemId: { userId, itemId } }, select: { expiresAt: true } })
+  return inv?.expiresAt ? inv.expiresAt.toISOString() : null
+}
+
 
 /* V59 wave-2 (§8): central territory cap — ONE source of truth server-side.
    Client mirror lives in public/game/index.html as WD_MAX_COUNTRIES (same value).
@@ -194,7 +494,14 @@ async function dailyBonus(userId: string) {
     data: { gems: { increment: 20 }, lastDaily: new Date() },
   })
   const w = await ensureWallet(userId)
-  return { w, granted: upd.count > 0 ? 20 : 0 }
+  /* V66 Shop V2: بونوس جم روزانه‌ی VIP — سمت سرور (مزیت جدید؛ هدیه‌ی طلای قدیمی VIP کلاینت دست نخورده) */
+  let vipGranted = 0
+  if (upd.count > 0 && w.vipUntil && w.vipUntil.getTime() > Date.now()) {
+    const vupd = await db.wallet.updateMany({ where: { userId, gems: { gte: 0 } }, data: { gems: { increment: 10 } } })
+    vipGranted = vupd.count > 0 ? 10 : 0
+  }
+  const w2 = vipGranted ? await ensureWallet(userId) : w
+  return { w: w2, granted: upd.count > 0 ? 20 : 0, vipGranted }
 }
 
 /* ============================================================
@@ -1040,29 +1347,86 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       /* ---------------- wallet / shop ---------------- */
       case 'get_wallet': {
         const serverW = Math.max(1, Number(args.p_server) || 1)
-        const { w, granted } = await dailyBonus(user.id)
+        const { w, granted, vipGranted } = await dailyBonus(user.id)
         /* V34: the daily streak ticks on the first wallet fetch of the day (atomic, race-safe) */
         let streak: Awaited<ReturnType<typeof streakTick>> | null = null
         try { streak = await streakTick(user.id, serverW, user.nick) } catch (e) { console.log('streak', e) }
-        return R({ ok: true, gems: w.gems, boost_until: w.boostUntil ? w.boostUntil.toISOString() : null, daily_granted: granted,
+        return R({ ok: true, gems: w.gems, boost_until: w.boostUntil ? w.boostUntil.toISOString() : null, daily_granted: granted, vip_granted: vipGranted ?? 0,
+          vip_until: w.vipUntil ? w.vipUntil.toISOString() : null,
           streak: streak ? { streak: streak.streak, best: streak.best, claimed: streak.claimed, day_in_cycle: streak.day_in_cycle, reward: streak.reward } : null })
       }
-      case 'spend_gems': {
-        const item = String(args.p_item || '')
-        /* V51: emst_<id> — نشان‌های ویژه با قیمت از EMST_COSTS */
-        const cost = GEM_COSTS[item] ?? (item.startsWith('emst_') ? EMST_COSTS[item.slice(5)] : undefined)
-        if (!cost) return R({ ok: false, error: 'item' })
-        /* atomic conditional decrement — no read-modify-write race, no double-spend */
-        const dec = await db.wallet.updateMany({ where: { userId: user.id, gems: { gte: cost } }, data: { gems: { decrement: cost } } })
-        if (dec.count === 0) return R({ ok: false, error: 'funds' })
-        let boostUntil: Date | null = null
-        if (item === 'boost') {
-          const w2 = await ensureWallet(user.id)
-          boostUntil = new Date(Math.max(Date.now(), w2.boostUntil ? w2.boostUntil.getTime() : 0) + 3600_000)
-          await db.wallet.update({ where: { userId: user.id }, data: { boostUntil } })
+      case 'spend_gems':
+      case 'shop_buy': {
+        /* V66: موتور واحد خرید — هر دو مسیر RPC همین‌جا می‌روند.
+           قیمت/موجودیت/مالکیت/پنجره/قرعه فقط سمت سرور؛ کلاینت فقط p_item می‌فرستد.
+           p_request_id اختیاری: Idempotency ضد دبل-پرداخت (کلاینت UUID یک‌بارمصرف می‌سازد). */
+        const rb = await shopBuy(user.id, String(args.p_item || ''), args.p_request_id ? String(args.p_request_id).slice(0, 80) : null)
+        return R(rb)
+      }
+
+      /* ---------------- V66 Shop V2 — catalog / inventory / history / collection claim ---------------- */
+      case 'shop_catalog': {
+        const { w } = await dailyBonus(user.id)
+        const inv = await shopOwnedRows(user.id)
+        const nowC = Date.now()
+        return R({
+          ok: true,
+          items: SHOP_ITEMS.filter((x) => !x.hidden).map((x) => ({
+            id: x.id, fa: x.fa, d: x.d, icon: x.icon, price: x.price, kind: x.kind, cat: x.cat, rar: x.rar,
+            slot: x.slot || null, days: x.days || null,
+            window: x.window ? { from: x.window.from, to: x.window.to } : (x.expands === 'season' ? { to: shopSeasonSlug().to } : null),
+          })),
+          packs: SHOP_PACKS,
+          collections: SHOP_COLLECTIONS,
+          mystery: Object.fromEntries(Object.entries(SHOP_MYSTERY).map(([k, m]) => [k, {
+            fa: m.fa,
+            odds: m.tiers.map((t) => ({ pct: Math.round((t.w / m.tiers.reduce((a, q) => a + q.w, 0)) * 100), kind: t.kind, min: t.min || null, max: t.max || null, fa: t.fa, items: t.ids || [] })),
+          }])),
+          wallet: { gems: w.gems, boost_until: w.boostUntil ? w.boostUntil.toISOString() : null, vip_until: w.vipUntil ? w.vipUntil.toISOString() : null },
+          season: shopSeasonSlug(),
+          now: nowC,
+          owned: inv.map((r) => ({ item_id: r.itemId, source: r.source, rarity: r.rarity, expires_at: r.expiresAt ? r.expiresAt.toISOString() : null, created_at: r.createdAt.toISOString() })),
+        })
+      }
+      case 'shop_inventory': {
+        const w = await ensureWallet(user.id)
+        const inv = await shopOwnedRows(user.id)
+        return R({
+          ok: true,
+          items: inv.map((r) => ({ item_id: r.itemId, source: r.source, rarity: r.rarity, expires_at: r.expiresAt ? r.expiresAt.toISOString() : null, created_at: r.createdAt.toISOString() })),
+          vip_until: w.vipUntil ? w.vipUntil.toISOString() : null,
+        })
+      }
+      case 'shop_history': {
+        const lim = Math.min(50, Math.max(5, Number(args.p_limit) || 30))
+        const rows = await db.shopPurchase.findMany({
+          where: { userId: user.id, status: 'ok' }, orderBy: { createdAt: 'desc' }, take: lim,
+          select: { itemId: true, price: true, currency: true, status: true, provider: true, createdAt: true, meta: true },
+        })
+        return R({ ok: true, rows: rows.map((r) => ({ item_id: r.itemId, price: r.price, currency: r.currency, provider: r.provider, created_at: r.createdAt.toISOString(), meta: r.meta })) })
+      }
+      case 'shop_collection_claim': {
+        const cid = String(args.p_collection || '')
+        const col = SHOP_COLLECTIONS.find((c) => c.id === cid)
+        if (!col) return R({ ok: false, error: 'collection' })
+        const inv = await shopOwnedRows(user.id)
+        const ownedIds = new Set(inv.map((r) => r.itemId))
+        const missing = col.members.filter((mid) => {
+          if (mid.endsWith('*')) {
+            const base = mid.slice(0, -1)
+            return ![...ownedIds].some((o) => o === base || o.startsWith(base + '@'))
+          }
+          return !ownedIds.has(mid)
+        })
+        if (missing.length) return R({ ok: false, error: 'incomplete', missing })
+        const rewardDef = SHOP_ITEM_MAP.get(col.reward)
+        if (!rewardDef) return R({ ok: false, error: 'reward' })
+        const already = ownedIds.has(col.reward)
+        if (!already) {
+          await shopGrant(user.id, col.reward, 'collection', rewardDef.rar, null, { collection: cid })
+          await db.shopPurchase.create({ data: { userId: user.id, itemId: col.reward, price: 0, status: 'ok', provider: 'collection', meta: JSON.stringify({ collection: cid }) } })
         }
-        const nw = await ensureWallet(user.id)
-        return R({ ok: true, gems: nw.gems, boost_until: nw.boostUntil ? nw.boostUntil.toISOString() : null })
+        return R({ ok: true, already, reward: col.reward, fa: rewardDef.fa, icon: rewardDef.icon })
       }
 
       /* ---------------- admin ---------------- */

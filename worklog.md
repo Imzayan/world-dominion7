@@ -1301,3 +1301,28 @@ Stage Summary:
 - V65 "جهان زنده" delivered: every decision now has visible country impact (population/happiness/stability respond to tax, war, food, policies, buildings); always-a-goal layer (8 server-computed goals + personal rival + 6 permanent HoF titles); war depth (tactics with server-validated multipliers, siege, fronts, generals with personality) WITHOUT touching the proven capture path
 - Performance: ONE new 20s tick (document.hidden aware), TTL RPC caches, lazy sheet rendering, diffed chip writes, no new map listeners, no per-frame work
 - DB: additive-only (HofTitle), no drops; Server Authority: rival/goals/HoF computed from server data only, p_tactic validated enum server-side
+
+---
+Task ID: V66-shop-v2
+Agent: main (Super Z)
+Task: ارتقای فروشگاه به Shop V2 حرفه‌ای (بریف ۱۷بندی کاربر) — معماری واحد، Server-Authoritative، Collection/Mystery/VIP/Limited/Museum/Inventory/Preview، صفر رگرسیون
+
+Work Log:
+- Audit (۶ نسل کد فروشگاه): v3 (packs+GEM_ITEMS+spendGem)، V27 (تب‌ها+CAT+cosBuy+pickerها+lucky client-roll+vip client)، V54 (ops+wrapper)، V43 (NEWCAT+decorateShop با MutationObserver)، V46 (آیکون SVG+observer دوم)، V50 (emst×10) — گزارش A-F قبل از کد
+- یافته‌ی بحرانی Audit: schema.postgres.prisma ۶ مدل جا-مانده بود (SeasonPass/HofTitle/OlympicProfile/OlympicAchieve/OlympicRivalry/AbuseReport) — parity کامل برقرار شد (additive، db push خودکار در build پروداکشن این ۶ جدول را می‌سازد و O2/pass روی prod را زنده می‌کند)
+- DB (هر دو dialect، فقط additive): مدل ShopPurchase (ledger با @@unique[userId,requestId]=Idempotency + index)، مدل ShopInventory (انبار سرور با @@unique[userId,itemId]، expiresAt برای خدمات، itemId فصلی با @slug)، Wallet.vipUntil — db push محلی سبز
+- Server: SHOP_ITEMS (۵۶ آیتم = تمام شناسه‌های legacy با قیمت + ۲۴ آیتم جدید) + SHOP_PACKS + SHOP_COLLECTIONS×۷ + SHOP_MYSTERY (استخر شفاف) در route.ts؛ موتور واحد shopBuy() (Idempotency → کاتالوگ → پنجره/سقف → مالکیت → کسر اتمیک updateMany → گرنت با rollback جم → Ledger)؛ spend_gems و shop_buy هر دو به همان موتور (بدون شکستن فراخوان‌های قدیمی)؛ RPCهای جدید shop_catalog/shop_inventory/shop_history/shop_collection_claim؛ سقف روزانه lucky=۳ از روی Ledger سمت سرور؛ dailyBonus +۱۰جم VIP سرور؛ get_wallet vip_until/vip_granted
+- Client (بلوک wd-shop-v2 در انتهای index.html): رندر تک‌مسیر renderShop (۱۳ دسته: خانه/جم/پیشنهاد/هویت/جنگ/نقشه/پایتخت/مجموعه‌ها/شانس/VIP/محدود/موزه/انبار+تاریخچه)؛ Event Delegation تک-لیسنر؛ رندر تنبل دسته‌ها؛ تایمر شمارش معکوس خودپاک؛ کاتالوگ فقط از سرور (بدون آینه‌ی محلی=تک‌منبع)؛ Preview واقعی بدون ذخیره (نمونه‌چیپ/رنگ/افکت اجرای واقعی/تم اقیانوس زنده روی نقشه با پاک‌سازی قطعی در بستن/پایتخت/شانس-شانس‌ها)؛ Rarety ۶ سطحی؛ Smart picks؛ applyOwned (کلاس‌محور: تم اقیانوس‌×۳ روی container، هاله/پلاک/بنا/تم سلطنتی پایتخت روی marker خودی، پروفایل چیپ) — بدون انیمیشن دائمی و بدون دست‌کاری قانون کانونیک دریا؛ پل‌های WD27_API/WD43_API/WD54_SO_CARD (صفر کپی از پیاده‌سازی‌های موجود)
+- پاکسازی کد duplicate: wrapper renderShop تزریق V54 حذف؛ shopWatch (MutationObserver اول) no-op؛ wrapCosBuy/wrapRenderShop مرده حذف؛ wrapper+observer آیکون V46 حذف؛ UI تب‌دار V27 حذف (۸۲ خط) — cosBuy/openPick/lucky/stats/radar به‌عنوان تک‌پیاده‌سازی زنده ماندند و V2 آن‌ها را صدا می‌زند
+- spendGem ارتقا: requestId یک‌بارمصرف (UUID) + پاسخ سرور به f(res) پاس داده می‌شود (مکاف/قرعه/انقضا/VIP) + رفرش فروشگاه فقط وقتی مودال باز است + toast خطای expired/limit
+- lucky: قرعه از سرور (res.reward) با همان انیمیشن باکس؛ fallback legacy برای سرور قدیمی
+- فیکس‌های حین TDD (همه ریشه‌ای): el(tag,cls) ۲-آرگوانه → کلاس به‌جای متن می‌نشست (۳۹ فراخوانی اصلاح؛ راه‌حل: sweep رجکسی + errBox با جزئیات خطا)؛ arm() delegation هرگز صدا نمی‌شد → arm در render؛ INVFETCHED overloaded → INVHIST تمیز؛ gemN گروه‌بندی ارقام فارسی محلی (grp privat بود)؛ V66_NEW guard: مالکیت آیتم‌های جدید فقط از انبار سرور (COS.owned هرگز برای آن‌ها کافی نیست — بستن مسیر ghost-ownership)
+- درس تست: دو page در یک context کوکی مشترک دارند → لاگین کاربر دوم سشن اول را overwrite می‌کرد (خرید emst به حساب اشتباه می‌رفت!) → context جدا برای کاربر RPC؛ seed حالا save-state را هم پاک می‌کند (deterministic)
+- تست: scripts/shop-v2-test.mjs — ۳۹/۳۹ (بوت/۱۳ دسته visible/موجودی/خرید مصرفی+ledger/اثر کلاینت/کازمتیک→انبار+چیپ/دبل‌کلیک یک‌بارکسر/item ناشناخته/فunds+جم منفی/Idempotency duplicate/قرعه سرور/سقف روزانه/VIP+بونوس روزانه/ expansion مدال فصل/مجموعه ناقص-کامل-claim-تکرار/جست‌وجوی انبار/پیش‌نمایش زنده+پاک‌سازی/دریای کانونیک/تاریخچه/ops×۴/emst/موزه/صفر pageerror/نقشه زنده)
+- رگرسیون کامل: verify-build ۹/۹ + e2e-v58 ۲۴/۲۴ (سفر کامل کاربر: نقشه/PvP/المپیک/جایزه) + apk-sim ۲۸/۲۸ + map-visual-v62 ۱۶/۱۶ + lowfx-visibility ۶/۶ + sw-selfheal ۸/۸ = ۱۳۰ چک سبز، صفر pageerror
+- Version protocol: __WD_V=66 + v.txt=66
+
+Stage Summary:
+- Shop V2 روی معماری واحد: یک موتور خرید سرور-محور، یک رندرکننده، یک انبار، یک Ledger — همه‌ی قابلیت‌های قبلی حفظ (۴ پک جم، ۵ مصرفی، کازمتیک V27، زینتی V43، نشان‌های V50، عملیات V54، رادار/آمار/VIP/مدال)
+- امنیت: قیمت/موجودیت/مالکیت/پنجره/قرعه فقط سرور؛ Ledger کامل با Idempotency؛ ضد دبل-پرداخت؛ بازگشت جم در خطای گرنت؛ جم منفی غیرممکن
+- pending (کاربر): توکن push تازه برای اعزام به Vercel (db push additive در build، شامل جبران ۶ مدل جا-مانده‌ی prod)

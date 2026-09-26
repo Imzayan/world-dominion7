@@ -28,7 +28,11 @@ model User {
   territories Territory[]
   grants      AdminGrant[]
   weeklyClaims WeeklyClaim[]
+  passes       SeasonPass[]
+  abuseReports AbuseReport[] @relation("AbuseReports")
   chatMessages WorldChat[]
+  shopPurchases ShopPurchase[]
+  shopInventory  ShopInventory[]
 
   @@map("users")
 }
@@ -139,10 +143,53 @@ model Wallet {
   gems      Int       @default(0)
   boostUntil DateTime? @map("boost_until")
   lastDaily DateTime? @map("last_daily")
+  /* V66 Shop V2 — VIP سمت سرور (تک‌منبع اعتبار VIP) */
+  vipUntil  DateTime? @map("vip_until")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("wallets")
+}
+
+/* V66 Shop V2 — دفتر تراکنش خرید: هر خرید یک ردیف با Idempotency (requestId یکتا به‌ازای هر کاربر).
+   هیچ خریدی بدون ردیف تراکنش انجام نمی‌شود؛ خرید تکراریِ همان requestId دوباره کسر نمی‌شود. */
+model ShopPurchase {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  itemId    String   @map("item_id")
+  price     Int      @default(0)
+  currency  String   @default("gem")
+  status    String   @default("ok") /* ok | failed */
+  provider  String   @default("shop") /* shop | mystery | collection | legacy_rpc */
+  requestId String?  @map("request_id")
+  meta      String   @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, requestId])
+  @@index([userId, createdAt])
+  @@map("shop_purchases")
+}
+
+/* V66 Shop V2 — انباری سمت سرور: تک‌منبع مالکیت آیتم‌های غیرمصرفی (کازمتیک/خدمات/محدود).
+   آیتم خدماتی (VIP/رادار) expiresAt دارد؛ آیتم‌های فصلی با شناسه‌ی فصل (@slug) ذخیره می‌شوند. */
+model ShopInventory {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  itemId    String   @map("item_id")
+  source    String   @default("shop") /* shop | mystery | collection | legacy */
+  rarity    String   @default("common")
+  expiresAt DateTime? @map("expires_at")
+  meta      String   @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+  @@index([userId, expiresAt])
+  @@map("shop_inventory")
 }
 
 model WeeklyClaim {
@@ -303,6 +350,57 @@ model OlympicArchive {
   createdAt       DateTime @default(now()) @map("created_at")
 
   @@map("olympic_archives")
+}
+
+/* O2 — PHASE 27: پروفایل مهارت (تک‌منبع از مسیر رسمی) — پarity با sqlite (در pg جا مانده بود) */
+model OlympicProfile {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  discipline  String
+  n           Int      @default(0) /* تعداد مسابقه‌ی رسمی */
+  bestEver    Int      @default(0) @map("best_ever") /* PB همه‌ی دوره‌ها */
+  bestEdition Int      @default(0) @map("best_edition")
+  prCount     Int      @default(0) @map("pr_count")
+  bullseyes   Int      @default(0) /* جمع ده‌های طلایی کمان */
+  recent      String?  @default("[]") /* رینگ JSON آخرین ۱۰ نتیجه [{s,m,at}] */
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, discipline])
+  @@index([discipline])
+  @@map("olympic_profiles")
+}
+
+/* O2 — PHASE 27: دستاوردهای واقعی (از داده‌ی واقعی مسابقه‌ها، نه دستی) */
+model OlympicAchieve {
+  id      String   @id @default(cuid())
+  userId  String   @map("user_id")
+  key     String
+  edition Int
+  at      DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("olympic_achieves")
+}
+
+model OlympicRivalry {
+  id          String   @id @default(cuid())
+  edition     Int
+  discipline  String
+  userId      String   @map("user_id")
+  rivalUserId String   @map("rival_user_id")
+  rivalNick   String   @map("rival_nick")
+  myBest      Int      @default(0) @map("my_best")
+  rivalBest   Int      @default(0) @map("rival_best")
+  passes      Int      @default(0) /* دفعاتی که من از او پیشی گرفتم */
+  falls       Int      @default(0) /* دفعاتی که او از من پیشی گرفت */
+  ahead       Boolean  @default(false)
+  historyJson String?  @map("history_json") /* حداکثر ۱۲ رویداد آخر [{t,ev,my,rv}] */
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([edition, userId, discipline])
+  @@index([edition, rivalUserId])
+  @@map("olympic_rivalries")
 }
 
 /* ============ V34 — social & competitive layer ============ */
@@ -476,4 +574,53 @@ model GameSetting {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("game_settings")
+}
+
+/* V43 — مسیر فصل (Season Pass) — parity با sqlite (در pg جا مانده بود) */
+model SeasonPass {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  season    String   /* 'S2026-09' — ماه میلادی */
+  xp        Int      @default(0)
+  claimed   Int      @default(0)    /* bitmask پله‌های گرفته‌شده */
+  dlog      String   @default("{}") /* شمارنده‌ی روزانه‌ی ماموریت‌ها {date:{key:count}} */
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, season])
+  @@map("season_pass")
+}
+
+/* V43 — ضدتقلب: گزارش تخلف توسط بازیکن‌ها + بررسی ادمین */
+model AbuseReport {
+  id         Int      @id @default(autoincrement())
+  server     Int      @default(1)
+  reporterId String   @map("reporter_id")
+  targetNick String   @map("target_nick")
+  reason     String
+  status     String   @default("open") /* open|cleared|actioned */
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  reporter User @relation("AbuseReports", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([targetNick, status])
+  @@index([reporterId, createdAt])
+  @@map("abuse_reports")
+}
+
+/* V65 — تالار افتخارات دائمی — parity با sqlite (در pg جا مانده بود) */
+model HofTitle {
+  id        String   @id @default(cuid())
+  server    Int
+  category  String /* conqueror|commander|champion|titan|war_master|diplomat */
+  userId    String   @map("user_id")
+  nick      String
+  detail    String   @default("")
+  value     Int      @default(0) /* مقدار سنجش در لحظه‌ی صدور */
+  earnedAt  DateTime @map("earned_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([server, category])
+  @@map("hof_titles")
 }

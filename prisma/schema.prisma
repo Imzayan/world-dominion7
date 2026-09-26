@@ -31,6 +31,8 @@ model User {
   chatMessages WorldChat[]
   passes       SeasonPass[]
   abuseReports AbuseReport[] @relation("AbuseReports")
+  shopPurchases ShopPurchase[]
+  shopInventory  ShopInventory[]
 
   @@map("users")
 }
@@ -141,10 +143,53 @@ model Wallet {
   gems      Int       @default(0)
   boostUntil DateTime? @map("boost_until")
   lastDaily DateTime? @map("last_daily")
+  /* V66 Shop V2 — VIP سمت سرور (تک‌منبع اعتبار VIP) */
+  vipUntil  DateTime? @map("vip_until")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("wallets")
+}
+
+/* V66 Shop V2 — دفتر تراکنش خرید: هر خرید یک ردیف با Idempotency (requestId یکتا به‌ازای هر کاربر).
+   هیچ خریدی بدون ردیف تراکنش انجام نمی‌شود؛ خرید تکراریِ همان requestId دوباره کسر نمی‌شود. */
+model ShopPurchase {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  itemId    String   @map("item_id")
+  price     Int      @default(0)
+  currency  String   @default("gem")
+  status    String   @default("ok") /* ok | failed */
+  provider  String   @default("shop") /* shop | mystery | collection | legacy_rpc */
+  requestId String?  @map("request_id")
+  meta      String   @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, requestId])
+  @@index([userId, createdAt])
+  @@map("shop_purchases")
+}
+
+/* V66 Shop V2 — انباری سمت سرور: تک‌منبع مالکیت آیتم‌های غیرمصرفی (کازمتیک/خدمات/محدود).
+   آیتم خدماتی (VIP/رادار) expiresAt دارد؛ آیتم‌های فصلی با شناسه‌ی فصل (@slug) ذخیره می‌شوند. */
+model ShopInventory {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  itemId    String   @map("item_id")
+  source    String   @default("shop") /* shop | mystery | collection | legacy */
+  rarity    String   @default("common")
+  expiresAt DateTime? @map("expires_at")
+  meta      String   @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+  @@index([userId, expiresAt])
+  @@map("shop_inventory")
 }
 
 model WeeklyClaim {

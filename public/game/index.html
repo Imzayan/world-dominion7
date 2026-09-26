@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=65;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=66;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2359,7 +2359,9 @@ let gemBusy=false;
 async function loadWallet(){
   if(!sb||!ACC.uid){WALLET_OK=false;return}
   try{const r=await sb.rpc('get_wallet');
-    if(!r.error&&r.data&&r.data.ok){GEMS=Number(r.data.gems)||0;BOOST=r.data.boost_until?Date.parse(r.data.boost_until):0;WALLET_OK=true}
+    if(!r.error&&r.data&&r.data.ok){GEMS=Number(r.data.gems)||0;BOOST=r.data.boost_until?Date.parse(r.data.boost_until):0;
+      try{if(r.data.vip_until)window.WD66_VIP_UNTIL=Date.parse(r.data.vip_until)}catch(e){}
+      WALLET_OK=true}
     else WALLET_OK=false}
   catch(e){WALLET_OK=false}
   const g=S$('hud-gem');if(g){if(window.WD39_GEM)window.WD39_GEM(g,GEMS);else g.textContent='💎 '+GEMS}}
@@ -2369,12 +2371,21 @@ async function spendGem(it){
   if(gemBusy)return;
   if(GEMS<it.c){showToast('❌ Gem کافی نداری','lose');return}
   gemBusy=true;
-  try{const r=await sb.rpc('spend_gems',{p_item:it.k});   /* the server checks the balance and takes the gems */
-    if(r.error||!r.data||!r.data.ok){showToast(r.data&&r.data.error==='funds'?'❌ Gem کافی نداری':(r.data&&r.data.error==='item'?'❌ این آیتم هنوز در سرور فعال نیست — بازی را یک‌بار ببند و باز کن':'❌ خرید انجام نشد؛ دوباره امتحان کن'),'lose')}
+  try{ /* V66: موتور واحد shopBuy سمت سرور — قیمت/مالکیت/پنجره/قرعه فقط سرور؛ requestId یک‌بارمصرف ضد دبل-پرداخت */
+    let rid=null;try{rid=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('r'+Date.now().toString(36)+Math.random().toString(36).slice(2,10))}catch(e){}
+    const r=await sb.rpc('spend_gems',{p_item:it.k,p_request_id:rid});
+    if(r.error||!r.data||!r.data.ok){showToast(r.data&&r.data.error==='funds'?'❌ Gem کافی نداری':(r.data&&r.data.error==='item'?'❌ این آیتم هنوز در سرور فعال نیست — بازی را یک‌بار ببند و باز کن':(r.data&&r.data.error==='expired'?'⏳ مهلت این آیتم تمام شده است':(r.data&&r.data.error==='limit'?'🎁 سقف روزانه‌ی باکس پر شد (۳ در روز)':'❌ خرید انجام نشد؛ دوباره امتحان کن'))),'lose')}
     else{GEMS=Number(r.data.gems)||0;if(r.data.boost_until)BOOST=Date.parse(r.data.boost_until);
-      if(it.k!=='boost')it.f();showToast('💎 '+it.t,'win');if(typeof saveNow==='function')saveNow()}}
+      try{if(r.data.vip_until)window.WD66_VIP_UNTIL=Date.parse(r.data.vip_until)}catch(e){}
+      if(it.k!=='boost')it.f(r.data);
+      showToast('💎 '+(it.t||'خرید انجام شد'),'win');if(typeof saveNow==='function')saveNow();
+      try{if(window.WD66_SHOP&&window.WD66_SHOP.onPurchase)window.WD66_SHOP.onPurchase(it.k,r.data)}catch(e){}}
+  }
   catch(e){console.log(e);showToast('❌ اتصال به سرور برقرار نشد','lose')}
-  gemBusy=false;updateUI();renderShop()}
+  gemBusy=false;updateUI();
+  const _m66=document.getElementById('m-shop');
+  if(_m66&&_m66.classList.contains('active'))renderShop();
+}
 /*WALLET-END*/
 (function(){const m=document.createElement('div');m.id='m-shop';m.className='modal';
   m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span>💎 فروشگاه Gem</span><span class="close-modal" style="cursor:pointer;font-size:18px;">✕</span></div><div id="shop-body"></div></div>';document.body.appendChild(m)})();
@@ -6830,7 +6841,7 @@ var CAT={
 var TITLES=['امپراتور','فاتح','سایه','سردار','دریاسالار','پادشاه','تایتان','طوفان','افسانه','فرمانده اسطوره‌ای'];
 var EMBLEMS=['🦅','👑','🐺','🦁','⚔️','🌙','☀️','🐉','🔥','⭐','🌊','🛡️','💀','🎯','⚡','🌟','🗡️','🦂'];
 var HUES=[0,25,45,95,140,172,205,235,265,290,320,345];
-var FXN={gold:'شعاع طلایی',fire:'آتش‌بازی',quake:'زلزله'};
+var FXN={gold:'شعاع طلایی',fire:'آتش‌بازی',quake:'زلزله',storm:'طوفان',comet:'شهاب'};
 function fxName(k){return FXN[k]||k}
 function season27(){var fa='پاییز',slug='season-x',daysLeft=0;
  try{var parts=new Intl.DateTimeFormat('en-u-ca-persian',{year:'numeric',month:'numeric',day:'numeric'}).formatToParts(new Date());var g={};parts.forEach(function(x){g[x.type]=x.value});
@@ -6849,99 +6860,20 @@ function cosBuy(k){var it=CAT[k];if(!it)return;
   if(hasMedal(s.slug)){showToast('🏆 مدال این فصل را داری','win');return}
   spendGem({k:'medal_s1',c:it.c,t:'مدال فصل '+s.fa,f:function(){COS.medals.push({k:s.slug,fa:s.fa});try{if(typeof saveNow==='function')saveNow()}catch(e){}}});return}
  if(cosOwned(k)&&k!=='lucky'){openPick(k);return}
- spendGem({k:k,c:it.c,t:it.t,f:function(){
-  if(k==='lucky'){var done=luckyToday();COS.luckyDay=todayKey();COS.luckyN=done+1;luckyOpen();return}
+ spendGem({k:k,c:it.c,t:it.t,f:function(res){ /* V66: res = پاسخ سرور (مکاف/قرعه/انقضا) */
+  if(k==='lucky'){var done=luckyToday();COS.luckyDay=todayKey();COS.luckyN=done+1;luckyOpen(res);return}
   if(k==='col_pack'||k==='emblem'||k==='title'||k==='fx_conq'){if(!cosOwned(k))COS.owned.push(k);openPick(k);return}
   if(k==='border_glow'){if(!cosOwned(k))COS.owned.push(k);showToast('✨ مرز درخشان فعال شد','win');return}
-  if(k==='vip7'){COS.vipUntil=Date.now()+7*864e5;COS.vipGiftDay='';showToast('👑 پک VIP فعال شد — ۷ روز','win');try{cosVipTick()}catch(e){}return}
-  if(k==='radar'){COS.radarUntil=Date.now()+7*864e5;COS.lastRadar=Date.now();radarStart();showToast('🔔 رادار حمله فعال شد','win');return}
+  if(k==='vip7'){COS.vipUntil=(res&&res.vip_until)?Date.parse(res.vip_until):(Date.now()+7*864e5);COS.vipGiftDay='';showToast('👑 پک VIP فعال شد — ۷ روز','win');try{cosVipTick()}catch(e){}return}
+  if(k==='radar'){COS.radarUntil=(res&&res.expires)?Date.parse(res.expires):(Date.now()+7*864e5);COS.lastRadar=Date.now();radarStart();showToast('🔔 رادار حمله فعال شد','win');return}
   if(k==='stats'){COS.statsOn=true;showStats();return}
  }})}
 function bundleBuy(){spendGem({k:'bundle_cos',c:100,t:'پک کامل امپراتور',f:function(){
  ['col_pack','emblem','title','border_glow','fx_conq'].forEach(function(k){if(!cosOwned(k))COS.owned.push(k)});
- shopTab='beauty';showToast('👑 پک کامل امپراتور فعال شد! همه‌ی زیبایی‌ها مال توست','win')}})}
-/* ---------------- shop UI (tabbed) ---------------- */
-var shopTab='res';
-function balHead(){var w=el('div','','cos27-bal');
- var l=el('div');l.append(el('span','💎 موجودی: '),el('b',faN(GEMS)));w.append(l);
- var r=el('span',boostMult()>1?'⚡ بوست فعال — '+faN(Math.ceil((BOOST-Date.now())/60000))+' دقیقه':'👑 فروشگاه امپراتوری');r.style.cssText='font-size:10.5px;color:#9fadc4';w.append(r);return w}
-function tabBar(){var t=el('div','','cos27-tabs');
- [['res','🛒 منابع'],['beauty','🎨 زیبایی'],['collect','🎁 مجموعه'],['vip','👑 خدمات'],['museum','🖼️ موزه']].forEach(function(x){
-  var b=el('button',x[1],'cos27-tab'+(shopTab===x[0]?' on':''),function(){shopTab=x[0];renderShop()});t.append(b)});return t}
-function shopCard(ic,name,desc,btn){var r=el('div','','cos27-card');r.append(el('div',ic,'cos27-ico'));
- var tx=el('div','','cos27-tx');tx.append(el('b',name));if(desc)tx.append(el('small',desc));r.append(tx);
- if(btn)r.append(btn);return r}
-/* V54 — کارت بسته‌ی جم: مبلغ، نام، برچسب ارزش، قیمت هر جم و دکمه */
-function packCard(p){const r=el('div','','wd54-pack'+(p.tierCls?' '+p.tierCls:''));
-  const head=el('div','','wd54-pack-head');
-  head.append(el('div','💎','wd54-pack-gem'));
-  const mid=el('div','','wd54-pack-mid');
-  mid.append(el('b',faN(p.gems)+' جم — پک '+p.name,'wd54-pack-amt'));
-  mid.append(el('small','هر جم ≈ '+p.perGem+' تومان'+(p.tier?'':' — مناسب برای شروع'),'wd54-pack-per'));
-  head.append(mid);
-  if(p.tier){const bd=el('span',p.tier,'wd54-badge '+p.tierCls);head.append(bd)}
-  const row=el('div','','wd54-pack-row');
-  row.append(el('b',p.price,'wd54-pack-price'));
-  const btn=p.url?el('button','خرید','cos27-buy alt',function(){window.open(p.url,'_blank')}):(function(){var d=el('button','به‌زودی','cos27-buy off');d.disabled=true;return d})();
-  row.append(btn);r.append(head,row);return r}
-function tabRes(c){c.append(el('div','💎 خرید جم — ۴ بسته (پرداخت واقعی؛ با انتشار مایکت فعال می‌شود)','cos27-h'));
- SHOP.packs.forEach(function(p){c.append(packCard(p))});
- c.append(el('div','🛒 بوست و منابع','cos27-h'));
- GEM_ITEMS.forEach(function(it){c.append(shopCard(it.i,it.t,null,el('button','💎 '+faN(it.c),'cos27-buy',function(){spendGem(it)})))})}
-function tabBeauty(c){c.append(el('div','🎨 زیبایی‌شناسی — کاملاً نمایشی، صفر تأثیر بر قدرت','cos27-h'));
- ['col_pack','emblem','title','border_glow','fx_conq'].forEach(function(k){var it=CAT[k];var btn;
-  if(cosOwned(k)){var hasCfg=(k==='col_pack'&&COS.hue!=null)||(k==='emblem'&&COS.emblem)||(k==='title'&&COS.title)||(k==='fx_conq'&&COS.fx);
-   btn=el('button',hasCfg?'تغییر':'انتخاب','cos27-buy alt',function(){openPick(k)})}
-  else btn=el('button','💎 '+faN(it.c),'cos27-buy',function(){cosBuy(k)});
-  var extra='';if(k==='col_pack'&&COS.hue!=null)extra=' — فعال';if(k==='emblem'&&COS.emblem)extra=' — '+COS.emblem;if(k==='title'&&COS.title)extra=' — «'+COS.title+'»';if(k==='fx_conq'&&COS.fx)extra=' — '+fxName(COS.fx);
-  c.append(shopCard(it.i,it.t+extra,it.d,btn))});
- var r=el('div','','cos27-card cos27-vip');r.append(el('div','📦','cos27-ico'));
- var tx=el('div','','cos27-tx');tx.append(el('b','پک کامل امپراتور'),el('small','هر ۵ زیبایی‌شناسی با هم: رنگ + نشان + لقب + مرز درخشان + افکت فتح. به‌جای ۱۲۰، فقط ۱۰۰ جم!'));r.append(tx);
- r.append(el('button','💎 '+faN(100),'cos27-buy',function(){bundleBuy()}));c.append(r)}
-function tabCollect(c){c.append(el('div','🎁 مجموعه‌داری و شانس','cos27-h'));
- var left=Math.max(0,3-luckyToday());
- c.append(shopCard('🎁','باکس شانسی روزانه','جایزه‌ی تصادفی: طلا، نفت، غذا یا بوست. امروز '+faN(left)+' فرصت باقی مانده. محتوا هیچ‌وقت سلاح نیست!',
-  left>0?el('button','💎 '+faN(10),'cos27-buy',function(){cosBuy('lucky')}):(function(){var d=el('button','فردا بیا','cos27-buy off');d.disabled=true;return d})()));
- var s=season27(),mbtn;
- if(hasMedal(s.slug))mbtn=(function(){var d=el('button','داری ✓','cos27-buy own');d.disabled=true;return d})();
- else mbtn=el('button','💎 '+faN(40),'cos27-buy',function(){cosBuy('medal')});
- var r=shopCard('🏆','مدال فصل '+s.fa,'آیتم کمیاب فصلی — بعد از پایان فصل دیگر هیچ‌وقت گیر نمی‌آید. برای همیشه در موزه‌ات می‌ماند.',mbtn);
- (function(){var lim=el('span','⏳ '+faN(s.daysLeft)+' روز تا پایان فصل','cos27-lim');r.querySelector('.cos27-tx').append(lim)})();c.append(r)}
-function tabVip(c){c.append(el('div','👑 خدمات و راحتی — بدون برتری جنگی','cos27-h'));
- var vd=vipActive()?Math.max(1,Math.ceil((COS.vipUntil-Date.now())/864e5)):0;
- c.append(shopCard('📅','پک VIP هفتگی'+(vd?' — فعال ('+faN(vd)+' روز مانده)':''),'هر روز ۳۰۰ طلا هدیه + شانس سورپرایز + نشان 👑 کنار اسمت. فقط باکلاس‌تر و راحت‌تر — هیچ قدرت جنگی اضافه نمی‌دهد.',
-  vd?(function(){var d=el('button','داری ✓','cos27-buy own');d.disabled=true;return d})():el('button','💎 '+faN(45),'cos27-buy',function(){cosBuy('vip7')})));
- var rd=radarActive()?Math.max(1,Math.ceil((COS.radarUntil-Date.now())/864e5)):0;
- c.append(shopCard('🔔','رادار حمله'+(rd?' — فعال ('+faN(rd)+' روز مانده)':''),'وقتی آفلاینی و به قلمروت حمله می‌شود، با ورود بعدی گزارش کامل می‌گیری. رایگان‌ها دیرتر می‌فهمند — تو اول از همه!',
-  rd?(function(){var d=el('button','داری ✓','cos27-buy own');d.disabled=true;return d})():el('button','💎 '+faN(30),'cos27-buy',function(){cosBuy('radar')})));
- var sb2=[];
- if(COS.statsOn){sb2.push(el('button','نمودار','cos27-buy alt',function(){showStats()}));sb2.push((function(){var d=el('button','داری ✓','cos27-buy own');d.disabled=true;return d})())}
- else sb2.push(el('button','💎 '+faN(15),'cos27-buy',function(){cosBuy('stats')}));
- c.append(shopCard('📊','آمار و تحلیل پیشرفته','نمودار روند امتیاز، قلمروها و طلا در طول زمان. برای فرمانده‌هایی که با دیتا فکر می‌کنند.',sb2[0]));
- if(sb2[1])c.append(shopCard('📈','گزارش قبلی','نمودار ذخیره‌شده‌ی روند امپراتوری را دوباره ببین.',sb2[1]))}
-function tabMuseum(c){c.append(el('div','🖼️ موزه‌ی امپراتوری','cos27-h'));
- var n=0;
- function chip(ic,tx){n++;var s=el('span','','cos27-chip');s.append(el('b',ic),el('span',tx));c.append(s)}
- if(COS.hue!=null)chip('🎨','رنگ اختصاصی فعال');
- if(COS.emblem)chip(COS.emblem,'نشان اختصاصی: '+COS.emblem);
- if(COS.title)chip('👑','لقب: «'+COS.title+'»');
- if(COS.fx)chip('🎆','افکت فتح: '+fxName(COS.fx));
- if(cosOwned('border_glow'))chip('✨','مرز درخشان متحرک');
- if(vipActive())chip('👑','VIP تا '+new Date(COS.vipUntil).toLocaleDateString('fa-IR'));
- if(radarActive())chip('🔔','رادار حمله فعال');
- if(COS.statsOn)chip('📊','تحلیل پیشرفته فعال');
- (COS.medals||[]).forEach(function(m){chip('🏆',(m.k&&String(m.k).indexOf('olympic_')===0)?('🏅 '+m.fa+' — قهرمان المپیک'):('مدال فصل '+m.fa))});
- if(!n)c.append(el('div','هنوز آیتمی در موزه نداری — از تب‌های «زیبایی» و «مجموعه» شروع کن!','cos27-h'));
- c.append(el('div','📌 خلاصه امپراتوری','cos27-h'));
- try{var sc=conqueredCountries.size*1000+(typeof calculateTotalAttack==='function'?calculateTotalAttack():0);
-  c.append(el('div','🏴 قلمروها: '+faN(conqueredCountries.size)+' • ⭐ امتیاز: '+faN(sc)+' • 💎 جم: '+faN(GEMS),'cos27-h'))}catch(e){}
- c.append(el('div','🗺️ به‌زودی در فروشگاه: اسکین‌های فصلی نقشه (جنگ جهانی دوم، امپراتوری روم، آخرالزمان)','cos27-h'))}
-renderShop=function(){try{var b=S$('shop-body');if(!b)return;b.textContent='';
- b.append(balHead());
- if(!WALLET_OK)b.append(el('div','⚠️ خرید فقط با حساب آنلاین و انتخاب پایتخت فعال می‌شود.','cos27-h'));
- b.append(tabBar());
- var c=el('div');b.append(c);
- if(shopTab==='res')tabRes(c);else if(shopTab==='beauty')tabBeauty(c);else if(shopTab==='collect')tabCollect(c);else if(shopTab==='vip')tabVip(c);else tabMuseum(c)}catch(e){console.log('shop27',e)}};
+ showToast('👑 پک کامل امپراتور فعال شد! همه‌ی زیبایی‌ها مال توست','win')}})}
+/* V66: UI تب‌دار V27 بازنشسته شد — رندر فروشگاه تک‌مسیر به بلوک wd-shop-v2 (انتهای فایل) منتقل شد.
+   cosBuy/openPick/lucky/stats/radar به‌عنوان پیاده‌سازی واحد زنده می‌مانند؛ V2 از طریق window.WD27_API صدا می‌زند. */
+/* V66: بدنه‌ی UI قدیمی V27 (balHead/tabBar/shopCard/packCard/tabRes/…/renderShop) حذف شد — تک‌پیاده‌سازی رندر در wd-shop-v2 */
 /* ---------------- picker modal ---------------- */
 (function(){var m=D.createElement('div');m.id='cos-pick';m.className='modal';
  m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span id="cos-pick-t">انتخاب</span><span class="close-modal" id="cos-pick-x" style="cursor:pointer;font-size:18px">✕</span></div><div id="cos-pick-b"></div></div>';
@@ -6993,10 +6925,10 @@ function cosFxAt(lat,lng,kind){try{var pt=map.latLngToContainerPoint([lat,lng]);
  var wrap=D.createElement('div');wrap.className='cos27-fxwrap';host.appendChild(wrap);
  var cx=pt.x,cy=pt.y;
  if(kind==='quake'&&typeof shake==='function')try{shake()}catch(e){}
- for(var i=0;i<3;i++)(function(i){setTimeout(function(){var r=D.createElement('div');r.className='cos27-ring '+(kind==='fire'?'f':kind==='quake'?'q':'g');
+ for(var i=0;i<3;i++)(function(i){setTimeout(function(){var r=D.createElement('div');r.className='cos27-ring '+(kind==='fire'?'f':kind==='quake'?'q':kind==='storm'?'s':kind==='comet'?'c':'g');
   r.style.left=cx+'px';r.style.top=cy+'px';wrap.appendChild(r);setTimeout(function(){try{r.remove()}catch(e){}},1400)},i*220)})(i);
- var parts=kind==='gold'?26:kind==='fire'?34:20;
- for(var p=0;p<parts;p++)(function(p){setTimeout(function(){var d2=D.createElement('div');d2.className='cos27-pt '+(kind==='fire'?'f':kind==='quake'?'q':'g');
+ var parts=kind==='gold'?26:kind==='fire'?34:kind==='storm'?40:kind==='comet'?22:20;
+ for(var p=0;p<parts;p++)(function(p){setTimeout(function(){var d2=D.createElement('div');d2.className='cos27-pt '+(kind==='fire'?'f':kind==='quake'?'q':kind==='storm'?'s':kind==='comet'?'c':'g');
   var ang=Math.random()*Math.PI*2,dist=40+Math.random()*90;
   d2.style.left=cx+'px';d2.style.top=cy+'px';d2.style.setProperty('--dx',Math.cos(ang)*dist+'px');d2.style.setProperty('--dy',(Math.sin(ang)*dist-40)+'px');
   wrap.appendChild(d2);setTimeout(function(){try{d2.remove()}catch(e){}},1500)},p*28)})(p);
@@ -7008,10 +6940,16 @@ function luckyRoll(){var r=Math.random();
  if(r<.77)return{i:'🌾',t:'غذا',v:300+Math.floor(Math.random()*1200),f:function(){playerRes.food+=this.v}};
  if(r<.92)return{i:'⚡',t:'بوست درآمد',v:20+Math.floor(Math.random()*26),f:function(){BOOST=Math.max(Date.now(),BOOST)+this.v*60000}};
  return{i:'💰',t:'طلا (جک‌پات!)',v:4000,f:function(){playerRes.gold+=this.v}}}
-function luckyOpen(){try{var ov=D.createElement('div');ov.className='cos27-lucky';ov.innerHTML='<div class="cos27-lk-in"><div class="cos27-lk-gift">🎁</div></div>';D.body.appendChild(ov);
- setTimeout(function(){var rw=luckyRoll();rw.f();
-  ov.innerHTML='<div class="cos27-lk-in"><div class="cos27-lk-gift" style="animation:none">🎉</div><div class="cos27-lk-rw">'+rw.i+' '+rw.t+' — '+faN(rw.v)+'</div></div>';
-  showToast('🎁 '+rw.t+': '+faN(rw.v),'win');try{updateUI()}catch(e){}
+function luckyOpen(res){try{var ov=D.createElement('div');ov.className='cos27-lucky';ov.innerHTML='<div class="cos27-lk-in"><div class="cos27-lk-gift">🎁</div></div>';D.body.appendChild(ov);
+ setTimeout(function(){ /* V66: نتیجه از سرور (res.reward) — فقط وقتی سرور قدیمی پاسخ نداد، fallback محلی */
+  var rw=null,serverRes=false;
+  if(res&&res.reward&&res.reward.type==='gems'){serverRes=true;rw={i:'💎',t:'جم (قرعه سرور)',v:res.reward.amount}}
+  else if(res&&res.reward&&res.reward.type==='item'){serverRes=true;rw={i:res.reward.icon||'🎁',t:res.reward.fa||'آیتم کمیاب',v:''};
+   try{if(window.WD66_SHOP&&window.WD66_SHOP.syncGrant)window.WD66_SHOP.syncGrant(res.reward.item)}catch(e){}}
+  else rw=luckyRoll();
+  if(!serverRes)rw.f();
+  ov.innerHTML='<div class="cos27-lk-in"><div class="cos27-lk-gift" style="animation:none">🎉</div><div class="cos27-lk-rw">'+rw.i+' '+rw.t+(rw.v!==''?' — '+faN(rw.v):'')+'</div></div>';
+  showToast('🎁 '+rw.t+(rw.v!==''?': '+faN(rw.v):''),'win');try{updateUI()}catch(e){}
   setTimeout(function(){try{ov.remove()}catch(e){}},2300)},1400)}catch(e){}}
 /* ---------------- VIP ---------------- */
 function cosVipTick(){try{if(!vipActive())return;var today=todayKey();if(COS.vipGiftDay===today)return;COS.vipGiftDay=today;
@@ -7112,6 +7050,10 @@ setInterval(function(){try{if(typeof ACC==='undefined'||!ACC||!ACC.nick)return;v
 /* ---------------- شروع ---------------- */
 setTimeout(function(){try{cosRepaint()}catch(e){}},3500);
 setTimeout(function(){try{if(typeof myCountryName!=='undefined'&&myCountryName)cosRecordStat()}catch(e){}},6000);
+/* V66: پل تک‌پیاده‌سازی — Shop V2 از همین توابع (نه کپی آن‌ها) استفاده می‌کند */
+window.WD27_API={cosBuy:cosBuy,openPick:openPick,setColor:setColor,setEmblem:setEmblem,setTitle:setTitle,setFx:setFx,
+  fxName:fxName,luckyOpen:luckyOpen,hasMedal:hasMedal,season27:season27,vipActive:vipActive,radarActive:radarActive,
+  cosFxAt:cosFxAt,cosOwned:cosOwned,showStats:showStats,cosRecordStat:cosRecordStat,TITLES:TITLES,EMBLEMS:EMBLEMS,HUES:HUES};
 })();
 </script>
 <style id="v28-css">
@@ -8897,6 +8839,7 @@ const WD54_OPS={
     done:'☢️ %C در آتش است — دفاع ۴۰٪ سقوط کرد'}
 };
 window.WD54_OPS=WD54_OPS;
+window.WD54_SO_CARD=soCard; /* V66: کارت‌های عملیات در فروشگاه V2 با همین پیاده‌سازی واحد نقش می‌بندند */
 let targeting=null,targetT=null,escT=null;
 function cdKey(kind){return 'wd30cd_'+kind}
 function cdLeft(kind){try{const v=Number(localStorage.getItem(cdKey(kind))||0);return v>Date.now()?v:0}catch(e){return 0}}
@@ -9028,12 +8971,7 @@ function specialPanel(p){p.textContent='';
 })();
 
 /* ---------- 12) shop: special ops section — V54: چهار عملیات جدید حمله‌ای، در بالای شاپ جم ---------- */
-const _rs30=renderShop;renderShop=function(){_rs30();const b=H('shop-body');if(!b)return;
-  const h=D.createElement('div');h.className='sites-h';h.textContent='⚔️ عملیات حمله‌ای (جم)';
-  const info=D.createElement('div');info.className='sites-info';info.textContent='نفوذ سایبری، راید کماندو، موشک پنچر و ضربه‌ی هسته‌ای — چهار عملیات ویژه‌ی حمله (۲۰۰ تا ۵۰۰ جم) با کول‌داون و سقف هفتگی سخت‌گیرانه از سرور (ضد P2W)';
-  const frag=D.createDocumentFragment();
-  Object.keys(WD54_OPS).forEach(k=>{const c=soCard(k);if(c)frag.appendChild(c)});
-  b.prepend(frag);b.prepend(info);b.prepend(h)};
+/* V66: wrapper تزریق عملیات حمله‌ای حذف شد — بخش عملیات به‌صورت بومی در رندر تک‌مسیر wd-shop-v2 (با همان soCard) نقش می‌بندد */
 
 /* ---------- 13) admin: season reset button ---------- */
 const _ra30=renderAdmin;renderAdmin=function(){_ra30();const b=H('admin-body');if(!b)return;
@@ -14995,8 +14933,7 @@ function decorateShop(){try{var b=S$('shop-body');if(!b)return;
    r.appendChild(el('button','💎 '+grp(it.c),'cos27-buy',function(){buyNew(k)}));
    sec.appendChild(r)})(k)}
   b.appendChild(sec)}}catch(e){log('decorateShop '+e)}}
-function shopWatch(){try{var b=S$('shop-body');if(!b)return;
- new MutationObserver(function(){setTimeout(decorateShop,30)}).observe(b,{childList:true})}catch(e){}}
+function shopWatch(){ /* V66: زنجیره‌ی MutationObserver فروشگاه حذف شد — رندر تک‌مسیر V2 نیازی به دکور ندارد */ }
 function buyNew(k){try{var it=NEWCAT[k];if(!it)return;
  if(cosOwn(k)){newPick(k);return}
  jingle('buy'+k);
@@ -15027,8 +14964,7 @@ function newPick(k){try{var it=NEWCAT[k];if(!it)return;
   card.appendChild(el('div',k==='frame'?'🖼️ در رتبه‌بندی و پروفایل، دور نامت حلقه‌ی نورانی چرخان و ذره‌ی طلایی ظاهر می‌شود.':'✨ فعال شد!','sites-info'))}
  ov.appendChild(card);D.body.appendChild(ov);
  card.querySelector('.close-modal').addEventListener('click',function(){ov.remove()})}catch(e){log('newPick '+e)}}
-function wrapCosBuy(){try{if(window._wd43cb)return;var _cb=window.cosBuy;if(typeof _cb!=='function')return;window._wd43cb=1;
- window.cosBuy=function(k){if(['anthem','frame','entrance','announce'].indexOf(k)>-1){buyNew(k);return}return _cb.apply(this,arguments)}}catch(e){}}
+/* V66: wrapCosBuy و wrapRenderShop (فراخوانی‌نشده/مرده) حذف شدند — خرید V43 از کاتالوگ V2 می‌رود */
 function wrapSpendGem(){try{if(window._wd43sg)return;var _sg=window.spendGem;if(typeof _sg!=='function')return;window._wd43sg=1;
  window.spendGem=function(it){var p=_sg.apply(this,arguments);
   try{Promise.resolve(p).then(function(r){if(r&&r.ok)jingle('buy'+(it&&it.k))})}catch(e){}
@@ -15087,8 +15023,7 @@ function wrapApplyColor(){try{if(window._wd43ac)return;window._wd43ac=1;
    if(!getComputedStyle(FL[n].el).position||getComputedStyle(FL[n].el).position==='static')FL[n].el.style.position='relative';
    FL[n].el.appendChild(ink);setTimeout(function(){ink.remove()},1250)}}catch(e){}
  })}catch(e){}}
-function wrapRenderShop(){try{if(window._wd43rs)return;var _rs=window.renderShop;if(typeof _rs!=='function')return;window._wd43rs=1;
- window.renderShop=function(){var r=_rs.apply(this,arguments);setTimeout(decorateShop,40);return r}}catch(e){}}
+/* V66: wrapRenderShop حذف شد — رندر تک‌مسیر */
 function wrapRanks(){try{if(window._wd43rk)return;var a=window.renderRank,b2=window.renderRank28,got=0;
  if(typeof a==='function'){window.renderRank=function(){var r=a.apply(this,arguments);setTimeout(rankFrame,120);return r};got++}
  if(typeof b2==='function'){window.renderRank28=function(){var r=b2.apply(this,arguments);setTimeout(rankFrame,120);return r};got++}
@@ -15143,6 +15078,8 @@ function boot(){try{
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',boot);else boot();
 /* پل تست/دیباگ — توابع داخلی برای E2E و کنسول */
 setTimeout(function(){try{WD43._t={propRender:propRender,propModalEnsure:propModalEnsure,passRender:passRender,passLoad:passLoad,cosOwn:cosOwn,decorateShop:decorateShop,tutShow:tutShow,tutForce:function(){try{tutState.done=false;tutState.skipped=false;tutState.i=0;tutSave()}catch(e){}tutShow()},wsFetch:wsFetch,playAnthem:playAnthem,conquestCinema:conquestCinema,newPick:newPick,buyNew:buyNew}}catch(e){}},300);
+/* V66: پل Shop V2 — خرید/پیکر زینتی‌های V43 با پیاده‌سازی واحد */
+window.WD43_API={buyNew:buyNew,newPick:newPick,cosOwn:cosOwn,cosSet:cosSet,cosOwnedPush:cosOwnedPush};
 })();
 
 
@@ -15547,16 +15484,7 @@ function upgrade(){
   }catch(e){}
 }
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',function(){setTimeout(upgrade,60)});else setTimeout(upgrade,60);
-var _rs=window.renderShop;
-if(typeof _rs==='function'){
-  window.renderShop=function(){var r=_rs.apply(this,arguments);setTimeout(upgrade,0);return r};
-}
-/* هر رندر مجدد shop-body (تغییر تب و…) همیشه آپدیت آیکون را اجرا می‌کند */
-try{
-  var _sb=null,_ob=new MutationObserver(function(){setTimeout(upgrade,20)});
-  var _armShop=function(){var b=D.getElementById('shop-body');if(b&&b!==_sb){_sb=b;_ob.disconnect();_ob.observe(b,{childList:true,subtree:true});return true}return false};
-  if(!_armShop()){var _siv=setInterval(function(){if(_armShop())clearInterval(_siv)},1000)}
-}catch(e){}
+/* V66: wrapper فروشگاه + MutationObserver آیکون V46 حذف شد — کارت‌های V2 آیکون بومی دارند */
 })();
 </script>
 <style id="wd50-css">
@@ -17146,5 +17074,754 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
+<script id="wd-shop-v2">
+/* ==================== V66: SHOP V2 — فروشگاه حرفه‌ای تک‌مسیر ====================
+   - رندر واحد (بدون wrapper/MutationObserver) — همه‌ی دسته‌ها از کاتالوگ سرور
+   - خرید فقط از موتور واحد سرور (spend_gems/shop_buy) با Idempotency
+   - Preview واقعی بدون ذخیره‌سازی، Inventory/Collection/Museum/History سمت سرور
+   - Performance: Event Delegation، رندر تنبل دسته‌ها، تایمر خودپاک، صفر observer
+   ==================== */
+(function(){
+'use strict';
+var D=document;
+if(window.WD66_SHOP)return; /* ضد دوباره‌اجرا */
+
+/* ---------- CSS ---------- */
+var css=D.createElement('style');css.id='wd-shop-v2-css';
+css.textContent=[
+/* هسته */
+'.wd66-head{display:flex;align-items:center;justify-content:space-between;gap:8px;background:linear-gradient(135deg,rgba(255,216,77,.16),rgba(57,230,208,.10));border:1px solid rgba(255,216,77,.32);border-radius:16px;padding:10px 12px;margin-bottom:10px}',
+'.wd66-head b{font-size:15px;color:#ffd84d}',
+'.wd66-head .wd66-vip{font-size:10px;color:#ffd84d;background:rgba(255,216,77,.12);border:1px solid rgba(255,216,77,.35);border-radius:99px;padding:2px 8px}',
+'.wd66-chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none}',
+'.wd66-chips::-webkit-scrollbar{display:none}',
+'.wd66-chip{flex:0 0 auto;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.05);color:#cdd7e8;border-radius:14px;padding:9px 12px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap}',
+'.wd66-chip.on{background:linear-gradient(135deg,#ffd84d,#ff9f2e);color:#241500;border-color:transparent}',
+/* کارت‌ها */
+'.wd66-card{position:relative;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:11px 12px;margin-bottom:8px}',
+'.wd66-ico{width:44px;height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:center;font-size:23px;background:rgba(255,216,77,.10);border:1px solid rgba(255,216,77,.22);border-radius:13px}',
+'.wd66-tx{flex:1;min-width:0}.wd66-tx b{display:block;font-size:12.5px;color:#fff}.wd66-tx small{display:block;color:#9fadc4;font-size:10.5px;line-height:1.55;margin-top:2px}',
+'.wd66-rar{font-size:8.5px;font-weight:900;padding:1px 7px;border-radius:99px;display:inline-block;margin-top:3px;margin-inline-end:4px}',
+'.wd66-buy{border:0;border-radius:11px;padding:9px 12px;font-weight:800;font-size:12px;cursor:pointer;background:linear-gradient(135deg,#ffd84d,#ffb02e);color:#201500;white-space:nowrap;font-family:inherit;min-height:36px}',
+'.wd66-buy.alt{background:linear-gradient(135deg,#39e6d0,#2bb8ff);color:#00231f}',
+'.wd66-buy.off{background:rgba(255,255,255,.08);color:#8b97ab;cursor:default}',
+'.wd66-buy.own{background:rgba(62,232,165,.15);color:#3ee8a5;border:1px solid rgba(62,232,165,.35)}',
+'.wd66-buy.busy{opacity:.55;pointer-events:none}',
+'.wd66-col2{display:grid;grid-template-columns:1fr 1fr;gap:8px}',
+'.wd66-h{font-size:12.5px;color:#ffd84d;font-weight:900;margin:14px 2px 8px}',
+'.wd66-note{font-size:10.5px;color:#9fadc4;line-height:1.7;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:9px 11px;margin-bottom:10px}',
+/* کمیابی */
+'.rar-com{background:rgba(200,214,229,.14);color:#c8d6e5;border:1px solid rgba(200,214,229,.25)}',
+'.rar-unc{background:rgba(62,232,165,.13);color:#3ee8a5;border:1px solid rgba(62,232,165,.3)}',
+'.rar-rare{background:rgba(57,182,255,.14);color:#6fc4ff;border:1px solid rgba(57,182,255,.32)}',
+'.rar-epic{background:rgba(177,102,255,.15);color:#cf9bff;border:1px solid rgba(177,102,255,.34)}',
+'.rar-leg{background:rgba(255,176,46,.15);color:#ffb849;border:1px solid rgba(255,176,46,.38)}',
+'.rar-myth{background:rgba(255,77,128,.15);color:#ff7ba1;border:1px solid rgba(255,77,128,.4)}',
+'.wd66-card.rar-b-rare{border-color:rgba(57,182,255,.3)}.wd66-card.rar-b-epic{border-color:rgba(177,102,255,.32)}.wd66-card.rar-b-legendary{border-color:rgba(255,176,46,.34)}.wd66-card.rar-b-mythic{border-color:rgba(255,77,128,.36)}',
+/* قهرمان/ویترین */
+'.wd66-hero{position:relative;overflow:hidden;background:linear-gradient(140deg,rgba(58,42,10,.85),rgba(20,14,38,.94));border:1px solid rgba(255,176,46,.45);border-radius:20px;padding:14px;margin-bottom:12px}',
+'.wd66-hero .ttl{font-size:15px;font-weight:900;color:#ffd84d}',
+'.wd66-hero .sub{font-size:10.5px;color:#c9b28a;line-height:1.7;margin-top:4px}',
+'.wd66-hero .cd{font-size:11px;font-weight:900;color:#ff9f43;margin-top:7px}',
+'.wd66-hero .wd66-ico{width:54px;height:54px;font-size:30px}',
+'.wd66-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:4px}',
+'.wd66-quick button{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.05);color:#cdd7e8;border-radius:13px;padding:10px 2px;font-size:10px;font-weight:800;cursor:pointer;font-family:inherit}',
+'.wd66-quick button span{display:block;font-size:17px;margin-bottom:3px}',
+/* پیشنهاد */
+'.wd66-sec{display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}',
+'.wd66-sec::-webkit-scrollbar{display:none}',
+'.wd66-sec .wd66-card{flex:0 0 240px;margin-bottom:0}',
+/* پک جم (بازاستفاده از wd54-pack) */
+'.wd66-packgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}',
+/* مجموعه */
+'.wd66-colcard{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:12px;margin-bottom:9px}',
+'.wd66-colcard .hd{display:flex;align-items:center;gap:9px}',
+'.wd66-colcard .hd b{flex:1;font-size:12.5px;color:#fff}',
+'.wd66-colcard .pct{font-size:11px;font-weight:900;color:#ffd84d}',
+'.wd66-bar{height:6px;background:rgba(255,255,255,.08);border-radius:6px;margin-top:9px;overflow:hidden}',
+'.wd66-bar i{display:block;height:100%;background:linear-gradient(90deg,#ffd84d,#39e6d0);border-radius:6px}',
+'.wd66-colcard .mem{font-size:10px;color:#9fadc4;margin-top:7px;line-height:1.7}',
+/* انبار */
+'.wd66-invtools{display:flex;gap:6px;margin-bottom:9px;flex-wrap:wrap}',
+'.wd66-invtools input{flex:1;min-width:130px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.25);color:#e8f4ff;border-radius:12px;padding:9px 11px;font-size:11.5px;font-family:inherit}',
+'.wd66-invtools select{border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.25);color:#e8f4ff;border-radius:12px;padding:9px 8px;font-size:11px;font-family:inherit}',
+'.wd66-ftool{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#cdd7e8;border-radius:99px;padding:6px 10px;font-size:10px;font-weight:800;cursor:pointer;font-family:inherit}',
+'.wd66-ftool.on{background:linear-gradient(135deg,#ffd84d,#ff9f2e);color:#241500;border-color:transparent}',
+/* شانس */
+'.wd66-odds{width:100%;font-size:10px;color:#9fadc4;border-collapse:collapse;margin-top:7px}',
+'.wd66-odds td{padding:3px 5px;border-top:1px solid rgba(255,255,255,.06)}',
+'.wd66-odds td:first-child{color:#ffd84d;font-weight:900;white-space:nowrap}',
+/* تاریخچه */
+'.wd66-hrow{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:9px 11px;margin-bottom:6px;font-size:11px}',
+'.wd66-hrow .t{flex:1;min-width:0;color:#cdd7e8}',
+'.wd66-hrow .p{color:#ffd84d;font-weight:900;white-space:nowrap}',
+'.wd66-hrow .d{font-size:9px;color:#7f9cc0}',
+/* پیش‌نمایش */
+'.wd66-pv{position:fixed;inset:0;z-index:10120;display:flex;align-items:center;justify-content:center;background:rgba(4,8,16,.72)}',
+'.wd66-pv .card{width:min(400px,92vw);max-height:80vh;overflow-y:auto;background:linear-gradient(180deg,#0b1a34,#071022);border:1px solid rgba(255,216,77,.4);border-radius:20px;padding:14px}',
+'.wd66-pv .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}',
+'.wd66-pv .hd b{font-size:13.5px;color:#ffd84d}',
+'.wd66-pv .hd button{background:none;border:0;color:#cdd7e8;font-size:17px;cursor:pointer}',
+'.wd66-pv .stage{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:12px;margin-bottom:9px;text-align:center}',
+'.wd66-chipdemo{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.16);border-radius:99px;padding:7px 13px;font-size:12.5px;font-weight:800;color:#fff}',
+'.wd66-sw{width:34px;height:34px;border-radius:50%;border:3px solid transparent;cursor:pointer;padding:0;display:inline-block;margin:3px}',
+'.wd66-sw.on{border-color:#fff;box-shadow:0 0 0 2px #39e6d0}',
+/* پروفایل/چیپ (کازمتیک‌های جدید) */
+'#acc-chip.wd66-nameplate .wd-nick{background:linear-gradient(135deg,rgba(255,216,77,.18),rgba(255,216,77,.05));border:1px solid rgba(255,216,77,.4);border-radius:99px;padding:1px 8px}',
+'#acc-chip.wd66-war .wd-nick::after{content:" ⚔️"}',
+'#acc-chip.wd66-power .wd-nick::after{content:" 🌟"}',
+'.wd66-frame-battle{outline:2px solid rgba(255,107,107,.6);outline-offset:2px;border-radius:8px}',
+/* پایتخت/نقشه — کلاس‌محور، ثابت، بدون انیمیشن دائمی */
+'.own-wrap.wd66-cap-aura-gold .own{box-shadow:0 0 14px 3px rgba(255,216,77,.55);border-radius:10px}',
+'.own-wrap.wd66-cap-aura-ice .own{box-shadow:0 0 14px 3px rgba(122,214,255,.55);border-radius:10px}',
+'.own-wrap.wd66-cap-aura-flame .own{box-shadow:0 0 14px 3px rgba(255,120,60,.55);border-radius:10px}',
+'.own-wrap.wd66-cap-theme .own{box-shadow:0 0 18px 4px rgba(255,205,60,.65);border:1px solid rgba(255,216,77,.7);border-radius:12px;background:linear-gradient(135deg,rgba(80,60,10,.55),rgba(30,22,4,.55))}',
+'.own-wrap.wd66-cap-mon .own::before{content:"🏛️";margin-inline-end:3px;font-size:11px}',
+'.own-wrap.wd66-cap-name .own{background:rgba(4,10,22,.55);border:1px solid rgba(160,200,255,.35);border-radius:99px;padding:1px 7px}',
+'.own-wrap.wd66-emp-hi .own{border:1px dashed rgba(255,216,77,.75);border-radius:99px;padding:1px 6px}',
+/* تم اقیانوس — فقط برای دارنده؛ کلاس روی container نقشه (قانون کانونیک دریا دست‌نخورده) */
+'.leaflet-container.wd66-ocean-azure{background:linear-gradient(180deg,#57b8e8 0%,#3d9ccf 55%,#2e83ba 100%)!important}',
+'.leaflet-container.wd66-ocean-midnight{background:linear-gradient(180deg,#123055 0%,#0c2242 55%,#081a35 100%)!important}',
+'.leaflet-container.wd66-ocean-jade{background:linear-gradient(180deg,#3fae9d 0%,#2f8f83 55%,#237568 100%)!important}',
+/* افکت‌های جدید (همان سامانه cos27 — کلاس‌های s/c) */
+'.cos27-ring.s{border-color:#39e6d0}.cos27-pt.s{background:#39e6d0;box-shadow:0 0 8px rgba(57,230,208,.9)}',
+'.cos27-ring.c{border-color:#b066ff}.cos27-pt.c{background:#b066ff;box-shadow:0 0 8px rgba(176,102,255,.9)}',
+/* lowfx: بدون transition */
+'body.wd-lowfx .wd66-card,body.wd-lowfx .wd66-hero,body.wd-lowfx .wd66-pv .card{transition:none!important;animation:none!important}',
+/* موبایل */
+'@media (max-width:380px){.wd66-col2{grid-template-columns:1fr}.wd66-quick{grid-template-columns:repeat(3,1fr)}}'
+].join('');
+D.head.appendChild(css);
+
+/* ---------- ابزار ---------- */
+function H(id){return D.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function faN(n){try{return faNum(n)}catch(e){return String(n)}}
+function gemN(n){try{return faNum(String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'٬'))}catch(e){return String(n)}}
+function el(tag,txt,cls){var e=D.createElement(tag);if(txt!=null)e.textContent=txt;if(cls)e.className=cls;return e}
+function COSC(){return window.COS||window.COS27||{}}
+var V66_NEW={emp_nameplate:1,emp_power_badge:1,fx_storm:1,fx_comet:1,war_badge:1,battle_frame:1,map_ocean_azure:1,map_ocean_midnight:1,map_ocean_jade:1,empire_highlight:1,cap_aura_gold:1,cap_aura_ice:1,cap_aura_flame:1,cap_monument:1,cap_nameplate:1,cap_theme_royal:1,lim_persian_1404:1,mystery_premium:1};
+function ownOf(id){var C=COSC();
+  /* مالکیت آیتم‌های V66 فقط از انبار سرور — وضعیت کلاینت هرگز برای آن‌ها کافی نیست */
+  if(OWN66[id])return true;
+  if(V66_NEW[id])return false;
+  if(C.owned&&C.owned.indexOf(id)>-1)return true;
+  if(id.indexOf('emst_')===0&&C.emstOwned&&C.emstOwned.indexOf(id.slice(5))>-1)return true;
+  if(id==='stats'&&C.statsOn)return true;
+  if(id==='radar'&&Date.now()<(C.radarUntil||0))return true;
+  if(id==='vip7'&&Date.now()<(C.vipUntil||0))return true;
+  if(id==='medal_s1'&&(C.medals||[]).some(function(m){return String(m.k||'').indexOf('olympic_')!==0}))return true;
+  return false}
+function expOf(id){var r=EXP66[id];return r&&r>Date.now()?r:0}
+function vipUntil(){var C=COSC();var a=C.vipUntil||0,b=window.WD66_VIP_UNTIL||0;return Math.max(a,b)}
+function vipActive(){return Date.now()<vipUntil()}
+function radarActive(){var C=COSC();return Date.now()<(C.radarUntil||0)}
+
+/* ---------- state ---------- */
+var CAT66=null,OWN66={},EXP66={},VIEW='home',BUSY={},HIST=null;
+var INVQ='',INVF='all',INVS='new',PV66=null,TIMER66=null,INVHIST=false;
+var RARS={common:'معمولی',uncommon:'غیرمعمولی',rare:'کمیاب',epic:'حماسی',legendary:'افسانه‌ای',mythic:'اسطوره‌ای'};
+var CATS=[
+ {id:'home',ic:'🏠',fa:'خانه'},
+ {id:'gems',ic:'💎',fa:'خرید جم'},
+ {id:'offers',ic:'🔥',fa:'پیشنهاد ویژه'},
+ {id:'identity',ic:'👑',fa:'هویت امپراتوری'},
+ {id:'battle',ic:'⚔️',fa:'کازمتیک جنگ'},
+ {id:'map',ic:'🗺️',fa:'کازمتیک نقشه'},
+ {id:'capital',ic:'🏛️',fa:'پایتخت'},
+ {id:'collections',ic:'🏆',fa:'مجموعه‌ها'},
+ {id:'mystery',ic:'🎁',fa:'صندوق شانس'},
+ {id:'vip',ic:'👑',fa:'VIP'},
+ {id:'limited',ic:'🔥',fa:'محدود'},
+ {id:'museum',ic:'🖼️',fa:'موزه'},
+ {id:'inventory',ic:'🎒',fa:'انبار'}
+];
+function itemOf(id){if(!CAT66)return null;for(var i=0;i<CAT66.items.length;i++)if(CAT66.items[i].id===id)return CAT66.items[i];return null}
+function itemsOfCat(c){if(!CAT66)return[];return CAT66.items.filter(function(x){return x.cat===c})}
+
+/* ---------- fetch کاتالوگ (تک‌منبع: سرور) ---------- */
+function syncVip(ts){try{if(!ts)return;var t=Date.parse(ts);if(!t)return;
+  window.WD66_VIP_UNTIL=Math.max(window.WD66_VIP_UNTIL||0,t);
+  var C=COSC();if(C&&t>(C.vipUntil||0))C.vipUntil=t}catch(e){}}
+function fetchCatalog(force){
+  if(CAT66&&!force)return Promise.resolve(CAT66);
+  if(typeof sb==='undefined'||!sb||typeof ACC==='undefined'||!ACC.uid)return Promise.reject(new Error('nologin'));
+  return sb.rpc('shop_catalog').then(function(r){
+    if(r.error||!r.data||!r.data.ok)throw new Error('cat');
+    CAT66=r.data;
+    try{if(typeof GEMS==='number'||typeof GEMS!=='undefined')GEMS=Number(r.data.wallet.gems)||0}catch(e){}
+    OWN66={};EXP66={};
+    (r.data.owned||[]).forEach(function(o){OWN66[o.item_id]=true;if(o.expires_at)EXP66[o.item_id]=Date.parse(o.expires_at)});
+    syncVip(r.data.wallet.vip_until);
+    applyOwned();
+    return CAT66}).catch(function(e){CAT66=null;throw e})}
+function markOwned(id,exp){OWN66[id]=true;if(exp)EXP66[id]=Date.parse(exp)}
+function onPurchase(itemId,res){try{
+  if(res&&res.grant)markOwned(res.grant,res.expires);
+  if(res&&res.reward&&res.reward.type==='item'&&res.reward.item)markOwned(res.reward.item);
+  if(CAT66&&res&&typeof res.gems==='number')CAT66.wallet.gems=res.gems;
+  if(res&&res.vip_until)syncVip(res.vip_until);
+  applyOwned();
+  var m=H('m-shop');if(m&&m.classList.contains('active'))render()}catch(e){}}
+function syncGrant(itemId){try{markOwned(itemId);
+  var C=COSC();if(C&&!C.owned)C.owned=[];
+  var base=itemOf(itemId);
+  if(C&&C.owned.indexOf(itemId)<0&&(base||itemId.indexOf('emst_')===0))C.owned.push(itemId);
+  applyOwned()}catch(e){}}
+
+/* ---------- اعمال کازمتیک‌های V2 (کلاس‌محور، Idempotent، بدون انیمیشن دائمی) ---------- */
+function activeMapTheme(){var C=COSC();if(!C||!C.mapTheme)return null;
+  return ownOf(C.mapTheme)?C.mapTheme:null}
+function applyMapTheme(id){var C=COSC();C.mapTheme=id||null;applyOwned();try{if(typeof saveNow==='function')saveNow()}catch(e){}}
+function applyCapital(){try{
+  D.querySelectorAll('.own-wrap').forEach(function(w){w.classList.remove('wd66-cap-aura-gold','wd66-cap-aura-ice','wd66-cap-aura-flame','wd66-cap-theme','wd66-cap-mon','wd66-cap-name','wd66-emp-hi')});
+  var C=COSC(),my=null;try{my=myCountryName}catch(e){}
+  if(!my||typeof OL==='undefined'||!OL[my]||!OL[my].getElement)return;
+  var e2=OL[my].getElement();if(!e2)return;
+  if(C.capTheme==='royal'&&ownOf('cap_theme_royal'))e2.classList.add('wd66-cap-theme','wd66-cap-mon','wd66-cap-name');
+  else{var a=C.capAura;if(a&&ownOf('cap_aura_'+a))e2.classList.add('wd66-cap-aura-'+a)}
+  if(C.capMonument&&ownOf('cap_monument'))e2.classList.add('wd66-cap-mon');
+  if(C.capNameplate&&ownOf('cap_nameplate'))e2.classList.add('wd66-cap-name');
+  if(C.empHi&&ownOf('empire_highlight'))e2.classList.add('wd66-emp-hi')}catch(e){}}
+function applyProfile(){try{var c=H('acc-chip');if(!c)return;var C=COSC();
+  c.classList.toggle('wd66-nameplate',ownOf('emp_nameplate'));
+  c.classList.toggle('wd66-war',ownOf('war_badge'));
+  c.classList.toggle('wd66-power',ownOf('emp_power_badge'));
+  c.classList.toggle('wd66-frame-battle',ownOf('battle_frame')&&C.frameStyle==='battle')}catch(e){}}
+function applyOwned(){try{
+  var host=null;try{host=map.getContainer()}catch(e){}
+  if(host){host.classList.remove('wd66-ocean-azure','wd66-ocean-midnight','wd66-ocean-jade');
+    var th=activeMapTheme();if(th)host.classList.add('wd66-'+th)}
+  applyCapital();applyProfile()}catch(e){}}
+try{if(typeof WD_COLOR_HOOKS!=='undefined'&&WD_COLOR_HOOKS.after)WD_COLOR_HOOKS.after.push(function(){applyCapital()})}catch(e){}
+
+/* ---------- خرید V2 (برای آیتم‌های جدید — قدیمی‌ها از cosBuy می‌روند) ---------- */
+function buy(it){
+  if(BUSY[it.id])return;
+  BUSY[it.id]=1;renderButtons(it.id);
+  var legacy={col_pack:1,emblem:1,title:1,border_glow:1,fx_conq:1,vip7:1,radar:1,stats:1,lucky:1,medal_s1:1};
+  try{
+    if(it.id==='bundle_cos'){ /* پک امپراتور — آینه‌ی مالکیت در f؛ قیمت از سرور */
+      spendGem({k:'bundle_cos',c:it.price,t:it.fa,f:function(){
+        var C=COSC();if(!C.owned)C.owned=[];
+        ['col_pack','emblem','title','border_glow','fx_conq'].forEach(function(k){if(C.owned.indexOf(k)<0)C.owned.push(k)});
+        showToast('👑 پک کامل امپراتور فعال شد! همه‌ی زیبایی‌ها مال توست','win')}})}
+    else if(legacy[it.id]){ /* پیاده‌سازی واحد قدیمی — اثر/پیکر همان مسیر */
+      if(it.id==='lucky')WD27_API.cosBuy('lucky');
+      else if(it.id==='medal_s1')WD27_API.cosBuy('medal');
+      else WD27_API.cosBuy(it.id);
+    }
+    else if(typeof GEM_ITEMS!=='undefined'&&GEM_ITEMS&&GEM_ITEMS.some(function(g){return g.k===it.id})){
+      /* مصرفی‌های v3 — همان آبجکت با اثر اصلی (سرور قیمت را اعتبارسنجی می‌کند) */
+      spendGem(GEM_ITEMS.filter(function(g){return g.k===it.id})[0]);
+    } else {
+      spendGem({k:it.id,c:it.price,t:it.fa,f:function(res){
+        var C=COSC();if(!C.owned)C.owned=[];
+        if(C.owned.indexOf(it.id)<0)C.owned.push(it.id);
+        /* اثر فوری آیتم‌های جدید */
+        if(it.id==='fx_storm'){C.fx='storm'}
+        else if(it.id==='fx_comet'){C.fx='comet'}
+        else if(it.id.indexOf('map_ocean_')===0){C.mapTheme=it.id}
+        else if(it.id==='cap_theme_royal'){C.capTheme='royal'}
+        else if(it.id.indexOf('cap_aura_')===0){C.capAura=it.id.slice(9)}
+        else if(it.id==='cap_monument'){C.capMonument=true}
+        else if(it.id==='cap_nameplate'){C.capNameplate=true}
+        else if(it.id==='empire_highlight'){C.empHi=true}
+        else if(it.id==='battle_frame'){C.frameStyle='battle'}
+        else if(it.id==='mystery_premium'){ /* نمایش قرعه‌ی سرور با همان انیمیشن باکس */
+          applyOwned();
+          try{if(window.WD27_API&&WD27_API.luckyOpen)WD27_API.luckyOpen(res)}catch(e){}return}
+        applyOwned();
+        if(typeof saveNow==='function')saveNow();
+      }});
+    }
+  }catch(e){}
+  setTimeout(function(){delete BUSY[it.id];var m=H('m-shop');if(m&&m.classList.contains('active'))render()},600)}
+function renderButtons(){var m=H('m-shop');if(m&&m.classList.contains('active'))render()}
+
+/* ---------- سازنده‌های UI ---------- */
+function head66(){var w=el('div',null,'wd66-head');
+  var l=el('div');l.append(el('span','💎 موجودی: '),el('b',gemN(typeof GEMS!=='undefined'?GEMS:0)));
+  var r=el('div');
+  if(vipActive())r.append(el('span','👑 VIP — '+faN(Math.max(1,Math.ceil((vipUntil()-Date.now())/864e5)))+' روز','wd66-vip'));
+  else if(boostMult()>1)r.append(el('span','⚡ بوست '+faN(Math.ceil((BOOST-Date.now())/60000))+' دقیقه','wd66-vip'));
+  w.append(l,r);return w}
+function chipRail(){var t=el('div',null,'wd66-chips');
+  CATS.forEach(function(c){var b=el('button',c.ic+' '+c.fa,'wd66-chip'+(VIEW===c.id?' on':''));
+    b.setAttribute('data-act','cat');b.setAttribute('data-cat',c.id);t.append(b)});return t}
+function rarTag(rar){var s=el('span',RARS[rar]||rar,'wd66-rar rar-'+(rar==='mythic'?'myth':rar));
+  if(rar==='mythic')s.className='wd66-rar rar-myth';return s}
+function card(it,opts){opts=opts||{};
+  var owned=opts.owned!=null?opts.owned:ownOf(it.id);
+  var r=el('div',null,'wd66-card rar-b-'+it.rar);
+  var ic=el('div',it.icon||'🎁','wd66-ico');
+  var tx=el('div',null,'wd66-tx');tx.append(el('b',it.fa));
+  if(it.d)tx.append(el('small',it.d));
+  var tags=el('div');tags.append(rarTag(it.rar));
+  if(it.kind==='limited'&&it.window&&it.window.to&&!owned)tags.append(el('span','⏳ محدود','wd66-rar rar-myth'));
+  if(owned)tags.append(el('span','✓ دارید','wd66-rar rar-unc'));
+  else if(it.kind==='service'&&it.days)tags.append(el('span',faN(it.days)+' روزه','wd66-rar rar-com'));
+  tx.append(tags);
+  r.append(ic,tx);
+  var btn;
+  if(owned){
+    var slotAct=slotAction(it);
+    if(slotAct){btn=el('button',slotAct.label,'wd66-buy alt');btn.setAttribute('data-act',slotAct.act);btn.setAttribute('data-id',it.id)}
+    else{btn=el('button','داری ✓','wd66-buy own');btn.disabled=true}
+  }else{
+    btn=el('button','💎 '+gemN(it.price),BUSY[it.id]?'wd66-buy busy':'wd66-buy');
+    btn.setAttribute('data-act','buy');btn.setAttribute('data-id',it.id);
+    if(it.kind==='limited'&&it.window&&it.window.to&&Date.now()>=it.window.to){btn.textContent='پایان یافت';btn.className='wd66-buy off';btn.disabled=true}
+  }
+  r.append(btn);
+  var pv=el('button','👁','wd66-buy off');pv.title='پیش‌نمایش';pv.style.cssText='padding:9px 10px;margin-inline-start:6px;flex:0 0 auto';
+  pv.setAttribute('data-act','preview');pv.setAttribute('data-id',it.id);r.append(pv);
+  return r}
+function slotAction(it){ /* اکشن «مدیریت» برای آیتم دارایی */
+  var C=COSC();
+  if(it.id==='fx_storm'||it.id==='fx_comet')return C.fx===(it.id==='fx_storm'?'storm':'comet')?{act:'setfx',label:'فعال ✓'}:{act:'setfx',label:'فعال‌سازی'};
+  switch(it.slot){
+    case 'hue':return{act:'openpick',label:'انتخاب رنگ'};
+    case 'emblem':return it.id.indexOf('emst_')===0?{act:'openpick',label:'انتخاب طرح'}:{act:'openpick',label:'انتخاب نشان'};
+    case 'title':return{act:'openpick',label:'انتخاب لقب'};
+    case 'fx':return{act:'openpick',label:'انتخاب افکت'};
+    case 'anthem':case 'entrance':case 'announce':case 'frame':
+      return{act:'w43pick',label:'تنظیم'};
+    case 'map_theme':return activeMapTheme()===it.id?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'cap_aura':return C.capAura===it.id.slice(9)?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'cap_theme':return C.capTheme==='royal'?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'cap_monument':return C.capMonument?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'cap_nameplate':return C.capNameplate?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'empire_highlight':return C.empHi?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'stats':return{act:'showstats',label:'نمودار'};
+    case 'border_glow':return null;
+  }
+  return null}
+function emptyBox(msg){var d=el('div',null,'wd66-note');d.textContent=msg;return d}
+function loadingBox(){var d=el('div',null,'wd66-note');d.textContent='⏳ در حال دریافت فروشگاه از سرور…';return d}
+function errBox(){var d=el('div',null,'wd66-note');d.textContent='⚠️ دریافت فروشگاه ناموفق بود. اتصال اینترنت را بررسی کن.';
+  var b=el('button','🔄 تلاش دوباره','wd66-buy');b.style.cssText='margin-top:8px;width:100%';
+  b.setAttribute('data-act','retry');d.append(b);return d}
+
+/* ---------- ویترین‌ها ---------- */
+function vHero(){var lim=null;
+  (CAT66.items||[]).forEach(function(x){if(x.kind==='limited'&&x.window&&x.window.to>Date.now()&&(!lim||x.window.to<lim.window.to))lim=x});
+  var w=el('div',null,'wd66-hero');
+  if(lim){var left=Math.max(0,lim.window.to-Date.now());
+    var days=Math.floor(left/864e5),hrs=Math.floor(left%864e5/36e5);
+    w.append(el('div','🔥 آیتم محدود ویترین','ttl'));
+    var row=el('div');row.style.cssText='display:flex;align-items:center;gap:10px;margin-top:8px';
+    row.append(el('div',lim.icon||'🎖️','wd66-ico'));
+    var tx=el('div');tx.append(el('div',esc(lim.fa),'ttl'),el('div',esc(lim.d||''),'sub'));
+    row.append(tx);w.append(row);
+    w.append(el('div','⏳ '+faN(days)+' روز و '+faN(hrs)+' ساعت مانده — بعد از پایان برای همیشه به موزه می‌رود','cd'));
+    var b=el('button',ownOf(lim.id)?'داری ✓':'👁 مشاهده و خرید','wd66-buy'+(ownOf(lim.id)?' own':' alt'));
+    b.disabled=ownOf(lim.id);b.style.cssText='margin-top:10px;width:100%';
+    b.setAttribute('data-act','cat');b.setAttribute('data-cat','limited');w.append(b)}
+  else w.append(el('div','✨ فروشگاه امپراتوری','ttl'),el('div','آیتم‌های کمیاب، مجموعه‌داری و خدمات ویژه','sub'));
+  return w}
+function vSmart(){var picks=[];var terr=0;try{terr=conqueredCountries.size}catch(e){}
+  var vip=vipActive();
+  if(terr<3)picks=['bundle_cos','col_pack','boost'];
+  else if(terr<8)picks=['fx_conq','col_pack','radar'];
+  else picks=['frame','anthem','vip30'];
+  if(vip&&picks.indexOf('vip30')<0)picks.unshift('vip30');
+  picks=picks.filter(function(id,i){return picks.indexOf(id)===i&&itemOf(id)&&!ownOf(id)}).slice(0,3);
+  if(!picks.length)return null;
+  var w=el('div');w.append(el('div','🧠 پیشنهاد برای تو','wd66-h'));
+  var s=el('div',null,'wd66-sec');picks.forEach(function(id){s.append(card(itemOf(id)))});w.append(s);return w}
+function vQuick(){var q=el('div',null,'wd66-quick');
+  CATS.filter(function(c){return c.id!=='home'}).forEach(function(c){
+    var b=el('button');b.append(el('span',c.ic),el('span',c.fa));
+    b.setAttribute('data-act','cat');b.setAttribute('data-cat',c.id);q.append(b)});return q}
+function viewHome(c){c.append(vHero());
+  var sm=vSmart();if(sm)c.append(sm);
+  c.append(el('div','🔥 پیشنهادهای ویژه','wd66-h'));
+  var s=el('div',null,'wd66-sec');
+  var bundle=itemOf('bundle_cos');if(bundle&&!ownOf('bundle_cos'))s.append(card(bundle));
+  (CAT66.items||[]).filter(function(x){return x.kind==='mystery'&&x.id!=='lucky'}).slice(0,1).forEach(function(x){s.append(card(x))});
+  var emstOrbit=itemOf('emst_orbit');if(emstOrbit&&!ownOf('emst_orbit'))s.append(card(emstOrbit));
+  c.append(s);
+  c.append(el('div','🗂️ همه‌ی دسته‌ها','wd66-h'));c.append(vQuick());
+  if(!WALLET_OK)c.append(el('div','⚠️ خرید فقط با حساب آنلاین و انتخاب پایتخت فعال می‌شود.','wd66-note'))}
+function viewGems(c){
+  c.append(el('div','💎 بسته‌های جم','wd66-h'));
+  var g=el('div',null,'wd66-packgrid');
+  (CAT66.packs||[]).forEach(function(p){
+    var r=el('div',null,'wd66-card');r.style.cssText='display:block';
+    var hd=el('div');hd.style.cssText='display:flex;align-items:center;gap:8px';
+    hd.append(el('div','💎','wd66-ico'));
+    var tx=el('div',null,'wd66-tx');tx.append(el('b',gemN(p.gems)+' جم — پک '+p.name));
+    tx.append(el('small','هر جم ≈ '+p.perGem+' تومان'));
+    hd.append(tx);r.append(hd);
+    if(p.tier)r.append(el('div',p.tier,'wd66-rar rar-leg'));
+    var row=el('div');row.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-top:8px';
+    row.append(el('b',p.price));row.append(el('button','به‌زودی','wd66-buy off'));
+    r.append(row);g.append(r)});
+  c.append(g);
+  c.append(el('div','🛒 بوست و منابع (مصرفی)','wd66-h'));
+  itemsOfCat('resource').forEach(function(it){c.append(card(it,{owned:false}))})}
+function viewOffers(c){
+  c.append(el('div','🔥 پیشنهادهای ویژه — بیشترین ارزش','wd66-h'));
+  var b=itemOf('bundle_cos');if(b)c.append(card(b,{owned:ownOf('bundle_cos')}));
+  c.append(el('div','💡 پک‌های ترکیبی هویت','wd66-h'));
+  var v=el('div',null,'wd66-card');v.append(el('div','📦','wd66-ico'));
+  var tx=el('div',null,'wd66-tx');tx.append(el('b','راهنمای انتخاب هوشمند'));
+  tx.append(el('small','تازه‌کار هستی؟ پک کامل امپراتور. جنگ‌محور هستی؟ افکت‌ها + قاب جنگی. مجموعه‌دار هستی؟ نشان‌های ویژه و آیتم‌های محدود.'));
+  v.append(tx);c.append(v);
+  (CAT66.items||[]).filter(function(x){return x.rar==='legendary'||x.rar==='mythic'}).slice(0,6).forEach(function(x){c.append(card(x))})}
+function viewIdentity(c){
+  c.append(el('div','👑 هویت امپراتوری — پرچم، نشان، لقب و قاب','wd66-h'));
+  c.append(el('div','🎨 رنگ امپراتوری','wd66-h'));
+  ['col_pack'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
+  c.append(el('div','🏳️ نشان و طرح‌های ویژه','wd66-h'));
+  ['emblem'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
+  itemsOfCat('identity').filter(function(x){return x.id.indexOf('emst_')===0}).forEach(function(it){c.append(card(it))});
+  c.append(el('div','🏷️ پلاک و نشان قدرت','wd66-h'));
+  ['emp_nameplate','emp_power_badge'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
+  c.append(el('div','👑 لقب و قاب','wd66-h'));
+  ['title','frame','entrance','announce'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))})}
+function viewBattle(c){
+  c.append(el('div','⚔️ کازمتیک جنگ — نمایشی، صفر قدرت جنگی','wd66-h'));
+  ['fx_conq','fx_storm','fx_comet','war_badge','battle_frame'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
+  c.append(el('div','🎯 عملیات حمله‌ای (سقف سخت‌گیرانه‌ی سرور)','wd66-h'));
+  c.append(el('div','نفوذ سایبری، راید کماندو، موشک پنچر و ضربه‌ی هسته‌ای — با کول‌داون و سقف هفتگی از سرور (ضد P2W)','wd66-note'));
+  try{if(window.WD54_SO_CARD&&window.WD54_OPS)Object.keys(WD54_OPS).forEach(function(k){var cd=WD54_SO_CARD(k);if(cd)c.append(cd)})}catch(e){}}
+function viewMap(c){
+  c.append(el('div','🗺️ کازمتیک نقشه — پیش‌نمایش واقعی قبل از خرید','wd66-h'));
+  ['map_ocean_azure','map_ocean_midnight','map_ocean_jade','empire_highlight','border_glow'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
+  c.append(el('div','✅ تم اقیانوس فقط نقشه‌ی خودت را عوض می‌کند و با بستن پیش‌نمایش بدون تغییر باقی می‌ماند.','wd66-note'))}
+function viewCapital(c){
+  c.append(el('div','🏛️ شخصی‌سازی پایتخت','wd66-h'));
+  ['cap_aura_gold','cap_aura_ice','cap_aura_flame','cap_monument','cap_nameplate','cap_theme_royal'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
+  c.append(el('div','✅ هر آیتم را می‌توانی فعال یا بردار — همیشه از انبار.','wd66-note'))}
+function colOwnedCount(col){var n=0;
+  col.members.forEach(function(mid){
+    if(mid.indexOf('*')===mid.length-1){var base=mid.slice(0,-1);
+      for(var k in OWN66)if(k===base||k.indexOf(base+'@')===0){n++;return}
+      if(base==='medal_s1'&&(COSC().medals||[]).length&&hasMedalAny())n++;
+      return}
+    if(ownOf(mid))n++});
+  return n}
+function hasMedalAny(){try{return (COSC().medals||[]).length>0}catch(e){return false}}
+function viewCollections(c){
+  c.append(el('div','🏆 مجموعه‌ها — تکمیل کن، پاداش ویژه بگیر','wd66-h'));
+  (CAT66.collections||[]).forEach(function(col){
+    var total=col.members.length,n=colOwnedCount(col);
+    var pct=total?Math.round(n/total*100):0;
+    var r=el('div',null,'wd66-colcard');
+    var hd=el('div');hd.append(el('span',col.icon),el('b','مجموعه‌ی '+col.fa),el('span',faN(n)+'/'+faN(total),'pct'));
+    r.append(hd);
+    var bar=el('div',null,'wd66-bar');var fill=el('i');fill.style.width=pct+'%';bar.append(fill);r.append(bar);
+    var rw=itemOf(col.reward);
+    var mem=el('div',null,'mem');
+    mem.textContent='پاداش تکمیل: '+(rw?(rw.icon+' '+rw.fa):'—')+' • اعضا: '+col.members.map(function(m){var it=itemOf(m.replace('*',''));return it?it.icon:'•'}).join(' ');
+    r.append(mem);
+    if(pct>=100&&!ownOf(col.reward)){
+      var b=el('button','🎁 دریافت پاداش','wd66-buy alt');b.style.cssText='margin-top:9px;width:100%';
+      b.setAttribute('data-act','claim');b.setAttribute('data-col',col.id);r.append(b)}
+    else if(ownOf(col.reward)){var ob=el('button','✓ پاداش گرفته شد','wd66-buy own');ob.disabled=true;ob.style.cssText='margin-top:9px;width:100%';r.append(ob)}
+    c.append(r)})}
+function viewMystery(c){
+  c.append(el('div','🎁 صندوق‌های شانس — قرعه فقط سمت سرور، شفاف','wd66-h'));
+  ['lucky','mystery_premium'].forEach(function(id){var it=itemOf(id);if(!it)return;
+    c.append(card(it,{owned:false}));
+    var m=CAT66.mystery&&CAT66.mystery[id];
+    if(m){var tbl=el('table',null,'wd66-odds');
+      m.odds.forEach(function(o){var tr=el('tr');
+        tr.append(el('td',faN(o.pct)+'٪'));
+        var td=el('td');
+        var txt=o.kind==='gems'?('💎 جم'+(o.min?' '+gemN(o.min)+' تا '+gemN(o.max):'')):('🎁 آیتم '+o.fa);
+        td.textContent=txt;tr.append(td);
+        var td2=el('td');td2.textContent=(o.items||[]).map(function(x){var it2=itemOf(x);return it2?it2.icon:''}).join('');tr.append(td2);
+        tbl.append(tr)});
+      var wrap=el('div',null,'wd66-card');wrap.style.cssText='display:block';
+      wrap.append(el('b','📊 شانس‌ها (نمایش شفاف)'));
+      wrap.append(tbl);c.append(wrap)}});
+  c.append(el('div','🔒 نتیجه‌ی قرعه روی سرور تعیین می‌شود و کلاینت هیچ نقشی در آن ندارد. اگر همه‌ی آیتم‌های استخر را داشته باشی، جم جایگزین می‌گیری.','wd66-note'))}
+function viewVip(c){
+  var act=vipActive();
+  c.append(el('div','👑 VIP — راحتی و ظاهر، بدون برتری جنگی','wd66-h'));
+  var st=el('div',null,'wd66-card');st.append(el('div','👑','wd66-ico'));
+  var tx=el('div',null,'wd66-tx');
+  tx.append(el('b',act?('VIP فعال — '+faN(Math.max(1,Math.ceil((vipUntil()-Date.now())/864e5)))+' روز مانده'):'VIP فعال نیست'));
+  tx.append(el('small',act?('پایان: '+new Date(vipUntil()).toLocaleDateString('fa-IR')):'با فعال‌سازی، نشان و مزایای روزانه می‌گیری.'));
+  st.append(tx);c.append(st);
+  c.append(el('div','🎁 مزایا','wd66-h'));
+  c.append(el('div','✅ نشان 👑 کنار نام • ✅ قاب VIP در پروفایل • ✅ ۱۰ جم هدیه‌ی روزانه از سرور (علاوه بر ۳۰۰ طلای قدیمی) • ✅ بخش آیتم‌های ویژه • ✅ تم نقشه‌ی VIP • ✅ آمار ویژه','wd66-note'));
+  ['vip7','vip30'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
+  c.append(el('div','🔔 خدمات کمکی','wd66-h'));
+  ['radar','stats'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
+  if(act){c.append(el('div','💎 ویژه‌ی اعضای VIP','wd66-h'));
+    var s=el('div',null,'wd66-sec');
+    (CAT66.items||[]).filter(function(x){return x.rar==='legendary'&&!x.hidden}).slice(0,4).forEach(function(x){s.append(card(x))});
+    c.append(s)}}
+function viewLimited(c){
+  c.append(el('div','🔥 آیتم‌های محدود — بعد از پایان، فقط در موزه','wd66-h'));
+  var any=false;
+  (CAT66.items||[]).filter(function(x){return x.kind==='limited'}).forEach(function(it){
+    any=true;c.append(card(it));
+    if(it.window&&it.window.to&&!ownOf(it.id)){
+      var left=it.window.to-Date.now();
+      if(left>0)c.append(el('div','⏳ '+faN(Math.floor(left/864e5))+' روز و '+faN(Math.floor(left%864e5/36e5))+' ساعت مانده','wd66-note'))}
+    else if(ownOf(it.id))c.append(el('div','✓ این آیتم برای همیشه در موزه‌ی توست.','wd66-note'))});
+  if(!any)c.append(emptyBox('فعلاً آیتم محدودی در فروش نیست — ایونت‌های بعدی را از دست نده.'))}
+function viewMuseum(c){
+  c.append(el('div','🖼️ موزه‌ی امپراتوری — تاریخچه‌ی آیتم‌های خاص تو','wd66-h'));
+  var owned=(CAT66.owned||[]).filter(function(o){return !o.expires_at||Date.parse(o.expires_at)>Date.now()});
+  var n=0;
+  var limitedOwned=owned.filter(function(o){var it=itemOf(o.item_id);return it&&(it.kind==='limited')});
+  if(limitedOwned.length){c.append(el('div','🔥 محدود و فصلی','wd66-h'));
+    limitedOwned.forEach(function(o){var it=itemOf(o.item_id);if(!it)return;n++;var r=el('div',null,'wd66-card');
+      r.append(el('div',it.icon,'wd66-ico'));
+      var tx=el('div',null,'wd66-tx');tx.append(el('b',it.fa));
+      tx.append(el('small','به‌دست‌آمده: '+new Date(o.created_at).toLocaleDateString('fa-IR')+' • '+it.d));
+      r.append(tx);r.append(rarTag(it.rar));c.append(r)})}
+  var rewards=owned.filter(function(o){var it=itemOf(o.item_id);return it&&it.cat==='reward'});
+  if(rewards.length){c.append(el('div','🏆 پاداش مجموعه‌ها','wd66-h'));
+    rewards.forEach(function(o){var it=itemOf(o.item_id);if(!it)return;n++;var r=el('div',null,'wd66-card');
+      r.append(el('div',it.icon,'wd66-ico'));
+      var tx=el('div',null,'wd66-tx');tx.append(el('b',it.fa));tx.append(el('small',it.d));
+      r.append(tx);r.append(rarTag(it.rar));c.append(r)})}
+  var C=COSC();
+  if((C.medals||[]).length){c.append(el('div','🏅 مدال‌های المپیک و فصل (سابقه)','wd66-h'));
+    (C.medals||[]).forEach(function(m){n++;
+      var chip=el('span','🏅 '+(String(m.k||'').indexOf('olympic_')===0?('قهرمان المپیک — '+m.fa):('مدال فصل '+m.fa)),'wd66-rar rar-leg');
+      chip.style.cssText='font-size:10.5px;padding:5px 10px;margin:0 4px 6px 0;display:inline-block';
+      c.append(chip)})}
+  if(!n)c.append(emptyBox('موزه‌ات خالی است — آیتم‌های محدود و پاداش مجموعه‌ها اینجا برای همیشه می‌مانند.'))}
+
+/* ---------- انبار + تاریخچه ---------- */
+function invItems(){var out=[];var seen={};
+  (CAT66.owned||[]).forEach(function(o){
+    if(o.expires_at&&Date.parse(o.expires_at)<=Date.now())return;
+    seen[o.item_id]=1;
+    var it=itemOf(o.item_id)||{id:o.item_id,fa:o.item_id,icon:'🎁',d:'آیتم سرور',rar:o.rarity||'common',slot:null,kind:'item',price:0,cat:'other'};
+    out.push({it:it,at:o.created_at,src:o.source})});
+  var C=COSC();
+  (C.owned||[]).forEach(function(id){if(seen[id])return;seen[id]=1;
+    var it=itemOf(id);if(it)out.push({it:it,at:null,src:'legacy'})});
+  (C.emstOwned||[]).forEach(function(b2){var id='emst_'+b2;if(seen[id])return;seen[id]=1;
+    var it=itemOf(id);if(it)out.push({it:it,at:null,src:'legacy'})});
+  return out}
+function invFiltered(){var list=invItems();
+  if(INVQ){var q=INVQ.toLowerCase();
+    list=list.filter(function(x){return (x.it.fa||'').toLowerCase().indexOf(q)>-1||(x.it.id||'').toLowerCase().indexOf(q)>-1})}
+  if(INVF!=='all')list=list.filter(function(x){return x.it.rar===INVF});
+  if(INVS==='rar'){var ord={mythic:0,legendary:1,epic:2,rare:3,uncommon:4,common:5};
+    list.sort(function(a,b2){return (ord[a.it.rar]||9)-(ord[b2.it.rar]||9)})}
+  else list.sort(function(a,b2){return (b2.at||'').localeCompare(a.at||'')});
+  return list}
+function viewInventory(c){
+  var tabs=el('div',null,'wd66-invtools');
+  var tb1=el('button','🎒 آیتم‌ها','wd66-ftool'+(!INVHIST?' on':''));
+  tb1.setAttribute('data-act','invtab');
+  var tb2=el('button','🧾 تاریخچه خرید','wd66-ftool'+(INVHIST?' on':''));
+  tb2.setAttribute('data-act','histtab');
+  tabs.append(tb1,tb2);c.append(tabs);
+  var tools=el('div',null,'wd66-invtools');
+  var inp=el('input');inp.type='search';inp.placeholder='🔍 جست‌وجوی آیتم…';inp.value=INVQ;
+  inp.setAttribute('data-inv','search');
+  var sel=el('select');sel.setAttribute('data-inv','sort');
+  [['new','جدیدترین'],['rar','کمیابی']].forEach(function(o){var op=el('option',o[1]);op.value=o[0];if(INVS===o[0])op.selected=true;sel.append(op)});
+  tools.append(inp,sel);
+  ['all','rare','epic','legendary','mythic'].forEach(function(f){
+    var fb=el('button',f==='all'?'همه':RARS[f],'wd66-ftool'+(INVF===f?' on':''));
+    fb.setAttribute('data-act','invf');fb.setAttribute('data-f',f);tools.append(fb)});
+  c.append(tools);
+  var list=invFiltered();
+  if(!list.length)c.append(emptyBox(INVQ?'چیزی پیدا نشد.':'انبارت خالی است — از فروشگاه شروع کن!'));
+  list.forEach(function(x){c.append(card(x.it))})}
+function viewHistory(c){
+  var tabs=el('div',null,'wd66-invtools');
+  var tb1=el('button','🎒 آیتم‌ها','wd66-ftool');tb1.setAttribute('data-act','invtab');
+  var tb2=el('button','🧾 تاریخچه خرید','wd66-ftool on');tb2.setAttribute('data-act','histtab');
+  tabs.append(tb1,tb2);c.append(tabs);
+  if(!HIST){c.append(loadingBox());
+    sb.rpc('shop_history',{p_limit:30}).then(function(r){
+      HIST=(r&&r.data&&r.data.rows)||[];var m=H('m-shop');if(m&&m.classList.contains('active')&&VIEW==='inventory'&&INVHIST)render()}).catch(function(){HIST=[]});
+    return}
+  if(!HIST.length){c.append(emptyBox('هنوز خریدی ثبت نشده است. همه‌ی خریدهای جدید اینجا ثبت می‌شود.'));return}
+  HIST.forEach(function(row){var it=itemOf(row.item_id);
+    var r=el('div',null,'wd66-hrow');
+    r.append(el('div',it?(it.icon):'🧾'));
+    var t=el('div',null,'t');t.append(el('b',it?it.fa:row.item_id));
+    t.append(el('div',new Date(row.created_at).toLocaleString('fa-IR')+' • '+(row.provider==='mystery'?'قرعه سرور':row.provider==='collection'?'پاداش مجموعه':'فروشگاه'),'d'));
+    r.append(t);
+    r.append(el('span',row.price>0?('💎 '+gemN(row.price)):'رایگان','p'));
+    c.append(r)})}
+
+/* ---------- پیش‌نمایش (بدون ذخیره‌سازی) ---------- */
+function previewCleanup(){try{
+  var host=map.getContainer();
+  host.classList.remove('wd66-pv-azure','wd66-ocean-azure','wd66-ocean-midnight','wd66-ocean-jade');
+  applyOwned()}catch(e){}
+  if(PV66){try{PV66.remove()}catch(e){}PV66=null}}
+function preview(id){previewCleanup();
+  var it=itemOf(id);if(!it)return;
+  var ov=el('div',null,'wd66-pv');var cd=el('div',null,'card');
+  var hd=el('div',null,'hd');hd.append(el('b','👁 پیش‌نمایش — '+it.fa));
+  var x=el('button','✕');x.onclick=function(){previewCleanup()};hd.append(x);cd.append(hd);
+  var stage=el('div',null,'stage');
+  var kind=it.slot||it.kind;
+  if(it.id==='col_pack'){stage.append(el('div','🎨 رنگ‌های نمونه روی قلمرو:'));
+    var row=el('div');row.style.cssText='display:flex;flex-wrap:wrap;justify-content:center;margin-top:8px';
+    (WD27_API.HUES||[0,45,95,172,205,265,320]).forEach(function(h2){
+      var s2=el('button','','wd66-sw');s2.style.background='hsl('+h2+',62%,47%)';
+      s2.onclick=function(){stage.querySelectorAll('.wd66-sw.on').forEach(function(q){q.classList.remove('on')});s2.classList.add('on');
+        demo.style.background='hsl('+h2+',62%,47%)'};
+      row.append(s2)});
+    stage.append(row);
+    var demo=el('div');demo.style.cssText='width:74px;height:48px;margin:10px auto 0;border-radius:10px;border:2px solid #ffd84d;background:hsl(205,62%,47%)';
+    stage.append(demo)}
+  else if(it.id==='emblem'||it.id.indexOf('emst_')===0){stage.append(el('div','🏳️ نمونه‌ی نمایش کنار نامت:'));
+    var chip=el('div',null,'wd66-chipdemo');chip.style.margin='10px auto 0';
+    var base=it.id.indexOf('emst_')===0?it.id.slice(5):null;
+    if(base&&typeof window.wd50EmTag==='function')chip.innerHTML=window.wd50EmTag('🐉',base)+' <span>امپراتور تو</span>';
+    else chip.textContent='🐉 امپراتور تو';
+    stage.append(chip)}
+  else if(it.slot==='title'){stage.append(el('div','👑 نمونه‌ی لقب کنار نام:'));
+    var c2=el('div',null,'wd66-chipdemo');c2.style.margin='10px auto 0';c2.textContent='امپراتور تو «'+(WD27_API.TITLES&&WD27_API.TITLES[0]||'فاتح')+'»';
+    stage.append(c2)}
+  else if(it.id==='frame'||it.id==='battle_frame'){stage.append(el('div','🖼️ نمونه‌ی قاب دور نام در رتبه‌بندی:'));
+    var c3=el('div',null,'wd66-chipdemo'+(it.id==='battle_frame'?' wd66-frame-battle':''));c3.style.margin='10px auto 0';
+    if(it.id==='frame')c3.style.cssText+=';box-shadow:0 0 12px 2px rgba(255,216,77,.6)';
+    c3.textContent='⭐ نام تو';
+    stage.append(c3)}
+  else if(it.id.indexOf('map_ocean_')===0){stage.append(el('div','🌊 دکمه را بزن — نقشه‌ی واقعی زنده تم می‌گیرد (بعد از بستن، بدون تغییر می‌ماند):'));
+    var b2=el('button','▶ نمایش زنده روی نقشه','wd66-buy alt');b2.style.cssText='margin-top:9px;width:100%';
+    b2.onclick=function(){try{var cls={map_ocean_azure:'wd66-ocean-azure',map_ocean_midnight:'wd66-ocean-midnight',map_ocean_jade:'wd66-ocean-jade'}[it.id];
+      map.getContainer().classList.add(cls)}catch(e){}};
+    var b3=el('button','↩ بازگردانی','wd66-buy off');b3.style.cssText='margin-top:6px;width:100%';
+    b3.onclick=function(){try{map.getContainer().classList.remove('wd66-ocean-azure','wd66-ocean-midnight','wd66-ocean-jade')}catch(e){}};
+    stage.append(b2,b3)}
+  else if(it.id==='empire_highlight'||it.id.indexOf('cap_')===0){stage.append(el('div','🏛️ نمونه‌ی برچسب پایتخت:'));
+    var demo2=el('div');demo2.className='own-wrap '+(it.id==='cap_aura_gold'?'wd66-cap-aura-gold':it.id==='cap_aura_ice'?'wd66-cap-aura-ice':it.id==='cap_aura_flame'?'wd66-cap-aura-flame':it.id==='cap_theme_royal'?'wd66-cap-theme wd66-cap-mon wd66-cap-name':it.id==='cap_monument'?'wd66-cap-mon':it.id==='cap_nameplate'?'wd66-cap-name':'wd66-emp-hi');
+    demo2.style.cssText='display:inline-block;margin:10px auto 0;padding:4px 9px';
+    demo2.textContent='⭐ پایتخت تو';
+    stage.append(demo2)}
+  else if(it.slot==='fx'||it.id==='fx_storm'||it.id==='fx_comet'){stage.append(el('div','🎆 اجرای واقعی افکت روی مرکز نقشه:'));
+    var b4=el('button','▶ اجرای افکت','wd66-buy alt');b4.style.cssText='margin-top:9px;width:100%';
+    var fk=it.id==='fx_storm'?'storm':it.id==='fx_comet'?'comet':'gold';
+    b4.onclick=function(){try{var ct=map.getCenter();WD27_API.cosFxAt(ct.lat,ct.lng,fk)}catch(e){}};
+    stage.append(b4)}
+  else if(it.id==='anthem'){stage.append(el('div','🎺 نمونه‌ی ملودی‌ها:'));
+    ['hero','calm','sacred'].forEach(function(mm){
+      var b5=el('button','▶ '+mm,'wd66-buy off');b5.style.cssText='margin:5px 4px 0';
+      b5.onclick=function(){try{if(window.WD43&&WD43._t&&WD43._t.playAnthem)WD43._t.playAnthem(mm,true)}catch(e){}};
+      stage.append(b5)})}
+  else if(it.id.indexOf('mystery')===0||it.id==='lucky'){stage.append(el('div','🎁 شفافیت کامل — شانس‌ها:'));
+    var m=CAT66.mystery&&CAT66.mystery[it.id];
+    if(m){var tbl=el('table',null,'wd66-odds');
+      m.odds.forEach(function(o){var tr=el('tr');tr.append(el('td',faN(o.pct)+'٪'));
+        tr.append(el('td',o.kind==='gems'?('💎 جم'+(o.min?' '+gemN(o.min)+'+'+gemN(o.max):'')):('🎁 آیتم '+o.fa)));
+        tbl.append(tr)});
+      stage.append(tbl)}}
+  else if(it.id==='vip7'||it.id==='vip30'){stage.append(el('div','👑 مزایای VIP:'));
+    stage.append(el('div','✅ نشان 👑 • ✅ قاب پروفایل • ✅ ۱۰ جم روزانه از سرور • ✅ ۳۰۰ طلای قدیمی روزانه • ✅ بخش ویژه • بدون هیچ قدرت جنگی','wd66-note'))}
+  else stage.append(el('div',it.icon||'🎁'),el('div',esc(it.d||''),'wd66-note'));
+  cd.append(stage);
+  cd.append(el('div','🏅 کمیابی: '+(RARS[it.rar]||it.rar)+(it.price>0?(' • 💎 '+gemN(it.price)+' جم'):''),'wd66-note'));
+  if(!ownOf(it.id)&&it.price>0){var bb=el('button','💎 خرید — '+gemN(it.price),'wd66-buy');
+    bb.style.cssText='width:100%';bb.setAttribute('data-act','buy');bb.setAttribute('data-id',it.id);cd.append(bb)}
+  else if(ownOf(it.id))cd.append(el('div','✓ این آیتم را داری — از انبار فعالش کن.','wd66-note'));
+  ov.append(cd);D.body.appendChild(ov);PV66=ov;
+  ov.addEventListener('click',function(e2){if(e2.target===ov)previewCleanup()})}
+
+/* ---------- Event Delegation (یک لیسنر برای همه‌ی فروشگاه) ---------- */
+var armed=false;
+function arm(){
+  if(armed)return;var b=H('shop-body');if(!b)return;armed=true;
+  b.addEventListener('click',function(ev){
+    var t=ev.target.closest?ev.target.closest('[data-act]'):null;if(!t)return;
+    var act=t.getAttribute('data-act'),id=t.getAttribute('data-id'),cat=t.getAttribute('data-cat');
+    if(act==='cat'){VIEW=cat||'home';render()}
+    else if(act==='retry'){CAT66=null;render()}
+    else if(act==='buy'){var it=itemOf(id);if(it)buy(it)}
+    else if(act==='preview'){preview(id)}
+    else if(act==='openpick'){try{WD27_API.openPick(id==='col_pack'?'col_pack':id==='emblem'?'emblem':id==='title'?'title':'fx')}catch(e){}}
+    else if(act==='w43pick'){try{var map43={anthem:'anthem',frame:'frame',entrance:'entrance',announce:'announce'};WD43_API.newPick(map43[id]||id)}catch(e){}}
+    else if(act==='setfx'){try{WD27_API.setFx(id==='fx_storm'?'storm':'comet');showToast('🎆 افکت فعال شد','win')}catch(e){}}
+    else if(act==='equip'){equipNew(id,true)}
+    else if(act==='unequip'){equipNew(id,false)}
+    else if(act==='showstats'){try{WD27_API.showStats()}catch(e){}}
+    else if(act==='invtab'){INVHIST=false;render()}
+    else if(act==='histtab'){INVHIST=true;render()}
+    else if(act==='invf'){INVF=t.getAttribute('data-f')||'all';render()}
+    else if(act==='claim'){claimCollection(t.getAttribute('data-col'),t)}
+  });
+  b.addEventListener('input',function(ev){
+    var t=ev.target;if(!t||!t.getAttribute)return;
+    if(t.getAttribute('data-inv')==='search'){clearTimeout(arm._d);arm._d=setTimeout(function(){INVQ=t.value||'';render()},250)}
+  });
+  b.addEventListener('change',function(ev){
+    var t=ev.target;if(!t||!t.getAttribute)return;
+    if(t.getAttribute('data-inv')==='sort'){INVS=t.value||'new';render()}
+  })}
+function equipNew(id,on){var C=COSC();
+  if(id.indexOf('map_ocean_')===0){C.mapTheme=on?id:null}
+  else if(id.indexOf('cap_aura_')===0){C.capAura=on?id.slice(9):null}
+  else if(id==='cap_theme_royal'){C.capTheme=on?'royal':null}
+  else if(id==='cap_monument'){C.capMonument=!!on}
+  else if(id==='cap_nameplate'){C.capNameplate=!!on}
+  else if(id==='empire_highlight'){C.empHi=!!on}
+  applyOwned();
+  try{if(typeof saveNow==='function')saveNow()}catch(e){}
+  showToast(on?'✅ فعال شد':'↩ برداشته شد','win');render()}
+
+function claimCollection(cid,btn){try{
+  if(btn){btn.className='wd66-buy busy';btn.textContent='⏳ …'}
+  sb.rpc('shop_collection_claim',{p_collection:cid}).then(function(r){
+    if(r.error||!r.data||!r.data.ok){
+      showToast(!r.data||r.data.error==='incomplete'?'❌ مجموعه هنوز کامل نیست':'❌ دریافت پاداش نشد','lose');
+      if(btn){btn.className='wd66-buy alt';btn.textContent='🎁 دریافت پاداش'}return}
+    if(r.data.already)showToast('✓ قبلاً گرفته شده','win');
+    else{showToast('🏆 پاداش مجموعه: '+(r.data.fa||'ویژه'),'win');markOwned(r.data.reward);
+      var C=COSC();if(!C.owned)C.owned=[];if(C.owned.indexOf(r.data.reward)<0)C.owned.push(r.data.reward);
+      applyOwned();if(typeof saveNow==='function')saveNow()}
+    render()}).catch(function(){showToast('❌ اتصال برقرار نشد','lose');if(btn){btn.className='wd66-buy alt';btn.textContent='🎁 دریافت پاداش'}})}catch(e){}}
+
+/* ---------- رندر اصلی ---------- */
+var VIEWS={home:viewHome,gems:viewGems,offers:viewOffers,identity:viewIdentity,battle:viewBattle,map:viewMap,
+  capital:viewCapital,collections:viewCollections,mystery:viewMystery,vip:viewVip,limited:viewLimited,
+  museum:viewMuseum,inventory:renderInv};
+function renderInv(c){if(INVHIST)viewHistory(c);else viewInventory(c)}
+function render(){var b=H('shop-body');if(!b)return;
+  b.textContent='';
+  if(typeof sb==='undefined'||!sb||typeof ACC==='undefined'||!ACC.uid||!WALLET_OK){
+    b.append(el('div','⚠️ فروشگاه فقط با حساب آنلاین فعال می‌شود — اول وارد شو و پایتخت انتخاب کن.','wd66-note'));return}
+  if(!CAT66){b.append(head66());b.append(loadingBox());
+    fetchCatalog().then(function(){var m=H('m-shop');if(m&&m.classList.contains('active'))render()}).catch(function(){var m=H('m-shop');if(m&&m.classList.contains('active')){b.textContent='';b.append(head66());b.append(errBox())}});
+    return}
+  b.append(head66());
+  b.append(chipRail());
+  var c=el('div');b.append(c);
+  try{(VIEWS[VIEW]||viewHome)(c)}catch(e){c.append(errBox(String(e&&e.message||e).slice(0,120)))}
+  arm();armTimer()}
+function armTimer(){ /* تایمر خودپاک — فقط وقتی مودال فروشگاه باز است */
+  if(TIMER66)return;
+  TIMER66=setInterval(function(){
+    var m=H('m-shop');
+    if(!m||!m.classList.contains('active')){clearInterval(TIMER66);TIMER66=null;return}
+    if(D.hidden)return;
+    if(VIEW==='limited'||VIEW==='home')render();
+  },30000)}
+
+/* ---------- boot: بازگردانی مالکیت + آرام‌سازی ---------- */
+function boot66(){try{
+  setTimeout(applyOwned,4000);
+  setTimeout(applyOwned,9000);
+  try{if(typeof WD_COLOR_HOOKS!=='undefined')WD_COLOR_HOOKS.after.push(function(n){try{var C=COSC();
+    if((C.owned||[]).indexOf(n)>=0||myCountryName===n)applyCapital()}catch(e){}})}catch(e){}
+}catch(e){}}
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',boot66);else boot66();
+
+/* ---------- اتصال به renderShop (تک‌مسیر نهایی — آخرین تعریف در سند) ---------- */
+window.WD66_SHOP={render:render,onPurchase:onPurchase,syncGrant:syncGrant,applyOwned:applyOwned,
+  open:function(){try{render()}catch(e){}openModal('m-shop')},fetchCatalog:fetchCatalog,preview:preview};
+try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
+})();
+</script>
+
 </body>
 </html>
