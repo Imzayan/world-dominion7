@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=64;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=65;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1216,6 +1216,7 @@ function calculateTotalAttack() {
     const mult = u.air ? airBonus() : 1;
     total += u.count * u.attack * mult;
   });
+  try{if(WD_ATTACK_HOOKS.atkMult)WD_ATTACK_HOOKS.atkMult.forEach(f=>{total=Math.round(total*f())})}catch(e){} /* V65: ضریب تمدن/فرمانده/تاکتیک */
   return Math.round(total);
 }
 
@@ -4193,7 +4194,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
         if(!sb||!ACC.uid){showToast('❌ حمله به بازیکن فقط در حالت آنلاین فعال است.','lose');return}
         const power=calculateTotalAttack();
         const result=await sb.rpc('pvp_attack',{
-          p_server:SRV,p_country:country,p_attack:power
+          p_server:SRV,p_country:country,p_attack:power,p_tactic:(window.WD65TACTIC||null)
         });
         if(result.error)throw result.error;
         const r=result.data;
@@ -4462,7 +4463,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       /* V50: ضد قفل‌شدن — اگر پاسخ سرور ۱۵ ثانیه نیامد (اینترنت کند)، نبرد با پیام خطا آزاد می‌شود */
       const result=await Promise.race([
         sb.rpc('pvp_attack',{
-        p_server:SRV,p_country:country,p_attack:Math.round(calculateTotalAttack())
+        p_server:SRV,p_country:country,p_attack:Math.round(calculateTotalAttack()),p_tactic:(window.WD65TACTIC||null)
       }),
         new Promise((_,rej)=>setTimeout(()=>rej(new Error('اتصال سرور کند بود — دوباره تلاش کن')),15000))
       ]);
@@ -5294,6 +5295,8 @@ body.wd-low-power *{scroll-behavior:auto!important}
           ? `🔔 ${x.actor_nick||'—'} رکوردت در ${window.WD33_DN?WD33_DN(x.country):(x.country||'')} را شکست — پس بگیر!`
           : `⚡ ${x.actor_nick||'—'} رکورد ${x.target_nick||'—'} در ${window.WD33_DN?WD33_DN(x.country):(x.country||'')} را شکست`;
         if(a==='olympic_close') return `🏁 اختتامیه‌ی المپیک — قهرمان جهان: ${x.target_nick||'—'}`;
+        if(a==='empire_fall') return `📰 امپراتوری ${x.actor_nick||'—'} سقوط کرد — فاتح: ${x.target_nick||'—'}`;
+        if(a==='hof_new') return `🏛️ ${x.actor_nick||'—'} صاحب عنوان ${x.country||'—'} در تالار افتخارات شد`;
         if(a==='trade') return `🤝 ${x.actor_nick||'بازیکن'} با ${x.target_nick||'بازیکن دیگر'} معامله کرد`;
         if(x.country) return `🌐 ${x.actor_nick||'بازیکن'} در ${x.country} یک رویداد ثبت کرد`;
         return `🌐 ${x.actor_nick||'بازیکن'} یک رویداد ثبت کرد`;
@@ -6526,6 +6529,9 @@ function viewHome(){
   g.appendChild(item('🏗️','زیرساخت‌ها','پالایشگاه، کارخانه، فرودگاه',function(){try{openSites(null);sClose()}catch(e){}},1));
   g.appendChild(item('🏢','لابی','مدیریت و ارتقا',function(){triggerBtn('btn-m-lobby')}));
   g.appendChild(item('🪖','ارتش','استخدام نیرو',function(){triggerBtn('btn-m-army')}));
+  /* V65 — جهان زنده: امپراتوری و شکوه در منوی اصلی بازی */
+  g.appendChild(item('🏛️','امپراتوری','جمعیت، سیاست‌ها، استان‌ها و برنامه‌ی نبرد',function(){sClose();if(window.WD65)WD65.open('empire')}));
+  g.appendChild(item('🏆','شکوه','اهداف، رقیب، تالار افتخارات و تاریخچه',function(){sClose();if(window.WD65)WD65.open('glory')},1));
   g.appendChild(item('🧭','مشاور','راهنمای گام‌به‌گام',function(){sClose();if(window.WD28Advisor){window.WD28Advisor.open()}else{try{openModal('wd-advisor')}catch(e){}}}));
   g.appendChild(item('⚙️','تنظیمات','صدا، کارایی، برچسب‌ها',function(){viewSettings()}));
   g.appendChild(item('🚪','خروج از حساب','تعویض کاربری',function(){doLogout()}));
@@ -16614,6 +16620,531 @@ function boot(){try{if(typeof map==='undefined'||!map)return false;
   return true}catch(e){return false}}
 if(!boot()){var t=setInterval(function(){try{if(boot())clearInterval(t)}catch(e){clearInterval(t)}} ,1200)}
 })();
+   </script>
+<style id="wd-v65-css">
+/* ============ V65 — جهان زنده: CSS (lowfx-safe: هیچ وابستگی به انیمیشن — درس V64) ============ */
+#wd65-chip{position:fixed;top:56px;left:10px;z-index:9996;display:none;align-items:center;gap:7px;
+  padding:6px 10px;border:1px solid rgba(0,240,255,.20);border-radius:12px;background:rgba(2,8,17,.88);
+  color:#dfe9f5;font-size:11px;line-height:1;cursor:pointer;pointer-events:auto;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+#wd65-chip b{color:#7dffcf;font-weight:700}
+#wd65-chip .wd65-sep{opacity:.35}
+#wd65-sheet{position:fixed;inset:0;z-index:28500;display:none;background:rgba(0,0,0,.55);
+  align-items:flex-end;justify-content:center;padding:14px}
+#wd65-sheet.open{display:flex}
+#wd65-card{width:min(460px,100%);max-height:82vh;overflow:auto;background:#071a2c;border:1px solid #23587c;
+  border-radius:18px;padding:14px;color:#fff;box-shadow:0 18px 60px rgba(0,0,0,.5)}
+#wd65-card h3{margin:0 0 8px;font-size:15px}
+#wd65-card h4{margin:12px 0 6px;font-size:12.5px;color:#8fd6ff}
+.wd65-meter{height:7px;border-radius:8px;background:rgba(255,255,255,.09);overflow:hidden;margin:4px 0 8px}
+.wd65-meter i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,#3ee8a5,#6ca8ff)}
+.wd65-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 2px;font-size:12px;border-bottom:1px dashed rgba(255,255,255,.07)}
+.wd65-row:last-child{border-bottom:0}
+.wd65-pill{font-size:10.5px;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);white-space:nowrap}
+.wd65-pill.on{background:rgba(62,232,165,.16);border-color:#3ee8a5;color:#aef7dd}
+.wd65-pill.warn{background:rgba(255,120,90,.14);border-color:#ff785a;color:#ffd2c5}
+.wd65-btn{border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:8px 10px;background:rgba(255,255,255,.07);color:#fff;font-weight:700;font-size:12px;cursor:pointer}
+.wd65-btn:active{transform:scale(.98)}
+.wd65-btn.cy{background:rgba(108,168,255,.16);border-color:#6ca8ff}
+.wd65-btn.gr{background:rgba(62,232,165,.14);border-color:#3ee8a5}
+.wd65-btn.rd{background:rgba(255,90,90,.16);border-color:#ff5a5a}
+.wd65-btn:disabled{opacity:.45;cursor:not-allowed}
+.wd65-pips{display:inline-flex;gap:2px;vertical-align:middle}
+.wd65-pips i{width:7px;height:7px;border-radius:2px;background:rgba(255,255,255,.14)}
+.wd65-pips i.on{background:#3ee8a5}
+.wd65-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.wd65-mut{color:#aeb8ca;font-size:11px;line-height:1.7;margin:4px 0}
+.wd65-bar{display:flex;align-items:center;gap:8px;font-size:11px;margin:4px 0}
+.wd65-bar .tr{flex:1;height:8px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;display:flex}
+.wd65-bar .tr i{height:100%}
+.wd65-chron{max-height:34vh;overflow:auto;font-size:11.5px;line-height:1.9;color:#cfe0f2}
+.wd65-chron b{color:#8fd6ff}
+.wd65-tactic{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+@media(max-width:360px){.wd65-tactic{grid-template-columns:1fr}}
+
+   </style>
+   <script id="wd65-living-world">
+/* ============ V65 — جهان زنده (Living World) — تک‌ماژول، EXTEND نه بازسازی ============
+   منابع واقعی: conqueredCountries / playerRes / st28.taxRate / unrest / popM / WD_ATTACK_HOOKS
+   این ماژول هیچ سیستم موجودی را جایگزین نمی‌کند؛ فقط لایه‌ی تمدن، سیاست، استان،
+   فرمانده، برنامه‌ی نبرد، هدف، رقیب، شکوه و chronicle را اضافه می‌کند. */
+(function(){
+'use strict';
+const D=document,W=window,$=id=>D.getElementById(id);
+const safe=(f,d)=>{try{const x=f();return x===undefined?d:x}catch(e){return d}};
+const faN=n=>Number(Math.round(Number(n)||0)).toLocaleString('fa-IR');
+const esc=s=>String(s==null?'':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'})[c]);
+const now=()=>Date.now();
+
+/* ---------- 1) state — هم لوکال، هم سوار بر سیو ابری (الگوی st28) ---------- */
+const K65='wd65_state_v1';
+let st={
+  civ:{popM:0,happy:65,stab:70,emp:0,foodSec:100,mig:0},
+  pol:{economy:'balanced',military:'balanced',social:'balanced',diplomatic:'open'},
+  prov:{},           /* [country] = {b:{factory..medic:0..5}, dev:0} */
+  gens:[],           /* {name,trait,level,xp,wins,losses,loyalty,active} */
+  queue:null,        /* {c,b,until,lvl} — یک صف مهندسی جهانی */
+  chron:[],          /* {t,k,m} — تاریخچه‌ی امپراتوری */
+  siege:{},          /* [country] = {p:0..3,until} — فقط اهداف AI (محاسبه‌ی محلی واقعی) */
+  flags:{planAsk:false,maxTerr:0,firstWin:0,firstConq:0,warFat:0}
+};
+try{const j=JSON.parse(localStorage.getItem(K65)||'{}');if(j&&typeof j==='object')st=Object.assign(st,j)}catch(e){}
+st.pol=Object.assign({economy:'balanced',military:'balanced',social:'balanced',diplomatic:'open'},st.pol||{});
+st.civ=Object.assign({popM:0,happy:65,stab:70,emp:0,foodSec:100,mig:1},st.civ||{});
+if(!st.civ.mig)st.civ.mig=1; /* مهاجرت خنثی = ۱.۰ — صفر یعنی جمعیت صفر (باگ ریشه‌ای) */
+st.flags=Object.assign({planAsk:false,maxTerr:0,firstWin:0,firstConq:0,warFat:0},st.flags||{});
+function save65(){try{localStorage.setItem(K65,JSON.stringify(st))}catch(e){}safe(()=>W.saveNow&&W.saveNow())}
+/* سوار شدن بر snapState/restoreState — بدون دست‌زدن به زنجیره‌ی موجود */
+try{
+  const _sn=snapState; snapState=function(){const s=_sn();s.wd65={pol:st.pol,prov:st.prov,gens:st.gens,chron:st.chron.slice(0,60),flags:st.flags};return s};
+  const _rs=restoreState; restoreState=function(x){_rs(x);if(x&&x.wd65){try{const w=x.wd65;st.pol=Object.assign(st.pol,w.pol||{});st.prov=w.prov||{};st.gens=Array.isArray(w.gens)?w.gens:[];st.flags=Object.assign(st.flags,w.flags||{});if(Array.isArray(w.chron)){const merged=w.chron.concat(st.chron.filter(c=>!w.chron.some(o=>o.t===c.t))).slice(0,120);st.chron.length=0;Array.prototype.push.apply(st.chron,merged)}save65()}catch(e){}}
+    /* بعد از بازیابی کشور/قلمروها، تمدن بلافاصله همگام می‌شود (نه ۲۰ ثانیه بعد) */
+    setTimeout(function(){try{civTick()}catch(e){}},1500)};
+}catch(e){}
+
+/* ---------- 2) helpers on real game data ---------- */
+const owned=()=>safe(()=>Array.from(conqueredCountries||[]),[]);
+const myName=()=>safe(()=>myCountryName,null);
+const online=()=>safe(()=>!!(sb&&ACC&&ACC.uid),false);
+const SRVn=()=>safe(()=>Number(SRV)||1,1);
+const polFx=k=>safe(()=>(POL65[k].find(o=>o.k===st.pol[k])||{}).fx,{});
+function chron(k,m){st.chron.unshift({t:now(),k,m});if(st.chron.length>120)st.chron=st.chron.slice(0,120);save65()}
+function toast65(m,kind){safe(()=>{if(typeof showToast==='function')showToast(m,kind||'win')})}
+
+/* ---------- 3) سیاست‌ها (۴ دسته — مزیت/عیب واقعی، همزمان همه‌ی مزایا ممنوع) ---------- */
+const POL65={
+  economy:[
+    {k:'balanced',n:'⚖️ متعادل',d:'بدون اثر اضافه',fx:{}},
+    {k:'war_econ',n:'⚔️ اقتصاد جنگی',d:'+۲۵٪ تولید کارخانه • −۶ رضایت • +۸٪ نگهداری',fx:{fac:1.25,happy:-6,keep:1.08}},
+    {k:'trade',n:'💼 اقتصاد تجاری',d:'+۱۵٪ درآمد تمدن • −۵٪ قدرت حمله',fx:{gold:1.15,atk:-0.05}}],
+  military:[
+    {k:'balanced',n:'⚖️ دکترین متعادل',d:'بدون اثر اضافه',fx:{}},
+    {k:'offensive',n:'💥 تهاجمی',d:'+۸٪ قدرت حمله • +۲۰٪ تلفات نبرد',fx:{atk:0.08,loss:0.20}},
+    {k:'defensive',n:'🛡️ تدافعی',d:'−۱۵٪ تلفات نبرد • −۵٪ قدرت حمله',fx:{atk:-0.05,loss:-0.15}}],
+  social:[
+    {k:'balanced',n:'⚖️ عادی',d:'بدون اثر اضافه',fx:{}},
+    {k:'welfare',n:'🏥 رفاه اجتماعی',d:'+۱۰ رضایت • −۱۰٪ درآمد تمدن',fx:{happy:10,gold:-0.10},s28:'welfare'},
+    {k:'austerity',n:'📜 ریاضت مالی',d:'+۱۲٪ درآمد تمدن • −۸ رضایت',fx:{gold:0.12,happy:-8}}],
+  diplomatic:[
+    {k:'open',n:'🌍 گشودگی',d:'+۲ رضایت • اعتبار دیپلماتیک بهتر',fx:{happy:2}},
+    {k:'isolation',n:'🏰 انزوا',d:'+۴ ثبات • −۵٪ درآمد تمدن',fx:{stab:4,gold:-0.05}}]
+};
+function setPol(cat,k){
+  const o=POL65[cat].find(x=>x.k===k);if(!o)return;
+  st.pol[cat]=k;
+  /* همگام با موتور نارضایتی V28 (تک‌منبع unrest) */
+  if(o.s28&&typeof st28!=='undefined'){st28.policy=o.s28;safe(()=>W.save28&&W.save28())}
+  else if(cat==='economy'&&k==='war_econ'&&typeof st28!=='undefined'){st28.policy='war';safe(()=>W.save28&&W.save28())}
+  else if(typeof st28!=='undefined'&&st28.policy!=='balanced'&&!POL65.social.some(s=>s.k===st.pol.social&&s.s28)&&k!=='war_econ'){st28.policy='balanced';safe(()=>W.save28&&W.save28())}
+  chron('pol','سیاست «'+o.n+'» در تالار '+({economy:'اقتصاد',military:'نظامی',social:'اجتماعی',diplomatic:'دیپلماسی'}[cat])+' اجرا شد');
+  save65();renderIfOpen();
+}
+
+/* ---------- 4) استان‌های امپراتوری + ۸ ساختمان (سطح/هزینه/زمان/مزیت/نگهداری) ---------- */
+const B65={
+  factory:{n:'کارخانه',ic:'🏭',base:4000,grow:2.1,t:300,job:800,keep:60,d:'+۲۵۰ طلا/تیک در هر سطح'},
+  eco:{n:'مرکز اقتصادی',ic:'🏢',base:5000,grow:2.2,t:360,keep:45,d:'+۱۸۰ طلا/تیک + مؤثر در مالیات'},
+  barracks:{n:'پادگان',ic:'🪖',base:6000,grow:2.3,t:420,keep:70,d:'+۲٪ قدرت حمله در هر سطح'},
+  fort:{n:'پایگاه دفاعی',ic:'🛡️',base:5500,grow:2.2,t:420,keep:50,d:'−آشوب استان + پایداری هنگام جنگ'},
+  refinery:{n:'پالایشگاه',ic:'⛽',base:4800,grow:2.2,t:360,keep:55,d:'+۱۵۰ نفت/تیک در هر سطح'},
+  farm:{n:'مرکز کشاورزی',ic:'🌾',base:3000,grow:2.0,t:240,keep:20,d:'+۲۰۰ غذا/تیک در هر سطح'},
+  lab:{n:'مرکز تحقیقاتی',ic:'🔬',base:7000,grow:2.4,t:480,keep:80,d:'+۵۰ طلا + ۲ XP فرمانده/تیک'},
+  medic:{n:'مرکز درمانی',ic:'🏥',base:4500,grow:2.1,t:300,keep:40,d:'+۳ رضایت در هر سطح'}
+};
+const BMAX=5,BKEYS=Object.keys(B65);
+function prov(c){if(!st.prov[c])st.prov[c]={b:BKEYS.reduce((o,k)=>(o[k]=0,o),{}),dev:0};return st.prov[c]}
+const lvOf=(c,k)=>safe(()=>(st.prov[c]&&st.prov[c].b[k])||0,0);
+const bCost=(k,l)=>Math.round(B65[k].base*Math.pow(B65[k].grow,l));
+const bTime=(k,l)=>B65[k].t*(l+1);
+const keepOf=c=>{const p=st.prov[c];if(!p)return 0;return Math.round(BKEYS.reduce((s,k)=>s+p.b[k]*B65[k].keep,0)*(polFx('economy').keep||1))};
+function upgrade(c,k){
+  if(st.queue)return toast65('🏗️ مهندسان مشغول پروژه‌ی قبلی هستند («'+B65[st.queue.b].n+'» در '+st.queue.c+')','lose');
+  const l=lvOf(c,k);if(l>=BMAX)return toast65('باکس کامل: '+B65[k].n+' در بیشینه است','lose');
+  const cost=bCost(k,l),r=safe(()=>playerRes,null);if(!r)return;
+  if(r.gold<cost)return toast65('❌ طلا لازم: '+faN(cost),'lose');
+  r.gold-=cost;st.queue={c,b:k,until:now()+bTime(k,l)*1000,lvl:l+1};save65();safe(()=>W.updateUI&&W.updateUI());
+  chron('bld','پروژه‌ی '+B65[k].ic+' '+B65[k].n+' (سطح '+(l+1)+') در '+c+' آغاز شد');
+  toast65('🏗️ ساخت آغاز شد — '+faN(bTime(k,l))+' ثانیه');renderIfOpen();
+}
+function tickQueue(){
+  const q=st.queue;if(!q||now()<q.until)return;
+  const p=prov(q.c);p.b[q.b]=q.lvl;p.dev=BKEYS.reduce((s,k)=>s+p.b[k],0)/4;
+  st.queue=null;chron('bld','✔ '+B65[q.b].ic+' '+B65[q.b].n+' سطح '+q.lvl+' در '+q.c+' آماده شد');
+  toast65('✔ '+B65[q.b].ic+' '+B65[q.b].n+' سطح '+faN(q.lvl)+' آماده شد!');save65();renderIfOpen();
+}
+
+/* ---------- 5) فرماندهان (roster) — تخصص، رکورد واقعی نبرد، وفاداری ---------- */
+const TRAITS={off:{n:'تهاجمی',ic:'⚔️'},def:{n:'دفاعی',ic:'🛡️'},log:{n:'لجستیک',ic:'🚚'},intel:{n:'اطلاعاتی',ic:'🛰️'}};
+const GEN_NAMES=['سپهبد آریا','سرلشکر کاوه','ارتشبد بهرام','دریاسالار کیان','ژنرال آرش','فرمانده سینا','امیر سپهدار رامین','سرهنگ مهرداد','ژنرال شهرام','سردار بهمن'];
+const activeGen=()=>st.gens.find(g=>g.active)||null;
+function hireGen(trait){
+  if(st.gens.length>=4)return toast65('🎖️ سقف فرماندهان (۴) پر است','lose');
+  const r=safe(()=>playerRes,null);if(!r)return;
+  const cost=15000*(st.gens.length+1);
+  if(r.gold<cost)return toast65('❌ طلا لازم: '+faN(cost),'lose');
+  r.gold-=cost;
+  const used=st.gens.map(g=>g.name),pool=GEN_NAMES.filter(n=>used.indexOf(n)<0);
+  const name=pool[Math.floor(Math.random()*pool.length)]||('فرمانده '+faN(st.gens.length+1));
+  st.gens.push({name,trait:TRAITS[trait]?trait:'off',level:1,xp:0,wins:0,losses:0,loyalty:70,active:st.gens.length===0});
+  chron('gen','فرمانده '+name+' ('+TRAITS[trait].ic+' '+TRAITS[trait].n+') به خدمت گرفته شد');save65();
+  safe(()=>W.updateUI&&W.updateUI());toast65('🎖️ '+name+' به خدمت پیوست');renderIfOpen();
+}
+function genXp(n){const g=activeGen();if(!g)return;g.xp+=n;
+  while(g.xp>=g.level*300){g.xp-=g.level*300;g.level++;toast65('🎖️ فرمانده '+g.name+' به سطح '+faN(g.level)+' رسید')}
+  save65()}
+function genBattle(win){const g=activeGen();if(!g)return;
+  if(win){g.wins++;g.loyalty=Math.min(100,g.loyalty+2);
+    if(!st.flags.firstWin){st.flags.firstWin=now();chron('war','🥇 نخستین پیروزی میدانی تاریخ امپراتوری به دست فرمانده '+g.name)}
+  }else{g.losses++;g.loyalty=Math.max(0,g.loyalty-4)}
+  save65()}
+function atkFromGen(){const g=activeGen();if(!g||g.loyalty<40)return 1;
+  const t=g.trait;if(t==='off')return 1+0.03*g.level;if(t==='def')return 1-0.01*g.level;return 1}
+
+/* ---------- 6) ضرایب مرکزی قدرت/تلفات (تک‌منبع، با سقف توازن) ---------- */
+function tacticName(){const t=String(W.WD65TACTIC||'balanced');
+  return({blitz:'⚡ حمله سریع',heavy:'🔥 حمله سنگین',precision:'🎯 حمله دقیق',balanced:'⚖️ متعادل'})[t]||'⚖️ متعادل'}
+function atkMult(){
+  let m=1;
+  const e=polFx('economy'),mi=polFx('military');
+  m*=1+(e.atk||0)+(mi.atk||0);
+  const bs=safe(()=>owned().reduce((s,c)=>s+lvOf(c,'barracks'),0),0);
+  m*=1+0.02*bs;
+  m*=atkFromGen();
+  const t=String(W.WD65TACTIC||'');
+  if(t==='blitz')m*=1.10;else if(t==='heavy')m*=1.15;else if(t==='precision')m*=1.05;
+  m*=1+0.04*siegeP(String(W.__WD65_t||'')); /* فشار محاصره فقط برای همان یک حمله‌ی تأییدشده */
+  return Math.min(1.6,Math.max(0.6,m));
+}
+function lossMult(){
+  let m=1;const mi=polFx('military');m*=1+(mi.loss||0);
+  const t=String(W.WD65TACTIC||'');
+  if(t==='blitz')m*=1.06;else if(t==='heavy')m*=1.22;else if(t==='precision')m*=0.80;
+  const g=activeGen();if(g&&g.trait==='def')m*=1-0.04*g.level;
+  return Math.min(1.8,Math.max(0.4,m));
+}
+function siegeP(c){const s=st.siege[c];if(!s||s.until<now())return 0;return s.p||0}
+function bombard(c){
+  const s=st.siege[c]||{p:0,until:0};
+  if(s.p>=3)return toast65('🎯 محاصره در بیشینه است — زمان حمله است','lose');
+  const r=safe(()=>playerRes,null);if(!r)return;
+  if(r.oil<800||r.gold<2500)return toast65('❌ محاصره نیاز: ۸۰۰ نفت + ۲٬۵۰۰ طلا','lose');
+  r.oil-=800;r.gold-=2500;
+  st.siege[c]={p:s.p+1,until:now()+48*3600e3};
+  chron('war','🔥 محاصره‌ی '+c+' — مرحله‌ی '+faN(s.p+1)+' از ۳ (دفاع هدف تضعیف می‌شود)');
+  save65();safe(()=>W.updateUI&&W.updateUI());toast65('🔥 توپخانه شروع کرد — فشار محاصره: '+faN(s.p+1)+'/۳');renderIfOpen();
+}
+
+
+/* ---------- 7) شبیه‌سازی زندگی کشور (Tick-based، هر ۲۰ ثانیه) ---------- */
+const TIV={t:0};
+function civTick(){
+  tickQueue();
+  const own=owned(),tc=own.length+(myName()?1:0);
+  if(!tc){TIV.t++;return}
+  /* جمعیت واقعی از popM تک‌منبع + ضریب توسعه/مهاجرت */
+  let popBase=0;own.forEach(n=>{popBase+=safe(()=>popM(n),10)});if(myName())popBase+=safe(()=>popM(myName()),10);
+  const devAvg=own.length?own.reduce((s,c)=>s+(st.prov[c]?st.prov[c].dev:0),0)/own.length:0;
+  const popM65=popBase*(0.92+0.015*devAvg)*(st.civ.mig||1);
+  /* اشتغال: شغل‌ها از کارخانه/اقتصادی/قلمرو */
+  const jobs=own.reduce((s,c)=>s+lvOf(c,'factory')*2+lvOf(c,'eco')*1.5,0)*400+tc*800;
+  const emp=Math.max(0,Math.min(1,jobs/Math.max(1,popM65*900)));
+  /* امنیت غذایی */
+  const foodSec=Math.max(0,Math.min(140,safe(()=>playerRes.food,0)/Math.max(1,popM65*1.1)));
+  /* رضایت: مالیات واقعی st28 + رفاه + درمان + غذا + خستگی جنگ + سیاست */
+  const taxR=safe(()=>Number(st28.taxRate)||12,12);
+  let hT=62-taxR*0.35+(polFx('social').happy||0)+(polFx('diplomatic').happy||0)+own.reduce((s,c)=>s+lvOf(c,'medic'),0)*3;
+  hT+=foodSec>=100?4:foodSec<45?-12:foodSec<70?-5:0;
+  hT-=Math.min(12,st.flags.warFat);
+  hT=Math.max(0,Math.min(100,hT));
+  st.civ.happy=Math.round(st.civ.happy+(hT-st.civ.happy)*0.18);
+  /* مهاجرت */
+  if(st.civ.happy<40)st.civ.mig=Math.max(0.85,st.civ.mig-0.002);
+  else if(st.civ.happy>75)st.civ.mig=Math.min(1.15,st.civ.mig+0.001);
+  /* ثبات = رضایت + آرامش داخلی (unrest واقعی V28) */
+  let unrestAvg=0;own.forEach(n=>{unrestAvg+=safe(()=>unrest[n]||0,0)});unrestAvg=unrestAvg/Math.max(1,own.length);
+  st.civ.stab=Math.round(Math.max(0,Math.min(100,0.55*st.civ.happy+0.45*(100-Math.min(100,unrestAvg))+(polFx('diplomatic').stab||0))));
+  st.civ.popM=Math.round(popM65*st.civ.mig);
+  st.civ.emp=Math.round(emp*100);st.civ.foodSec=Math.round(foodSec);
+  st.civ.mig=st.civ.mig;
+  /* تولید ساختمان‌ها (افزوده بر اقتصاد موجود — جایگزین چیزی نمی‌شود) */
+  const r=safe(()=>playerRes,null);
+  if(r){
+    const fac=own.reduce((s,c)=>s+lvOf(c,'factory'),0),eco=own.reduce((s,c)=>s+lvOf(c,'eco'),0);
+    const far=own.reduce((s,c)=>s+lvOf(c,'farm'),0),ref=own.reduce((s,c)=>s+lvOf(c,'refinery'),0);
+    const lab=own.reduce((s,c)=>s+lvOf(c,'lab'),0);
+    let gold=fac*250*(polFx('economy').fac||1)+eco*180+lab*50;
+    gold*=polFx('economy').gold||1;gold*=polFx('social').gold||1;gold*=polFx('diplomatic').gold||1;
+    gold*=(0.6+st.civ.stab/250); /* ثبات واقعی = بهره‌وری مالیات */
+    const g0=activeGen();if(g0&&g0.trait==='log')gold*=1+0.05*g0.level;
+    const keep=own.reduce((s,c)=>s+keepOf(c),0);
+    r.gold=Math.max(0,r.gold+Math.round(gold-keep));
+    r.food=Math.max(0,r.food+far*200);
+    r.oil=Math.max(0,r.oil+ref*150);
+    if(lab)genXp(lab*2);
+    safe(()=>W.updateUI&&W.updateUI());
+  }
+  /* خستگی جنگ کاهش تدریجی */
+  if(st.flags.warFat>0){st.flags.warFat=Math.max(0,st.flags.warFat-1)}
+  /* گستره‌ی بیشینه + رخداد فتح/ازدست‌دادن برای chronicle */
+  if(tc>st.flags.maxTerr){if(st.flags.maxTerr&&tc>st.flags.maxTerr+1)chron('terr','گستره‌ی تازه: '+faN(tc)+' قلمرو — رکورد تاریخی جدید');st.flags.maxTerr=tc}
+  chipSync();
+  TIV.t++;
+}
+
+/* ---------- 8) چیپ وضعیت کشور (tap → تب امپراتوری) ---------- */
+let chipEl=null,chipPrev='';
+function chipSync(){
+  if(!myName()){if(chipEl)chipEl.style.display='none';return}
+  if(!chipEl){chipEl=D.createElement('div');chipEl.id='wd65-chip';chipEl.onclick=openEmpireTab;D.body.appendChild(chipEl)}
+  const c=st.civ;
+  const txt='👥 <b>'+faN(c.popM)+'M</b><span class="wd65-sep">|</span>😊 <b>'+faN(c.happy)+'٪</b><span class="wd65-sep">|</span>🛡️ <b>'+faN(c.stab)+'٪</b>'+(st.queue?'<span class="wd65-sep">|</span>🏗️':'');
+  if(txt!==chipPrev){chipPrev=txt;chipEl.innerHTML=txt;chipEl.style.display='flex'}
+}
+function openEmpireTab(v){open65(v||'empire')}
+let VIEW='empire';
+function open65(v){VIEW=v||VIEW;const sh=$('wd65-sheet');if(!sh)return;sh.classList.add('open');render65();if(VIEW==='glory')loadGlory(false).then(()=>{if(VIEW==='glory')render65()}).catch(()=>{})}
+function close65(){const sh=$('wd65-sheet');if(sh)sh.classList.remove('open');W.__WD65_t=null}
+function render65(){
+  const card=$('wd65-card');if(!card)return;
+  const head='<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">'+
+   '<button class="wd65-btn '+(VIEW==='empire'?'gr':'')+'" data-v65="empire">🏛️ امپراتوری</button>'+
+   '<button class="wd65-btn '+(VIEW==='glory'?'gr':'')+'" data-v65="glory">🏆 شکوه</button>'+
+   '<span style="flex:1"></span><button class="wd65-btn" data-v65="close">✕</button></div>';
+  card.innerHTML=head+'<div id="wd65-view"></div>';
+  const v=$('wd65-view');
+  if(VIEW==='empire')renderEmpire(v);else renderGlory(v);
+  card.querySelectorAll('[data-v65]').forEach(x=>x.onclick=()=>{const k=x.dataset.v65;
+    if(k==='close')close65();
+    else{VIEW=k;render65();if(k==='glory')loadGlory(false).then(()=>{if(VIEW==='glory')render65()}).catch(()=>{})}});
+}
+
+/* ---------- 9) رندر تب امپراتوری (در wd5-panel موجود) ---------- */
+function renderIfOpen(){const sh=$('wd65-sheet');if(sh&&sh.classList.contains('open')&&VIEW!=='plan')render65()}
+function renderEmpire(b){
+  const own=owned(),c=st.civ;
+  const sec=[];
+  sec.push('<div class="wd5-section">🏛️ زندگی کشور</div><div class="wd5-grid">');
+  sec.push('<div class="wd5-card"><div class="wd5-k">👥 جمعیت</div><div class="wd5-v">'+faN(c.popM)+'M</div><div class="wd5-small">اشتغال '+faN(c.emp)+'٪ • مهاجرت '+(c.mig>=1.01?'ورودی ↗':c.mig<=0.99?'خروجی ↘':'متعادل')+'</div></div>');
+  sec.push('<div class="wd5-card"><div class="wd5-k">😊 رضایت ملی</div><div class="wd5-v">'+faN(c.happy)+'٪</div><div class="wd5-meter"><i style="width:'+faN(c.happy)+'%"></i></div><div class="wd5-small">مالیات '+faN(safe(()=>st28.taxRate,12))+'٪ • امنیت غذایی '+faN(c.foodSec)+'٪'+(st.flags.warFat>4?' • خستگی جنگ':'')+'</div></div>');
+  sec.push('<div class="wd5-card"><div class="wd5-k">🛡️ ثبات داخلی</div><div class="wd5-v">'+faN(c.stab)+'٪</div><div class="wd5-meter"><i style="width:'+faN(c.stab)+'%"></i></div><div class="wd5-small">بهره‌وری مالیات ×'+(0.6+c.stab/250).toFixed(2)+'</div></div>');
+  sec.push('<div class="wd5-card"><div class="wd5-k">🎖️ فرمانده فعال</div><div class="wd5-v">'+esc(activeGen()?activeGen().name:'—')+'</div><div class="wd5-small">'+(activeGen()?(TRAITS[activeGen().trait].ic+' '+TRAITS[activeGen().trait].n+' • Lv.'+faN(activeGen().level)+' • وفاداری '+faN(activeGen().loyalty)+'٪'):'از کارت فرماندهان یک فرمانده فعال کن')+'</div></div>');
+  sec.push('</div>');
+  /* سیاست‌ها */
+  sec.push('<div class="wd5-section" style="margin-top:10px">📜 سیاست‌های حکومت (هر دسته یک انتخاب — مزیت و عیب همزمان)</div>');
+  Object.keys(POL65).forEach(cat=>{
+    const cn={economy:'💰 اقتصادی',military:'⚔️ نظامی',social:'👥 اجتماعی',diplomatic:'🤝 دیپلماتیک'}[cat];
+    sec.push('<div class="wd5-card" style="margin-top:6px"><b style="font-size:12px">'+cn+'</b><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">');
+    POL65[cat].forEach(o=>{
+      sec.push('<button class="wd65-btn '+(st.pol[cat]===o.k?'gr':'')+'" data-pol="'+cat+':'+o.k+'" style="font-weight:400">'+o.n+'</button>');
+    });
+    sec.push('</div><div class="wd5-small">'+esc((POL65[cat].find(o=>o.k===st.pol[cat])||POL65[cat][0]).d)+'</div></div>');
+  });
+  /* استان‌ها */
+  sec.push('<div class="wd5-section" style="margin-top:10px">🏙️ استان‌های امپراتوری ('+faN(own.length)+')</div>');
+  if(st.queue)sec.push('<div class="wd5-card">🏗️ در حال ساخت: <b>'+B65[st.queue.b].ic+' '+B65[st.queue.b].n+' سطح '+faN(st.queue.lvl)+'</b> در <b>'+esc(st.queue.c)+'</b> — '+faN(Math.max(0,Math.ceil((st.queue.until-now())/1000)))+' ثانیه مانده</div>');
+  if(!own.length)sec.push('<div class="wd5-card"><div class="wd5-small">هنوز قلمروی نداری — با اولین فتح، استان‌ها باز می‌شوند.</div></div>');
+  own.slice(0,12).forEach(cn=>{
+    const p=prov(cn),fds=BKEYS.map(k=>{
+      const l=p.b[k];
+      return '<div class="wd65-row"><span>'+B65[k].ic+' '+B65[k].n+' <span class="wd65-pips">'+Array.from({length:BMAX},(_,i)=>'<i class="'+(i<l?'on':'')+'"></i>').join('')+'</span></span>'+
+        (l>=BMAX?'<span class="wd65-pill on">بیشینه</span>':'<button class="wd65-btn" data-up="'+cn+':'+k+'">ارتقا '+faN(bCost(k,l))+'💰 • '+faN(bTime(k,l))+'ث</button>')+'</div>';
+    }).join('');
+    sec.push('<div class="wd5-card" style="margin-top:6px"><b style="font-size:12.5px">🗺️ '+esc(cn)+'</b><div class="wd65-small">نگهداری کل: '+faN(keepOf(cn))+' طلا/تیک • توسعه: '+faN(p.dev)+'</div>'+fds+'</div>');
+  });
+  /* برنامه نبرد */
+  sec.push('<div class="wd5-section" style="margin-top:10px">⚔️ برنامه‌ی نبرد</div><div class="wd5-card">'+
+    '<div class="wd5-small">تاکتیک کنونی: <b>'+tacticName()+'</b> • ضریب قدرت ×'+atkMult().toFixed(2)+' • ضریب تلفات ×'+lossMult().toFixed(2)+' (نتیجه‌ی نهایی با سرور)</div>'+
+    '<button class="wd65-btn cy" data-wplan="1" style="width:100%;margin-top:8px">🗺️ باز کردن برنامه‌ی نبرد</button></div>');
+  b.innerHTML=sec.join('');
+  b.querySelectorAll('[data-pol]').forEach(x=>x.onclick=()=>{const[cat,k]=x.dataset.pol.split(':');setPol(cat,k)});
+  b.querySelectorAll('[data-up]').forEach(x=>x.onclick=()=>{const[c,k]=x.dataset.up.split(':');upgrade(c,k)});
+  const wp=b.querySelector('[data-wplan]');if(wp)wp.onclick=()=>openPlan();
+}
+/* ---------- 10) برنامه‌ی نبرد (sheet) — تاکتیک/جبهه/محاصره/شناسایی/عقب‌نشینی ---------- */
+const PLAN={t:null};
+function openPlan(){
+  const sh=$('wd65-sheet');const card=$('wd65-card');if(!sh||!card)return;
+  const own=owned();
+  const targets=safe(()=>{const arr=[];try{Object.keys(OTH).forEach(n=>arr.push({n,pvp:1}))}catch(e){}
+    try{Object.keys(layersByName).forEach(n=>{if(n!==myName()&&!conqueredCountries.has(n)&&!OTH[n]&&!arr.some(a=>a.n===n))arr.push({n,pvp:0})})}catch(e){}
+    return arr},[]);
+  const sel=PLAN.t&&targets.some(t=>t.n===PLAN.t)?PLAN.t:(targets[0]&&targets[0].n)||'';
+  const tac=W.WD65TACTIC||'balanced';
+  const myP=Math.round(safe(()=>calculateTotalAttack(),0)*atkMult());
+  let defEst=0,pvpFlag=0;
+  if(sel){const cd=safe(()=>getCountryData(sel),null);defEst=cd?cd.def:0;pvpFlag=(targets.find(t=>t.n===sel)||{}).pvp||0}
+  const ratioTxt=defEst?('نسبت قدرت ≈ '+(myP/Math.max(1,defEst)).toFixed(2)):'هدف را انتخاب کن';
+  const siegeOn=siegeP(sel);
+  const frontOpts=own.map(c=>'<option '+(PLAN.f===c?'selected':'')+' value="'+esc(c)+'">'+esc(c)+(lvOf(c,'barracks')?' 🪖+۳٪':'')+'</option>').join('');
+  card.innerHTML=
+   '<h3>⚔️ برنامه‌ی نبرد</h3>'+
+   '<div class="wd65-row"><span>🎯 هدف</span><select id="w65-tg" style="max-width:55%;background:#0a2540;color:#fff;border:1px solid #23587c;border-radius:8px;padding:6px">'+targets.map(t=>'<option value="'+esc(t.n)+'" '+(t.n===sel?'selected':'')+'>'+esc(t.n)+(t.pvp?' 👤':' 🤖')+'</option>').join('')+'</select></div>'+
+   '<div class="wd65-row"><span>👤 مالک</span><span>'+(pvpFlag?'بازیکن واقعی (نتیجه با سرور)':'دولت محلی (محاسبه‌ی محلی)')+'</span></div>'+
+   '<div class="wd65-row"><span>🛡️ دفاع پایه</span><b>'+faN(defEst)+'</b></div>'+
+   '<div class="wd65-row"><span>💪 قدرت مؤثر تو</span><b style="color:#7dffcf">'+faN(myP)+'</b></div>'+
+   '<div class="wd65-row"><span>📊 '+ratioTxt+'</span><span class="wd65-pill '+(myP>=defEst?'on':'warn')+'">'+(myP>=defEst?'برتری':'خطرناک')+'</span></div>'+
+   '<h4>تاکتیک (ریسک/هزینه/نتیجه متفاوت — اعمال سرور در PvP)</h4><div class="wd65-tactic">'+
+   [['balanced','⚖️ متعادل','—'],['blitz','⚡ حمله سریع','+۱۰٪ قدرت • +۶٪ تلفات'],['heavy','🔥 حمله سنگین','+۱۵٪ قدرت • +۲۲٪ تلفات'],['precision','🎯 حمله دقیق','+۵٪ قدرت • −۲۰٪ تلفات']].map(t=>
+     '<button class="wd65-btn '+(tac===t[0]?'gr':'')+'" data-tac="'+t[0]+'">'+t[1]+'<br><span style="font-weight:400;font-size:10px">'+t[2]+'</span></button>').join('')+'</div>'+
+   '<h4>🕵️ شناسایی</h4><button class="wd65-btn" id="w65-rec" style="width:100%">📡 دریافت گزارش اطلاعاتی (فناوری intel → دقت بالاتر)</button><div id="w65-intel" class="wd65-mut"></div>'+
+   (own.length?'<h4>🗺️ جبهه (استان لجستیک)</h4><select id="w65-fr" style="width:100%;background:#0a2540;color:#fff;border:1px solid #23587c;border-radius:8px;padding:6px"><option value="">— بدون جبهه‌ی پیش‌رو —</option>'+frontOpts+'</select>':'')+
+   (!pvpFlag&&sel?'<h4>🔥 محاصره (فقط اهداف محلی — هر مرحله +۴٪ قدرت، حداکثر ۳)</h4><div class="wd65-row"><span>فشار فعلی</span><span class="wd65-pill '+(siegeOn?'on':'')+'">'+faN(siegeOn)+'/۳</span></div><button class="wd65-btn" id="w65-siege" style="width:100%">🔥 توپخانه بزن (۸۰۰ نفت + ۲٬۵۰۰ طلا)</button>':'')+
+   '<div style="display:flex;gap:8px;margin-top:12px"><button class="wd65-btn" data-v65="back" style="flex:1">→ بازگشت</button><button class="wd65-btn rd" id="w65-no" style="flex:1">↩️ عقب‌نشینی</button><button class="wd65-btn gr" id="w65-go" style="flex:2">⚔️ شروع عملیات</button></div>'+
+   '<div class="wd65-mut">عقب‌نشینی هیچ هزینه‌ای ندارد؛ عملیات فقط با تأیید تو شروع می‌شود.</div>';
+  sh.classList.add('open');VIEW='plan';
+  card.querySelectorAll('[data-tac]').forEach(x=>x.onclick=()=>{W.WD65TACTIC=x.dataset.tac;st.flags.tactic=x.dataset.tac;save65();openPlan()});
+  const bk=card.querySelector('[data-v65="back"]');if(bk)bk.onclick=()=>{VIEW='empire';render65()};
+  const tg=card.querySelector('#w65-tg');if(tg)tg.onchange=()=>{PLAN.t=tg.value;openPlan()};
+  const fr=card.querySelector('#w65-fr');if(fr)fr.onchange=()=>{PLAN.f=fr.value};
+  const rc=card.querySelector('#w65-rec');if(rc)rc.onclick=()=>{
+    const g=activeGen(),acc=g&&g.trait==='intel'?0.10*g.level:0;
+    const fuzz=0.35-acc;
+    const lo=Math.round(defEst*(1-fuzz)),hi=Math.round(defEst*(1+fuzz));
+    $('w65-intel').innerHTML='🛰️ برآورد دفاع: <b>'+faN(lo)+' تا '+faN(hi)+'</b> • دفاع مؤثر با محاصره: <b>'+faN(Math.round(defEst*(1-0.04*siegeOn)))+'</b>'+(acc?' • دقت ژنرال اطلاعاتی اعمال شد':'')+'<br>پیشنهاد: '+(myP>=hi?'حمله مطمئن است':myP>=lo?'در مرز خطر — محاصره یا تاکتیک دقیق':'نیرو بیشتر، عملیات ویژه یا محاصره');
+  };
+  const sg=card.querySelector('#w65-siege');if(sg)sg.onclick=()=>bombard(sel);
+  card.querySelector('#w65-no').onclick=()=>{sh.classList.remove('open');W.__WD65_t=null;PLAN.armed=false};
+  card.querySelector('#w65-go').onclick=()=>{
+    if(!sel){toast65('❌ هدفی انتخاب نشده','lose');return}
+    W.__WD65_t=sel;PLAN.armed=true;PLAN.t=sel;sh.classList.remove('open');
+    chron('war','برنامه‌ی نبرد علیه '+sel+' تصویب شد — '+tacticName()+(PLAN.f?' از جبهه‌ی '+PLAN.f:''));
+    save65();toast65('⚔️ عملیات آغاز می‌شود...');
+    setTimeout(()=>{try{if(typeof attackTarget==='function')attackTarget(sel)}catch(e){}},250);
+  };
+}
+
+/* ---------- 11) شکوه: رقیب + اهداف + تالار افتخارات + chronicle (سرور-مأخذ) ---------- */
+const R65={goals:null,goalsAt:0,rival:null,rivalAt:0,hof:null,hofAt:0};
+function rpc65(fn,p){return safe(()=>sb.rpc(fn,p),null)}
+async function loadGlory(force){
+  if(!online())return;
+  const N=now();
+  if(force||N-R65.goalsAt>60000){const r=await rpc65('goals_get',{p_server:SRVn()});if(r&&!r.error){R65.goals=r.data;R65.goalsAt=N}}
+  if(force||N-R65.rivalAt>60000){const r=await rpc65('rival_get',{p_server:SRVn()});if(r&&!r.error){R65.rival=r.data;R65.rivalAt=N}}
+  if(force||N-R65.hofAt>120000){const r=await rpc65('hof_list',{p_server:SRVn()});if(r&&!r.error){R65.hof=r.data;R65.hofAt=N}}
+}
+const GOAL_FA={empire:'👑 ساخت امپراتوری (کشورهای فتح‌شده)',military:'⚔️ بزرگ‌ترین قدرت نظامی (کشتار)',economy:'💰 ثروتمندترین اقتصاد',power:'🌍 بالاترین امتیاز قدرت',territory:'🗺️ بیشترین قلمرو فعال',olympic:'🏆 قهرمان المپیک (طلاها)',tech:'🧠 پیشرفته‌ترین فناوری (رکوردها/PR)',alliance:'🤝 قدرتمندترین اتحاد'};
+function renderGlory(b){
+  delete b.dataset.wd65;
+  const sec=[];
+  const rv=R65.rival;
+  sec.push('<div class="wd5-section">⚔️ رقیب شخصی</div>');
+  if(!online())sec.push('<div class="wd5-card"><div class="wd5-small">برای رقیب/اهداف/شکوه باید آنلاین باشی.</div></div>');
+  else if(!rv||!rv.rival)sec.push('<div class="wd5-card"><div class="wd5-small">'+(rv&&rv.msg==='top'?'👑 تو رتبه‌ی یک هستی — رقیبت کسی نیست جز تاریخ خودت!':'هنوز داده‌ی رتبه‌ای کامل نیست.')+'</div></div>');
+  else{
+    const r=rv.rival;
+    sec.push('<div class="wd5-card"><b>'+esc(r.nick)+'</b> <span class="wd65-pill '+(rv.ahead?'warn':'on')+'">رتبه‌ی '+faN(rv.rival_rank)+' در برابر رتبه‌ی '+faN(rv.me_rank)+' تو</span>');
+    [['score','امتیاز'],['conquered','فتح‌ها'],['kills','نبردها'],['economy','اقتصاد'],['recruits','سربازگیری']].forEach(row=>{
+      const c=r[row[0]];if(!c)return;const diff=c.rival-c.me;
+      sec.push('<div class="wd65-bar"><span style="width:64px">'+row[1]+'</span><div class="tr"><i style="width:'+Math.min(100,Math.round(c.me/Math.max(1,c.rival)*100))+'%;background:#3ee8a5"></i><i style="width:'+Math.min(100-Math.min(100,Math.round(c.me/Math.max(1,c.rival)*100)),Math.round((c.rival-c.me)/Math.max(1,c.rival)*100))+'%;background:rgba(255,120,90,.75)"></i></div><span>'+(diff>=0?'+'+faN(diff):faN(diff))+'</span></div>');
+    });
+    sec.push('<div class="wd65-small">همیشه یک نفر برای رقابت — او را پشت بگذار.</div></div>');
+  }
+  const gl=R65.goals;
+  sec.push('<div class="wd5-section" style="margin-top:10px">🎯 اهداف بلندمدت</div>');
+  if(gl&&gl.goals){
+    sec.push('<div class="wd5-card">'+gl.goals.map(g=>{
+      const pct=g.top>0?Math.round((g.my||0)/g.top*100):0;
+      return '<div class="wd65-row"><span>'+GOAL_FA[g.key]+'</span><span><b>'+faN(g.my||0)+'</b> / '+faN(g.top||0)+' <span class="wd65-pill">'+(g.top_nick?'👑 '+esc(g.top_nick):'—')+'</span></span></div>';
+    }).join('')+'</div>');
+  }else if(online())sec.push('<div class="wd5-card"><div class="wd5-small">در حال بارگذاری اهداف...</div></div>');
+  const hf=R65.hof;
+  sec.push('<div class="wd5-section" style="margin-top:10px">🏛️ تالار افتخارات (دائمی — بخشی از هویت)</div>');
+  if(hf&&hf.titles){
+    sec.push('<div class="wd5-card">'+hf.titles.map(t=>
+      '<div class="wd65-row"><span>'+t.fa+'</span><span>'+(t.nick?'<b '+(!t.mine?'':'style="color:#7dffcf"')+'>'+esc(t.nick)+'</b> <span class="wd65-pill '+(t.mine?'on':'')+'">'+faN(t.value||0)+'</span>':'<span class="wd65-pill">آزاد</span>')+'</span></div>').join('')+'</div>');
+  }else if(online())sec.push('<div class="wd5-card"><div class="wd5-small">در حال بارگذاری تالار...</div></div>');
+  sec.push('<div class="wd5-section" style="margin-top:10px">📜 تاریخچه‌ی امپراتوری (Chronicle)</div><div class="wd5-card"><div class="wd65-chron">'+
+    (st.chron.length?st.chron.map(x=>'<div><b>'+new Date(x.t).toLocaleDateString('fa-IR')+' '+new Date(x.t).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})+'</b> — '+esc(x.m)+'</div>').join(''):'<span class="wd65-mut">هنوز رویداد مهمی ثبت نشده — اولین قدم‌های امپراتوری از همین‌جا نوشته می‌شود.</span>')+'</div></div>');
+  b.innerHTML=sec.join('');
+}
+
+
+/* ---------- 12) هوک‌ها: بدون جایگزینی منطق نبرد — فقط رجیستری‌های موجود ---------- */
+function wireHooks(){
+  /* ضریب قدرت در calculateTotalAttack (AI) — سرور PvP خودش p_tactic را اعتبارسنجی می‌کند */
+  try{
+    WD_ATTACK_HOOKS.atkMult=WD_ATTACK_HOOKS.atkMult||[];
+    WD_ATTACK_HOOKS.atkMult.push(()=>atkMult());
+  }catch(e){}
+  /* تلفات نبرد: همان الگوی زنجیره‌ی موجود (defBonus) — تک‌لایه‌ی جدید روی زنجیره */
+  try{
+    const _ab=applyBattleLosses;
+    applyBattleLosses=function(f){return _ab(Math.min(0.6,Math.max(0.1,f*lossMult())))};
+  }catch(e){}
+  /* XP/رکورد واقعی نبرد → فرمانده فعال + خستگی جنگ + پاکسازی هدف مسلح‌شده */
+  try{
+    WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];
+    WD_ATTACK_HOOKS.xpPost.push(function(n){
+      try{
+        const win=safe(()=>conqueredCountries.has(n),false);
+        genBattle(win);st.flags.warFat=Math.min(14,st.flags.warFat+3);
+        if(win&&!st.flags.firstConq){st.flags.firstConq=now();chron('war','🏴 نخستین فتح تاریخ امپراتوری: '+n)}
+        chron('war',(win?'✔ پیروزی در ':'✖ شکست در ')+n+' — '+tacticName());
+        save65();chipSync();
+      }catch(e){}
+      try{W.__WD65_t=null;PLAN.armed=false}catch(e){}
+    });
+  }catch(e){}
+}
+
+/* ---------- 13) خبرهای تازه‌ی جهان (mapping های موجود — فقط ۲ شاخه‌ی افزوده) ---------- */
+function extendNews(){
+  try{
+    const f=window.wdNewsFa;
+    if(typeof f==='function'&&!f.__wd65){
+      const nf=function(x){
+        const a=x&&x.action;
+        if(a==='empire_fall')return '📰 BREAKING — امپراتوری '+esc(x.actor_nick||'نامشخص')+' با از دست دادن آخرین خاکش ('+esc(x.country||'—')+') سقوط کرد؛ فاتح: '+esc(x.target_nick||'—');
+        if(a==='hof_new')return '🏛️ تالار افتخارات: عنوان «'+hofFa(x.country)+'» به '+esc(x.actor_nick||'—')+' رسید'+(x.target_nick?(' (جایگزین '+esc(x.target_nick)+')'):'');
+        return f(x);
+      };
+      nf.__wd65=1;window.wdNewsFa=nf;
+    }
+  }catch(e){}
+}
+function hofFa(cat){return({conqueror:'فتح‌گر افسانه‌ای',commander:'بزرگ‌ترین فرمانده',war_master:'استاد جنگ',titan:'غول اقتصادی',champion:'قهرمان المپیک',diplomat:'رهبر دیپلمات'})[cat]||cat||''}
+
+/* ---------- 14) هویت: نشان‌های تالار افتخارات من (بدون هیچ افکت سنگین) ---------- */
+async function myTitles(){
+  if(!online())return[];
+  const r=await rpc65('hof_list',{p_server:SRVn()});
+  if(!r||r.error||!r.data||!r.data.titles)return[];
+  return r.data.titles.filter(t=>t.mine).map(t=>t.fa);
+}
+
+/* ---------- 15) boot — یک تیک‌مرکز ۲۰ ثانیه‌ای + اتصال wd5 ---------- */
+function boot65(){
+  wireHooks();extendNews();
+  W.WD65TACTIC=st.flags.tactic||'balanced';
+  /* برنامه‌ی نبرد: عناصر sheet یک‌بار ساخته می‌شوند (root-cause: قبلاً هرگز ساخته نمی‌شدند) */
+  if(!$('wd65-sheet')){
+    const sh=D.createElement('div');sh.id='wd65-sheet';
+    const card=D.createElement('div');card.id='wd65-card';
+    sh.appendChild(card);D.body.appendChild(sh);
+    sh.addEventListener('click',function(e){if(e.target===sh){sh.classList.remove('open');W.__WD65_t=null}});
+  }
+  /* تیک مرکزی — تنها interval جدید ماژول */
+  setInterval(function(){
+    try{if(D.hidden)return;civTick()}catch(e){}
+  },20000);
+  setTimeout(function(){try{civTick()}catch(e){}},4000);
+  /* رفرش شکوه وقتی sheet باز است (هر ۹۰ث — نه هر تیک) */
+  setInterval(function(){try{
+    if(D.hidden)return;const sh=$('wd65-sheet');
+    if(sh&&sh.classList.contains('open')&&VIEW==='glory')loadGlory(false).then(()=>{if(VIEW==='glory')render65()}).catch(()=>{})
+  }catch(e){}},90000);
+  /* ثبت «کشور اول» در chronicle (یک‌بار) */
+  const iv2=setInterval(function(){
+    const n=myName();if(!n)return;clearInterval(iv2);
+    if(!st.flags.home){st.flags.home=n;chron('home','👑 این سند تاریخ است: '+n+' زادگاه امپراتوری شد');save65()}
+  },3000);
+  setTimeout(()=>clearInterval(iv2),120000);
+}
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',boot65);else boot65();
+/* API عمومی مینیمال (st/tick فقط برای تست و عیب‌یابی) */
+window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:civTick,titles:myTitles,chronicle:st.chron,atkMult,lossMult,renderEmpire,renderGlory,loadGlory};
+})();
+
    </script>
 </body>
 </html>

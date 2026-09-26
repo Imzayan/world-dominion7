@@ -1214,6 +1214,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           orderBy: { createdAt: 'asc' },
         })
         if (rev) { a = Math.round(a * 1.25); revenge_used = true }
+        /* V65 — تاکتیک نبرد: کلاینت فقط درخواست می‌فرستد؛ اعتبارسنجی و اعمال سمت سرور (§15).
+           blitz +10% • heavy +15% • precision +5% — بقیه‌ی مقادیر نادیده گرفته می‌شوند. */
+        const tac65 = String(args.p_tactic || '')
+        const tacMult65 = tac65 === 'blitz' ? 1.10 : tac65 === 'heavy' ? 1.15 : tac65 === 'precision' ? 1.05 : 1
+        if (tacMult65 > 1) a = Math.round(a * tacMult65)
         const chance = Math.min(0.85, Math.max(0.2, 0.5 + (a - d) / (2 * (a + d + 500))))
         const win = Math.random() < chance
         if (rev) await db.revengeMark.update({ where: { id: rev.id }, data: { used: true } })
@@ -1224,6 +1229,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           /* V58: امتیاز رتبه‌بندی همان لحظه جلو می‌رود — بدون انتظار برای سیکل سیو کلاینت (۸ ثانیه‌ای)
              recompute سیو بعدی همان مقدار مطلق را می‌گذارد؛ این فقط سرعت دیده‌شدن رویداد در رنکینگ است */
           try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: 1000 } } }) } catch (e) { console.log('pvpscore', e) }
+          /* V65 — جهان زنده: سقوط امپراتوری — اگر مدافع آخرین خاکش را از دست داد، خبر فوری */
+          try {
+            const left = await territoryCount(t.userId, server)
+            if (left === 0) await addNews(server, 'empire_fall', country, t.nick, user.nick)
+          } catch (e) { console.log('empfall', e) }
           /* V34: the defender who just lost land earns a 72h revenge right (+25%, once) */
           try { await db.revengeMark.create({ data: { server, userId: t.userId, targetUid: user.id, targetNick: user.nick, expiresAt: new Date(Date.now() + 72 * 3600_000) } }) } catch (e) { console.log('revmk', e) }
           if (duel) { try { duelWon = await resolveDuel(server, user.id, t.userId, user.id, user.nick, t.nick) } catch (e) { console.log('duelres', e) } }
@@ -1235,7 +1245,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
            defense/captured — before this it always computed 0% and 60% losses and
            syncTerr deleted the just-won territory */
-        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied })
+        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null })
       }
       case 'pvp_capture_territory': {
         if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
@@ -2589,6 +2599,141 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (!id || ['clear', 'actioned'].indexOf(action) < 0) return R({ ok: false, error: 'args' })
         await db.abuseReport.updateMany({ where: { id }, data: { status: action === 'clear' ? 'cleared' : 'actioned' } })
         return R({ ok: true })
+      }
+
+      /* ============ V65 — جهان زنده: رقیب، اهداف بلندمدت، تالار افتخارات ============
+         همه از داده‌ی واقعی سرور محاسبه می‌شوند؛ کلاینت هیچ عددی نمی‌فرستد (§15). */
+
+      /* رقیب شخصی: نزدیک‌ترین بازیکن بالای سرت در رتبه‌ی امتیاز همان سرور
+         (اگر اول باشی، نزدیک‌ترین نفر پشت سرت). مقایسه‌ی کامل + اختلاف درصدی. */
+      case 'rival_get': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const rows = await db.score.findMany({ where: { server }, orderBy: [{ score: 'desc' }], take: 400 })
+        const meIdx = rows.findIndex((r) => r.userId === user.id)
+        if (meIdx < 0) return R({ ok: false, error: 'no_score' })
+        let rivalIdx = meIdx - 1
+        if (rivalIdx < 0) rivalIdx = meIdx + 1 < rows.length ? meIdx + 1 : -1
+        if (rivalIdx < 0) return R({ ok: true, rival: null, me_rank: 1, msg: 'top' })
+        const rv = rows[rivalIdx]
+        const mine = rows[meIdx]
+        const cmp = (a: number, b: number) => ({ me: a, rival: b, pct: Math.round(((b - a) / Math.max(1, Math.min(a, b))) * 100) })
+        return R({
+          ok: true,
+          me_rank: meIdx + 1,
+          rival_rank: rivalIdx + 1,
+          ahead: rivalIdx > meIdx,
+          rival: {
+            nick: rv.nick,
+            score: cmp(mine.score, rv.score),
+            conquered: cmp(mine.conquered, rv.conquered),
+            kills: cmp(mine.kills, rv.kills),
+            economy: cmp(mine.economy, rv.economy),
+            recruits: cmp(mine.recruits, rv.recruits),
+          },
+        })
+      }
+
+      /* اهداف بلندمدت: ۷ هدف از داده‌ی سرور (رتبه‌ها از یک query واحد ساخته می‌شود — بدون N+1 سنگین) */
+      case 'goals_get': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const rows = await db.score.findMany({ where: { server }, orderBy: [{ score: 'desc' }], take: 400 })
+        const meIdx = rows.findIndex((r) => r.userId === user.id)
+        const rankBy = (pick: (r: typeof rows[number]) => number) => {
+          const sorted = rows.map(pick).sort((a, b) => b - a)
+          const my = meIdx >= 0 ? pick(rows[meIdx]) : 0
+          return { my, top: sorted[0] || 0, rank: my > 0 ? sorted.indexOf(my) + 1 : rows.length + 1 }
+        }
+        const terr = { my: await territoryCount(user.id, server), top: 0, rank: 0 }
+        const terrAgg = await db.territory.groupBy({ by: ['userId'], where: { server }, _count: { _all: true } })
+        const terrSorted = terrAgg.map((t) => ({ uid: t.userId, n: t._count._all })).sort((a, b) => b.n - a.n)
+        terr.top = terrSorted[0]?.n || 0
+        terr.rank = terrSorted.findIndex((t) => t.uid === user.id) + 1 || terrSorted.length + 1
+        /* قهرمان المپیک: مجموع طلاهای رسمی (rank=1) در همه‌ی ادیشن‌ها */
+        const goldsAgg = await db.olympicResult.groupBy({ by: ['userId'], where: { rank: 1 }, _count: { _all: true } })
+        const golds = goldsAgg.map((g) => ({ uid: g.userId, n: g._count._all })).sort((a, b) => b.n - a.n)
+        const myGolds = golds.find((g) => g.uid === user.id)?.n || 0
+        /* پیشرفته‌ترین فناوری: دارنده‌ی رکوردهای المپیک (قدیمی‌ترین نسل مهارت) + PR کل */
+        const recRows = await db.olympicRecord.findMany()
+        const recNick = new Map(recRows.map((r) => [r.nick, r.discipline] as const))
+        const prAgg = await db.olympicProfile.groupBy({ by: ['userId'], _sum: { prCount: true } })
+        const prSorted = prAgg.map((p) => ({ uid: p.userId, n: p._sum.prCount || 0 })).sort((a, b) => b.n - a.n)
+        const myPr = prSorted.find((p) => p.uid === user.id)?.n || 0
+        /* قوی‌ترین اتحاد: اندازه‌ی اتحاد من در برابر بزرگ‌ترین */
+        const sizes = await db.allianceMember.groupBy({ by: ['allianceId'], _count: { _all: true } })
+        const sizeMap = new Map(sizes.map((s) => [s.allianceId, s._count._all] as const))
+        const myMembership = await db.allianceMember.findFirst({ where: { userId: user.id } })
+        const myAlliance = myMembership ? await db.alliance.findUnique({ where: { id: myMembership.allianceId } }) : null
+        const myAllySize = myAlliance ? (sizeMap.get(myAlliance.id) || 1) : 0
+        const topAllySize = Math.max(0, ...Array.from(sizeMap.values()))
+        const g = (key: string, r: { my: number; top: number; rank: number }, topNick: string | null) => ({ key, ...r, top_nick: topNick })
+        const topNickOf = (pick: (r: typeof rows[number]) => number) => {
+          let best: { n: number; nick: string } | null = null
+          for (const r of rows) { const v = pick(r); if (v > 0 && (!best || v > best.n)) best = { n: v, nick: r.nick } }
+          return best ? best.nick : null
+        }
+        const goldTopUser = golds[0]?.uid ? await db.user.findUnique({ where: { id: golds[0].uid }, select: { nick: true } }) : null
+        const prTopUser = prSorted[0]?.uid ? await db.user.findUnique({ where: { id: prSorted[0].uid }, select: { nick: true } }) : null
+        return R({
+          ok: true,
+          goals: [
+            g('empire', rankBy((r) => r.conquered), topNickOf((r) => r.conquered)),
+            g('military', rankBy((r) => r.kills), topNickOf((r) => r.kills)),
+            g('economy', rankBy((r) => r.economy), topNickOf((r) => r.economy)),
+            g('power', rankBy((r) => r.score), topNickOf((r) => r.score)),
+            { key: 'territory', ...terr, top_nick: terrSorted[0] ? (await db.user.findUnique({ where: { id: terrSorted[0].uid }, select: { nick: true } }))?.nick || null : null },
+            { key: 'olympic', my: myGolds, top: golds[0]?.n || 0, rank: golds.findIndex((x) => x.uid === user.id) + 1 || golds.length + 1, top_nick: goldTopUser?.nick || null },
+            { key: 'tech', my: myPr, top: prSorted[0]?.n || 0, rank: prSorted.findIndex((x) => x.uid === user.id) + 1 || prSorted.length + 1, top_nick: prTopUser?.nick || null },
+            { key: 'alliance', my: myAllySize, top: topAllySize, rank: 0, top_nick: myAlliance ? myAlliance.name : null, has: !!myAlliance, rec_held: recNick.size ? Array.from(recNick.values()).length && (recRows.filter((r) => r.nick === user.nick).length) : 0 },
+          ],
+        })
+      }
+
+      /* تالار افتخارات: ۶ عنوان دائمی، فقط از داده‌ی واقعی. تغییر نگهدارنده => خبر hof_new */
+      case 'hof_list': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const rows = await db.score.findMany({ where: { server }, orderBy: [{ score: 'desc' }], take: 400 })
+        const topBy = (pick: (r: typeof rows[number]) => number) => {
+          let best: { uid: string; nick: string; v: number } | null = null
+          for (const r of rows) { const v = pick(r); if (v > 0 && (!best || v > best.v)) best = { uid: r.userId, nick: r.nick, v } }
+          return best
+        }
+        const goldsAgg = await db.olympicResult.groupBy({ by: ['userId'], where: { rank: 1 }, _count: { _all: true } })
+        const goldTop = goldsAgg.sort((a, b) => b._count._all - a._count._all)[0]
+        const goldUser = goldTop ? await db.user.findUnique({ where: { id: goldTop.userId }, select: { nick: true } }) : null
+        const sizes = await db.allianceMember.groupBy({ by: ['allianceId'], _count: { _all: true } })
+        let dip: { uid: string; nick: string; v: number } | null = null
+        if (sizes.length) {
+          const topAlly = sizes.sort((a, b) => b._count._all - a._count._all)[0]
+          const al = await db.alliance.findUnique({ where: { id: topAlly.allianceId } })
+          if (al) dip = { uid: al.ownerUid, nick: al.ownerNick, v: topAlly._count._all }
+        }
+        const defs: Array<{ cat: string; fa: string; w: { uid: string; nick: string; v: number } | null }> = [
+          { cat: 'conqueror', fa: 'فتح‌گر افسانه‌ای', w: topBy((r) => r.conquered) },
+          { cat: 'commander', fa: 'بزرگ‌ترین فرمانده', w: topBy((r) => r.kills) },
+          { cat: 'war_master', fa: 'استاد جنگ', w: topBy((r) => r.score) },
+          { cat: 'titan', fa: 'غول اقتصادی', w: topBy((r) => r.economy) },
+          { cat: 'champion', fa: 'قهرمان المپیک', w: goldTop && goldUser ? { uid: goldTop.userId, nick: goldUser.nick, v: goldTop._count._all } : null },
+          { cat: 'diplomat', fa: 'رهبر دیپلمات', w: dip },
+        ]
+        const out: Array<{ category: string; fa: string; nick: string | null; value: number; earned_at: string | null; mine: boolean }> = []
+        for (const d of defs) {
+          const prev = await db.hofTitle.findUnique({ where: { server_category: { server, category: d.cat } } })
+          if (d.w) {
+            if (!prev || prev.userId !== d.w.uid) {
+              await db.hofTitle.upsert({
+                where: { server_category: { server, category: d.cat } },
+                create: { server, category: d.cat, userId: d.w.uid, nick: d.w.nick, value: d.w.v, detail: d.fa, earnedAt: new Date() },
+                update: { userId: d.w.uid, nick: d.w.nick, value: d.w.v, detail: d.fa, earnedAt: new Date() },
+              })
+              if (prev) await addNews(server, 'hof_new', d.cat, d.w.nick, prev.nick)
+              else await addNews(server, 'hof_new', d.cat, d.w.nick, null)
+            }
+            out.push({ category: d.cat, fa: d.fa, nick: d.w.nick, value: d.w.v, earned_at: (prev && prev.userId === d.w.uid ? prev.earnedAt : new Date()).toISOString(), mine: d.w.uid === user.id })
+          } else {
+            out.push({ category: d.cat, fa: d.fa, nick: prev ? prev.nick : null, value: prev ? prev.value : 0, earned_at: prev ? prev.earnedAt.toISOString() : null, mine: !!prev && prev.userId === user.id })
+          }
+        }
+        return R({ ok: true, titles: out })
       }
 
       default:

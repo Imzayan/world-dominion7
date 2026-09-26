@@ -571,3 +571,21 @@ model AbuseReport {
   @@index([reporterId, createdAt])
   @@map("abuse_reports")
 }
+
+/* V65 — تالار افتخارات دائمی: هر عنوان فقط از داده‌ی واقعی سرور صادر می‌شود
+   (scores / territories / olympic / alliances). نگهدارنده‌ی عنوان + زمان صدور ثبت
+   می‌شود تا بخشی از هویت بازیکن باشد؛ تغییر نگهدارنده => خبر hof_new در world_news */
+model HofTitle {
+  id        String   @id @default(cuid())
+  server    Int
+  category  String /* conqueror|commander|champion|titan|war_master|diplomat */
+  userId    String   @map("user_id")
+  nick      String
+  detail    String   @default("")
+  value     Int      @default(0) /* مقدار سنجش در لحظه‌ی صدور */
+  earnedAt  DateTime @map("earned_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([server, category])
+  @@map("hof_titles")
+}

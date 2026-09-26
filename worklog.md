@@ -1281,3 +1281,23 @@ Stage Summary:
 - User's phone (low-end, auto-lowfx) now sees BOTH pages fully; logged-out/hung sessions get visible guidance cards instead of empty pages
 - Permanent lesson encoded in harnesses: assertions must judge VISIBILITY (opacity/rect), never DOM char counts; tools read version from v.txt so they never pin again
 - Release protocol unchanged: bump __WD_V + v.txt together (verify-build enforces consistency)
+
+---
+Task ID: V65-living-world
+Agent: main (Super Z)
+Task: user's massive Feature Update order (14 systems + performance + server authority + DB safety) — EXTEND existing systems, zero regression
+
+Work Log:
+- Audit: prisma schema (30+ models), RPC route (86+ fns), client index.html (16.6k lines): wd5 (orphaned panel), wd7 World Command (orphaned panel, ☰ btn reused by wd-menu), st28 politics/tax, V30 news, V33 olympics, V34 social, V43 pass; A-F report delivered before code
+- Server: +HofTitle model (additive, unique[server,category]); +3 server-authoritative RPCs: rival_get (nearest-rank neighbor comparison), goals_get (8 long-term goals from real data, single-query ranks), hof_list (6 permanent titles computed from scores/olympic/alliances, holder change → hof_new news); pvp_attack +p_tactic (validated enum blitz/heavy/precision → server-side power mult) + empire_fall news on last-territory loss
+- Client: single wd65 IIFE module (living world): civ sim (population from popM, employment, happiness ← real taxRate/policy/food/medic/war-fatigue, migration, stability = f(happy, unrest)), production from buildings only (never duplicates base economy), 4-category policies (12 options, real pros/cons, syncs st28.policy for unrest engine), provinces with 8 building types × Lv0-5 (cost/time/benefit/maintenance, ONE global engineering queue, lazy completion), generals roster (4, traits off/def/log/intel, real battle record via WD_ATTACK_HOOKS.xpPost, loyalty), war-plan sheet (tactic/front/siege/intel/retreat — attack only on confirm), goals/rival/HoF panels (RPC TTL caches), structured chronicle (rides cloud save via snapState/restoreState wrappers, in-place merge)
+- Integrations (all additive): calculateTotalAttack +atkMult registry hook; applyBattleLosses chained wrapper (established pattern); 2 pvp call sites +p_tactic; wdNewsFa + drawer mappings +empire_fall/hof_new; ☰ game menu +2 items (امپراتوری/شکوه — the REAL user path, panels wd5/wd7 are orphaned); status chip (pop/happy/stab, tap → sheet); #wd65-sheet self-contained views (empire/glory/plan) — no animation-dependent visibility (V64 lesson)
+- Harness bugs found & root-caused during TDD: sheet elements never created → boot creates them; civ.mig default 0 → pop always 0 (default 1 = neutral); chronicle merge reassigned array → stale public reference (in-place splice now); open65('glory') didn't trigger loadGlory; UI initially wired to orphaned wd5/wd7 panels → moved to wd-menu items (root-cause discovery: cleanDock removes wd5-launcher, bindMenu repurposes wd7-btn)
+- Test determinism: seed-v65.mjs (scores/territories/HoF clean slate); olympic truce lifted via admin event_switch_set + WD33_EV mirror (V33 sacred truce blocks unsanctioned attacks — correct game behavior); relative assertions (level+1, ranking-adjacency) not absolute
+- Tests: feature-v65 29/29 (boot/civ/chip-visibility/menu/sheet/policy/queue/war-plan/tactics-multipliers/battle-start/retreat/back/glory/rival-adjacency/HoF/3 RPCs/news/chronicle/zero-pageerror); full matrix: verify-build 9/9 + lowfx 6/6 + selfheal 8/8 + map-visual 16/16 + apk-sim 28/28 + e2e 24/24 (seed) = 120 checks green, zero pageerror everywhere
+- Version protocol: __WD_V=65 + v.txt=65 (verify-build enforces)
+
+Stage Summary:
+- V65 "جهان زنده" delivered: every decision now has visible country impact (population/happiness/stability respond to tax, war, food, policies, buildings); always-a-goal layer (8 server-computed goals + personal rival + 6 permanent HoF titles); war depth (tactics with server-validated multipliers, siege, fronts, generals with personality) WITHOUT touching the proven capture path
+- Performance: ONE new 20s tick (document.hidden aware), TTL RPC caches, lazy sheet rendering, diffed chip writes, no new map listeners, no per-frame work
+- DB: additive-only (HofTitle), no drops; Server Authority: rival/goals/HoF computed from server data only, p_tactic validated enum server-side
