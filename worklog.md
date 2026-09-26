@@ -1423,3 +1423,29 @@ Stage Summary:
 - پروداکشن Postgres از باگ رکورد المپیک نجات یافت (parity ۴۳/۴۳)
 - کاربر آگاه شود: clamp تولید CV یعنی انباشت بالای سقف ذخیره اتلاف می‌شود (رفتار هم‌تراز نقشه)؛ شیرهای WD7 حذف شدند (تغییر توازن عمدی امنیتی)
 - مانده برای فازهای بعد: ادغام ۷ هندلر zoomend، ادغام GD33 دوقلو، Fog corpse، تک‌نویسنده‌ی کامل saves.state.res (معماری بزرگ)، pass_xp validation، HMAC nonce المپیک، rate limit /api/rt
+---
+Task ID: v69-master-spec-p3 (V69 — Master Spec: فاز ۳ Performance + فاز ۴/۱۱/۱۷ + رگرسیون کامل)
+Agent: main (Super Z)
+Task: ادامه‌ی Master Roadmap (۳۷بند/۱۸فاز) طبق دستور «همرو انجام بده» — ادغام zoomendها، GD33 دوقلو، حذف fog corpse، ضدامعتبر HMAC المپیک، اعتبارسنجی pass_xp، بستن آخرین مسیر بدون نرخ‌سنج (/api/rt)
+
+Work Log:
+- PHASE 3 (§23/§29): ۷ ثبت مستقل map.on('zoomend') (هر patch یکی اضافه کرده بود) → یک دیسپچر یگانه در initGame + رجیستری WD_ZOOM_HOOKS (الگوی WD_CLICK_HOOKS) با ۷ هوک سبک — sizeFlags، z3/z4/z5 class-toggleها، declutter، updateLabels، wdLabelDeclutter+wdOwnInfoRefresh
+- باگ واقعی حذف‌شده: updateLabels روی zoomend+moveend هر دو ثبت بود → در هر زوم دوبار اجرا می‌شد؛ حالا از دیسپچر + moveend با debounce ۸۰ms (ادغام در یک اجرا)
+- GD33 دوقلو (hub v33-games + کپی در IIFE v33-minigames) → تک‌منبع: window.GD33=GD33 در hub؛ minigames فقط می‌خواند (با گارد ||{})
+- Fog corpse (۱۴۰ خط جسد سیستم حذف‌شده‌ی V45): موتور fogCenter/fogVisible/applyFogOne/computeFog + WD30_FOG + interval زامبی ۹ثانیه‌ای + toggle مرده‌ی wd7_toggleFog + S.fog + دکمه‌ی همیشه-خاموش + CSS #hud-fog — همه حذف؛ مخزن نشانه‌گر debuff به WD_DEBUFF_MK مستقل منتقل شد؛ کلید کهنه‌ی localStorage یک‌بار پاک می‌شود
+- PHASE 11 (§17/L6 المپیک): حلقه‌ی مفقود nonce بسته شد — olyToken() = HMAC-SHA256(matchId.serverSeed) با secret از OLY_HMAC_SECRET (fallback: پسوند DATABASE_URL)؛ olympic_start توکن برمی‌گرداند؛ olympic_submit بدون توکن صحیح → status=rejected/flags=bad_nonce و reason=nonce (بدون سوزاندن تلاش رسمی)؛ کلاینت token را در MATCH نگه می‌دارد و برمی‌گرداند؛ پیام فارسی خطا اضافه شد
+- PHASE 17 (§26 pass_xp): conquest و olympic حالا فقط از داور سرور اعطا می‌شوند — درخواست مستقیم کلاینت رد (error=mission)؛ اعطای conquest به نقطه‌ی حقیقت منتقل شد: transferTerritory (فتح PvP) و territory_sync فقط در granted && !bootstrap؛ سقف ۴/روز در passAddXp دست‌نخورده. باقی‌مانده‌ی مستند: login/tax/prop فقط سقف روزانه دارند (۳۵XP/روز سقف سوءاستفاده — نیازمند event-piping سرور، رزرو برای فاز تک‌نویسنده‌ی save)
+- PHASE 17 (rate limit): آخرین مسیر بدون نرخ‌سنج بسته شد — POST publish /api/rt = ۶۰/دقیقه/کاربر، GET poll = ۱۲۰/دقیقه/کاربر، SSE = سقف ۵ استریم همزمان/کاربر (per-instance با cleanup صحیح روی abort)
+- نکته‌ی مهم ابزاری (برای عامل‌های بعدی): خط لوله‌ی خروجی ترمینال این محیط دنباله‌ی literal «[m» را می‌بلعد — خروجی grep/sed/node را با الگوهای شامل [m نباید به‌عنوان خرابی فایل تفسیر کرد؛ od -c مرجع قطعی است (یک پنیک کاذب در این جلسه با od حل شد)
+- سوئیت جدید scripts/v69-master-test.mjs (۳۱ چک): ساختار (تک‌دیسپچر/۷هوک/GD33/fog/token) + رفتار سرور (توکن HMAC دوطرفه، rejected با توکن صحیح هم بسته، pass_xp guard) + نرخ‌سنج‌های rt (429 واقعی) + سقف SSE (۵×200+۱×429)
+- v68-master-test نسخه-مستقل شد (beacon/v.txt/cv-engine باید هم‌مقدار باشند نه عدد ثابت)
+- رگرسیون کامل ۱۳ سوئیت = ۲۷۲ چک سبز: v69(۳۱) + v68(۳۲) + cv-e2e(۳۳) + cv-e2e-client(۲۱) + shop-v2(۳۹) + verify-build(۹) + e2e-v58(۲۴ روی بیلد production) + feature-v65(۲۹) + lowfx(۶) + apk-sim(۲۸) + map-visual(۱۶) + sw-selfheal(۸ شامل journey دکمه‌ی المپیک) + cv-perf(۵۹FPS/DOM=۱۱/heap ثابت)
+- e2e-v58 اول ۱۹/۲۴ شد — root cause stale seed بود (این جلسه e2e-seed-v58 اجرا نشده بود)، نه رگرسیون؛ پس از seed → ۲۴/۲۴ (قانون §32 رعایت شد)
+- نسخه‌ها: __WD_V=69 + v.txt=69 + cv-engine.js?v=69
+
+Stage Summary:
+- نقشه حالا یک listener زوم دارد (قبلاً ۷)؛ هر زوم دیگر updateLabels را دوبار صدا نمی‌زند؛ ۱۴۰ خط corpse + ۱ تایمر زامبی حذف شد
+- زنجیره‌ی المپیک حالا کامل بسته است: L1 نشست → L6 توکن HMAC → L2/L3/L4 فیزیک/زمان‌بندی → L8 duplicate → L9 outlier → replay store — هیچ حلقه‌ی باز امنیتی نمانده
+- XP فصل conquest دیگر قابل جعل از کلاینت نیست؛ اعطا فقط در لحظه‌ی grant واقعی سرور
+- همه‌ی مسیرهای نوشتن (rpc/db/auth/rt+sse) حالا نرخ‌سنج دارند
+- مانده برای فازهای بعد (V70): تک‌نویسنده‌ی کامل saves.state.res (معماری بزرگ)، event-piping برای tax/prop pass، ادغام پنل شبیه‌سازی WD7 با دیتای واقعی (S.fog حذف شد)، Fog of War واقعی در صورت درخواست محصول (اکنون صریحاً حذف/غیرفعال)

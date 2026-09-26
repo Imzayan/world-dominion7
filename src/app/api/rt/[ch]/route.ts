@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { publish, since, sweep } from '@/lib/realtime'
 import { getSessionUser } from '@/lib/auth'
+import { rateLimit } from '@/lib/ratelimit'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +15,9 @@ const MAX_PAYLOAD = 8000
 export async function POST(req: NextRequest, ctx: { params: Promise<{ ch: string }> }) {
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ ok: false, error: 'not authenticated' }, { status: 401 })
+  /* V69 §17: آخرین مسیر بدون نرخ‌سنج بسته شد — broadcast سیلابی (فیک‌ ایونت/دوث) جلوگیری می‌شود */
+  const rl = rateLimit(req, 'rt:' + user.id, 60, 60_000)
+  if (rl) return rl
   const { ch } = await ctx.params
   let body: { event?: string; payload?: unknown; from?: string } = {}
   try { body = await req.json() } catch {}
@@ -29,6 +33,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ ch: string
 export async function GET(req: NextRequest, ctx: { params: Promise<{ ch: string }> }) {
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ events: [], error: 'not authenticated' }, { status: 401 })
+  /* V69 §17: polling هم نرخ‌سنج دارد (کوئری مکرر ارزان نیست — events فیلتر می‌شوند) */
+  const rl = rateLimit(req, 'rtpoll:' + user.id, 120, 60_000)
+  if (rl) return rl
   const { ch } = await ctx.params
   const after = Number(req.nextUrl.searchParams.get('since') || 0)
   /* exclusion is by the SERVER-side user id (client `from` param no longer trusted) */

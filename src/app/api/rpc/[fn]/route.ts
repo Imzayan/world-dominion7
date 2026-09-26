@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
@@ -356,6 +357,14 @@ const MAX_COUNTRIES = 15
    تأییدشده) می‌گذرد؛ تمرین هرگز اینجا وارد نمی‌شود.
    ============================================================ */
 const SIM_END_EV = new Set(['fbend', 'racend', 'rndend', 'duend'])
+/* V69 §17/L6: توکن HMAC مسابقه — پیوند submit به startِ واقعی سرور.
+   کلاینت توکن را در olympic_start می‌گیرد و در olympic_submit برمی‌گرداند؛
+   سرور از matchId+serverSeed بازتولید و مقایسه می‌کند (بدون دیتابیس اضافه).
+   این حلقه‌ی مفقود L6 بود: seed صادر می‌شد اما هیچ‌جا راستی‌آزمایی نمی‌شد. */
+function olyToken(matchId: string, seed: string): string {
+  const secret = process.env.OLY_HMAC_SECRET || ('wd7-oly::' + (process.env.DATABASE_URL || 'local').slice(-32))
+  return crypto.createHmac('sha256', secret).update(matchId + '.' + seed).digest('hex').slice(0, 32)
+}
 function telModelOf(ev: TelemEvent[] | undefined): 'tap' | 'sim' {
   if (ev && ev.some((e) => Array.isArray(e) && SIM_END_EV.has(String(e[0])))) return 'sim'
   return 'tap'
@@ -683,6 +692,9 @@ async function transferTerritory(server: number, country: string, uid: string, n
   })
   await addNews(server, 'pvp_capture', country, nick, t.nick)
   await doomHit(4) /* V43: هر فتح بزرگ ساعت آخرالزمان مشترک را ۴ واحد جلو می‌برد */
+  /* V69 §26: XP مسیر فصل برای فتح PvP — مستقیم از داور سرور (territory_sync دیگر دوباره اعطا نمی‌کند
+     چون کشور همین حالا مالِ همین کاربر شده و در حلقه‌ی grant نمی‌افتد) */
+  passAddXp(uid, 'conquest').catch(() => {})
   return { ok: true, prevOwner }
 }
 
@@ -1884,6 +1896,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           await db.territory.updateMany({ where: { userId: user.id, server, isCapital: true, country: { not: capital } }, data: { isCapital: false } }).catch(() => {})
           await db.territory.updateMany({ where: { userId: user.id, server, country: capital, isCapital: false }, data: { isCapital: true } }).catch(() => {})
         }
+        /* V69 §26: XP مسیر فصل فقط برای فتحِ تأییدشده‌ی سرور — همین‌جا که grant واقعی رخ داد.
+           bootstrap (کشور اول) فتح نیست؛ XP نمی‌گیرد. سقف روزانه (۴/روز) در passAddXp اعمال می‌شود. */
+        if (granted.length && !bootstrap) { for (let gi = 0; gi < granted.length; gi++) passAddXp(user.id, 'conquest').catch(() => {}) }
         /* serverStat فقط وقتی وضعیت واقعاً عوض شد — سینک ۳۰ثانیه‌ای هر بازیکن نباید اسکن بیندازد */
         if (granted.length || gone.length) {
           const rows = await db.territory.groupBy({ by: ['userId'], where: { server } })
@@ -2224,7 +2239,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         const seed = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
         const m = await db.olympicMatch.create({ data: { edition: g.edition, userId: user.id, discipline: key, mode, serverSeed: seed, status: 'open' } })
-        return R({ ok: true, match_id: m.id, seed, server_ms: Date.now(), mode, att_max: mode === 'official' ? hostMax : 0, edition: g.edition })
+        return R({ ok: true, match_id: m.id, seed, token: olyToken(m.id, seed), server_ms: Date.now(), mode, att_max: mode === 'official' ? hostMax : 0, edition: g.edition })
       }
 
       /* ---------------- V33 olympic_register: pick 3 of 10 (reg window + late entry while live) ----------------
@@ -2272,6 +2287,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           return R({ ok: false, reason: 'expired' })
         }
         const nonce = String(args.p_nonce || '').slice(0, 80)
+        /* V69 §17/L6: nonce باید توکن HMAC صادره‌ی همان مسابقه باشد — تلاش بدون توکن
+           یا با توکن مسابقه‌ی دیگر = رد و علامت‌گذاری bad_nonce (بدون سوزاندن تلاش رسمی) */
+        if (!m.serverSeed || nonce !== olyToken(m.id, m.serverSeed)) {
+          await db.olympicMatch.update({ where: { id: m.id }, data: { status: 'rejected', flags: 'bad_nonce', clientNonce: nonce, finishedAt: new Date() } }).catch(() => {})
+          return R({ ok: false, reason: 'nonce' })
+        }
         let tel = args.p_telemetry as Telemetry | string | null | undefined
         if (typeof tel === 'string') { try { tel = JSON.parse(tel) as Telemetry } catch (e) { tel = null } }
         /* L2/L3/L4: بازمحاسبه + قوانین فیزیکی — رد شدن = تلاش سوخت (official) */
@@ -3090,6 +3111,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
 
       case 'pass_xp': {
         const m = String(args.p_mission || '')
+        /* V69 §26: مأموریت‌های سروری فقط از مسیر داورِ سرور اعطا می‌شوند —
+           conquest ← territory_sync/transferTerritory، olympic ← olympic_submit.
+           درخواست مستقیم کلاینت برای این‌ها رد می‌شود (rpc43 کلاینت بی‌صدا null می‌گیرد). */
+        if (m === 'conquest' || m === 'olympic') return R({ ok: false, error: 'mission' })
         const r = await passAddXp(user.id, m)
         if (!r) return R({ ok: false, error: 'mission' })
         return R(r)

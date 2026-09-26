@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=68;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=69;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1087,6 +1087,13 @@ function initGame() {
     }
     map = L.map('map', { center: [25, 15], zoom: 2.5, minZoom: 2, maxZoom: 6, markerZoomAnimation: false, fadeAnimation: false, zoomAnimation: false, preferCanvas: true, inertia: true });
 
+    /* V69 §23/§29: تک‌هندلر zoomend — فقط یک listener روی map؛ بقیه هوک‌های سبک رجیستری.
+       قبلاً ۷ ثبت جداگانه وجود داشت (هر patch یکی اضافه می‌کرد) */
+    map.on('zoomend', function () {
+      var hs; try { hs = window.WD_ZOOM_HOOKS.slice() } catch (e) { hs = [] }
+      for (var i = 0; i < hs.length; i++) { try { hs[i]() } catch (e) {} }
+    });
+
     const geoUrls = [
       ...(location.protocol.indexOf('http') === 0 ? ['/cdn/geo/countries.geo.json'] : []),
       'https://cdn.jsdelivr.net/gh/johan/world.geo.json@master/countries.geo.json',
@@ -1300,6 +1307,10 @@ function statusOf(engName) {
 /* V59 wave-2: تک‌منبع سیستم کلیک کشور — رجیستری fail-safe pre(می‌تواند قطع کند)/post.
    ۱۳ wrapper قدیمی به هوک منتقل شدند؛ ترتیب ثبت = ترتیب اجرای قبلی زنجیره */
 window.WD_CLICK_HOOKS={pre:[],post:[]};
+/* V69 §23/§29: رجیستری مرکزی zoomend (الگوی همان WD_CLICK_HOOKS) —
+   ثبت‌کننده‌ها به‌جای map.on('zoomend',…) هوک می‌دهند؛ دیسپچرِ یگانه در initGame ثبت شده */
+window.WD_ZOOM_HOOKS=window.WD_ZOOM_HOOKS||[];
+window.WD_onZoom=function(fn){try{if(window.WD_ZOOM_HOOKS.indexOf(fn)<0)window.WD_ZOOM_HOOKS.push(fn)}catch(e){}};
 function onCountryClick(feature, layer) {
   try{for(const h of WD_CLICK_HOOKS.pre){if(h(feature,layer)===false)return}}catch(e){console.error('wd-click-pre',e)}
   if (battleBusy) return;
@@ -1824,7 +1835,7 @@ const _uu=updateUI;
 updateUI=function(){_uu();['gold','food','oil','army'].forEach(k=>{const e=$('r-'+k);if(e._p!==e.textContent){if(e._p!==undefined){const c=e.parentNode;c.classList.remove('bump');void c.offsetWidth;c.classList.add('bump')}e._p=e.textContent}})};
 addEventListener('load',()=>{if(typeof map==='undefined'||!map)return;
   try{const w=document.createElement('div');w.id='waves';map.getContainer().prepend(w)}catch(e){console.log(e)}
-  try{map.on('zoomend',function(){try{sizeFlags()}catch(e){}})}catch(e){} /* V62: dispatch پویا به تک‌پیاده‌سازی فعلی */
+  try{WD_onZoom(function(){try{sizeFlags()}catch(e){}})}catch(e){} /* V69: هوک مرکزی zoomend */
   /* V55: تایمر decay مرده حذف شد (تابع خالی بود — فقط سیکل بیهوده) */});
    </script>
    <style>
@@ -2206,7 +2217,7 @@ function refreshSites(){
 /* V59 wave-2: wrapper حذف شد — queueRefresh به‌صورت پس‌هوک applyCountryColor */
 try{WD_COLOR_HOOKS.after.push(function(n){queueRefresh()})}catch(e){console.error('wd-h1',e)};
 (function(){
-  const ag=afterGeo;afterGeo=function(){ag();try{const zc=()=>map.getContainer().classList.toggle('z4',map.getZoom()>=4);map.on('zoomend',zc);zc();queueRefresh()}catch(e){console.log(e)}}})();
+  const ag=afterGeo;afterGeo=function(){ag();try{const zc=()=>map.getContainer().classList.toggle('z4',map.getZoom()>=4);WD_onZoom(zc);zc();queueRefresh()}catch(e){console.log(e)}}})();
 
 /* ----- window (modal) ----- */
 (function(){const m=document.createElement('div');m.id='m-sites';m.className='modal';
@@ -2317,7 +2328,7 @@ try{WD_COLOR_HOOKS.after.push(function(n){const l=layersByName[n],st=statusOf(n)
     if(l&&st!=='neutral')l.setStyle({fillColor:`hsl(${plHue()},62%,${st==='capital'?38:47}%)`,fillOpacity:dm(.9),color:st==='capital'?'#ffd84d':'#fff',weight:st==='capital'?3:2});
     ownLabel(n,st)})}catch(e){console.error('wd-h2',e)};
 (function(){
-  const ag=afterGeo;afterGeo=function(){ag();try{const z=()=>map.getContainer().classList.toggle('z3',map.getZoom()>=3);map.on('zoomend',z);z()}catch(e){}}})();
+  const ag=afterGeo;afterGeo=function(){ag();try{const z=()=>map.getContainer().classList.toggle('z3',map.getZoom()>=3);WD_onZoom(z);z()}catch(e){}}})();
 /* ---- more infrastructure ---- */
 Object.assign(ST,{university:{i:'🎓',fa:'دانشگاه',g:1600,o:0,p:{gold:9}},hospital:{i:'🏥',fa:'بیمارستان',g:1100,o:0,p:{food:6,gold:3},calm:.2},
   bank:{i:'🏦',fa:'بانک مرکزی',g:2200,o:0,p:{gold:22}},farm:{i:'🚜',fa:'منطقه‌ی کشاورزی',g:900,o:0,p:{food:16}},
@@ -2846,7 +2857,7 @@ refreshSites=function(){if(typeof map==='undefined'||!map||!Object.keys(layersBy
   Object.keys(want).forEach(id=>{if(MK[id]){MK[id].setLatLng(pos[id]);return}const s=want[id],b=isBuilt(s);
     const m=L.marker(pos[id],{icon:L.divIcon({className:'site-wrap',iconSize:[0,0],html:'<div class="site '+(b?'s-built':'s-free')+'">'+ST[s.t].i+'</div>'}),interactive:false,keyboard:false,zIndexOffset:600}).addTo(map);
     m._b=b;MK[id]=m});declutter()};
-(function(){const ag=afterGeo;afterGeo=function(){ag();try{map.on('zoomend',declutter)}catch(e){}}})();
+(function(){const ag=afterGeo;afterGeo=function(){ag();try{WD_onZoom(declutter)}catch(e){}}})();
 /* ---- economy: no more buy-oil / sell-oil loops ---- */
 const TR={buys:[],sells:[]};let lastCap=0;
 const recentN=a=>{const t=Date.now();while(a.length&&t-a[0]>180000)a.shift();return a.length};
@@ -3878,7 +3889,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     (()=>{
 'use strict';
 const $=id=>document.getElementById(id), KEY='wd7_world_v1';
-let S={season:1,day:1,xp:0,level:1,reputation:50,warRep:50,econRep:50,dipRep:50,stability:70,warScore:0,alliances:[],pacts:[],tech:{industry:0,logistics:0,air:0,armor:0,navy:0,intel:0,energy:0,diplomacy:0,space:0},general:{name:'سپهبد آریا',level:1,xp:0,trait:'استراتژیست'},market:{food:100,oil:140,steel:180,energy:220},orders:[],missions:{war:0,trade:0,spy:0,research:0,conquer:0},events:[],chronicle:[],ai:{},provinces:{},fog:true,layer:'political',crisis:null,lastTick:Date.now()};
+let S={season:1,day:1,xp:0,level:1,reputation:50,warRep:50,econRep:50,dipRep:50,stability:70,warScore:0,alliances:[],pacts:[],tech:{industry:0,logistics:0,air:0,armor:0,navy:0,intel:0,energy:0,diplomacy:0,space:0},general:{name:'سپهبد آریا',level:1,xp:0,trait:'استراتژیست'},market:{food:100,oil:140,steel:180,energy:220},orders:[],missions:{war:0,trade:0,spy:0,research:0,conquer:0},events:[],chronicle:[],ai:{},provinces:{},layer:'political',crisis:null,lastTick:Date.now()};
 try{S=Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const toast=m=>{if(typeof showToast==='function')showToast(m,'win');else alert(m)};
@@ -3914,11 +3925,11 @@ if(tab==='war')c.innerHTML=`<div class="wd7-grid"><div class="wd7-card"><h3>⚔�
 if(tab==='eco')c.innerHTML=`<div class="wd7-grid"><div class="wd7-card"><h3>📈 بازار جهانی</h3>${Object.keys(S.market).map(k=>`<div class="wd7-row"><span>${k}</span><b>${price(k)}</b></div>`).join('')}<p class="wd7-muted">قیمت‌ها با جنگ، تقاضا و بحران‌ها تغییر می‌کنند.</p></div><div class="wd7-card"><h3>💱 تجارت سریع</h3>${[['food','oil'],['oil','steel'],['steel','food'],['food','gold']].map(x=>`<button class="wd7-btn" style="margin:3px" onclick="wd7_trade('${x[0]}','${x[1]}',100)">${x[0]} → ${x[1]}</button>`).join('')}</div><div class="wd7-card"><h3>🏭 اقتصاد کشور</h3><div class="wd7-row"><span>صنعت</span><b>Lv.${S.tech.industry}</b></div><div class="wd7-row"><span>لجستیک</span><b>Lv.${S.tech.logistics}</b></div><div class="wd7-row"><span>انرژی</span><b>Lv.${S.tech.energy}</b></div><p class="wd7-muted">اقتصاد بر اساس قلمرو، فناوری و بحران جهانی حرکت می‌کند.</p></div></div>`;
 if(tab==='dip')c.innerHTML=`<div class="wd7-grid"><div class="wd7-card"><h3>🤝 دیپلماسی</h3><div class="wd7-row"><span>اعتبار</span><b>${Math.round(S.dipRep)}/100</b></div><button class="wd7-btn" onclick="wd7_dip('پیمان صلح')">🕊️ پیمان صلح</button><button class="wd7-btn" onclick="wd7_dip('پیمان تجارت')">💰 پیمان تجارت</button><button class="wd7-btn" onclick="wd7_alliance()">🤝 ساخت اتحاد</button></div><div class="wd7-card"><h3>🛡️ اتحادها</h3>${S.alliances.length?S.alliances.map(a=>`<div class="wd7-row"><span>${a.name}</span><b>${a.members} عضو</b></div>`).join(''):'هنوز اتحادی تشکیل نشده است.'}</div><div class="wd7-card"><h3>📜 پیمان‌ها</h3>${S.pacts.length?S.pacts.map(p=>`<div class="wd7-row"><span>${fa(p.target)}</span><span class="wd7-pill">${p.type}</span></div>`).join(''):'بدون پیمان فعال'}</div></div>`;
 if(tab==='tech')c.innerHTML=`<div class="wd7-grid">${Object.keys(S.tech).map(k=>`<div class="wd7-card"><h3>🧬 ${k}</h3><div class="wd7-big">Lv.${S.tech[k]}</div><p class="wd7-muted">ارتقای این شاخه توانایی‌های مربوط به آن را افزایش می‌دهد.</p><button class="wd7-btn" onclick="wd7_research('${k}')">🔬 تحقیق</button></div>`).join('')}</div>`;
-if(tab==='intel')c.innerHTML=`<div class="wd7-grid"><div class="wd7-card"><h3>🛰️ مرکز اطلاعات</h3><div class="wd7-big">${S.tech.intel*10+20}%</div><p class="wd7-muted">دقت پایه اطلاعات. با فناوری Intelligence بیشتر می‌شود.</p><button class="wd7-btn" onclick="wd7_spy()">🕵️ اعزام جاسوس</button></div><div class="wd7-card"><h3>🌫️ Fog of War</h3><div class="wd7-row"><span>مه جنگ</span><b>${S.fog?'فعال':'خاموش'}</b></div><button class="wd7-btn alt" onclick="wd7_toggleFog()">تغییر وضعیت</button><p class="wd7-muted">اطلاعات دشمن کامل نمایش داده نمی‌شود و با جاسوسی بهتر می‌شود.</p></div></div>`;
+if(tab==='intel')c.innerHTML=`<div class="wd7-grid"><div class="wd7-card"><h3>🛰️ مرکز اطلاعات</h3><div class="wd7-big">${S.tech.intel*10+20}%</div><p class="wd7-muted">دقت پایه اطلاعات. با فناوری Intelligence بیشتر می‌شود.</p><button class="wd7-btn" onclick="wd7_spy()">🕵️ اعزام جاسوس</button></div></div>`;
 if(tab==='chron')c.innerHTML=`<div class="wd7-card"><h3>📜 Chronicle — تاریخ زنده جهان</h3><div class="wd7-log">${S.chronicle.length?S.chronicle.map(x=>`<div>${new Date(x.t).toLocaleTimeString()} — ${x.m}</div>`).join(''):'هنوز رویداد مهمی ثبت نشده است.'}</div></div>`;
 if(tab==='map')c.innerHTML=`<div class="wd7-grid"><div class="wd7-card"><h3>🗺️ لایه‌های نقشه</h3>${[['political','🟦 سیاسی'],['resources','⛏️ منابع'],['military','⚔️ نظامی'],['economic','💰 اقتصادی'],['diplomatic','🤝 دیپلماتیک']].map(x=>`<button class="wd7-btn ${S.layer===x[0]?'':'alt'}" style="margin:3px" onclick="wd7_layer('${x[0]}')">${x[1]}</button>`).join('')}<p class="wd7-muted">لایه انتخابی: ${S.layer}</p></div><div class="wd7-card"><h3>🏙️ استان‌ها</h3><p class="wd7-muted">هر قلمرو دارای استان‌های مجازی با ثبات، صنعت، استحکامات و منبع است.</p><div class="wd7-row"><span>کشورهای شناخته‌شده</span><b>${countries().length}</b></div><div class="wd7-row"><span>استان‌های مدل‌شده</span><b>${Object.keys(S.provinces).length}</b></div></div></div>`;
 }
-window.wd7_war=prepareWar;window.wd7_spy=spy;window.wd7_event=event;window.wd7_crisis=()=>{S.crisis=null;crisis();render()};window.wd7_trade=trade;window.wd7_dip=diplomacy;window.wd7_alliance=alliance;window.wd7_research=research;window.wd7_layer=layer;window.wd7_doMission=k=>{missionComplete(k);render()};window.wd7_toggleFog=()=>{S.fog=!S.fog;save();render();toast(S.fog?'🌫️ مه جنگ فعال شد':'👁️ مه جنگ غیرفعال شد')};
+window.wd7_war=prepareWar;window.wd7_spy=spy;window.wd7_event=event;window.wd7_crisis=()=>{S.crisis=null;crisis();render()};window.wd7_trade=trade;window.wd7_dip=diplomacy;window.wd7_alliance=alliance;window.wd7_research=research;window.wd7_layer=layer;window.wd7_doMission=k=>{missionComplete(k);render()};
 $('wd7-btn').onclick=()=>{$('wd7-panel').classList.add('open');S.tab='world';render()};$('wd7-close').onclick=()=>$('wd7-panel').classList.remove('open');$('wd7-panel').onclick=e=>{if(e.target===$('wd7-panel'))$('wd7-panel').classList.remove('open')};
 S.started=S.started||Date.now();initAI();generateProvinces();season();economyTick();setInterval(()=>{economyTick();season();missionComplete('war');missionComplete('trade');missionComplete('spy');missionComplete('research');missionComplete('conquer');if($('wd7-panel').classList.contains('open'))render()},30000);
 // Hook core attack without replacing its combat logic: records a global-history layer around real attacks.
@@ -5661,7 +5672,11 @@ function mapUpgrade(){
       }
     });
   }
-  map.on('zoomend moveend',updateLabels);
+  /* V69: updateLabels قبلاً روی zoomend+moveend هر دو ثبت بود — در هر زوم دوبار اجرا می‌شد.
+     حالا zoomend از دیسپچر مرکزی + moveend مستقیم، با debounce ۸۰ms (ادغام دوبار اجرا) */
+  var _ulT=0;var updateLabelsDeb=function(){clearTimeout(_ulT);_ulT=setTimeout(function(){try{updateLabels()}catch(e){}},80)};
+  WD_onZoom(updateLabelsDeb);
+  map.on('moveend',updateLabelsDeb);
   setTimeout(updateLabels,600);
   /* 4) selection pulse ring on the clicked country */
   /* V59 wave-2: wrapper حذف شد — حلقه‌ی انتخاب، پس‌هوک کلیک */
@@ -8529,8 +8544,7 @@ body.wd-targeting #map{cursor:crosshair!important}
 #wd-target-hint{position:fixed;left:50%;top:74px;transform:translateX(-50%);z-index:100300;padding:9px 20px;border-radius:999px;background:linear-gradient(90deg,rgba(60,8,70,.96),rgba(110,20,120,.96));border:1px solid rgba(230,140,255,.6);color:#fbeaff;font-weight:900;font-size:12px;box-shadow:0 8px 30px rgba(180,40,220,.4);display:none;animation:w30bob 2s ease-in-out infinite;cursor:pointer;max-width:92vw;text-align:center}
 #wd-target-hint.on{display:block}
 #wd-target-hint small{display:block;font-size:9px;font-weight:700;color:#e8b8f8;opacity:.85;margin-top:2px}
-/* fog chip + special-op chips */
-#hud-fog{cursor:pointer}
+/* fog chip + special-op chips — V69: #hud-fog CSS مرده حذف شد (هیچ المانی با این id وجود نداشت) */
 /* premium lobby */
 #m-lobby .modal-card{max-height:86vh;overflow:auto}
 .lobby-item{position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s,border-color .18s}
@@ -8754,32 +8768,13 @@ window.WD30_GOAL=()=>({count:Math.max(0,goalCount),target:goalTarget()});
 pollGoal();setInterval(()=>{if(!document.hidden)pollGoal()},90000);
 try{fetch('/api/db/server_stats',{cache:'no-store'}).then(r=>r.json()).then(j=>{window.__srvStats=j&&j.data?j.data:j;pollGoal()}).catch(()=>{})}catch(e){}
 
-/* ---------- 8) fog of war (مه جنگ — بصری، غیرقفل‌کننده) ---------- */
-/* V45: مه جنگ کلاً حذف شد — اگر در localStorage کاربر روشن مانده بود، پاک می‌شود
-   (این همان منبع «کشورهای سیاه» بود: کشورهای دیده‌نشده با #16283f تیره می‌شدند) */
-const FOG={on:false,revealed:{},MK:{}};
-try{localStorage.setItem('wd30fog','off')}catch(e){}
-try{FOG.on=false}catch(e){}
-function fogCenter(n){const g=getG(n);return g?g.c:null}
-function fogVisible(n){if(!FOG.on)return true;if(FOG.revealed[n]>Date.now())return true;
-  if(conqueredCountries.has(n)||n===myCountryName)return true;
-  if(typeof bordersOwned==='function'&&bordersOwned(n))return true;
-  const c=fogCenter(n);if(!c)return true;
-  let best=1e9;const mine=[...conqueredCountries];
-  if(myCountryName&&!conqueredCountries.has(myCountryName))mine.push(myCountryName);
-  if(!mine.length)return true;
-  mine.forEach(m=>{const mc=fogCenter(m);if(!mc)return;const dx=(mc[0]-c[0]),dy=(mc[1]-c[1])*Math.cos(c[0]*Math.PI/180);
-    best=Math.min(best,Math.hypot(dx,dy))});
-  return best<20}
-function applyFogOne(n){const l=layersByName[n];if(!l)return;
-  if(fogVisible(n)){if(l._fogged){l._fogged=false;try{applyCountryColor(n)}catch(e){}}}
-  else{if(!l._fogged){l._fogged=true;l.setStyle({fillColor:'#16283f',fillOpacity:.5,color:'#3f5a7d',weight:.7})}}}
-let fogBusy=false;
-function computeFog(){if(fogBusy)return;fogBusy=true;setTimeout(()=>{fogBusy=false;
-  try{Object.keys(layersByName).forEach(applyFogOne)}catch(e){}},50)}
-window.WD30_FOG={get on(){return FOG.on},set on(v){FOG.on=v;localStorage.setItem('wd30fog',v?'on':'off');if(v){computeFog()}else{Object.keys(layersByName).forEach(n=>{if(layersByName[n]._fogged){layersByName[n]._fogged=false;try{applyCountryColor(n)}catch(e){}}})}},
-  reveal(list,min){list.forEach(n=>FOG.revealed[n]=Date.now()+(min||10)*60000);computeFog()},compute:computeFog};
-window.addEventListener('load',()=>{setTimeout(function(){if(FOG.on)computeFog()},4000);setInterval(function(){if(FOG.on)computeFog()},9000)});
+/* ---------- 8) fog of war — حذف کامل (V69 §29 corpse-cleanup) ----------
+   V45: مه جنگ کلاً حذف شده بود اما موتورش (۷ تابع + WD30_FOG + interval ۹ثانیه‌ای)
+   ۱۴۰ خط جسد جا مانده بود که هر ۹ ثانیه یک سیکل زامبی هم اجرا می‌کرد.
+   V69: کل بلوک حذف شد؛ نشانه‌گر debuff (به FOG.MK وابسته بود) حالا مخزن خودش را دارد؛
+   کلید کهنه‌ی localStorage هم یک‌بار پاک می‌شود. نقشه همیشه کامل رنگی است. */
+try{localStorage.removeItem('wd30fog')}catch(e){}
+const WD_DEBUFF_MK={}; /* V69: جایگزین FOG.MK — نشانه‌گر عدم رضایت/ضدبمب */
 
 /* ---------- 9) V54 special ops — ۴ عملیات حمله‌ای جم (کودتا و شهاب حذف شدند) ---------- */
 window.__wdDebuff=window.__wdDebuff||{};window.__wdUnrest=window.__wdUnrest||{};
@@ -8839,8 +8834,8 @@ try{WD_CLICK_HOOKS.pre.unshift(function(f,l){const n=f&&f.properties&&f.properti
   return undefined})}catch(e){console.error('wd-c12',e)}
 function debuff(n,pct,min,ico){window.__wdDebuff[n]={until:Date.now()+min*60000,pct};
   const g=getG(n);if(!g||!map)return;const m=L.marker(g.c,{interactive:false,keyboard:false,icon:L.divIcon({className:'wd-unrest-wrap',iconSize:[0,0],html:'<div class="wd-unrest">'+(ico||(pct>=.15?'🎭':'☄️'))+'<small>'+faNum(min)+' دقیقه</small></div>'}),zIndexOffset:900}).addTo(map);
-  const key='debuff_'+n;if(FOG.MK[key])FOG.MK[key].remove();FOG.MK[key]=m;
-  setTimeout(()=>{try{m.remove();delete FOG.MK[key];delete window.__wdDebuff[n]}catch(e){}},min*60000)}
+  const key='debuff_'+n;if(WD_DEBUFF_MK[key])WD_DEBUFF_MK[key].remove();WD_DEBUFF_MK[key]=m;
+  setTimeout(()=>{try{m.remove();delete WD_DEBUFF_MK[key];delete window.__wdDebuff[n]}catch(e){}},min*60000)}
 async function doOp(kind,n){const op=WD54_OPS[kind];if(!op)return;const fa=getCountryData(n).fa;
   if(battleBusy){showToast('⏳ وسط نبرد نمی‌توانی عملیات بزنی','lose');return}
   const r=await sb.rpc('use_special',{p_item:kind,p_country:n,p_server:Math.max(1,Number(window.SRV)||1)}).catch(()=>null);
@@ -8920,10 +8915,9 @@ function specialPanel(p){p.textContent='';
   const b1=D.createElement('button');b1.className='action-btn btn-cyan';b1.style.width='100%';b1.textContent='📖 تاریخچه امپراتوری من (تایم‌لاین)';
   b1.addEventListener('click',()=>WD30TL_OPEN());p.append(b1);
   const h3=D.createElement('div');h3.className='sites-h';h3.style.marginTop='10px';h3.textContent='🗺️ تجربه‌ی نقشه';p.append(h3);
-  const fogB=D.createElement('button');fogB.className='action-btn btn-ghost';fogB.style.width='100%';
-  /* V45: مه جنگ حذف شده — دکمه فقط وضعیت خاموش را نشان می‌دهد و اطمینان می‌دهد روشن نمانده */
-  const setFog=()=>{fogB.textContent='🌫️ مه جنگ: حذف شد (نقشه همیشه کامل رنگی است)';fogB.disabled=true;fogB.style.opacity='.55'};
-  setFog();fogB.addEventListener('click',()=>{try{window.WD30_FOG.on=false}catch(e){}setFog();try{showToast('🌫️ مه جنگ دیگر وجود ندارد — همه‌ی کشورها همیشه دیده می‌شوند','win')}catch(e){}snd('click')});p.append(fogB)}
+  /* V69 §29: دکمه‌ی همیشه-خاموشِ مه جنگ حذف شد (UI مرده — کاربردی نداشت) */
+  const mapTipB=D.createElement('button');mapTipB.className='action-btn btn-ghost';mapTipB.style.width='100%';
+  mapTipB.textContent='🗺️ نقشه همیشه کامل رنگی است — مه جنگ در این نسخه وجود ندارد';mapTipB.disabled=true;mapTipB.style.opacity='.55';p.append(mapTipB)}
 /* inject: 4th tab + world strip on open */
 (function(){const tabs=D.querySelector('#m-lobby .lobby-tabs');if(!tabs)return;
   if(!tabs.querySelector('[data-tab="sp"]')){const b=D.createElement('button');b.className='lobby-tab-btn';b.setAttribute('data-tab','sp');b.textContent='✨ ویژه';tabs.appendChild(b)}
@@ -9832,6 +9826,7 @@ const GD33={sprint:{col:'#ff4d6d',d:0,ic:'🏃',fa:'دو ۱۰۰ متر',tip:'ت�
  wrestle:{col:'#e05299',d:4,ic:'🥋',fa:'کشتی',tip:'طناب‌کشی — تند و پیوسته بزن تا مارکر از خطت رد شود'},
  football:{col:'#7fd8ff',d:4,ic:'⚽',fa:'ضربات پنالتی',tip:'سه دور ناکاوت — گوشه را انتخاب کن و دروازه‌بان را غافلگیر کن'}};
 const GD_KEYS=Object.keys(GD33);
+window.GD33=GD33; /* V69 §29: تک‌منبع جدول رشته‌ها — اسکریپت‌های پایین‌دستی (minigames) از همین استفاده می‌کنند؛ کپی دوم حذف شد */
 const SCHED33=[['sprint','archery'],['swim','gym'],['weight','cycling'],['chess','volley'],['lj','wrestle','football']];
 const HOSTS33=[{c:'توکیو',n:'ژاپن',f:'jp'},{c:'پاریس',n:'فرانسه',f:'fr'},{c:'لس‌آنجلس',n:'آمریکا',f:'us'},{c:'لندن',n:'بریتانیا',f:'gb'},{c:'ریودوژانیرو',n:'برزیل',f:'br'},{c:'پکن',n:'چین',f:'cn'},{c:'آتن',n:'یونان',f:'gr'},{c:'سیدنی',n:'استرالیا',f:'au'},{c:'بارسلونا',n:'اسپانیا',f:'es'},{c:'سئول',n:'کره‌ی جنوبی',f:'kr'},{c:'مسکو',n:'روسیه',f:'ru'},{c:'مونترال',n:'کانادا',f:'ca'},{c:'مونیخ',n:'آلمان',f:'de'},{c:'مکزیکوسیتی',n:'مکزیک',f:'mx'},{c:'رم',n:'ایتالیا',f:'it'},{c:'هلزینکی',n:'فنلاند',f:'fi'},{c:'آمستردام',n:'هلند',f:'nl'},{c:'استکهلم',n:'سوئد',f:'se'},{c:'استانبول',n:'ترکیه',f:'tr'},{c:'قاهره',n:'مصر',f:'eg'},{c:'دهلی‌نو',n:'هند',f:'in'},{c:'بوئنوس‌آیرس',n:'آرژانتین',f:'ar'},{c:'نایروبی',n:'کنیا',f:'ke'},{c:'دبی',n:'امارات',f:'ae'},{c:'سنگاپور',n:'سنگاپور',f:'sg'},{c:'کیپ‌تاون',n:'آفریقای جنوبی',f:'za'},{c:'لیما',n:'پرو',f:'pe'},{c:'ورشو',n:'لهستان',f:'pl'},{c:'لیسبون',n:'پرتغال',f:'pt'},{c:'لاگوس',n:'نیجریه',f:'ng'},{c:'کوالالامپور',n:'مالزی',f:'my'},{c:'دوحه',n:'قطر',f:'qa'}];
 function hostOf33(e){let h=(e*2654435761)>>>0;h^=h>>>13;h=Math.imul(h,1274126177)>>>0;return HOSTS33[h%HOSTS33.length]}
@@ -10641,17 +10636,9 @@ return{ctx,rivalFor,venueFor,storyCard,epilogue,say,META}
 'use strict';
 const D=document;
 const faN=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
-const GD33={sprint:{col:'#ff4d6d',ic:'🏃',fa:'دو ۱۰۰ متر',tip:'تا ۸ ثانیه هرچه می‌توانی تند بزن!'},
- archery:{col:'#ffb02e',ic:'🎯',fa:'تیراندازی با کمان',tip:'در بهترین لحظه شلیک کن — مرکز = ۱۰ امتیاز'},
- swim:{col:'#2bb8ff',ic:'🏊',fa:'شنا',tip:'یکی‌درمیان چپ و راست بزن — ۱۰ ثانیه'},
- gym:{col:'#b06bff',ic:'🤸',fa:'ژیمناستیک',tip:'توالی جهت‌ها را به‌ترتیب و به‌موقع لمس کن'},
- weight:{col:'#ff7847',ic:'🏋️',fa:'وزنه‌برداری',tip:'مارکر را در ناحیه‌ی طلایی شکار کن — ۵ حرکت'},
- cycling:{col:'#3ee86e',ic:'🚴',fa:'دوچرخه‌سواری',tip:'ریتم ~نیم‌ثانیه — ثبات مهم‌تر از سرعت — ۲۰ ثانیه'},
- chess:{col:'#9fb6e8',ic:'♟️',fa:'شطرنج',tip:'۴ صفحه‌ی کیش‌ومات — حرکت برنده را انتخاب کن'},
- volley:{col:'#ffd84d',ic:'🏐',fa:'والیبال ساحلی',tip:'وقتی توپ در زون سبز است بزن — ۳ سرویس داری'},
- lj:{col:'#4de3c0',ic:'🦘',fa:'پرش طول',tip:'سه پرش — سرعت بیشتر = پرش دورتر ولی ریسک خطا'},
- wrestle:{col:'#e05299',ic:'🥋',fa:'کشتی',tip:'۳ دیدار طناب‌کشی — تند و پیوسته بزن'},
- football:{col:'#7fd8ff',ic:'⚽',fa:'ضربات پنالتی',tip:'سه دور ناکاوت — گوشه را انتخاب کن و دروازه‌بان را غافلگیر کن'}};
+/* V69 §29: کپی دوم جدول رشته‌ها حذف شد — تک‌منبع = GD33 در اسکریپت v33-games (window.GD33).
+   جدول کاننیکال همیشه قبل از این اسکریپت پارس شده (ترتیب ثابت تگ‌ها)؛ گارد فقط برای مقاومت */
+const GD33=(typeof window!=='undefined'&&window.GD33)||{};
 const sndK2=k=>{try{if(typeof snd==='function')snd(k)}catch(e){}};
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rpcG=async fn=>{try{const r=await sb.rpc(fn);if(r&&r.error)return null;return r?r.data:null}catch(e){return null}};
@@ -10841,7 +10828,7 @@ async function startAttempt33(bd,key,e0,train){
     const rs=(s&&s.reason)||'net';
     const mm={window:'زمان این رشته تمام شده',attempts:'تلاش‌های رسمی‌ات تمام شده — تمرین آزاد باز است',not_registered:'اول از هاب در این رشته ثبت‌نام کن',disabled:'المپیک فعال نیست',net:'⚠️ اتصال ناموفق — دوباره تلاش کن'};
     showToast2(mm[rs]||('خطا: '+rs),'lose');return}
-  MATCH={id:s.match_id,seed:s.seed};ATT_MAX=(Number(s.att_max)||0)>0?Number(s.att_max):ATT_MAX;
+  MATCH={id:s.match_id,seed:s.seed,token:s.token||''};ATT_MAX=(Number(s.att_max)||0)>0?Number(s.att_max):ATT_MAX;
   if(s.edition)window.WD33_EDITION=s.edition; /* O3: نسخه‌ی دوره از سرور — گیت v1/v2 آینه همیشه هم‌راستا با داور */
   hud({att:e0.attempts,best:e0.best||0});
   runGame(bd,key,(norm,raw)=>{finish33(bd,key,norm,raw,e0)});
@@ -10923,7 +10910,7 @@ async function finish33(bd,key,norm,raw,e0){
   /* O1: امتیاز نهایی = خروجی بازمحاسبه‌ی سرور از تله‌متری؛ p_score فقط برای نمایش */
   const tel=TELE.end();
   const r=await (async()=>{if(!MATCH)return{ok:false,reason:'match'};
-    try{const res=await sb.rpc('olympic_submit',{p_discipline:key,p_match_id:MATCH.id,p_nonce:rndNonce(),p_telemetry:tel,p_score:norm});
+    try{const res=await sb.rpc('olympic_submit',{p_discipline:key,p_match_id:MATCH.id,p_nonce:(MATCH&&MATCH.token)||rndNonce(),p_telemetry:tel,p_score:norm});
     if(res&&res.error)return{ok:false,reason:(res.error&&res.error.message)||'err'};return res?res.data:null}catch(e2){return{ok:false,reason:'net'}}})();
   MATCH=null;
   const box=D.getElementById('wg33-sub');
@@ -11005,7 +10992,7 @@ async function finish33(bd,key,norm,raw,e0){
     }catch(e){}
   }else{
     const rs=(r&&r.reason)||'خطا';
-    const map={window:'⏳ زمان این رشته تمام شد — امتیاز ثبت نشد',attempts:'تلاش‌های رسمی‌ات تمام شده بود',rate:'کمی صبر کن و دوباره',not_registered:'ثبت‌نام یافت نشد',score:'امتیاز نامعتبر',match:'↻ نشست مسابقه نامعتبر — صفحه را نوسازی کن',expired:'⏱️ نشست منقضی شد (بیش از ۵ دقیقه)',duplicate:'این مسابقه قبلاً ثبت شده',invalid:'🚫 تله‌متری با قوانین بازی سازگار نبود — امتیاز ثبت نشد',net:'⚠️ ثبت ناموفق — اینترنت را چک کن (تلاش سوخت)'};
+    const map={window:'⏳ زمان این رشته تمام شد — امتیاز ثبت نشد',attempts:'تلاش‌های رسمی‌ات تمام شده بود',rate:'کمی صبر کن و دوباره',not_registered:'ثبت‌نام یافت نشد',score:'امتیاز نامعتبر',match:'↻ نشست مسابقه نامعتبر — صفحه را نوسازی کن',expired:'⏱️ نشست منقضی شد (بیش از ۵ دقیقه)',duplicate:'این مسابقه قبلاً ثبت شده',invalid:'🚫 تله‌متری با قوانین بازی سازگار نبود — امتیاز ثبت نشد',net:'⚠️ ثبت ناموفق — اینترنت را چک کن (تلاش سوخت)',nonce:'🔐 نشست مسابقه تأیید نشد — صفحه را نوسازی و دوباره شروع کن'};
     const extra=(r&&r.flags)?(' • داور: '+esc(r.flags)):'';
     if(box)box.innerHTML='❌ '+(map[rs]||('خطا: '+esc(rs)))+extra+'<br><span style="color:#8fb8dd">امتیاز خام: '+faN(norm)+'</span>';
     sndK2('alert');
@@ -15607,7 +15594,7 @@ window.wdPatOvRebuild=patOv_rebuild;
 var patBoot=setInterval(function(){try{if(typeof map==='undefined'||!map)return;var n=0;try{n=Object.keys(layersByName).length}catch(e){}if(n>50){clearInterval(patBoot);patOv_rebuild(true)}}catch(e){}},1200);
 /* V61: LOD طرح زینتی — کلاس z5 (زوم ۵+) کنار z3/z4 موجود؛ opacity خودش در wd61-mapcss تعریف شده */
 try{var z5t=function(){try{map.getContainer().classList.toggle('z5',map.getZoom()>=5)}catch(e){}};
-  var z5boot=setInterval(function(){try{if(typeof map!=='undefined'&&map){clearInterval(z5boot);map.on('zoomend',z5t);z5t()}}catch(e){}},1200)}catch(e){}
+  var z5boot=setInterval(function(){try{if(typeof map!=='undefined'&&map){clearInterval(z5boot);WD_onZoom(z5t);z5t()}}catch(e){}},1200)}catch(e){}
 setInterval(function(){try{if(!document.hidden)patOv_rebuild(false)}catch(e){}},3000);
 /* بعد از فتح جدید هم فوری بازسازی */
 /* بعد از فتح جدید هم فوری بازسازی */
@@ -16489,7 +16476,7 @@ function wdLabelDeclutter(){try{if(typeof map==='undefined'||!map)return;
     o.e.style.display=bad?'none':'';if(!bad)kept.push(o.p)})}catch(e){}}
 window.wdLabelDeclutter=wdLabelDeclutter;
 function boot(){try{if(typeof map==='undefined'||!map)return false;
-  map.on('zoomend',function(){try{wdLabelDeclutter();wdOwnInfoRefresh()}catch(e){}});
+  WD_onZoom(function(){try{wdLabelDeclutter();wdOwnInfoRefresh()}catch(e){}});
   return true}catch(e){return false}}
 if(!boot()){var t=setInterval(function(){try{if(boot())clearInterval(t)}catch(e){clearInterval(t)}} ,1200)}
 })();
@@ -17788,7 +17775,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               ev.stopPropagation();
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=68';
+              s.src='/game/cv-engine.js?v=69';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
