@@ -1226,3 +1226,22 @@ Stage Summary:
 - V62 آماده‌ی اعزام (کامییت محلی): پرچم‌ها لحظه‌ی رسیدن مالکیت ظاهر می‌شوند (بدون زوم)، دریا آبی روشن تک‌منبعی، هاب المپیک/سرور دیگر هرگز خالی نمی‌مانند
 - صفر تغییر سرور/DB/API — فقط public/game/index.html (رندر کلاینت)
 - pending (کاربر): توکن push تازه برای اعزام به Vercel
+
+---
+Task ID: V62-deploy-verify
+Agent: main (Super Z)
+Task: deploy V62 (5 user bug fixes) to production via PAT + full test closure + stale-test guard fixes
+
+Work Log:
+- PAT received from user; push b71164d..4678b82 → origin/main; Vercel auto-deploy
+- live md5 poll: b8edadc6 → 0830c25e (V62 live, ~60s)
+- diag-live-v62 on live: anonymous visitor sits on login modal → its flag/sea metrics not user-bug-relevant
+- map-visual-v62 on live: first run 15/16 — FAIL was harness premise bug (expected ALL flags hidden at boot = empty-server assumption); on populated live server 25 owned flags visible at boot with ZERO zoom = the fix itself proven. Boot check rewritten env-independent (vis0>0 when OTH>0; clear OTH → 174/174 hidden, no leak) → 16/16 live
+- apk-sim-v58 on live: 28/28, zero pageerror
+- e2e-v58: stale check "Hi-DPI canvas patch installed" contradicted V58b deliberate removal (5f467cc: patch displaced whole map on DPR>2.05) → rewritten as regression GUARD (override must STAY removed); olybox waits made fail-soft (no cascade crash); live run fails were login-dependent (no seeded Alireza on live)
+- local designed env (dev :3000 + e2e-seed-v58): e2e-v58 = 24/24 PASS (incl. podium prizes paid, edition 9→10, archive)
+
+Stage Summary:
+- V62 live in production; all 5 user reports verified fixed on live: flags visible at boot w/o zoom, sea light-blue single canonical rule, server page opens with content (8625 chars), olympic hub opens with content (20871 chars, error-card fallback), lag reduced (waves layer + permanent animations removed, 8 competing sea !important rules → 1)
+- test matrix: live map-visual-v62 16/16 + apk-sim 28/28; local e2e-v58 24/24
+- new permanent guards: V58b retina guard (e2e), env-independent boot-flag check (map-visual-v62)

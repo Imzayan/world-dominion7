@@ -71,9 +71,12 @@ check('no buggy front line on partially-occupied countries', lines.front === 0, 
 check('no fire/soldier markers on the map', lines.flames === 0, JSON.stringify(lines))
 check('occupation hatch still shows progress (info kept)', lines.hatchN >= 1 && lines.hatchCur > 0, JSON.stringify(lines))
 
-/* ---- 3) Hi-DPI canvas patch installed ---- */
-const dpr = await page.evaluate(() => !!(window.L && L.Canvas && L.Canvas.prototype.__wd58))
-check('Hi-DPI canvas quality patch installed', dpr)
+/* ---- 3) map canvas: stock retina renderer (V58b root-cause fix kept) ----
+   V58's Hi-DPI override (__wd58) rebuilt ctx transform and DISPLACED the whole map on
+   DPR>2.05 phones (ghost countries in open ocean) — V58b removed it deliberately.
+   This check is now the regression GUARD: the override must STAY removed. */
+const hidpi = await page.evaluate(() => !!(window.L && L.Canvas && L.Canvas.prototype) && !L.Canvas.prototype.__wd58)
+check('stock retina canvas renderer kept (V58b: broken Hi-DPI override stays removed)', hidpi)
 
 /* ---- 4) ranking modal: live summary replaces the frozen static list ---- */
 await page.evaluate(() => { const b = document.getElementById('btn-m-rank'); if (b) b.click() })
@@ -114,7 +117,9 @@ check('pvp win moves the ranking score INSTANTLY (server-side bump)',
 
 /* ---- 5) admin: اختتامیه → round ends + full podium prizes ---- */
 await page.evaluate(() => { const b = document.getElementById('btn-m-admin'); if (b) b.click() })
-await page.waitForSelector('#wd53-olybox', { timeout: 15000 })
+let olyBoxShown = true
+try { await page.waitForSelector('#wd53-olybox', { timeout: 15000 }) } catch (e) { olyBoxShown = false }
+check('admin olympic box opens (login-dependent: needs seeded admin)', olyBoxShown, olyBoxShown ? '' : 'env without seeded Alireza — downstream checks degrade')
 await page.waitForTimeout(2500)
 
 const ed = ed0
@@ -149,7 +154,7 @@ await clearOverlays()
 
 /* ---- open button now offers a REAL NEW ROUND ---- */
 await page.evaluate(() => { const b = document.getElementById('btn-m-admin'); if (b) b.click() })
-await page.waitForSelector('#wd53-olybox', { timeout: 15000 })
+try { await page.waitForSelector('#wd53-olybox', { timeout: 15000 }) } catch (e) { }
 await page.waitForTimeout(2500)
 const openState = await page.evaluate(() => {
   const b = document.getElementById('wd53-olyopen')
