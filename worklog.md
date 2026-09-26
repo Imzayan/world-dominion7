@@ -1360,3 +1360,40 @@ Work Log:
 Stage Summary:
 - نکته‌ی تحلیلی برای کاربر: با این قیمت‌ها بسته‌ی ۵۵۰ جم بهترین نرخ را دارد (۲۷۳/gem) و بسته‌ی ۱۰۰۰ جم دقیقاً هم‌نرخ بسته‌ی ۱۰۰ است (۳۰۰/gem) — قیمت‌گذاری کاربر محترم شمرده شد و صرفاً نمایش هماهنگ شد
 - پیشنهاد ثبت شد: اگر بخواهد، می‌تواند قیمت ۱۰۰۰جم را در مایکت اصلاح کند یا برچسب «بهترین ارزش» روی ۵۵۰جم فعال شود (در Shop V2)
+
+---
+Task ID: cv-engine-phase1 (V67 — Country View Engine: سرور)
+Agent: main
+Task: پیاده‌سازی لایه‌ی سرور Server-Authoritative موتور Country View طبق دستور ۱۷ سخت‌گیرانه کاربر
+
+Work Log:
+- Audit کامل انجام شد (۳ کارشناس موازی + بررسی شخصی): Map=Leaflet canvas+GeoJSON بدون tile؛ کلاینت Supabase = SHIM به /api/*؛ اقتصاد ۴ جریان کلاینت + رونویسی سرور ۳۰s؛ Army=ARMY_UNITS با زنجیره calculateTotalAttack؛ هیچ Country View قبلی وجود نداشت (greenfield)
+- گزارش ۱۰ سؤالی Audit به کاربر ارائه شد
+- فایل‌های جدید: src/lib/cvCatalog.ts (۱۴ نوع ساختمان ×۱۰ سطح + ۳ خط فناوری، تک‌منبع هزینه/زمان/تولید) ، src/lib/cvGeo.ts (layout استان‌ها از GeoJSON واقعی: Poisson قطعی داخل پلی‌گان، ساحل واقعی با تست همسایه‌ی خشکی، ترِین از عرض جغرافیایی، پایتخت=اندیس ۰)
+- Schema: مدل‌های CvCountry/CvBuilding به هر دو schema (sqlite+postgres) اضافه شد (additive فقط) + db push موفق
+- route.ts: ۵ RPC جدید cv_state/cv_build/cv_upgrade/cv_cancel/cv_tech + cvWithLock (ضد دو-خرج‌کردن) + cvAccrue (lazy-at-read با سقف ۸ ساعت + rem کسری) + Idempotency reqId
+- باگ‌های ریشه‌ای که در تست پیدا و ریشه‌ای فیکس شدند: (۱) seed خارج از بازه Int32 → hashSeed محدود شد (۲) وضعیت نهایی‌شده در پاسخ cv_state منعکس نمی‌شد (۳) قرارداد پایتخت=اندیس ۰ در sort اعمال شد
+- E2E نهایی: scripts/cv-e2e-v67.mjs → 33/33 PASSED (کسر منابع، idempotency دبل‌کلیک، قوانین جغرافیا، funds guard، busy، لغو ۷۰٪، فناوری rp، کشور غیرمالک، regression wallet)
+
+Stage Summary:
+- لایه سرور CV آماده و تست‌شده: هیچ هزینه/سطح/زمانی از کلاینت پذیرفته نمی‌شود؛ مالکیت از territories؛ تولید به استخراج واقعی playerRes می‌ریزد
+- خطای از-قبل‌موجود db/[table]/route.ts:235 (type-only) گزارش شد — خارج از دامنه این تغییر
+- فاز بعدی: موتور کلاینت Canvas (#cv-stage) + دکمه «ورود به کشور» + UI ساخت/ارتقا
+
+---
+Task ID: cv-engine-final (V67 — Country View Engine: کلاینت + تست + دیپلوی)
+Agent: main
+Task: پیاده‌سازی موتور کلاینت Canvas، اتصال drawer، تست کامل ۲۱ سناریویی، Performance Profile و دیپلوی
+
+Work Log:
+- public/game/cv-engine.js ساخته شد (۹۹۸ خط): Canvas2D مستقل، تک rAF loop، Voronoi روی پلی‌گان واقعی کشور، LOD سه‌سطحی، Culling، Pooling ذرات، Quality Tier LOW/MED/HIGH + افت خودکار، دوربین Pan/Pinch/Wheel/Focus، ورودی Pointer Events با touch-action:none
+- index.html: بلوک append-only انتهای فایل (دکمه «🚪 ورود به کشور» فقط برای owned + lazy-load موتور) + یک خط صادرات WD_ULT.faName (تک‌منبع نام فارسی)
+- باگ‌های ریشه‌ای فیکس‌شده در تست: متغیرهای let بازی روی window نیستند (gameRef)، view.base.cy از cyC mismatch، setPointerCapture روی رویداد سینتتیک، وابستگی هدر فارسی به faName خصوصی
+- E2E سرور: 33/33 ✅ (cv-e2e-v67.mjs) | E2E کلاینت: 21/21 ✅ (cv-e2e-client-v67.mjs) | PERF: 60FPS پایدار / 11 DOM node / heap ثابت 10MB (cv-perf-v67.mjs)
+- باگ واقعی سرور پیدا و فیکس شد در تست: seed خارج از Int32 → hashSeed محدود شد
+- commit b5d60f2 پوش شد؛ لایو verify شد: cv-engine.js 200، دکمه CV در HTML، RPC cv_state زنده (401-shape صحیح)، v.txt 200، md5 لایو == لوکال (3534febc)
+
+Stage Summary:
+- Country View واقعی و Server-Authoritative روی نسخه‌ی لایو است
+- اقتصاد CV همان استخراج playerRes است (بدون اقتصاد موازی)؛ نظامی به زنجیره‌ی calculateTotalAttack فعلی وصل است
+- ریسک‌های شفاف: تعریف ترِین بر اساس عرض جغرافیایی+seed (دیتای ارتفاع واقعی در بازی وجود ندارد)، ساحل تقریب آستانه‌ای، defPct فعلاً نمایشی (سیستم دفاع فعال در بازی وجود ندارد)، قفل درون‌حافظه‌ای per-instance با پشتیبان unique constraint
