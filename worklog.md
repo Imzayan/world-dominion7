@@ -1513,3 +1513,22 @@ Stage Summary:
 - حکم کلی: ستون فقرات سالم است (تک‌دفترچه CV، داوری المپیک، territory_sync، فروشگاه سرور-محور) — هیچ بازنویسی کلی لازم نیست؛ کار پیش رو = بهداشت کد (۳ لیک + ~۹۵۰ خط مرده)، BALANCE مرکزی، اعتبار سرورِ saves.state.res (همان تک‌نویسنده‌ی رزرو V69)، ارتش/ضد-گلوله‌برفی، مغایرت‌های ۷گانه، cycling/lj gen-3
 - توازن فعلی کامل مستند شد — ورودی مستقیم BALANCE فاز ۴ دستور
 - ترتیب پیشنهادی فازهای بعد ارائه شد؛ اجرای هیچ تغییری منوط به گزارش و ادامه‌ی چرخه‌ی گزارش→اجرا→تست شد
+
+---
+Task ID: v71-p1-hygiene (V71 — P1 بهداشت پس از ممیزی Master Spec)
+Agent: main (Super Z)
+Task: اجرای فاز P1 توافق‌شده پس از Audit: فیکس ۳ لیک + حذف ~۹۵۰ خط کد مرده + بستن مغایرت‌های ممیزی — چرخه‌ی گزارش→اجرا→تست→گزارش
+
+Work Log:
+- ۳ لیک بسته شد: (۱) oly3.js — addEventListener خام resize هر نشست بازی (مسیر A.on33/CL کافی) (۲) IH gRace V41 — clearInterval روی H.done (الگوی gMatch) (۳) IH initServer — گارد once با __wdSyncLoop (قبلاً هر لاگین +۱ interval و +۱ visibilitychange)
+- حذف کد مرده (~۸۵۰ خط + CSS): بدنه‌های نسل ۱ المپیک (۵۸۶ خط؛ V41+oly3 تک‌تأمین‌کننده)، بلوک wd-pvp-realtime کامل (pvpAttack/pvpRoute/آرنا/کانال — گارد V28 در attackTarget حفاظت OTH را نگه می‌دارد)، openPvP، marketBuy/marketSell/research پنل مرده WD5 + بایندها، research/trade/exportهای WD7 + safeTrade، buyMarket + دکمه‌های استاتیک act-buy-oil/food + لیسنرها، CSS یتیم wd-pvp + بج قدیمی، stubs: decay/nightPts/addNight/addGrid (بدنه+override+فراخوانی)، تایمرهای یادگاری پرچم طلایی (هوک WD33_GFLAG برای تست ماند)، گارد مرده SHOP.packs در TWA
+- مغایرت‌های ممیزی بسته شد: (۱) کماندو = +۲۰٪ حمله مهاجم (pct:0, bump:0, atk:.20 + متن‌های صادقانه + خط atk در soCard) (۲) سقف غذا هم‌تراز سرور 9000+2500×terr (max(1,) حذف) (۳) fallback نفت 1500→1200 (۴) نمایش تلاش المپیک دینامیک با ATT_MAX (میزبان ۶ درست) — مورد ۵ (ادغام دو جریان غذا) عمداً به P2 BALANCE موکول شد (تغییر توازن، نه بهداشت)؛ boost به P3
+- ضد-شیر: completeMission WD5 دیگر طلا از هیچ ضرب نمی‌کند (تکمیل §26 V68)
+- رگرسیون کامل: OLY3 ۴۸/۴۸ (پس از آپدیت ۳ چک نسخه‌ی هاردکد 70→71) + v69 ۳۲/۳۲ + v68 ۳۲/۳۲ + shop-v2 ۴۰/۴۰ + cv-e2e ۳۳/۳۳ + cv-client ۲۱/۲۱ + e2e-v58 ۲۴/۲۴ (پس از seed) + feature-v65 ۲۹/۲۹ + apk-sim ۲۸/۲۸ + map-visual ۱۶/۱۶ + lowfx ۶/۶ + sw-selfheal ۸/۸ + cv-perf (60FPS/DOM=۱۱/heap ثابت) + verify-build ۹/۹ + syntax ۸۵/۸۵ بلوک + schema-parity ۴۳/۴۳
+- نسخه‌ها: __WD_V=71 + v.txt=71 + oly3.js?v=71 + cv-engine.js?v=71 — commit 9212cba push شد (Vercel خودکار)
+
+Stage Summary:
+- خروجی خالص: ۹۴۱ خط حذف، ۴۰ خط افزوده — صفر تغییر رفتاری به‌جز موارد اعلام‌شده (کماندو/سقف غذا/شیر WD5/نمایش تلاش)
+- امنیتی: آخرین شیر طلای کلاینت بسته شد؛ نشانگر جعلی دفاع کماندو حذف شد
+- درس تست: چک‌های نسخه‌ی هاردکد در oly3-test سه مورد بود (v.txt، تگ اسکریپت، __WD_V) — این بار سومی از چشم افتاده بود و با ران دوم کشف شد
+- مانده برای فاز بعد: P2 BALANCE مرکزی (ماژول BALANCE کلاینت + balance.ts سرور + ادغام دو جریان غذا)، سپس P3 اقتدار سرورِ saves.state.res، P4 ارتش/ضد-گلوله‌برفی، P5 المپیک تکمیلی (cycling/lj نسل-۳، کتاب شطرنج، صدا)
