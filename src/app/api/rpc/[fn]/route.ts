@@ -10,6 +10,7 @@ import {
   type RecentScore,
 } from '@/lib/olyProfile'
 import { cvGenerateLayout } from '@/lib/cvGeo'
+import { OL_REWARDS, SPECIAL_OPS, MENTOR_REWARDS, OL_PARTICIPATION_GEMS, OL_PODIUM_REWARDS } from '@/lib/balance' /* V72: توازن سرور متمرکز (PHASE 4) */
 import {
   cvDef, cvCost, cvTimeSec, cvProdPerMin, cvCatalogPublic, cvTechMults,
   CV_TECH, CV_MAX_LEVEL, CV_OFFLINE_CAP_MS, type CvTechLine,
@@ -436,13 +437,7 @@ async function territoryCount(userId: number | string, server: number): Promise<
 }
 
 /* V54 — عملیات‌های حمله‌ای جم (جای کودتا/شهاب): قیمت، کول‌داون شخصی و سقف هفتگی کل سرور.
-   قیمت‌ها باید با OPS سمت کلاینت یکی باشد. */
-const SPECIAL_OPS: Record<string, { cost: number; cd: number; weekly: number }> = {
-  cyber: { cost: 200, cd: 12 * 3600_000, weekly: 60 },
-  commando: { cost: 280, cd: 24 * 3600_000, weekly: 40 },
-  missile: { cost: 350, cd: 24 * 3600_000, weekly: 30 },
-  nuke: { cost: 500, cd: 48 * 3600_000, weekly: 20 },
-}
+   قیمت‌ها باید با OPS سمت کلاینت یکی باشد. V72: به src/lib/balance.ts منتقل شد (PHASE 4). */
 
 /* V55 — اثر واقعی عملیات‌ها روی PvP (قبلاً فقط افکت محلی کلاینت بود و بازیکن حس می‌کرد عملیات بی‌اثر است)
    در GameSetting('wd_ops_eff_<server>'): { [country]: { k, pct, until, by } }
@@ -738,7 +733,7 @@ async function tradeApply(uid: string, mut: (res: Record<string, number>) => voi
    and race-safe via the unique (server, cycle) constraint.
    ============================================================ */
 const CYCLE_MS = 7 * 86400000
-const OL_REWARDS = { gems: 4, gold: 100000, oil: 10000, food: 10000, steel: 5000, boost_hours: 24 }
+/* V72: OL_REWARDS به src/lib/balance.ts منتقل شد (PHASE 4) */
 const olCycle = (ms = Date.now()) => Math.floor(ms / CYCLE_MS)
 
 type OlAgg = { server: number; players: number; disciplines: { key: string; top: { nick: string; val: number }[] }[]; medals: { nick: string; g: number; s: number; b: number; total: number; score: number }[] }
@@ -1132,13 +1127,13 @@ async function closeGamesEdition(edition: number) {
      V58: اگر ردیف کیف پول هنوز ساخته نشده بود، اول ساخته شود — جم شرکت‌کنندگان هیچ‌وقت گم نشود */
   for (const uid of uids) {
     try {
-      const inc = await db.wallet.updateMany({ where: { userId: uid }, data: { gems: { increment: 3 } } })
-      if (inc.count === 0) { await ensureWallet(uid); await db.wallet.update({ where: { userId: uid }, data: { gems: { increment: 3 } } }) }
+      const inc = await db.wallet.updateMany({ where: { userId: uid }, data: { gems: { increment: OL_PARTICIPATION_GEMS } } })
+      if (inc.count === 0) { await ensureWallet(uid); await db.wallet.update({ where: { userId: uid }, data: { gems: { increment: OL_PARTICIPATION_GEMS } } }) }
     } catch (e) { console.log('partgem', e) }
   }
   /* V58: جایزه‌ی نقره و برنز — قبلاً فقط قهرمان جایزه داشت؛ حالا سکوی کامل جایزه می‌گیرد:
      نقره: ۲ جم + ۳۰٬۰۰۰ طلا | برنز: ۱ جم + ۱۰٬۰۰۰ طلا (idempotent — فقط برنده‌ی claim اینجا می‌رسد) */
-  const podRewards: [number, number, number][] = [[1, 2, 30000], [2, 1, 10000]]
+  const podRewards: [number, number, number][] = OL_PODIUM_REWARDS /* V72: از balance.ts */
   for (const [idx, gems, gold] of podRewards) {
     const p = players[idx]
     if (!p) continue
@@ -2937,10 +2932,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           links++
           /* ONE atomic tick pays BOTH sides — mentor +3💎, mentee +8k gold —
              so either side's claim covers the day and the other side is credited too */
-          await db.wallet.updateMany({ where: { userId: l.mentorUid }, data: { gems: { increment: 3 } } }).catch(() => {})
-          await tradeApply(l.menteeUid, (r) => { r.gold = resNum(r.gold) + 8000 }).catch(() => {})
-          if (l.mentorUid === user.id) gems += 3
-          else gold += 8000
+          await db.wallet.updateMany({ where: { userId: l.mentorUid }, data: { gems: { increment: MENTOR_REWARDS.mentorGems } } }).catch(() => {})
+          await tradeApply(l.menteeUid, (r) => { r.gold = resNum(r.gold) + MENTOR_REWARDS.menteeGold }).catch(() => {})
+          if (l.mentorUid === user.id) gems += MENTOR_REWARDS.mentorGems
+          else gold += MENTOR_REWARDS.menteeGold
         }
         return R({ ok: true, gems, gold, links })
       }

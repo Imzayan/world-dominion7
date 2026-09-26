@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=71;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=72;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=72"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1010,17 +1011,18 @@
 };
 
 // آیکن‌ها به‌گونه‌ای انتخاب شدن که تانک/هواپیمای بمب‌افکن/جنگنده/هلیکوپتر/موشک هرکدام ظاهر مجزا داشته باشند
+/* V72 (PHASE 4): اعداد یگان‌ها (قدرت/هزینه/هوایی) فقط از BALANCE.army.units — نام/آیکن محتوای نمایشی است؛ count وضعیت اجراست */
 const ARMY_UNITS = {
-  infantry:  { name: "پیاده‌نظام (۱۰۰۰ سرباز)", icon: "🪖", attack: 4, costGold: 25, costOil: 1, count: 0, air: false },
-  tank:      { name: "تانک اصلی",         icon: "🐅", attack: 40,  costGold: 150,  costOil: 30,  count: 0, air: false },
-  bomber:    { name: "هواپیمای بمب‌افکن", icon: "✈️", attack: 300, costGold: 900,  costOil: 220, count: 0, air: true },
-  fighter:   { name: "جنگنده",            icon: "🛩️", attack: 120, costGold: 400,  costOil: 100, count: 0, air: true },
-  heli:      { name: "هلیکوپتر هجومی",    icon: "🚁", attack: 65,  costGold: 220,  costOil: 50,  count: 0, air: true },
-  missile:   { name: "موشک استراتژیک",    icon: "🚀", attack: 250, costGold: 700,  costOil: 180, count: 0, air: false },
-  drone:     { name: "پهپاد انتحاری",     icon: "🛸", attack: 35,  costGold: 90,   costOil: 20,  count: 0, air: true },
-  transport: { name: "نیروبر زرهی",       icon: "🚚", attack: 15,  costGold: 80,   costOil: 20,  count: 0, air: false },
-  destroyer: { name: "ناوشکن",            icon: "⛴️", attack: 180, costGold: 850,  costOil: 200, count: 0, air: false },
-  carrier:   { name: "ناو هواپیمابر",     icon: "🚢", attack: 600, costGold: 2500, costOil: 600, count: 0, air: false }
+  infantry:  Object.assign({ name: "پیاده‌نظام (۱۰۰۰ سرباز)", icon: "🪖", count: 0 }, BALANCE.army.units.infantry),
+  tank:      Object.assign({ name: "تانک اصلی",         icon: "🐅", count: 0 }, BALANCE.army.units.tank),
+  bomber:    Object.assign({ name: "هواپیمای بمب‌افکن", icon: "✈️", count: 0 }, BALANCE.army.units.bomber),
+  fighter:   Object.assign({ name: "جنگنده",            icon: "🛩️", count: 0 }, BALANCE.army.units.fighter),
+  heli:      Object.assign({ name: "هلیکوپتر هجومی",    icon: "🚁", count: 0 }, BALANCE.army.units.heli),
+  missile:   Object.assign({ name: "موشک استراتژیک",    icon: "🚀", count: 0 }, BALANCE.army.units.missile),
+  drone:     Object.assign({ name: "پهپاد انتحاری",     icon: "🛸", count: 0 }, BALANCE.army.units.drone),
+  transport: Object.assign({ name: "نیروبر زرهی",       icon: "🚚", count: 0 }, BALANCE.army.units.transport),
+  destroyer: Object.assign({ name: "ناوشکن",            icon: "⛴️", count: 0 }, BALANCE.army.units.destroyer),
+  carrier:   Object.assign({ name: "ناو هواپیمابر",     icon: "🚢", count: 0 }, BALANCE.army.units.carrier)
 };
 const BATTLE_UNIT_ORDER = ["infantry", "tank", "bomber", "fighter", "heli", "missile", "drone", "transport", "destroyer", "carrier"];
 
@@ -1193,13 +1195,13 @@ window.onload = () => {
   initGame();
   updateUI();
   bindStaticListeners();
-  startIncomeLoop();
+  /* V72: startIncomeLoop حذف شد — درآمد جمعیت/غذای بوست‌پذیر به حلقه‌ی واحد تولید ادغام شد (PHASE 4: تک‌جریان، مجموع برابر) */
 };
 
 // ---------- Bonuses derived from infrastructure ----------
-function armsDiscount() { return Math.min(0.35, infra.arms * 0.05); }
-function airBonus() { return 1 + infra.air * 0.1; }
-function oilPerTick() { return 1 + infra.oil * 1.2; }
+function armsDiscount() { const A=BALANCE.army; return Math.min(A.armsDiscountCap, infra.arms * A.armsDiscountPerLevel); } /* V72: BALANCE */
+function airBonus() { return 1 + infra.air * BALANCE.conquest.combat.airInfraPerLevel; } /* V72: BALANCE */
+function oilPerTick() { return 1 + infra.oil * BALANCE.economy.oilPerInfraLevel; } /* V72: BALANCE */
 
 function calculateTotalAttack() {
   let total = 0;
@@ -1342,7 +1344,7 @@ function onCountryClick(feature, layer) {
 
 function claimCapital(engName) {
   myCountryName = engName; conqueredCountries.add(engName);
-  playerRes = { gold: 6000, oil: 2500, food: 4000 };
+  playerRes = { gold: BALANCE.economy.start.gold, oil: BALANCE.economy.start.oil, food: BALANCE.economy.start.food }; /* V72: از BALANCE (PHASE 4) */
   ARMY_UNITS.tank.count = 10; ARMY_UNITS.drone.count = 20; ARMY_UNITS.fighter.count = 5;
   updateUI();
   applyCountryColor(engName);
@@ -1372,8 +1374,8 @@ function applyBattleLosses(fraction) {
 
 // ---------- Infrastructure (لابی) ----------
 function infraCost(type) {
-  const base = { oil: 500, arms: 600, air: 800 };
-  return base[type] + infra[type] * 400;
+  const base = BALANCE.infra.base; /* V72: BALANCE */
+  return base[type] + infra[type] * BALANCE.infra.perLevel;
 }
 
 function renderLobbyInfra() {
@@ -1427,15 +1429,15 @@ function buyInfra(type) {
 // ---------- UN aid ----------
 function collectUNAid() {
   if (!unReady) { showToast("⏳ سازمان ملل هنوز کمک جدید تخصیص نداده، صبر کنید.", "lose"); return; }
-  playerRes.food += 500;
-  playerRes.gold += 300;
+  playerRes.food += BALANCE.economy.unAid.food;
+  playerRes.gold += BALANCE.economy.unAid.gold;
   updateUI();
-  showToast("🕊️ کمک بشردوستانه دریافت شد: +500 غذا و +300 طلا", "win");
+  showToast("🕊️ کمک بشردوستانه دریافت شد: +"+BALANCE.economy.unAid.food+" غذا و +"+BALANCE.economy.unAid.gold+" طلا", "win");
 
   unReady = false;
   const btn = document.getElementById("act-un-aid");
   btn.disabled = true;
-  let remaining = 90;
+  let remaining = BALANCE.economy.unAid.cooldownSec; /* V72: BALANCE */
   const label = document.getElementById("un-cooldown-text");
   label.textContent = `⏳ کمک بعدی تا ${remaining} ثانیه دیگر`;
   clearInterval(unCooldownTimer);
@@ -1462,17 +1464,8 @@ function barterTrade(giveType, giveAmt, getType, getAmt) {
 }
 
 // ---------- Economy tick ----------
-function startIncomeLoop() {
-  setInterval(() => {
-    if (!myCountryName) return;
-    const territoryCount = conqueredCountries.size;
-    const bm = boostMult();
-    playerRes.gold += Math.round(popIncomeTick() * bm);
-    playerRes.food += Math.round(4 * territoryCount * bm);
-    /* oil is produced by controlled oil infrastructure; do not add a second global oil stream */
-    updateUI();
-  }, 4000);
-}
+/* V72 (PHASE 4): startIncomeLoop قبلی (درآمد جمعیت + غذا ۴×قلمرو با بوست) حذف و به حلقه‌ی واحد زیر ادغام شد.
+   مجموع هر تیک دقیقاً برابر قبل: gold = round(pop×bm) + p.gold ؛ oil = p.oil + (۲ + terr×oilPerTick) ؛ food = round(۴×terr×bm) + p.food + (۴ + ۳×terr) */
 
 // ---------- Modal / drawer wiring ----------
 /* V59: تک‌منبع — هوک‌های رندر بعد از باز شدن (market/tax/army) از رجیستری می‌آیند، نه Wrapper زنجیره‌ای */
@@ -1566,7 +1559,7 @@ function bindStaticListeners() {
 
 function collectTax() {
   if (!taxReady) { showToast("⏳ خزانه هنوز آماده نیست، کمی صبر کنید.", "lose"); return; }
-  const FOOD_COST = 100;
+  const FOOD_COST = BALANCE.economy.tax.foodCost; /* V72: BALANCE */
   if (playerRes.food < FOOD_COST) { showToast("❌ برای جمع‌آوری مالیات به ۱۰۰ غذا نیاز دارید (برای تأمین خزانه‌داران و توزیع سهمیه).", "lose"); return; }
   playerRes.food -= FOOD_COST;
   const TX = taxAmount(); playerRes.gold += TX;
@@ -1576,7 +1569,7 @@ function collectTax() {
   taxReady = false;
   const btn = document.getElementById("act-tax");
   btn.disabled = true;
-  let remaining = 120;
+  let remaining = BALANCE.economy.tax.cooldownSec; /* V72: BALANCE */
   const label = document.getElementById("tax-cooldown-text");
   label.textContent = `⏳ خزانه در حال بازسازی... ${remaining} ثانیه`;
   clearInterval(taxCooldownTimer);
@@ -1869,13 +1862,14 @@ function bordersOwned(n){if(!layersByName[n])return true;const T=ringsOf(n),M=.7
 function revolt(n){delete unrest[n];conqueredCountries.delete(n);occupationPct[n]=45;applyCountryColor(n);try{setHatch(n,45,false,0)}catch(e){}
   news(`🔥 شورش در ${getCountryData(n).fa}! کنترل این کشور را از دست دادی`,'lose')}
 function econ(){if(!myCountryName)return;const terr=conqueredCountries.size,pw=calculateTotalAttack();
-  /* V40: مصرف نفت واقع‌بینانه — قبلاً pw/400 بود (در قدرت ۱۶هزار = ۶۰۰ نفت در دقیقه!) الان ≈ ۱/۵ + پژوهش لجستیک تا ۶۰٪ کاهش */
+  /* V40: مصرف نفت واقع‌بینانه — قبلاً pw/400 بود (در قدرت ۱۶هزار = ۶۰۰ نفت در دقیقه!) الان ≈ ۱/۵ + پژوهش لجستیک تا ۶۰٪ کاهش. V72: اعداد از BALANCE.maintenance/sanction */
   const logR=(typeof S!=='undefined'&&S.tech)?(S.tech.logistics||0):0;
-  const need=Math.max(1,Math.round(Math.min(25,pw/2500)*(1-.12*logR)));
-  if(need>0){if(playerRes.oil>=need)playerRes.oil-=need;else{playerRes.oil=0;lose(.05);news('⛽ کمبود سوخت! بخشی از یگان‌ها از کار افتادند','lose')}}
-  if(sanction>0){playerRes.gold-=7.5*terr;playerRes.food-=5*terr;playerRes.oil-=Math.min(12,oilPerTick()*terr/2);sanction-=4;if(sanction<=0){tension=45;news('🕊️ تحریم‌ها لغو شد','win')}}
-  else if(tension>=80){sanction=60;news('🚫 تحریم‌های بین‌المللی اعمال شد: درآمد تو نصف شد','lose')}
-  conqueredCountries.forEach(n=>{if(n===myCountryName)return;if(unrest[n]==null)unrest[n]=25;unrest[n]+=Math.max(.1,.6-pw/8000);if(unrest[n]>=100)revolt(n)});
+  const UP=BALANCE.maintenance.oilUpkeep,SC=BALANCE.economy.sanction,UB=BALANCE.maintenance.unrest;
+  const need=Math.max(1,Math.round(Math.min(UP.cap,pw/UP.powerDiv)*(1-UP.logRPerLevel*logR)));
+  if(need>0){if(playerRes.oil>=need)playerRes.oil-=need;else{playerRes.oil=0;lose(UP.starvationLose);news('⛽ کمبود سوخت! بخشی از یگان‌ها از کار افتادند','lose')}}
+  if(sanction>0){playerRes.gold-=SC.goldPerTerr*terr;playerRes.food-=SC.foodPerTerr*terr;playerRes.oil-=Math.min(SC.oilCapPerTerr,oilPerTick()*terr*SC.oilPerTickShare);sanction-=SC.hoursPerStep;if(sanction<=0){tension=SC.tensionRelease;news('🕊️ تحریم‌ها لغو شد','win')}}
+  else if(tension>=SC.tensionTrigger){sanction=SC.duration;news('🚫 تحریم‌های بین‌المللی اعمال شد: درآمد تو نصف شد','lose')}
+  conqueredCountries.forEach(n=>{if(n===myCountryName)return;if(unrest[n]==null)unrest[n]=UB.start;unrest[n]+=Math.max(UB.gainMin,UB.gainBase-pw/UB.gainPowerDiv);if(unrest[n]>=UB.revoltThreshold)revolt(n)});
   ['gold','food','oil'].forEach(k=>playerRes[k]=Math.max(0,playerRes[k]));updateUI()}
 const neutrals=()=>Object.keys(layersByName).filter(k=>statusOf(k)==='neutral');
 function tweakDef(f,txt){const ks=neutrals();if(!ks.length)return;const k=ks[Math.random()*ks.length|0],t=getCountryData(k);overrides[k]=Object.assign({},t,{def:Math.round(t.def*f)});news(txt.replace('X',t.fa))}
@@ -2002,17 +1996,18 @@ html,body{color:#e8f4ff}
    </style>
    <script>
     /* ===== Real-world infrastructure: real sites at real places, buildable in countries you control ===== */
+/* V72 (PHASE 4): اعداد ساختمان‌ها (هزینه g/o، تولید p، اثرهای calm/sea/air/atk) فقط از BALANCE.buildings.defs */
 const ST={
-  refinery:{i:'🏭',fa:'پالایشگاه',g:1500,o:150,p:{oil:14}},
-  oilfield:{i:'🛢️',fa:'میدان نفت و گاز',g:1300,o:0,p:{oil:10,gold:6}},
-  dam:{i:'🌊',fa:'سد',g:1400,o:0,p:{gold:8,food:12}},
-  power:{i:'⚡',fa:'نیروگاه',g:1800,o:100,p:{gold:18}},
-  stadium:{i:'🏟️',fa:'ورزشگاه فوتبال',g:900,o:0,p:{gold:5},calm:.15},
-  port:{i:'⚓',fa:'بندر',g:1400,o:100,p:{gold:9},sea:.05},
-  airport:{i:'✈️',fa:'فرودگاه',g:1400,o:100,p:{gold:6},air:.03},
-  mine:{i:'⛏️',fa:'معدن',g:1300,o:0,p:{gold:10,oil:4}},
-  landmark:{i:'🗼',fa:'جاذبه‌ی گردشگری',g:800,o:0,p:{gold:7}},
-  base:{i:'🎖️',fa:'پایگاه نظامی',g:2000,o:300,p:{},atk:.02}
+  refinery:   Object.assign({i:'🏭',fa:'پالایشگاه'},BALANCE.buildings.defs.refinery),
+  oilfield:   Object.assign({i:'🛢️',fa:'میدان نفت و گاز'},BALANCE.buildings.defs.oilfield),
+  dam:        Object.assign({i:'🌊',fa:'سد'},BALANCE.buildings.defs.dam),
+  power:      Object.assign({i:'⚡',fa:'نیروگاه'},BALANCE.buildings.defs.power),
+  stadium:    Object.assign({i:'🏟️',fa:'ورزشگاه فوتبال'},BALANCE.buildings.defs.stadium),
+  port:       Object.assign({i:'⚓',fa:'بندر'},BALANCE.buildings.defs.port),
+  airport:    Object.assign({i:'✈️',fa:'فرودگاه'},BALANCE.buildings.defs.airport),
+  mine:       Object.assign({i:'⛏️',fa:'معدن'},BALANCE.buildings.defs.mine),
+  landmark:   Object.assign({i:'🗼',fa:'جاذبه‌ی گردشگری'},BALANCE.buildings.defs.landmark),
+  base:       Object.assign({i:'🎖️',fa:'پایگاه نظامی'},BALANCE.buildings.defs.base)
 };
 const SITES=[];
 const SL=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
@@ -2126,7 +2121,7 @@ const isBuilt=s=>!!s.custom||!!BLD[s.id];
 const allSites=()=>SITES.concat(CUST);
 const owned=c=>typeof conqueredCountries!=='undefined'&&conqueredCountries.has(c);
 const sitesOf=c=>allSites().filter(s=>s.c===c);
-const costOf=(t,custom)=>({g:Math.round(ST[t].g*(custom?1.5:1)),o:Math.round(ST[t].o*(custom?1.5:1))});
+const costOf=(t,custom)=>({g:Math.round(ST[t].g*(custom?BALANCE.economy.customBuildMult:1)),o:Math.round(ST[t].o*(custom?BALANCE.economy.customBuildMult:1))}); /* V72: BALANCE */
 function fxText(k){const a=[];if(k.p.gold)a.push('💰 +'+k.p.gold);if(k.p.oil)a.push('🛢️ +'+k.p.oil);if(k.p.food)a.push('🌾 +'+k.p.food);
   if(k.calm)a.push('🕊️ کاهش ناآرامی');if(k.sea)a.push('🚢 حمله‌ی دریایی قوی‌تر');if(k.air)a.push('✈️ +۳٪ قدرت هوایی');if(k.atk)a.push('⚔️ +۲٪ قدرت ارتش');
   return a.join(' ، ')+(k.p.gold||k.p.oil||k.p.food?'  (هر ۴ ثانیه)':'')}
@@ -2138,20 +2133,24 @@ function prod(){const p={gold:0,oil:0,food:0,ports:0,airports:0,bases:0};
     for(const r in k.p)p[r]+=k.p[r]*(PSC[r]||1)*boostMult();
     if(s.t==='port')p.ports++;if(s.t==='airport')p.airports++;if(s.t==='base')p.bases++});
   return p}
-function ovsMult(){return .7+Math.min(.2,.05*prod().ports)}          // overseas attack strength (0.7 -> up to 0.9)
-function airportBonus(){return Math.min(.3,.03*prod().airports)}
-function baseBonus(){return Math.min(.2,.02*prod().bases)}
+function ovsMult(){const C=BALANCE.conquest.combat;return C.ovsBase+Math.min(C.ovsCap,C.ovsPerPort*prod().ports)}          /* V72: BALANCE — overseas attack strength */
+function airportBonus(){const C=BALANCE.conquest.combat;return Math.min(C.airportCap,C.airportPer*prod().airports)} /* V72: BALANCE */
+function baseBonus(){const C=BALANCE.conquest.combat;return Math.min(C.baseCap,C.basePer*prod().bases)} /* V72: BALANCE */
 (function(){const ab=airBonus,cta=calculateTotalAttack;
   airBonus=function(){return ab()+airportBonus()};
   calculateTotalAttack=function(){return Math.round(cta()*(1+baseBonus()))}})();
 setInterval(()=>{if(typeof myCountryName==='undefined'||!myCountryName)return;
   /* V40: تولید پایه + تولید نفت به‌ازای هر قلمرو (که UI سال‌ها وعده داده بود ولی هرگز پرداخت نمی‌شد!) */
-  const p=prod();const _terr=conqueredCountries.size||0;
-  const baseOil=2+_terr*oilPerTick(), baseFood=4+_terr*3;
-  playerRes.gold+=p.gold;playerRes.oil+=p.oil+baseOil;playerRes.food+=p.food+baseFood;
-  if(typeof unrest!=='undefined'){const cnt={};allSites().forEach(s=>{if(ST[s.t].calm&&isBuilt(s)&&owned(s.c)&&s.c!==myCountryName)cnt[s.c]=(cnt[s.c]||0)+1});
-    Object.keys(cnt).forEach(c=>{unrest[c]=Math.max(0,(unrest[c]==null?25:unrest[c])-.15*cnt[c])})}
-  if(p.gold||p.oil||p.food||baseOil||baseFood)updateUI()},4000);
+  /* V72: تک‌حلقه‌ی درآمد (PHASE 4) — قبلاً دو setInterval موازی ۴ثانیه‌ای؛ اعداد از BALANCE */
+  const p=prod();const _terr=conqueredCountries.size||0;const bm=boostMult();
+  const EB=BALANCE.economy;
+  const baseOil=EB.oilBase+_terr*oilPerTick(), baseFood=EB.foodBase+_terr*EB.foodPerTerrPlain;
+  playerRes.gold+=p.gold+Math.round(popIncomeTick()*bm);
+  playerRes.oil+=p.oil+baseOil;
+  playerRes.food+=p.food+baseFood+Math.round(EB.foodPerTerrBoosted*_terr*bm);
+  if(typeof unrest!=='undefined'){const UB=BALANCE.maintenance.unrest;const cnt={};allSites().forEach(s=>{if(ST[s.t].calm&&isBuilt(s)&&owned(s.c)&&s.c!==myCountryName)cnt[s.c]=(cnt[s.c]||0)+1});
+    Object.keys(cnt).forEach(c=>{unrest[c]=Math.max(0,(unrest[c]==null?UB.start:unrest[c])-UB.calmPerBuildingTick*cnt[c])})}
+  if(p.gold||p.oil||p.food||baseOil||baseFood)updateUI()},BALANCE.economy.tickMs);
 
 /* ----- building ----- */
 function buildSite(s){
@@ -2252,15 +2251,15 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){if(!myCountryName)return;const n=f.pr
    V68: آبجکت نمایشی SHOP.packs حذف شد (کد مرده — فقط مسیر رندر قدیمی مصرفش می‌کرد؛ گارد TWA گارد‌شده است).
    تک‌منبع قیمت: SHOP_PACKS سمت سرور. شناسه‌های SKU مایکت بدون تغییر: gems_100/300/550/1000 */
 let GEMS=0,BOOST=0,WALLET_OK=false;
-const boostMult=()=>Date.now()<BOOST?2:1;
-const PSC={gold:.5,oil:.15,food:.5};
+const boostMult=()=>Date.now()<BOOST?BALANCE.economy.boostMult:1; /* V72: BALANCE */
+const PSC=BALANCE.economy.psc; /* V72: BALANCE */
 function exportV3(){return{}}
 function importV3(x){}
 /* ---- population-based income ---- */
 function popM(n){const m=/([\d.]+)\s*([MBK])/i.exec((getCountryData(n)||{}).pop||'');if(!m)return 10;const v=parseFloat(m[1]),u=m[2].toUpperCase();return u==='B'?v*1000:u==='K'?v/1000:v}
-function taxAmount(){let t=0;conqueredCountries.forEach(n=>{const un=(typeof unrest!=='undefined'&&unrest[n])||0;t+=popM(n)*.9*(1-Math.min(.6,un/150))+60});
-  return Math.max(0,Math.round(t*boostMult()*((typeof sanction!=='undefined'&&sanction>0)?.5:1)))}
-function popIncomeTick(){let t=0;conqueredCountries.forEach(n=>{t+=2+popM(n)*.015});return t}
+function taxAmount(){const TB=BALANCE.economy.tax;let t=0;conqueredCountries.forEach(n=>{const un=(typeof unrest!=='undefined'&&unrest[n])||0;t+=popM(n)*TB.perPop*(1-Math.min(TB.unrestCutCap,un/TB.unrestDiv))+TB.perCountryBase}); /* V72: BALANCE */
+  return Math.max(0,Math.round(t*boostMult()*((typeof sanction!=='undefined'&&sanction>0)?TB.sanctionMult:1)))}
+function popIncomeTick(){const EB=BALANCE.economy;let t=0;conqueredCountries.forEach(n=>{t+=EB.popIncomeBase+popM(n)*EB.popIncomePerPop});return t} /* V72: BALANCE */
 /* ---- real calendar (Persian date + time from the device clock) ---- */
 showDate=function(){const e=H$('hud-date');if(!e)return;let s;const d=new Date();
   try{s=d.toLocaleString('fa-IR-u-ca-persian',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(x){s=d.toLocaleString()}e.textContent='📅 '+s};
@@ -2301,10 +2300,11 @@ try{WD_COLOR_HOOKS.after.push(function(n){const l=layersByName[n],st=statusOf(n)
 (function(){
   const ag=afterGeo;afterGeo=function(){ag();try{const z=()=>map.getContainer().classList.toggle('z3',map.getZoom()>=3);WD_onZoom(z);z()}catch(e){}}})();
 /* ---- more infrastructure ---- */
-Object.assign(ST,{university:{i:'🎓',fa:'دانشگاه',g:1600,o:0,p:{gold:9}},hospital:{i:'🏥',fa:'بیمارستان',g:1100,o:0,p:{food:6,gold:3},calm:.2},
-  bank:{i:'🏦',fa:'بانک مرکزی',g:2200,o:0,p:{gold:22}},farm:{i:'🚜',fa:'منطقه‌ی کشاورزی',g:900,o:0,p:{food:16}},
-  datacenter:{i:'💾',fa:'مرکز داده',g:2000,o:100,p:{gold:14}},spaceport:{i:'🚀',fa:'پایگاه فضایی',g:3200,o:200,p:{gold:12}},
-  shipyard:{i:'🚢',fa:'کشتی‌سازی',g:1700,o:100,p:{gold:8}},telecom:{i:'📡',fa:'مرکز مخابرات',g:1200,o:0,p:{gold:6},calm:.1}});
+/* V72 (PHASE 4): باندل دوم ساختمان‌ها — اعداد از BALANCE.buildings.defs */
+Object.assign(ST,{university:Object.assign({i:'🎓',fa:'دانشگاه'},BALANCE.buildings.defs.university),hospital:Object.assign({i:'🏥',fa:'بیمارستان'},BALANCE.buildings.defs.hospital),
+  bank:Object.assign({i:'🏦',fa:'بانک مرکزی'},BALANCE.buildings.defs.bank),farm:Object.assign({i:'🚜',fa:'منطقه‌ی کشاورزی'},BALANCE.buildings.defs.farm),
+  datacenter:Object.assign({i:'💾',fa:'مرکز داده'},BALANCE.buildings.defs.datacenter),spaceport:Object.assign({i:'🚀',fa:'پایگاه فضایی'},BALANCE.buildings.defs.spaceport),
+  shipyard:Object.assign({i:'🚢',fa:'کشتی‌سازی'},BALANCE.buildings.defs.shipyard),telecom:Object.assign({i:'📡',fa:'مرکز مخابرات'},BALANCE.buildings.defs.telecom)});
 reg('university',[['University of Tehran','دانشگاه تهران','Iran',35.70,51.39],['Sharif University','دانشگاه صنعتی شریف','Iran',35.70,51.35],['Harvard University','دانشگاه هاروارد',US,42.377,-71.117],
  ['University of Oxford','دانشگاه آکسفورد','United Kingdom',51.754,-1.254],['Tsinghua University','دانشگاه تسینگهوا','China',40.00,116.33],['University of Tokyo','دانشگاه توکیو','Japan',35.713,139.762],
  ['Moscow State University','دانشگاه دولتی مسکو','Russia',55.703,37.53],['IIT Bombay','آی‌آی‌تی بمبئی','India',19.133,72.913],['ETH Zurich','دانشگاه ای‌تی‌اچ زوریخ','Switzerland',47.376,8.548]]);
@@ -2411,8 +2411,8 @@ function resumeCooldowns(){const now=Date.now();
   if(COOL.tax>now)resumeCd('tax',Math.ceil((COOL.tax-now)/1000));
   if(COOL.un>now)resumeCd('un',Math.ceil((COOL.un-now)/1000))}
 (function(){const t=collectTax,u=collectUNAid;
-  collectTax=function(){const was=taxReady;t();if(was&&!taxReady){COOL.tax=Date.now()+120000;saveNow()}};
-  collectUNAid=function(){const was=unReady;u();if(was&&!unReady){COOL.un=Date.now()+90000;saveNow()}}})();
+  collectTax=function(){const was=taxReady;t();if(was&&!taxReady){COOL.tax=Date.now()+BALANCE.economy.tax.cooldownSec*1000;saveNow()}};
+  collectUNAid=function(){const was=unReady;u();if(was&&!unReady){COOL.un=Date.now()+BALANCE.economy.unAid.cooldownSec*1000;saveNow()}}})();
 
 /* ---------- shared UI helpers ---------- */
 function inp(id,ph,type){const i=mk('input');i.id=id;i.placeholder=ph;i.type=type||'text';i.autocomplete='off';return i}
@@ -2835,7 +2835,8 @@ const TR={buys:[],sells:[]};let lastCap=0;
 const recentN=a=>{const t=Date.now();while(a.length&&t-a[0]>180000)a.shift();return a.length};
 function capStore(){const t=Math.max(1,conqueredCountries.size);
   /* V40: سقف نفت حالا از همان oilStorageCap می‌آید که UI نشان می‌دهد (قبلاً متفاوت بود و ارتقای انبار بی‌اثر بود!) — سقف غذا هم بزرگ‌تر شد */
-  const oc=(typeof window.oilStorageCap==='function')?window.oilStorageCap():6000+1200*t,fc=9000+2500*t;let cut=false; /* V71: fallback کهنه‌ی 1500 با فرمول زنده/سرور (1200) هم‌تراز شد */
+  const SB=BALANCE.economy.storage;
+  const oc=(typeof window.oilStorageCap==='function')?window.oilStorageCap():SB.oilBase+SB.oilPerTerr*t,fc=SB.foodBase+SB.foodPerTerr*t;let cut=false; /* V71: fallback کهنه‌ی 1500 هم‌تراز شد؛ V72: از BALANCE */
   if(playerRes.oil>oc){playerRes.oil=oc;cut=true}if(playerRes.food>fc){playerRes.food=fc;cut=true}
   if(cut&&Date.now()-lastCap>60000){lastCap=Date.now();showToast('📦 انبارها پر است؛ مازاد تولید از بین می‌رود (ظرفیت نفت '+oc.toLocaleString()+'، غذا '+fc.toLocaleString()+')','lose')}return cut}
 setInterval(()=>{if(myCountryName&&capStore())updateUI()},3000);
@@ -2897,7 +2898,7 @@ function setHatch(n,occ,anim,prev){if(!layersByName[n]||!map||!getG(myCountryNam
     /* ===== v7: abandon territory & puppet-state (vassal) options ===== */
 let vassals = {};
 
-function tributeBonus(){let t=0;Object.keys(vassals).forEach(n=>{if(statusOf(n)==='conquered')t+=popM(n)*0.5});return Math.round(t)}
+function tributeBonus(){let t=0;Object.keys(vassals).forEach(n=>{if(statusOf(n)==='conquered')t+=popM(n)*BALANCE.economy.tribute.perPop});return Math.round(t)} /* V72: BALANCE */
 setInterval(()=>{if(!myCountryName)return;const tb=tributeBonus();if(tb>0){playerRes.gold+=tb;updateUI()}},4000);
 
 function makeVassal(n){
@@ -3335,22 +3336,24 @@ function initDaily(){
 }
 initDaily();
 
+/* V72 (PHASE 4): هزینه/سقف فناوری‌ها فقط از BALANCE.technology.research */
 const RESEARCH={
- logistics:{n:'لجستیک پیشرفته',d:'کاهش مصرف غذا و نفت ارتش',cost:2500,e:'gold',max:5},
- industry:{n:'صنعت سنگین',d:'افزایش تولید طلا',cost:3000,e:'gold',max:5},
- refinery:{n:'پالایش مدرن',d:'افزایش بهره‌وری نفت',cost:3500,e:'gold',max:5},
- armor:{n:'دکترین زرهی',d:'افزایش قدرت تانک‌ها',cost:4500,e:'gold',max:5},
- air:{n:'برتری هوایی',d:'افزایش قدرت یگان‌های هوایی',cost:5000,e:'gold',max:5},
- intelligence:{n:'اطلاعات سیگنالی',d:'بهبود جاسوسی',cost:4500,e:'gold',max:5},
- diplomacy:{n:'دیپلماسی نوین',d:'هزینه قراردادها کمتر می‌شود',cost:4000,e:'gold',max:5},
- nuclear:{n:'فناوری راهبردی',d:'باز کردن Endgame',cost:12000,e:'gold',max:1}
+ logistics:   Object.assign({n:'لجستیک پیشرفته',d:'کاهش مصرف غذا و نفت ارتش',e:'gold'},BALANCE.technology.research.logistics),
+ industry:    Object.assign({n:'صنعت سنگین',d:'افزایش تولید طلا',e:'gold'},BALANCE.technology.research.industry),
+ refinery:    Object.assign({n:'پالایش مدرن',d:'افزایش بهره‌وری نفت',e:'gold'},BALANCE.technology.research.refinery),
+ armor:       Object.assign({n:'دکترین زرهی',d:'افزایش قدرت تانک‌ها',e:'gold'},BALANCE.technology.research.armor),
+ air:         Object.assign({n:'برتری هوایی',d:'افزایش قدرت یگان‌های هوایی',e:'gold'},BALANCE.technology.research.air),
+ intelligence:Object.assign({n:'اطلاعات سیگنالی',d:'بهبود جاسوسی',e:'gold'},BALANCE.technology.research.intelligence),
+ diplomacy:   Object.assign({n:'دیپلماسی نوین',d:'هزینه قراردادها کمتر می‌شود',e:'gold'},BALANCE.technology.research.diplomacy),
+ nuclear:     Object.assign({n:'فناوری راهبردی',d:'باز کردن Endgame',e:'gold'},BALANCE.technology.research.nuclear)
 };
+/* V72 (PHASE 4): هدف/پاداش مأموریت‌ها فقط از BALANCE.missions.defs — پرداخت واقعی = داور سرور (§26) */
 const MISSIONS=[
- {id:'war',n:'فرمانده جنگ',d:'یک نبرد را آغاز کن',goal:1,r:800,type:'battles'},
- {id:'trade',n:'بازرگان جهان',d:'دو معامله انجام بده',goal:2,r:1000,type:'trades'},
- {id:'spy',n:'چشم عقاب',d:'یک عملیات جاسوسی انجام بده',goal:1,r:900,type:'spies'},
- {id:'research',n:'دانشمند نظامی',d:'یک فناوری تحقیق کن',goal:1,r:1200,type:'research'},
- {id:'empire',n:'گسترش قلمرو',d:'یک کشور جدید تصرف کن',goal:1,r:1500,type:'wins'}
+ Object.assign({id:'war',n:'فرمانده جنگ',d:'یک نبرد را آغاز کن',type:'battles'},BALANCE.missions.defs.war),
+ Object.assign({id:'trade',n:'بازرگان جهان',d:'دو معامله انجام بده',type:'trades'},BALANCE.missions.defs.trade),
+ Object.assign({id:'spy',n:'چشم عقاب',d:'یک عملیات جاسوسی انجام بده',type:'spies'},BALANCE.missions.defs.spy),
+ Object.assign({id:'research',n:'دانشمند نظامی',d:'یک فناوری تحقیق کن',type:'research'},BALANCE.missions.defs.research),
+ Object.assign({id:'empire',n:'گسترش قلمرو',d:'یک کشور جدید تصرف کن',type:'wins'},BALANCE.missions.defs.empire)
 ];
 
 function researchLevel(k){return Number(st.research[k]||0)}
@@ -3816,11 +3819,11 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
   // ---------- Oil storage / realistic production ----------
   /* V40: ظرفیت انبار تقریباً ۲.۵ برابر شد — جمع‌کردن نفت حالا واقعاً ممکن است */
   window.oilStorageCap=function(){
-    const territoryBonus=(typeof conqueredCountries!=='undefined'?conqueredCountries.size:0)*1200;
+    const territoryBonus=(typeof conqueredCountries!=='undefined'?conqueredCountries.size:0)*BALANCE.economy.storage.oilPerTerr; /* V72: BALANCE */
     /* V68: انبار راهبردی CV (Country View) هم به سقف نفت اضافه شد — قبلاً ساختمان انبار CV بی‌اثر بود */
-    return 6000 + territoryBonus + ((infra&&infra.storage)||0)*6000 + (window.__wdcvOilCapAdd||0);
+    return BALANCE.economy.storage.oilBase + territoryBonus + ((infra&&infra.storage)||0)*BALANCE.economy.storage.oilPerStorageLevel + (window.__wdcvOilCapAdd||0);
   };
-  window.storageCost=function(){return 1000+(((infra&&infra.storage)||0)+1)*750};
+  window.storageCost=function(){const IB=BALANCE.infra;return IB.storageBase+(((infra&&infra.storage)||0)+1)*IB.storagePerLevel}; /* V72: BALANCE */
   if(typeof infra!=='undefined' && infra.storage==null)infra.storage=0;
 
   // Extend infra cost without breaking the existing function.
@@ -6595,12 +6598,12 @@ function cosFxAt(lat,lng,kind){try{var pt=map.latLngToContainerPoint([lat,lng]);
   wrap.appendChild(d2);setTimeout(function(){try{d2.remove()}catch(e){}},1500)},p*28)})(p);
  setTimeout(function(){try{wrap.remove()}catch(e){}},1900)}catch(e){}}
 /* ---------------- lucky box ---------------- */
-function luckyRoll(){var r=Math.random();
- if(r<.42)return{i:'💰',t:'طلا',v:400+Math.floor(Math.random()*1800),f:function(){playerRes.gold+=this.v}};
- if(r<.62)return{i:'🛢️',t:'نفت',v:250+Math.floor(Math.random()*950),f:function(){playerRes.oil+=this.v}};
- if(r<.77)return{i:'🌾',t:'غذا',v:300+Math.floor(Math.random()*1200),f:function(){playerRes.food+=this.v}};
- if(r<.92)return{i:'⚡',t:'بوست درآمد',v:20+Math.floor(Math.random()*26),f:function(){BOOST=Math.max(Date.now(),BOOST)+this.v*60000}};
- return{i:'💰',t:'طلا (جک‌پات!)',v:4000,f:function(){playerRes.gold+=this.v}}}
+function luckyRoll(){var L=BALANCE.rewards.lucky;var r=Math.random();
+ if(r<.42)return{i:'💰',t:'طلا',v:L.goldMin+Math.floor(Math.random()*L.goldSpan),f:function(){playerRes.gold+=this.v}};
+ if(r<.62)return{i:'🛢️',t:'نفت',v:L.oilMin+Math.floor(Math.random()*L.oilSpan),f:function(){playerRes.oil+=this.v}};
+ if(r<.77)return{i:'🌾',t:'غذا',v:L.foodMin+Math.floor(Math.random()*L.foodSpan),f:function(){playerRes.food+=this.v}};
+ if(r<.92)return{i:'⚡',t:'بوست درآمد',v:L.boostMin+Math.floor(Math.random()*L.boostSpan),f:function(){BOOST=Math.max(Date.now(),BOOST)+this.v*60000}};
+ return{i:'💰',t:'طلا (جک‌پات!)',v:L.jackpotGold,f:function(){playerRes.gold+=this.v}}}
 function luckyOpen(res){try{var ov=D.createElement('div');ov.className='cos27-lucky';ov.innerHTML='<div class="cos27-lk-in"><div class="cos27-lk-gift">🎁</div></div>';D.body.appendChild(ov);
  setTimeout(function(){ /* V66: نتیجه از سرور (res.reward) — فقط وقتی سرور قدیمی پاسخ نداد، fallback محلی */
   var rw=null,serverRes=false;
@@ -16874,7 +16877,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               ev.stopPropagation();
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=71';
+              s.src='/game/cv-engine.js?v=72';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -16885,6 +16888,6 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=71"></script>
+<script src="/game/oly3.js?v=72"></script>
 </body>
 </html>

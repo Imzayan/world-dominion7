@@ -1,0 +1,38 @@
+/* =====================================================================
+   BALANCE (server) — منبع واحد اعداد توازن سمت سرور (Master Spec PHASE 4)
+   ---------------------------------------------------------------------
+   آینه‌ی کلاینت: public/game/balance.js (اقتصاد نقشه client-advances،
+   اما پاداش‌های رسمی همیشه از همین مقادیر سرور پرداخت می‌شود).
+   قانون: عدد توازن جدید سرور باید اینجا اضافه شود، نه inline در route.
+   ===================================================================== */
+
+/* پاداش تاج‌گذاری قهرمان المپیک (پایان دوره‌ی ۷روزه) */
+export const OL_REWARDS = {
+  gems: 4,
+  gold: 100000,
+  oil: 10000,
+  food: 10000,
+  steel: 5000,
+  boost_hours: 24,
+} as const;
+
+/* عملیات‌های حمله‌ای جم (V54): قیمت، کول‌داون شخصی و سقف هفتگی کل سرور.
+   قیمت‌ها باید با OPS سمت کلاینت یکی باشد. */
+export const SPECIAL_OPS: Record<string, { cost: number; cd: number; weekly: number }> = {
+  cyber: { cost: 200, cd: 12 * 3600_000, weekly: 60 },
+  commando: { cost: 280, cd: 24 * 3600_000, weekly: 40 },
+  missile: { cost: 350, cd: 24 * 3600_000, weekly: 30 },
+  nuke: { cost: 500, cd: 48 * 3600_000, weekly: 20 },
+};
+
+/* پاداش روزانه‌ی رابطه‌ی منتور/شاگرد — یک tick اتمی هر دو طرف را می‌پردازد */
+export const MENTOR_REWARDS = { mentorGems: 3, menteeGold: 8000 } as const;
+
+/* پاداش شرکت المپیک برای هر بازیکن واقعی */
+export const OL_PARTICIPATION_GEMS = 3;
+
+/* سکوی المپیک: نقره ۲جم+۳۰هزار طلا، برنز ۱جم+۱۰هزار طلا (قهرمان = OL_REWARDS) */
+export const OL_PODIUM_REWARDS: [number, number, number][] = [
+  [1, 2, 30000],
+  [2, 1, 10000],
+];
