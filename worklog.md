@@ -1262,3 +1262,22 @@ Stage Summary:
 - Delivery root cause closed: users can no longer be pinned to stale builds; every future release auto-delivers within ~1-2s of boot (one visible reload per version)
 - Both reported pages verified to open with content on live fresh build; hang-mode now shows the error card + retry instead of blank
 - Release protocol note: bump window.__WD_V (index.html head) AND public/game/v.txt together on every HTML-affecting deploy
+
+---
+Task ID: V64-blank-page-rootcause
+Agent: main (Super Z)
+Task: user reported AGAIN (3rd time, with new detail "فقط صفحه خالیه") that olympic + server buttons open an EMPTY page — V62/V63 fixes did not reach his experience; root-cause for real
+
+Work Log:
+- Live A/B reproduction (mobile-emulated, real openers): lowfx ON = server page 8/8 children opacity "0" (blank), lowfx OFF = all visible → causality proven on the exact live build
+- Root cause 1 (main): .wd31-rise{opacity:0;animation:wd31Rise forwards} — visibility gated behind animation; body.wd-lowfx rule (V60 P36 auto-on for cores<=4||deviceMemory<=4 phones) sets animation:none!important → ALL content of both pages frozen at opacity:0 → dark empty page. Headless harnesses (cores=2) were ALWAYS in lowfx but only counted DOM chars → blind spot for weeks
+- Root cause 2: wgRefresh silent returns for no-sb / no-ACC (logged-out/lost session) → hub opens literally empty; AND the V62 "error card" itself was dead code — it used H('wg33-wrap') but H is not defined in the V33 IIFE scope → ReferenceError swallowed by catch → card never painted (discovered when first hubNotice attempt reproduced it)
+- Fix 1: .wd31-rise{animation:wd31Rise .55s ease both} — from{opacity:0} lives only in keyframes; healthy devices keep the identical staggered rise, lowfx/old-WebView show natural opacity 1. Single rule heals srvShell/rise33/v33-strip
+- Fix 2: single hubNotice(icon,title,sub) impl (direct document.getElementById — scope-proof) paints visible card + retry for all 3 empty-hub paths (no-sb / no-acc / rpc-fail-timeout incl. V62/V63 hang guard); replaces dead error card (§29: no fake, honest guidance)
+- Version protocol: __WD_V=64 + v.txt=64; tools made version-agnostic (V read from v.txt = single source): verify-build.mjs (9/9, +2 V64 CSS guards + H-regression guard) replaces verify-v63.mjs; sw-selfheal.mjs (8/8) replaces sw-selfheal-v63.mjs AND upgrades both TAP checks to REAL VISIBILITY (computed opacity/rect, not chars); new lowfx-visibility.mjs (6/6) = permanent A/B guard
+- Tests: local 91/91 (verify 9 + lowfx 6 + selfheal 8 + map-visual 16 + apk-sim 28 + e2e 24 with seed); deploy verified (live md5 182285db == local, v.txt=64); live 58/58 (lowfx 6 + selfheal 8 with hub 14/14 children VISIBLE @20871 chars + map-visual 16 + apk-sim 28)
+
+Stage Summary:
+- User's phone (low-end, auto-lowfx) now sees BOTH pages fully; logged-out/hung sessions get visible guidance cards instead of empty pages
+- Permanent lesson encoded in harnesses: assertions must judge VISIBILITY (opacity/rect), never DOM char counts; tools read version from v.txt so they never pin again
+- Release protocol unchanged: bump __WD_V + v.txt together (verify-build enforces consistency)
