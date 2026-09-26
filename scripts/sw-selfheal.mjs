@@ -1,9 +1,14 @@
-// V63 SW self-heal e2e — reproduces the user's device situation and proves the cure:
-//  1) SW v6 installs, stale HTML is seeded into CacheStorage (simulates old build on device)
+// SW self-heal e2e — VERSION-AGNOSTIC (V + PREV read from public/game/v.txt).
+// Replaces sw-selfheal-v63.mjs (hard-coded version pins broke every release).
+// Reproduces the user's device situation and proves the cure:
+//  1) SW v6 installs, stale HTML (V-1) is seeded into CacheStorage (simulates old build on device)
 //  2) plain navigation → SW serves the STALE copy instantly (like the user's WebView)
-//  3) V63 beacon detects v.txt=63 > 62 → fetches ?wdFresh → swaps cache → ONE reload → fresh build
-//  4) touch taps on server chip + olympic FAB open real pages with content (user journey)
-// Usage: WD_BASE=http://localhost:3000 node scripts/sw-selfheal-v63.mjs
+//  3) beacon detects v.txt > seeded → fetches ?wdFresh → swaps cache → ONE reload → fresh build
+//  4) touch taps on server chip + olympic FAB open real pages — checked by REAL VISIBILITY
+//     (computed opacity + rect, not char counts: V64 lesson — text can exist at opacity:0)
+// NOTE: headless chromium reports cores=2 → WD60_FX auto-lowfx is ON → this whole journey runs
+//       in the exact lowfx mode that blanked the pages before V64. Intentional regression guard.
+// Usage: WD_BASE=http://localhost:3000 node scripts/sw-selfheal.mjs
 import { chromium } from 'playwright'
 import fs from 'fs'
 
@@ -12,12 +17,16 @@ const URL = BASE + '/game/index.html'
 const SHOTS = '/home/z/my-project/scripts/diag-shots'
 fs.mkdirSync(SHOTS, { recursive: true })
 
+const V = fs.readFileSync('public/game/v.txt', 'utf8').trim()
+const PREV = String(Number(V) - 1)
+if (!/^\d+$/.test(V)) { console.log('FATAL: v.txt invalid'); process.exit(1) }
+
 let pass = 0, fail = 0
 const check = (name, ok, info = '') => { if (ok) { pass++; console.log('PASS ' + name + (info ? ' — ' + info : '')) } else { fail++; console.log('FAIL ' + name + (info ? ' — ' + info : '')) } }
 
 const raw = fs.readFileSync('public/game/index.html', 'utf8')
-if (!raw.includes('window.__WD_V=63')) { console.log('FATAL: build marker missing'); process.exit(1) }
-const STALE = raw.replace('window.__WD_V=63', 'window.__WD_V=62')
+if (!raw.includes('window.__WD_V=' + V)) { console.log('FATAL: build marker missing for V=' + V); process.exit(1) }
+const STALE = raw.replace('window.__WD_V=' + V, 'window.__WD_V=' + PREV)
 
 const browser = await chromium.launch({ headless: true })
 const errors = []
@@ -46,7 +55,7 @@ await page.evaluate(async (stale) => {
     await c.put('/game/index.html', new Response(stale, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }))
   }
 }, STALE)
-check('stale build (v62) seeded into CacheStorage', true)
+check('stale build (v' + PREV + ') seeded into CacheStorage', true)
 
 // --- 3) deterministic proof: SW serves the STALE copy (subresource fetch → htmlStrategy) ---
 const servedV = await page.evaluate(async () => {
@@ -54,7 +63,7 @@ const servedV = await page.evaluate(async () => {
   const m = t.match(/__WD_V=(\d+)/)
   return m ? m[1] : '?'
 })
-check('SW serves the STALE copy (device mechanism proven)', servedV === '62', 'served __WD_V=' + servedV)
+check('SW serves the STALE copy (device mechanism proven)', servedV === PREV, 'served __WD_V=' + servedV)
 
 // plain navigation like the APK shell + navigation counter for the reload
 let navs = 0
@@ -64,12 +73,12 @@ await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 45000 })
 // --- 4) self-heal: beacon swaps cache and reloads ONCE ---
 let healed = 0
 try {
-  await page.waitForFunction(() => window.__WD_V === 63, { timeout: 20000 })
+  await page.waitForFunction((v) => window.__WD_V === Number(v), V, { timeout: 20000 })
   healed = 1
 } catch (e) { healed = 0 }
 const v1 = await page.evaluate(() => window.__WD_V || 0).catch(() => 0)
 const guardState = await page.evaluate(() => { const ks = []; for (let i = 0; i < sessionStorage.length; i++) { const k = sessionStorage.key(i); if (k && k.indexOf('wdHeal') === 0) ks.push(k) } return ks })
-check('self-heal swapped to fresh build (63), no reload loop (goto+reload)', healed === 1 && v1 === 63 && navs <= 2, 'final __WD_V=' + v1 + ' navs=' + navs)
+check('self-heal swapped to fresh build (v' + V + '), no reload loop (goto+reload)', healed === 1 && Number(v1) === Number(V) && navs <= 2, 'final __WD_V=' + v1 + ' navs=' + navs)
 check('session guard cleaned after heal (no future loops)', guardState.length === 0, JSON.stringify(guardState))
 await page.screenshot({ path: SHOTS + '/v63-healed.png' })
 
@@ -96,26 +105,36 @@ try {
 const hudState = await page.evaluate(() => {
   const s = document.getElementById('hud-srv'), o = document.getElementById('hud-olympic')
   const vis = (e) => { if (!e) return false; const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return r.width > 0 && cs.display !== 'none' }
-  return { srv: vis(s), oly: vis(o) }
+  return { srv: vis(s), oly: vis(o), lowfx: window.WD60_FX ? window.WD60_FX.on() : null }
 })
-console.log('INFO hud-state after register: ' + JSON.stringify(hudState))
+console.log('INFO hud-state after register: ' + JSON.stringify(hudState) + ' (lowfx=true = user phone parity)')
 
-// --- 6) REAL touch taps — the exact two reports ---
+// --- 6) REAL touch taps — the exact two reports — judged by VISIBILITY, not chars ---
 // force: skip Playwright's animation-stability wait (floating FABs never "stabilize");
 // touch events still go through the real input pipeline. JS-click fallback for env quirks.
+const visProbe = (wrapSel) => `(() => {
+  const w = document.querySelector('${wrapSel}')
+  if (!w) return { vis: 0, kids: 0, chars: 0 }
+  const kids = [...w.children]
+  let vis = 0
+  for (const k of kids) {
+    const cs = getComputedStyle(k)
+    const r = k.getBoundingClientRect()
+    if (cs.opacity !== '0' && cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0 && k.textContent.trim().length > 0) vis++
+  }
+  return { vis, kids: kids.length, chars: w.textContent.length }
+})()`
+
 let srv = { ok: false }
 for (let att = 0; att < 2 && !srv.ok; att++) {
   try {
     try { await page.tap('#hud-srv', { force: true, timeout: 8000 }) } catch (e) { await page.evaluate(() => document.getElementById('hud-srv').click()) }
     await page.waitForTimeout(att ? 3500 : 2800)
-    srv = await page.evaluate(() => {
-      const p = document.getElementById('wd-srvpage')
-      const w = p ? p.querySelector('.wd31-wrap') : null
-      return { ok: !!p && p.classList.contains('on') && !!w && w.innerHTML.length > 1000, len: w ? w.innerHTML.length : -1 }
-    })
+    srv = await page.evaluate(visProbe('#wd-srvpage .wd31-wrap'))
+    srv.ok = srv.vis > 0 && srv.chars > 1000
   } catch (e) { srv = { ok: false, err: String(e).slice(0, 120) } }
 }
-check('TAP server chip → cinematic page paints with content', srv.ok, JSON.stringify(srv))
+check('TAP server chip → page paints AND content is VISIBLE (lowfx-proof)', srv.ok, JSON.stringify(srv))
 await page.screenshot({ path: SHOTS + '/v63-serverpage.png' })
 try { await page.evaluate(() => { const p = document.getElementById('wd-srvpage'); if (p) p.classList.remove('on') }) } catch (e) { }
 
@@ -126,17 +145,26 @@ const olyTry = async (open) => {
   for (let i = 0; i < 2; i++) {
     const st = await page.evaluate(() => {
       const p = document.getElementById('wd-games')
+      if (!p || !p.classList.contains('on')) return { on: false }
       const w = document.getElementById('wg33-wrap')
-      return { on: !!p && p.classList.contains('on'), len: w ? w.innerHTML.length : -1, hasRetry: !!document.getElementById('wg33-retry'), fab: typeof window.WD31_OLYMPICS }
+      if (!w) return { on: true, kids: 0 }
+      const kids = [...w.children]
+      let vis = 0
+      for (const k of kids) {
+        const cs = getComputedStyle(k)
+        const r = k.getBoundingClientRect()
+        if (cs.opacity !== '0' && cs.display !== 'none' && r.width > 0 && r.height > 0 && k.textContent.trim().length > 0) vis++
+      }
+      return { on: true, vis, kids: kids.length, len: w.innerHTML.length, hasRetry: !!document.getElementById('wg33-retry'), fab: typeof window.WD31_OLYMPICS }
     })
-    if (st.on && (st.len > 1000 || st.hasRetry)) return { ...st, ok: true }
+    if (st.on && ((st.vis > 0 && st.len > 1000) || st.hasRetry)) return { ...st, ok: true }
     await page.waitForTimeout(2000)
   }
   return { ok: false }
 }
 oly = await olyTry(() => page.tap('#hud-olympic', { force: true, timeout: 8000 }))
 if (!oly.ok) oly = await olyTry(() => page.evaluate(() => document.getElementById('hud-olympic').click()))
-check('TAP olympic FAB → hub paints with content (never blank)', oly.ok, JSON.stringify(oly))
+check('TAP olympic FAB → hub paints AND content is VISIBLE (never blank)', oly.ok, JSON.stringify(oly))
 await page.screenshot({ path: SHOTS + '/v63-olyhub.png' })
 
 check('zero pageerror across the whole self-heal journey', errors.length === 0, errors.slice(0, 3).join(' | '))

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=63;/* V63 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=64;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -9140,7 +9140,12 @@ window.addEventListener('load',()=>{/* V59 wave-2 §10: گارد تب مخفی *
 .wd31-close{position:fixed;top:12px;left:12px;z-index:6;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(6,16,32,.85);color:#fff;font-size:18px;cursor:pointer;backdrop-filter:blur(6px);transition:.2s;font-family:inherit}
 .wd31-close:active{transform:scale(.9)}
 .wd31-wrap{position:relative;z-index:2;max-width:880px;margin:0 auto;padding:28px 14px 90px;display:flex;flex-direction:column;gap:14px}
-.wd31-rise{opacity:0;animation:wd31Rise .55s ease forwards}
+/* V64 fix: «دیده‌شدن» محتوا هرگز نباید به «اجرای انیمیشن» گره بخورد.
+   قبل: opacity:0 پایه + forwards → در body.wd-lowfx (قانون animation:none!) یا WebView قدیمی،
+   انیمیشن اجرا نمی‌شد و کل محتوای صفحه‌های سرور/المپیک برای همیشه نامرئی می‌ماند (صفحه‌ی خالی).
+   حالا: from{opacity:0} فقط داخل keyframes است + fill both → ظاهر سالم‌ها عیناً قبل،
+   ولی اگر انیمیشنی اجرا نشود، حالت طبیعی المان = کاملاً نمایان. */
+.wd31-rise{animation:wd31Rise .55s ease both}
 @keyframes wd31Rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 .wd31-hero{position:relative;text-align:center;padding:26px 12px 20px;border-radius:24px;overflow:hidden;
   background:linear-gradient(165deg,rgba(8,26,52,.85),rgba(4,12,26,.92));border:1px solid rgba(0,240,255,.25);
@@ -10334,20 +10339,27 @@ async function doRegister(){
   if(r.ok&&r.d&&r.d.ok){showToast33('🏅 ثبت‌نام شد! رشته‌های تو: '+r.d.keys.map(k=>GD33[k]?GD33[k].fa:k).join('، '),'win');sndK('cheer');wgSel=[];wgRefresh(true)}
   else{const rs=(r.d&&r.d.reason)||(r.e&&r.e.message)||'خطا';
     showToast33(rs==='quota'?'هر ۶ رشته بیشتر نمی‌شود':rs==='capital'?'اول پایتخت انتخاب کن':rs==='window'?'پنجره‌ی ثبت‌نام بسته است':'ثبت‌نام ناموفق — دوباره تلاش کن','lose')}}
+/* V64 fix: تک‌پیاده‌سازی «کارت قابل‌مشاهده‌ی هاب» — سه مسیر قبلاً می‌توانستند صفحه‌ی خالی بسازند:
+   ۱) sb نبود ۲) کاربر وارد نشده بود (return بی‌صدا — حفره‌ی دوم باگ صفحه‌ی خالی) ۳) خطا/هنگ RPC (V62/V63).
+   همه حالا از همین تابع استفاده می‌کنند؛ کارت کلاس انیمیشنی ندارد و در lowfx هم دیده می‌شود (§۲۹). */
+function hubNotice(icon,title,sub){
+  /* V64 fix دوم: در این بلوک H تعریف نشده است — کارت خطای V62 هم همین‌جا ReferenceError می‌گرفت
+     (بی‌صدا در catch می‌افتاد و هاب خالی می‌ماند). getElementById مستقیم = بدون وابستگی به اسکوپ */
+  const wr=document.getElementById('wg33-wrap');
+  if(wr&&wgOpenFlag&&!wr.children.length){
+    wr.innerHTML='<div style="text-align:center;padding:34px 18px"><div style="font-size:36px">'+icon+'</div>'+
+      '<div style="font-weight:900;font-size:15px;margin:10px 0 4px">'+title+'</div>'+
+      '<div class="wd31-mini">'+sub+'</div>'+
+      '<button id="wg33-retry" style="margin-top:14px;padding:9px 22px;border-radius:14px;border:1px solid rgba(255,214,80,.5);background:rgba(40,28,4,.6);color:#ffd75e;font-weight:900;font-family:inherit">تلاش دوباره</button>';
+    setTimeout(()=>{try{const b=document.getElementById('wg33-retry');if(b)b.addEventListener('click',()=>{wr.innerHTML='';wgRefresh(true)})}catch(e){}},0)}
+}
 async function wgRefresh(force){
   try{
-    if(typeof sb==='undefined'||!sb)return;
-    if(typeof ACC==='undefined'||!ACC||!ACC.uid){strip33Update(null);return}
+    if(typeof sb==='undefined'||!sb){hubNotice('📡','اتصال به سرور برقرار نیست','المپیک آنلاین است — اینترنت را چک کن و دوباره تلاش کن');return}
+    if(typeof ACC==='undefined'||!ACC||!ACC.uid){strip33Update(null);hubNotice('🏅','برای دیدن المپیک وارد حسابت شو','از صفحه‌ی اول بازی وارد شو یا ثبت‌نام کن؛ بعد از ورود، همین صفحه را دوباره باز کن');return}
     const r=await Promise.race([rpc33('olympic_games',{p_server:srvN()}),new Promise(res=>setTimeout(()=>res({ok:false,e:{message:'timeout'}}),10000))]);
-    if(!r.ok||!r.d){ /* V62: خطا = کارت قابل‌مشاهده + تلاش دوباره — دیگر صفحه‌ی خالی نیست | V63: هنگ شبکه هم همان کارت را می‌دهد */
-      const wr=H('wg33-wrap');
-      if(wr&&wgOpenFlag&&!wr.children.length){
-        wr.innerHTML='<div style="text-align:center;padding:34px 18px"><div style="font-size:36px">📡</div>'+
-          '<div style="font-weight:900;font-size:15px;margin:10px 0 4px">دریافت داده‌های المپیک ناموفق بود</div>'+
-          '<div class="wd31-mini">اتصال اینترنت را چک کن و دوباره تلاش کن</div>'+
-          '<button id="wg33-retry" style="margin-top:14px;padding:9px 22px;border-radius:14px;border:1px solid rgba(255,214,80,.5);background:rgba(40,28,4,.6);color:#ffd75e;font-weight:900;font-family:inherit">تلاش دوباره</button>';
-        setTimeout(()=>{try{const b=document.getElementById('wg33-retry');if(b)b.addEventListener('click',()=>{wr.innerHTML='';wgRefresh(true)})}catch(e){}},0)}
-      return}
+    if(!r.ok||!r.d){ /* V62: خطا = کارت قابل‌مشاهده + تلاش دوباره — دیگر صفحه‌ی خالی نیست | V63: هنگ شبکه هم همان کارت را می‌دهد | V64: تک‌پیاده‌سازی hubNotice */
+      hubNotice('📡','دریافت داده‌های المپیک ناموفق بود','اتصال اینترنت را چک کن و دوباره تلاش کن');return}
     /* V36: admin switch — the hub payload carries {disabled:true} when the olympics are off */
     if(r.d.disabled){WG33={disabled:true,edition:r.d.edition||0};if(wgOpenFlag)renderHub();return}
     WG33=r.d;
