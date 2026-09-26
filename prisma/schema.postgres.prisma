@@ -330,6 +330,8 @@ model OlympicRecord {
   nick       String
   country    String?
   edition    Int
+  matchId    String?  @map("match_id") /* O2: پیوند به مسابقه‌ی رکورد — منبع Ghost/Replay (V68: parity با sqlite) */
+  sv         Int      @default(1) /* O3: نسخه‌ی مقیاس امتیاز (۱=نسل اول، ۲=نسل دوم بی‌کف) */
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("olympic_records")

@@ -1,6 +1,7 @@
 // V65 seed — deterministic data for the Living-World feature harness.
 // Alireza score 1000 → rival = BotTwo (3000, nearest above); BotOne tops all HoF power categories.
 import { PrismaClient } from '@prisma/client'
+import { pseudoEmail } from './pseudo-email.mjs'
 import crypto from 'crypto'
 const db = new PrismaClient()
 function hashPassword(password, salt) {
@@ -22,9 +23,9 @@ async function mkUser(email, nick, score, conquered, kills, economy) {
   await db.wallet.upsert({ where: { userId: u.id }, create: { userId: u.id, gems: 100 }, update: { gems: 100 } })
   return u
 }
-const alireza = await mkUser('alireza@wd.test', 'Alireza', 1000, 1, 5, 2000)
-const bot = await mkUser('bot@wd.test', 'BotOne', 5000, 5, 30, 9000)
-const bot2 = await mkUser('bot2@wd.test', 'BotTwo', 3000, 2, 10, 4000)
+const alireza = await mkUser(await pseudoEmail('Alireza'), 'Alireza', 1000, 1, 5, 2000)
+const bot = await mkUser(await pseudoEmail('BotOne'), 'BotOne', 5000, 5, 30, 9000)
+const bot2 = await mkUser(await pseudoEmail('BotTwo'), 'BotTwo', 3000, 2, 10, 4000)
 const terr = [
   ['France', alireza, true], ['Germany', alireza, false],
   ['Brazil', bot, true], ['Mongolia', bot, false], ['China', bot, false],

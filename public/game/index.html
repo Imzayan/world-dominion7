@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=66;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=68;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1912,8 +1912,8 @@ function nightPts(){const d=Date.now()/864e5+2440587.5-2451545,R=Math.PI/180,g=(
   ra=Math.atan2(Math.cos(e)*Math.sin(Lm),Math.cos(Lm));let dec=Math.asin(Math.sin(e)*Math.sin(Lm));if(Math.abs(dec)<.001)dec=.001;
   const gm=((18.697374558+24.06570982441908*d)%24)*15*R;let sl=(ra-gm)/R;sl=((sl+540)%360)-180;
   const pts=[];for(let lo=-180;lo<=180;lo+=4)pts.push([Math.atan(-Math.cos((lo-sl)*R)/Math.tan(dec))/R,lo]);const p=dec>0?-90:90;return pts.concat([[p,180],[p,-180]])}
-function addNight(){return;try{nightPoly=L.polygon(nightPts(),{stroke:false,fillColor:'#020a24',fillOpacity:.4,interactive:false}).addTo(map);setInterval(()=>nightPoly.setLatLngs(nightPts()),60000)}catch(e){console.log(e)}}
-const _ag=afterGeo;afterGeo=function(){_ag();addNight()};
+function addNight(){}/* V68: بدنه‌ی مرده (return اول) حذف شد — بدنه‌ی خالی برای سازگاری فراخوانی‌های قدیمی */
+const _ag=afterGeo;afterGeo=function(){_ag()};
 function addGrid(){const o={color:'#7fdcff',weight:.6,opacity:.18,interactive:false};
   for(let la=-60;la<=60;la+=30)L.polyline([[la,-180],[la,180]],o).addTo(map);for(let lo=-150;lo<=180;lo+=30)L.polyline([[-85,lo],[85,lo]],o).addTo(map)}
 addEventListener('load',()=>{try{
@@ -2266,13 +2266,8 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){if(!myCountryName)return;const n=f.pr
 /* ---- SHOP CONFIG: put your payment-link URLs here (Stripe Payment Link, Zarinpal, ...). Empty url = button disabled ---- */
 /* PriceSync-v2 — پک‌های جم: قیمت‌های نهایی ثبت‌شده در پنل مایکت — ۳۰٬۰۰۰ / ۸۵٬۰۰۰ / ۱۵۰٬۰۰۰ / ۳۰۰٬۰۰۰ تومان.
    نرخ هر جم: ۳۰۰ / ۲۸۳ / ۲۷۳ / ۳۰۰ — بسته‌ی ۵۵۰ جم بهترین نرخ را دارد.
-   این نسخه فقط نمایشی است — قیمت مرجع همیشه SHOP_PACKS سمت سرور است. پرداخت واقعی با انتشار مایکت فعال می‌شود */
-const SHOP={packs:[
-  {gems:100,price:'۳۰٬۰۰۰ تومان',perGem:'۳۰۰',name:'شروع',tier:'',tierCls:'',url:''},
-  {gems:300,price:'۸۵٬۰۰۰ تومان',perGem:'۲۸۳',name:'جنگاور',tier:'',tierCls:'',url:''},
-  {gems:550,price:'۱۵۰٬۰۰۰ تومان',perGem:'۲۷۳',name:'فاتح',tier:'',tierCls:'',url:''},
-  {gems:1000,price:'۳۰۰٬۰۰۰ تومان',perGem:'۳۰۰',name:'امپراتور',tier:'',tierCls:'',url:''}
-]};
+   V68: آبجکت نمایشی SHOP.packs حذف شد (کد مرده — فقط مسیر رندر قدیمی مصرفش می‌کرد؛ گارد TWA گارد‌شده است).
+   تک‌منبع قیمت: SHOP_PACKS سمت سرور. شناسه‌های SKU مایکت بدون تغییر: gems_100/300/550/1000 */
 let GEMS=0,BOOST=0,WALLET_OK=false;
 const boostMult=()=>Date.now()<BOOST?2:1;
 const PSC={gold:.5,oil:.15,food:.5};
@@ -2287,7 +2282,7 @@ function popIncomeTick(){let t=0;conqueredCountries.forEach(n=>{t+=2+popM(n)*.01
 showDate=function(){const e=H$('hud-date');if(!e)return;let s;const d=new Date();
   try{s=d.toLocaleString('fa-IR-u-ca-persian',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(x){s=d.toLocaleString()}e.textContent='📅 '+s};
 /* ---- no radar grid / night overlay ---- */
-addGrid=function(){};addNight=function(){};
+addGrid=function(){};
 /* ---- natural land colors ---- */
 /* V45: نسخه‌ی روشن — همان فرمول نسخه‌ی پایین؛ hueهای تیره روی گوشی سیاه دیده نمی‌شوند */
 /* V59: بازتعریف V48 حذف شد — baseStyle تک‌منبع شد */
@@ -2390,14 +2385,7 @@ async function spendGem(it){
 /*WALLET-END*/
 (function(){const m=document.createElement('div');m.id='m-shop';m.className='modal';
   m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span>💎 فروشگاه Gem</span><span class="close-modal" style="cursor:pointer;font-size:18px;">✕</span></div><div id="shop-body"></div></div>';document.body.appendChild(m)})();
-function renderShop(){const b=S$('shop-body');if(!b)return;b.textContent='';
-  b.append(el('div','موجودی شما: 💎 '+GEMS+(boostMult()>1?'   ⚡ بوستر درآمد فعال: '+Math.ceil((BOOST-Date.now())/60000)+' دقیقه':''),'sites-info'));
-  if(!WALLET_OK)b.append(el('div','⚠️ فروشگاه Gem فقط با حساب آنلاین و دیتابیس فعال کار می‌کند.','sites-info'));
-  b.append(el('div','➕ خرید Gem','sites-h'));
-  SHOP.packs.forEach(p=>{const r=el('div','','lobby-item');r.append(el('div','💎 '+p.gems+' Gem — '+p.price,'lobby-item-text'));
-    if(p.url)r.append(el('button','خرید','lobby-item-btn btn-green',()=>window.open(p.url,'_blank')));else{const d=el('button','به‌زودی','lobby-item-btn btn-ghost');d.disabled=true;r.append(d)}b.append(r)});
-  b.append(el('div','🛒 خرج کردن Gem','sites-h'));
-  GEM_ITEMS.forEach(it=>{const r=el('div','','lobby-item');r.append(el('div',it.i+' '+it.t,'lobby-item-text'));r.append(el('button','💎 '+it.c,'lobby-item-btn btn-gold',()=>spendGem(it)));b.append(r)})}
+function renderShop(){/* V68: بدنه‌ی قدیمی فروشگاه حذف شد — تک‌پیاده‌سازی رندر در wd-shop-v2 است که همین نام را override می‌کند */}
 addEventListener('load',()=>{const nb=document.querySelector('.bottom-nav');
   if(nb){const b=el('button','','nav-btn',()=>{renderShop();openModal('m-shop')});b.id='btn-m-shop';b.append(el('span','💎'),el('span','فروشگاه'));nb.append(b)}
   const s=S$('hud-strip');if(s){const g=el('div','💎 0','hchip',()=>{renderShop();openModal('m-shop')});g.id='hud-gem';g.style.cursor='pointer';const t=el('div','🏴 0 کشور','hchip');t.id='hud-terr';s.prepend(g);s.prepend(t)}
@@ -3788,14 +3776,8 @@ setInterval(()=>{
  const e=document.createElement('span');e.className=Math.random()<.65?'wd5-projectile':'wd5-explosion';e.textContent=Math.random()<.5?'🚀':'💥';e.style.left=(10+Math.random()*65)+'%';e.style.top=(35+Math.random()*40)+'%';v.appendChild(e);setTimeout(()=>e.remove(),1400)
 },900);
 
-// Add contextual economy production bonuses from research without replacing core production.
-setInterval(()=>{
- if(typeof playerRes==='undefined'||!(typeof myCountryName!=='undefined'&&myCountryName))return;
- const now=Date.now(); if(now-(st._econTick||0)<20000)return;st._econTick=now;
- const bonus=Math.max(0,researchLevel('industry'));
- if(bonus)W.playerRes.gold+=(bonus*2);
- save();safe(()=>W.updateUI&&W.updateUI())
-},5000);
+/* V68 §26/§29: تایمر زامبی WD5 حذف شد — پنل WD5 مخفی است ولی این تایمر همچنان از localStorage
+   قدیمی «صنعت» طلای واقعی ضرب می‌کرد و کل save را هم ماندگار می‌کرد (شیرِ کلاینت-محور) */
 
 })();
    </script>
@@ -3911,7 +3893,7 @@ function aiCountry(n){if(!S.ai[n])S.ai[n]={power:500+Math.floor(Math.random()*25
 function initAI(){countries().slice(0,80).forEach(n=>aiCountry(n));save()}
 function crisis(){if(S.crisis&&S.crisis.until>Date.now())return;const arr=[
 ['🌋 بحران جهانی نفت','oil',.82,'قیمت نفت بالا رفت و ارتش‌ها تحت فشار قرار گرفتند.'],['🌾 ابرخشکسالی','food',.72,'تولید غذا در جهان کاهش یافت.'],['🏭 رونق صنعتی','steel',1.28,'کارخانه‌ها با ظرفیت بالا کار می‌کنند.'],['⚡ جهش انرژی','energy',1.35,'فناوری انرژی رشد کرده است.'],['📉 رکود جهانی','gold',.80,'درآمدهای اقتصادی کاهش یافته‌اند.']];const e=arr[Math.floor(Math.random()*arr.length)];S.crisis={name:e[0],type:e[1],mult:e[2],until:Date.now()+8*60*1000};news('🌍 '+e[0]+' — '+e[3]);save()}
-function economyTick(){crisis();let m=S.crisis?.mult||1;if(typeof playerRes!=='undefined'){playerRes.gold=Math.max(0,playerRes.gold+Math.round(Math.max(1,terr())*(S.tech.industry+1)*m));playerRes.food=Math.max(0,playerRes.food+Math.round(terr()*2*m));playerRes.oil=Math.max(0,playerRes.oil+Math.round(terr()*.8*m))}Object.keys(S.market).forEach(k=>S.market[k]=Math.max(30,Math.round(S.market[k]*(.985+Math.random()*.03))));S.stability=Math.max(0,Math.min(100,S.stability+(terr()>10?-.2:.1)));S.day=Math.floor((Date.now()-(S.started||Date.now()))/86400000)+1;save()}
+function economyTick(){crisis();let m=S.crisis?.mult||1;/* V68 §26: تزریق مستقیم منابع به playerRes حذف شد — کلاینت حق ضرب منبع ندارد؛ اقتصاد واقعی از سرور می‌آید. شبیه‌سازی داخلی WD7 (بازار/ثبات/روز) سر جایش است */Object.keys(S.market).forEach(k=>S.market[k]=Math.max(30,Math.round(S.market[k]*(.985+Math.random()*.03))));S.stability=Math.max(0,Math.min(100,S.stability+(terr()>10?-.2:.1)));S.day=Math.floor((Date.now()-(S.started||Date.now()))/86400000)+1;save()}
 function province(n){if(!S.provinces[n])S.provinces[n]={capital:Math.random()<.15,stability:65+Math.random()*25,industry:1+Math.floor(Math.random()*5),resource:['oil','food','steel','energy'][Math.floor(Math.random()*4)],fort:Math.floor(Math.random()*4)};return S.provinces[n]}
 function generateProvinces(){countries().forEach(n=>province(n));save()}
 function research(k){let cost=1+S.tech[k]*2;if(S.level<cost+1)return toast('🔬 سطح فرمانده برای این تحقیق کافی نیست');S.tech[k]++;addXP(25,'research');S.missions.research++;news('🧪 تحقیق جدید: '+k+' سطح '+S.tech[k]);render()}
@@ -3921,9 +3903,9 @@ function doctrine(){let d=['⚡ برق‌آسا','🛡️ دفاع عمیق','�
 function prepareWar(){let list=countries().filter(n=>n!==me() && !(typeof conqueredCountries!=='undefined'&&conqueredCountries.has(n)));if(!list.length)return toast('🌍 هدف مناسبی وجود ندارد');let n=list[Math.floor(Math.random()*list.length)],a=aiCountry(n);let bonus=1+S.tech.armor*.06+S.tech.air*.05+S.tech.intel*.04;let power=(typeof calculateTotalAttack==='function'?calculateTotalAttack():1000)*bonus;let defense=a.power*(.75+Math.random()*.6)*(a.stability>70?1.1:.9);let ratio=power/Math.max(1,defense);S.warScore+=Math.round(Math.max(1,ratio*10));S.missions.war++;S.general.xp+=25;S.reputation=Math.max(0,S.reputation-(ratio>1?0:2));addXP(35,'war');news((ratio>1?'⚔️ پیروزی تاکتیکی ':'🩸 شکست تاکتیکی ')+fa(n)+' | دکترین '+doctrine());if(ratio>1){a.stability=Math.max(0,a.stability-20);S.missions.conquer++;toast('⚔️ شبیه‌سازی موفق بود؛ برای حمله واقعی از نقشه هدف را انتخاب کن')}else{S.stability=Math.max(0,S.stability-4);toast('🛡️ شبیه‌سازی شکست خورد؛ نیرو و فناوری را ارتقا بده')}save();render()}
 function diplomacy(type){let n=countries().find(x=>x!==me() && !S.pacts.some(p=>p.target===x));if(!n)return toast('🤝 هدف دیپلماتیک نداریم');S.pacts.push({target:n,type,until:Date.now()+24*3600000});S.dipRep=Math.min(100,S.dipRep+3);S.reputation=Math.min(100,S.reputation+2);addXP(18,'dip');news('🤝 '+type+' با '+fa(n));render()}
 function alliance(){if(S.alliances.length>=3)return toast('🤝 سقف اتحادهای فعال reached');let id='WD-'+Math.random().toString(36).slice(2,6).toUpperCase();S.alliances.push({id,name:'اتحاد '+id,members:1,power:terr()*100});S.dipRep+=5;addXP(30);news('🤝 اتحاد جدید تشکیل شد: '+id);render()}
-function event(){let choices=['🔥 شورش استانی','🛢️ کشف میدان نفتی','💼 فرار سرمایه','🛰️ پرتاب ماهواره','👥 موج مهاجرت'];let e=choices[Math.floor(Math.random()*choices.length)];if(e.includes('نفت')){if(typeof playerRes!=='undefined')playerRes.oil+=800}if(e.includes('ماه'))S.tech.space++;if(e.includes('شورش'))S.stability-=8;if(e.includes('سرمایه')&&typeof playerRes!=='undefined')playerRes.gold=Math.max(0,playerRes.gold-500);news('🎲 رویداد جهان: '+e);addXP(15);if(typeof updateUI==='function')updateUI();render()}
+function event(){let choices=['🔥 شورش استانی','🛢️ کشف میدان نفتی','💼 فرار سرمایه','🛰️ پرتاب ماهواره','👥 موج مهاجرت'];let e=choices[Math.floor(Math.random()*choices.length)];/* V68 §26: جعل +۸۰۰ نفت / ۵۰۰- طلا از کلاینت حذف شد — رویداد فقط روایت شبیه‌سازی داخلی است */if(e.includes('ماه'))S.tech.space++;if(e.includes('شورش'))S.stability-=8;news('🎲 رویداد جهان: '+e);addXP(15);if(typeof updateUI==='function')updateUI();render()}
 function layer(l){S.layer=l;document.body.dataset.wd7layer=l;news('🗺️ لایه نقشه: '+l);render()}
-function missionComplete(k){let need={war:3,trade:5,spy:2,research:2,conquer:1}[k];if(S.missions[k]>=need){S.missions[k]-=need;addXP(60);if(typeof playerRes!=='undefined')playerRes.gold+=400;news('🎯 مأموریت تکمیل شد: '+k);if(typeof updateUI==='function')updateUI()}}
+function missionComplete(k){let need={war:3,trade:5,spy:2,research:2,conquer:1}[k];if(S.missions[k]>=need){S.missions[k]-=need;addXP(60);/* V68 §26: +۴۰۰ طلای جعلی حذف شد — مأموریت WD7 شبیه‌سازی داخلی است، نه شیر منبع واقعی */news('🎯 مأموریت تکمیل شد: '+k);if(typeof updateUI==='function')updateUI()}}
 function season(){let elapsed=Date.now()-(S.started||Date.now());if(elapsed>7*86400000){S.season++;S.started=Date.now();S.day=1;S.chronicle.unshift({t:Date.now(),m:'🏆 فصل جدید آغاز شد — Season '+S.season});S.missions={war:0,trade:0,spy:0,research:0,conquer:0};save();toast('🏆 فصل جدید شروع شد!')}}
 function render(){let c=$('wd7-content'),tab=S.tab||'world';let nav=[['world','🌍 جهان'],['war','⚔️ جنگ'],['eco','💰 اقتصاد'],['dip','🤝 دیپلماسی'],['tech','🧪 فناوری'],['intel','🛰️ اطلاعات'],['chron','📜 تاریخچه'],['map','🗺️ نقشه']];$('wd7-tabs').innerHTML=nav.map(x=>`<button class="wd7-tab ${tab===x[0]?'on':''}" data-tab="${x[0]}">${x[1]}</button>`).join('');
 $('wd7-tabs').querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render()});
@@ -4085,7 +4067,8 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
   /* V40: ظرفیت انبار تقریباً ۲.۵ برابر شد — جمع‌کردن نفت حالا واقعاً ممکن است */
   window.oilStorageCap=function(){
     const territoryBonus=(typeof conqueredCountries!=='undefined'?conqueredCountries.size:0)*1200;
-    return 6000 + territoryBonus + ((infra&&infra.storage)||0)*6000;
+    /* V68: انبار راهبردی CV (Country View) هم به سقف نفت اضافه شد — قبلاً ساختمان انبار CV بی‌اثر بود */
+    return 6000 + territoryBonus + ((infra&&infra.storage)||0)*6000 + (window.__wdcvOilCapAdd||0);
   };
   window.storageCost=function(){return 1000+(((infra&&infra.storage)||0)+1)*750};
   if(typeof infra!=='undefined' && infra.storage==null)infra.storage=0;
@@ -4231,20 +4214,10 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
   }
 
   // Replace the old "PvP not active" drawer text with a real button.
-  /* V59 wave-2: wrapper حذف شد — دکمه حمله PvP به کشور دیگران، پس‌هوک کلیک */
-  try{
-    WD_CLICK_HOOKS.post.push(function(f,l){
-        const o=OTH[f.properties.name];
-        if(!o)return;
-        const r=$('c-role'),d=$('drawer-actions');
-        if(r)r.textContent='🏴 تحت کنترل '+o.nick+(o.cap?' (پایتخت)':'')+' — سرور '+SRV;
-        if(d){
-          d.innerHTML='';
-          const b=document.createElement('button');b.className='action-btn btn-red';b.textContent='⚔️ حمله به '+o.nick;
-          b.onclick=()=>openPvP(f.properties.name);d.appendChild(b);
-        }
-    })
-  }catch(e){console.error('wd-c7',e)}
+  /* V59 wave-2: wrapper حذف شد — دکمه حمله PvP به کشور دیگران، پس‌هوک کلیک.
+     V68: هوک wd-c7 حذف شد — کاملاً مرده بود: wd-c8 (هوک بعدی، «آخرین بازنویسی OTH»)
+     هم #c-role و هم #drawer-actions را با متن/دکمه‌ی بهتر بازنویسی می‌کند؛
+     این هوک فقط یک innerHTML اضافه در هر کلیک OTH بود (§29: حذف هندلر تکراری) */
 
   // Log ordinary conquest after the existing battle resolves.
   if(typeof resolveBattle==='function'){
@@ -5089,19 +5062,10 @@ function bindCommand(){
     }
   },true);
 }
-/* Country aura: animate only 4 visible polygons at a time. */
-let auraTimer=0;
-function animateCountryAura(){
-  const paths=[...document.querySelectorAll('#map .leaflet-overlay-pane path.leaflet-interactive')];
-  if(!paths.length)return;
-  paths.forEach(p=>p.classList.remove('wd12-active'));
-  const count=Math.min(4,paths.length),start=(Math.floor(Date.now()/2800))%paths.length;
-  for(let i=0;i<count;i++)paths[(start+i*3)%paths.length].classList.add('wd12-active');
-}
+/* V68 §23: اسکنر هاله‌ی V12 حذف شد — انیمیشن wd12-active قبلاً در CSS مرده بود؛
+   فقط هزینه باقی مانده بود: کوئری همه‌ی pathهای نقشه هر ۲.۸ ثانیه (بازِ بی‌فایده) */
 function start(){
-  installSurface();bindCommand();animateCountryAura();
-  clearInterval(auraTimer);/* V59 wave-2 §10: هاله‌ی تزئینی فقط وقتی تب دیده می‌شود */
-  auraTimer=setInterval(function(){if(!document.hidden)animateCountryAura()},2800);
+  installSurface();bindCommand();
   /* Ensure command panel never leaves the bottom dock visible through it. */
   const p=$('wd7-panel');
   if(p && !p.dataset.v12bound){p.dataset.v12bound='1';const obs=new MutationObserver(()=>{if(p.classList.contains('open'))document.body.classList.add('wd12-command-open');else document.body.classList.remove('wd12-command-open')});obs.observe(p,{attributes:true,attributeFilter:['class']})}
@@ -6870,9 +6834,7 @@ function cosBuy(k){var it=CAT[k];if(!it)return;
   if(k==='radar'){COS.radarUntil=(res&&res.expires)?Date.parse(res.expires):(Date.now()+7*864e5);COS.lastRadar=Date.now();radarStart();showToast('🔔 رادار حمله فعال شد','win');return}
   if(k==='stats'){COS.statsOn=true;showStats();return}
  }})}
-function bundleBuy(){spendGem({k:'bundle_cos',c:100,t:'پک کامل امپراتور',f:function(){
- ['col_pack','emblem','title','border_glow','fx_conq'].forEach(function(k){if(!cosOwned(k))COS.owned.push(k)});
- showToast('👑 پک کامل امپراتور فعال شد! همه‌ی زیبایی‌ها مال توست','win')}})}
+/* V68 §29: bundleBuy حذف شد — صفر فراخوانی؛ V66 مسیر خرید پک را در کاتالوگ سرور دارد */
 /* V66: UI تب‌دار V27 بازنشسته شد — رندر فروشگاه تک‌مسیر به بلوک wd-shop-v2 (انتهای فایل) منتقل شد.
    cosBuy/openPick/lucky/stats/radar به‌عنوان پیاده‌سازی واحد زنده می‌مانند؛ V2 از طریق window.WD27_API صدا می‌زند. */
 /* V66: بدنه‌ی UI قدیمی V27 (balHead/tabBar/shopCard/packCard/tabRes/…/renderShop) حذف شد — تک‌پیاده‌سازی رندر در wd-shop-v2 */
@@ -14918,23 +14880,7 @@ var NEWCAT={
  frame:{i:'🖼️',t:'قاب پروفایل پویا',d:'حلقه‌ی نورانی چرخان و ذره‌ی طلایی دور نام تو در رتبه‌بندی.',c:30,rar:'leg'},
  entrance:{i:'🎬',t:'صحنه‌ی ورود سینمایی',d:'با هر فتح، پرچم با شعار اختصاصی تو سینمایی وارد می‌شود.',c:25,rar:'leg'},
  announce:{i:'🔊',t:'صدای اعلام‌کننده',d:'گوینده با هر فتح اعلام می‌کند: «فتح [کشور] توسط امپراتوری شما!»',c:22,rar:'rare'}};
-var RAR_OLD={'رنگ اختصاصی امپراتوری':'myth','نشان اختصاصی':'rare','لقب اختصاصی':'leg','مرز درخشان متحرک':'leg','افکت فتح اختصاصی':'rare','باکس شانسی روزانه':'com','مدال فصل':'myth','پک VIP هفتگی':'myth','رادار حمله (۷ روز)':'rare','آمار و تحلیل پیشرفته':'com'};
-function decorateShop(){try{var b=S$('shop-body');if(!b)return;
- var cards=b.querySelectorAll('.cos27-card');var i=0;
- cards.forEach(function(c){var tl=c.querySelector('.cos27-tx b');if(!tl)return;var t=tl.textContent||'';
-  var rar=RAR_OLD[t]||(NEWCAT[["anthem","frame","entrance","announce"].filter(function(k){return NEWCAT[k].t===t})[0]||'']||{}).rar;
-  if(rar&&!c.getAttribute('data-rar')){c.setAttribute('data-rar',rar);c.classList.add('w43-in');c.style.animationDelay=(i*.05)+'s'}i++});
- /* بخش V43: زینتی‌های جدید (فقط یک‌بار در هر رندر) */
- if(!b.querySelector('[data-w43sec]')){
-  var sec=el('div');sec.setAttribute('data-w43sec','1');
-  sec.appendChild(el('div','🎁 زینتی‌های سینمایی V43','cos27-h'));
-  for(var k in NEWCAT){(function(k){var it=NEWCAT[k];
-   var r=el('div','','cos27-card');r.setAttribute('data-rar',it.rar);r.classList.add('w43-in');
-   r.appendChild(el('div',it.i,'cos27-ico'));
-   var tx=el('div','','cos27-tx');tx.appendChild(el('b',it.t));tx.appendChild(el('small',it.d));r.appendChild(tx);
-   r.appendChild(el('button','💎 '+grp(it.c),'cos27-buy',function(){buyNew(k)}));
-   sec.appendChild(r)})(k)}
-  b.appendChild(sec)}}catch(e){log('decorateShop '+e)}}
+/* V68 §29: decorateShop + RAR_OLD حذف شد — صفر فراخوانی (رندر تک‌مسیر V66 دکور V43 را لازم ندارد) */
 function shopWatch(){ /* V66: زنجیره‌ی MutationObserver فروشگاه حذف شد — رندر تک‌مسیر V2 نیازی به دکور ندارد */ }
 function buyNew(k){try{var it=NEWCAT[k];if(!it)return;
  if(cosOwn(k)){newPick(k);return}
@@ -14967,10 +14913,7 @@ function newPick(k){try{var it=NEWCAT[k];if(!it)return;
  ov.appendChild(card);D.body.appendChild(ov);
  card.querySelector('.close-modal').addEventListener('click',function(){ov.remove()})}catch(e){log('newPick '+e)}}
 /* V66: wrapCosBuy و wrapRenderShop (فراخوانی‌نشده/مرده) حذف شدند — خرید V43 از کاتالوگ V2 می‌رود */
-function wrapSpendGem(){try{if(window._wd43sg)return;var _sg=window.spendGem;if(typeof _sg!=='function')return;window._wd43sg=1;
- window.spendGem=function(it){var p=_sg.apply(this,arguments);
-  try{Promise.resolve(p).then(function(r){if(r&&r.ok)jingle('buy'+(it&&it.k))})}catch(e){}
-  return p}}catch(e){}}
+/* V68 §29: wrapSpendGem هم حذف شد — رپِ بی‌اثر روی spendGem که فقط jingle می‌داد؛ صدای خرید در مسیر واحد V66 خودش پخش می‌شود */
 
 /* ================= 14) دکورهای زنده: قاب رتبه، شاین لقب، مرز جاری، هاله‌ی مدال، رینگ رادار، گرادینت آمار ================= */
 function rankFrame(){try{if(!cosOwn('frame'))return;
@@ -15065,7 +15008,7 @@ function bootLoops(){
  wsFetch();setInterval(function(){wsFetch()},600000);
 }
 function boot(){try{
- wrapSpendGem();wrapShowStats();wrapLucky();wrapApplyColor();wrapRanks();shopWatch();propModalEnsure();
+ wrapShowStats();wrapLucky();wrapApplyColor();wrapRanks();shopWatch();propModalEnsure();
  W43modal();hooks();
  var tries=0;var iv=setInterval(function(){tries++;if(doomChipEnsure()||tries>20)clearInterval(iv)},900);
  /* ورود روزانه: XP مسیر فصل */
@@ -15079,7 +15022,7 @@ function boot(){try{
  log('ready — جهان زنده فعال شد')}catch(e){log('boot '+e)}}
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',boot);else boot();
 /* پل تست/دیباگ — توابع داخلی برای E2E و کنسول */
-setTimeout(function(){try{WD43._t={propRender:propRender,propModalEnsure:propModalEnsure,passRender:passRender,passLoad:passLoad,cosOwn:cosOwn,decorateShop:decorateShop,tutShow:tutShow,tutForce:function(){try{tutState.done=false;tutState.skipped=false;tutState.i=0;tutSave()}catch(e){}tutShow()},wsFetch:wsFetch,playAnthem:playAnthem,conquestCinema:conquestCinema,newPick:newPick,buyNew:buyNew}}catch(e){}},300);
+setTimeout(function(){try{WD43._t={propRender:propRender,propModalEnsure:propModalEnsure,passRender:passRender,passLoad:passLoad,cosOwn:cosOwn,tutShow:tutShow,tutForce:function(){try{tutState.done=false;tutState.skipped=false;tutState.i=0;tutSave()}catch(e){}tutShow()},wsFetch:wsFetch,playAnthem:playAnthem,conquestCinema:conquestCinema,newPick:newPick,buyNew:buyNew}}catch(e){}},300);
 /* V66: پل Shop V2 — خرید/پیکر زینتی‌های V43 با پیاده‌سازی واحد */
 window.WD43_API={buyNew:buyNew,newPick:newPick,cosOwn:cosOwn,cosSet:cosSet,cosOwnedPush:cosOwnedPush};
 })();
@@ -17825,9 +17768,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
 })();
 </script>
 
-</body>
-</html>
-   <script>
+<script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
        الگوی رسمی drawer (قرینه‌ی هوک زیرساخت‌ها): فقط برای کشورهای owned.
        موتور (cv-engine.js) با lazy-load فقط در اولین ورود لود می‌شود — صفحه‌ی اصلی سنگین نمی‌شود. */
@@ -17847,7 +17788,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               ev.stopPropagation();
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=67';
+              s.src='/game/cv-engine.js?v=68';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17858,3 +17799,5 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
+</body>
+</html>

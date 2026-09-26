@@ -17,12 +17,24 @@ function hashPassword(password, salt) {
 }
 const password = () => 'wd54e2e-pass'
 
+/* V68: ایمیل باید همان pseudo-email کلاینت باشد — لاگین واقعی بازی با
+   sha256('wd:'+nick)@players.worlddominion.app انجام می‌شود (index.html pseudoEmail).
+   ایمیل plain (مثل bot@wd.test) فقط برای upsert قدیمی بود و لاگین را می‌شکست */
+async function pseudoEmail(nick) {
+  const b = crypto.createHash('sha256').update('wd:' + nick.trim().toLowerCase()).digest()
+  return b.slice(0, 16).toString('hex') + '@players.worlddominion.app'
+}
+
 async function mkUser(email, nick, gems) {
-  const u = await db.user.upsert({
-    where: { email },
-    create: { id: crypto.randomUUID(), email, nick, nickLower: nick.toLowerCase(), passwordHash: hashPassword(password()), isAdmin: nick.toLowerCase() === 'alireza' },
-    update: { isAdmin: nick.toLowerCase() === 'alireza' },
-  })
+  /* V68: seed idempotent — کاربر قدیمی با ایمیل دیگری ولی همان nick باعث P2002 می‌شد؛
+     اول با pseudo-email (همان که کلاینت لاگین می‌زند) پیدا کن، بعد با nickLower، بعد بساز.
+     پسورد همیشه ریست می‌شود تا لاگین تست قطعی باشد */
+  const pseudo = await pseudoEmail(nick)
+  const found = (await db.user.findUnique({ where: { email: pseudo } })) || (await db.user.findFirst({ where: { nickLower: nick.toLowerCase() } }))
+  const data = { email: pseudo, nick, nickLower: nick.toLowerCase(), passwordHash: hashPassword(password()), isAdmin: nick.toLowerCase() === 'alireza' }
+  const u = found
+    ? await db.user.update({ where: { id: found.id }, data })
+    : await db.user.create({ data: { id: crypto.randomUUID(), ...data } })
   await db.wallet.upsert({ where: { userId: u.id }, create: { userId: u.id, gems }, update: { gems } })
   await db.score.upsert({ where: { userId: u.id }, create: { userId: u.id, nick, server: 1 }, update: { nick, server: 1 } })
   return u

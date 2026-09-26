@@ -480,6 +480,10 @@
 
   /* ---------- ورودی: Tap / Drag / Pinch / Wheel ---------- */
   function bindInput() {
+    /* V68 — §29: گارد بایند-یک‌بار — قبلاً هر open() همه‌ی لیستنرها را دوباره می‌بست
+       (N سشن → N× هندلر؛ لیک واقعی). المنت canvas ماندگار است؛ یک‌بار کافی است. */
+    if (cv.__wdcvBound) return
+    cv.__wdcvBound = true
     const st = stage()
     const pointers = new Map()
     let lastTap = { x: 0, y: 0, t: 0 }, moved = false
@@ -514,24 +518,23 @@
         }
       }
     })
+    /* V68 — §31: تک‌هندلر pointerup — دبل‌تپ = زوم (بدون onTap)، تک‌تپ = انتخاب.
+       قبلاً دو هندلر جدا بودند: دبل‌تپ هم onTap می‌داد هم زوم (پنل استان بی‌دلیل باز می‌شد). */
+    let lastTapT = 0, lastTapXY = [0, 0]
     cvEl.addEventListener('pointerup', (e) => {
       pointers.delete(e.pointerId)
-      if (!moved && Date.now() - lastTap.t < 400) onTap(e.clientX, e.clientY)
+      const now = Date.now()
+      const isDouble = now - lastTapT < 320 && Math.hypot(e.clientX - lastTapXY[0], e.clientY - lastTapXY[1]) < 24
+      lastTapT = isDouble ? 0 : now
+      lastTapXY = [e.clientX, e.clientY]
+      if (isDouble) { zoomAt(e.clientX - rectLeft(), e.clientY - rectTop(), clamp(S.cam.z * 1.5, 0.6, 4)); return }
+      if (!moved && now - lastTap.t < 400) onTap(e.clientX, e.clientY)
     })
     cvEl.addEventListener('pointercancel', (e) => pointers.delete(e.pointerId))
     cvEl.addEventListener('wheel', (e) => {
       e.preventDefault()
       zoomAt(e.offsetX, e.offsetY, clamp(S.cam.z * (e.deltaY < 0 ? 1.12 : 0.89), 0.6, 4))
     }, { passive: false })
-    /* دبل‌تپ = زوم */
-    let lastTapT = 0, lastTapXY = [0, 0]
-    cvEl.addEventListener('pointerup', (e) => {
-      const now = Date.now()
-      if (now - lastTapT < 320 && Math.hypot(e.clientX - lastTapXY[0], e.clientY - lastTapXY[1]) < 24) {
-        zoomAt(e.clientX - rectLeft(), e.clientY - rectTop(), clamp(S.cam.z * 1.5, 0.6, 4))
-        lastTapT = 0
-      } else { lastTapT = now; lastTapXY = [e.clientX, e.clientY] }
-    })
     window.addEventListener('resize', onResize)
     window.addEventListener('keydown', onKey)
   }
@@ -595,6 +598,11 @@
 
   function header() {
     const u = ui(); if (!u) return
+    /* V68 — §23: نوشتن تفاضلی — قبلاً هر ۲ ثانیه innerHTML از نو نوشته می‌شد حتی بدون تغییر */
+    const sig = [S.countryFa || S.country, fmtRes(S.res.gold), fmtRes(S.res.oil), fmtRes(S.res.food),
+      S.rates.gold, S.rates.oil, S.rates.food, S.mil.atkPct, S.mil.defPct, S.counts.ports, S.counts.airports, Math.floor(S.rp)].join('|')
+    if (sig === (S._hdrCache || '')) return
+    S._hdrCache = sig
     u.querySelector('#wdcv-hname').textContent = S.countryFa || S.country
     u.querySelector('#wdcv-hres').innerHTML =
       '💰' + fmtRes(S.res.gold) + '  🛢️' + fmtRes(S.res.oil) + '  🌾' + fmtRes(S.res.food) +
@@ -720,6 +728,41 @@
   }
   const rid = () => 'cv-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9)
 
+  /* ---------- کسر/افزودن خوش‌بینانه به بازی اصلی (V68) ----------
+     §26/§28 دستور کار: هزینه همان لحظه از playerRes کم می‌شود تا سیو ۸ثانیه‌ای
+     کسرِ سرور را برگشت نزند (باگ دفترچه‌ی دوگانه: سرور کم می‌کرد، کلاینت overwrite می‌کرد).
+     سرور همچنان مرجع اعتبارسنجی است؛ در خطا/تکراری کل مبلغ برمی‌گردد.
+     S.mirrored: بخشی از دلتای سرور که کلاینت خودش اعمال کرده — در merge دلتا حذف می‌شود. */
+  function localApply(dg, dop, df) {
+    const pr = gameRef('playerRes')
+    if (!pr) return
+    pr.gold = Math.max(0, Math.round((Number(pr.gold) || 0) + dg))
+    pr.oil = Math.max(0, Math.round((Number(pr.oil) || 0) + dop))
+    pr.food = Math.max(0, Math.round((Number(pr.food) || 0) + df))
+    S.mirrored = S.mirrored || { gold: 0, oil: 0, food: 0 }
+    S.mirrored.gold += dg; S.mirrored.oil += dop; S.mirrored.food += df
+    const uu = gameRef('updateUI'); if (typeof uu === 'function') uu()
+  }
+  /* دلتای مثبت سرور (تولید CV و هر افزایش سمت سرور) → playerRes تا سیو ماندگارش کند */
+  function mergeServerRes(resObj) {
+    if (!resObj) return
+    const prev = S.srvRes
+    S.srvRes = { gold: Number(resObj.gold) || 0, oil: Number(resObj.oil) || 0, food: Number(resObj.food) || 0 }
+    S.mirrored = S.mirrored || { gold: 0, oil: 0, food: 0 }
+    const pr = gameRef('playerRes')
+    if (!pr || !prev) return
+    const dg = S.srvRes.gold - prev.gold - S.mirrored.gold
+    const dop = S.srvRes.oil - prev.oil - S.mirrored.oil
+    const df = S.srvRes.food - prev.food - S.mirrored.food
+    S.mirrored = { gold: 0, oil: 0, food: 0 }
+    if (dg > 0 || dop > 0 || df > 0) {
+      if (dg > 0) pr.gold = Math.round((Number(pr.gold) || 0) + dg)
+      if (dop > 0) pr.oil = Math.round((Number(pr.oil) || 0) + dop)
+      if (df > 0) pr.food = Math.round((Number(pr.food) || 0) + df)
+      const uu = gameRef('updateUI'); if (typeof uu === 'function') uu()
+    }
+  }
+
   async function tryBuild(type, provIdx) {
     const btnDef = S.cat.find((x) => x.id === type)
     if (!btnDef) return
@@ -727,12 +770,16 @@
     const free = Array.from({ length: prov.slots }, (_, i) => i).find((s) => !S.buildings.some((b) => b.province === provIdx && b.slot === s))
     if (free === undefined) { toast('❌ جایگاه خالی نیست'); return }
     if (btnDef.req === 'power' && !S.buildings.some((b) => b.province === provIdx && b.type === 'power' && b.status === 'active')) { toast('❌ اول نیروگاه در همین استان بساز'); return }
+    /* V68: کسر خوش‌بینانه — قبل از RPC؛ سرور همچنان funds را اعتبارسنجی می‌کند */
+    const cost68 = costOf(btnDef, 1)
+    localApply(-cost68.g, -cost68.o, -cost68.f)
     try {
       const r = await rpc('cv_build', { p_country: S.country, p_server: S.server, p_type: type, p_province: provIdx, p_slot: free, p_request_id: rid() })
       if (r && r.ok) {
-        if (r.duplicate) toast('ℹ️ این ساخت قبلاً ثبت شده بود')
+        if (r.duplicate) { localApply(cost68.g, cost68.o, cost68.f); toast('ℹ️ این ساخت قبلاً ثبت شده بود') } /* سرور برای تکراری هزینه نگرفته */
         else {
           S.res = r.resNow || S.res
+          S.srvRes = r.resNow ? { gold: Number(r.resNow.gold) || 0, oil: Number(r.resNow.oil) || 0, food: Number(r.resNow.food) || 0 } : S.srvRes
           const d = r.building.doneAt ? new Date(r.building.doneAt) : null
           S.buildings.push({ ...r.building, doneAt: d, startedAt: r.building.startedAt ? new Date(r.building.startedAt) : new Date() })
           spawnParticles(...slotPos(provIdx, free), 'gold')
@@ -740,28 +787,35 @@
         }
         header(); openProvPanel(provIdx)
       } else {
+        localApply(cost68.g, cost68.o, cost68.f) /* برگشت کامل در هر خطا (funds/race/cap/…) */
         const msg = { funds: 'منابع کافی نیست', occupied: 'جایگاه اشباع است', capital_only: 'فقط در پایتخت', coastal: 'فقط استان ساحلی', terrain: 'زمین مناسب نیست', empire_cap: 'سقف امپراتوری پر است', prov_cap: 'سقف استان پر است', need_power: 'نیاز به نیروگاه در همین استان', not_owned: 'این کشور مال تو نیست', race: 'همزمانی — دوباره تلاش کن' }[r && r.error] || 'انجام نشد'
         toast('❌ ' + msg)
       }
-    } catch (e) { toast('❌ ارتباط برقرار نشد') }
+    } catch (e) { localApply(cost68.g, cost68.o, cost68.f); toast('❌ ارتباط برقرار نشد') }
   }
   async function tryUpgrade(b, btn) {
     btn.disabled = true
+    /* V68: کسر خوش‌بینانه هزینه‌ی ارتقا — هم‌فرمول سرور (costOf ≡ cvCost) */
+    const def68 = S.cat.find((x) => x.id === b.type)
+    const cost68 = def68 ? costOf(def68, b.level + 1) : { g: 0, o: 0, f: 0 }
+    localApply(-cost68.g, -cost68.o, -cost68.f)
     try {
       const r = await rpc('cv_upgrade', { p_country: S.country, p_server: S.server, p_id: b.id, p_request_id: rid() })
       if (r && r.ok) {
-        if (r.duplicate) toast('ℹ️ همین ارتقا قبلاً ثبت شده بود')
+        if (r.duplicate) { localApply(cost68.g, cost68.o, cost68.f); toast('ℹ️ همین ارتقا قبلاً ثبت شده بود') }
         else {
           S.res = r.resNow || S.res
+          S.srvRes = r.resNow ? { gold: Number(r.resNow.gold) || 0, oil: Number(r.resNow.oil) || 0, food: Number(r.resNow.food) || 0 } : S.srvRes
           b.level = r.level; b.status = 'building'; b.startedAt = new Date(Date.now()); b.doneAt = new Date(Date.now() + (r.timeSec || 30) * 1000)
           toast('⬆️ ارتقا به سطح ' + fa(r.level) + ' شروع شد')
         }
         header(); selectBuilding(b)
       } else {
+        localApply(cost68.g, cost68.o, cost68.f)
         const msg = { funds: 'منابع کافی نیست', busy: 'در حال ساخت است', max_level: 'حداکثر سطح', not_owned: 'مالک نیستی', race: 'همزمانی' }[r && r.error] || 'انجام نشد'
         toast('❌ ' + msg); btn.disabled = false
       }
-    } catch (e) { toast('❌ ارتباط برقرار نشد'); btn.disabled = false }
+    } catch (e) { localApply(cost68.g, cost68.o, cost68.f); toast('❌ ارتباط برقرار نشد'); btn.disabled = false }
   }
   async function tryCancel(b, btn) {
     btn.disabled = true
@@ -769,6 +823,9 @@
       const r = await rpc('cv_cancel', { p_country: S.country, p_server: S.server, p_id: b.id })
       if (r && r.ok) {
         S.res = r.resNow || S.res
+        S.srvRes = r.resNow ? { gold: Number(r.resNow.gold) || 0, oil: Number(r.resNow.oil) || 0, food: Number(r.resNow.food) || 0 } : S.srvRes
+        const rf68 = r.refund || { g: 0, o: 0, f: 0 }
+        localApply(rf68.g, rf68.o, rf68.f) /* برگشت ۷۰٪ — هم‌جهت با کسر سرور */
         if (r.level === 0) S.buildings = S.buildings.filter((x) => x.id !== b.id)
         else { b.level = r.level; b.status = 'active'; b.doneAt = null }
         toast('↩️ لغو شد — ۷۰٪ هزینه برگشت')
@@ -804,6 +861,9 @@
       S.mil = r.mil || S.mil
       S.counts = r.counts || S.counts
       S.res = r.res || S.res
+      /* V68 — §7/§28: دلتای مثبت سرور → playerRes (تولید CV دیگر گم نمی‌شود؛ سیو ۸ثانیه‌ای ماندگارش می‌کند) */
+      mergeServerRes(r.res)
+      if (typeof r.oilCapAdd === 'number') window.__wdcvOilCapAdd = r.oilCapAdd
       S.resAt = performance.now()
       S.maxLevel = r.maxLevel || 10
       S.offlineCapMs = r.offlineCapMs || 0
@@ -941,6 +1001,8 @@
       S.countryFa = (fn && fn(country)) || (fad && fad[String(country).toLowerCase()]) || (gcd && (gcd(country) || {}).fa) || country
     } catch (e) {}
     S.sel = { prov: -1, bld: null, slot: null }
+    S.srvRes = null /* V68: مبناي دلتای منابع سرور — هر سشن از نو */
+    S.mirrored = { gold: 0, oil: 0, food: 0 }
     if (!(await buildGeometryAsync(country))) toast('⚠️ هندسه‌ی کشور یافت نشد — از سرور ادامه می‌دهیم')
     const ok = await syncState(false)
     if (!ok) { close(); return }
@@ -969,15 +1031,11 @@
     const st = document.getElementById('wdcv-stage')
     if (st) st.classList.remove('on')
     resumeMap()
-    /* همگام‌سازی نهایی: منابع سرور → بازی اصلی */
+    /* همگام‌سازی نهایی: دلتای سرور → بازی اصلی (V68 — به‌جای جایگزینی مطلق که
+       درآمد کلاینتیِ ۸ ثانیه‌ی آخر را rollback می‌کرد) */
     try {
       const r = await rpc('cv_state', { p_country: S.country, p_server: S.server })
-      if (r && r.ok && r.res) {
-        const pr = gameRef('playerRes')
-        if (pr) { pr.gold = Math.round(r.res.gold); pr.oil = Math.round(r.res.oil); pr.food = Math.round(r.res.food) }
-        const uu = gameRef('updateUI')
-        if (typeof uu === 'function') uu()
-      }
+      if (r && r.ok && r.res) mergeServerRes(r.res)
     } catch (e) {}
   }
 

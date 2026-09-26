@@ -1436,10 +1436,30 @@ async function cvAccrue(userId: string, cv: CvCountryRow, buildings: CvBuildingR
     rem[k] = Math.round((tot - gain[k]) * 100) / 100
   }
   const rpGain = Math.round(rates.rp * mins * 100) / 100
+  /* V68 — §7 دستور کار: سقف ذخیره روی انباشت CV اعمال می‌شود (قبلاً oilCap محاسبه می‌شد ولی هیچ‌جا clamp نمی‌شد).
+     فرمول نفت = همان oilStorageCap کلاینت (۶۰۰۰ + ۱۲۰۰×قلمرو + ۶۰۰۰×انبار لابی) + ۲۵۰۰×سطح انبار CV همان کشور.
+     غذا = ۹۰۰۰ + ۲۵۰۰×قلمرو (هم‌فرمول fc کلاینت). تولید مازاد بر سقف اتلاف می‌شود — مثل رفتار زنده‌ی نقشه. */
+  let capOil = 0, capFood = 0
+  try {
+    const terrN = await territoryCount(userId, cv.server)
+    const saveRow = await db.save.findUnique({ where: { userId }, select: { state: true } })
+    const stJ = cvJson<Record<string, unknown>>(saveRow?.state || '{}', {})
+    const infraJ = cvJson<Record<string, number>>(typeof stJ.infra === 'string' ? stJ.infra : JSON.stringify(stJ.infra || {}), {})
+    let cvStorageLvl = 0
+    for (const b of buildings) {
+      if (b.type !== 'storage') continue
+      if (b.status !== 'active' && !(b.doneAt && b.doneAt.getTime() <= now)) continue
+      cvStorageLvl += b.level
+    }
+    capOil = 6000 + 1200 * terrN + 6000 * (Number(infraJ.storage) || 0) + 2500 * cvStorageLvl
+    capFood = 9000 + 2500 * terrN
+  } catch (e) { console.log('cvcap', e) }
   if (gain.gold || gain.oil || gain.food || rpGain > 0 || finished.length) {
     await db.$transaction(async (tx) => {
       if (gain.gold || gain.oil || gain.food) {
         await tradeApply(userId, (r) => {
+          if (capOil > 0) gain.oil = Math.max(0, Math.min(gain.oil, Math.max(0, capOil - (Number(r.oil) || 0))))
+          if (capFood > 0) gain.food = Math.max(0, Math.min(gain.food, Math.max(0, capFood - (Number(r.food) || 0))))
           r.gold = (Number(r.gold) || 0) + gain.gold
           r.oil = (Number(r.oil) || 0) + gain.oil
           r.food = (Number(r.food) || 0) + gain.food
@@ -1467,6 +1487,39 @@ function cvPublicState(owned: boolean, country: string, server: number, province
     rates: { gold: Math.round(sum.rates.gold), oil: Math.round(sum.rates.oil), food: Math.round(sum.rates.food), rp: sum.rates.rp },
     mil: sum.mil, goldPct: sum.goldPct, oilCapAdd: sum.oilCap, counts: { ports: sum.ports, airports: sum.airports },
     res, accrued: sum.accrued, offlineCapMs: CV_OFFLINE_CAP_MS, maxLevel: CV_MAX_LEVEL, now: Date.now(),
+  }
+}
+
+/* ============================================================
+   V68 — §9 دستور کار: اثر واقعی Country View روی نبرد سرور.
+   مهاجم: جمع atkPct همه‌ی کشورهای CV او (پادگان فعال × سطح × ضریب فناوری mil —
+   همان زنجیره‌ی cvAccrue.mil) — سقف ۲۵٪.
+   مدافع: defPct خطوط دفاعی فعال در همان کشورِ زیر حمله — سقف ۳۰٪.
+   فقط ساختمان‌های فعال (status=active یا doneAt گذشته)؛ ساخت ناتمام اثری ندارد.
+   سرور مرجع است؛ کلاینت هیچ عددی به این زنجیره نمی‌فرستد.
+   ============================================================ */
+const CV_PVP_ATK_CAP = 25
+const CV_PVP_DEF_CAP = 30
+async function cvMilBonus(userId: string, country?: string): Promise<{ atkPct: number; defPct: number }> {
+  const now = Date.now()
+  const cvs = (await db.cvCountry.findMany({ where: { userId, ...(country ? { country } : {}) } })) as CvCountryRow[]
+  if (!cvs.length) return { atkPct: 0, defPct: 0 }
+  const blds = (await db.cvBuilding.findMany({ where: { userId, ...(country ? { country } : {}) } })) as CvBuildingRow[]
+  let atk = 0, def = 0
+  for (const cv of cvs) {
+    const mults = cvTechMults(cvJson<CvTechState>(cv.tech, {}))
+    for (const b of blds) {
+      if (b.country !== cv.country) continue
+      if (b.status !== 'active' && !(b.doneAt && b.doneAt.getTime() <= now)) continue
+      const d = cvDef(b.type)
+      if (!d) continue
+      if (d.atkPct) atk += d.atkPct * b.level * mults.mil
+      if (d.defPct) def += d.defPct * b.level
+    }
+  }
+  return {
+    atkPct: Math.min(CV_PVP_ATK_CAP, Math.round(atk * 10) / 10),
+    defPct: Math.min(CV_PVP_DEF_CAP, Math.round(def * 10) / 10),
   }
 }
 
@@ -1708,7 +1761,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             else if (eff.pct > 0) { opApplied = { k: eff.k, pct: eff.pct }; }
           }
         } catch (e) { console.log('opseffr', e) }
-        const d = opApplied && opApplied.pct > 0 ? Math.max(1, Math.round(d0 * (1 - opApplied.pct))) : d0
+        let d = opApplied && opApplied.pct > 0 ? Math.max(1, Math.round(d0 * (1 - opApplied.pct))) : d0
         /* V34: revenge strike — the attacker's one-shot +25% right against the player
            who took their land (72h window, consumed on use, win or lose) */
         let revenge_used = false
@@ -1722,6 +1775,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const tac65 = String(args.p_tactic || '')
         const tacMult65 = tac65 === 'blitz' ? 1.10 : tac65 === 'heavy' ? 1.15 : tac65 === 'precision' ? 1.05 : 1
         if (tacMult65 > 1) a = Math.round(a * tacMult65)
+        /* V68 — §9: Country View روی نبرد واقعی سرور اثر می‌گذارد — پادگان/فناوری نظامی مهاجم → حمله،
+           خط دفاعیِ مدافع در همان کشور → دفاع. سقف‌ها: +۲۵٪ حمله / +۳۰٪ دفاع. فقط ساختمان فعال. */
+        let cvAtkPct = 0, cvDefPct = 0
+        try {
+          cvAtkPct = (await cvMilBonus(user.id)).atkPct
+          if (cvAtkPct > 0) a = Math.round(a * (1 + cvAtkPct / 100))
+          cvDefPct = (await cvMilBonus(t.userId, country)).defPct
+          if (cvDefPct > 0) d = Math.max(1, Math.round(d * (1 + cvDefPct / 100)))
+        } catch (e) { console.log('cvmil', e) }
         const chance = Math.min(0.85, Math.max(0.2, 0.5 + (a - d) / (2 * (a + d + 500))))
         const win = Math.random() < chance
         if (rev) await db.revengeMark.update({ where: { id: rev.id }, data: { used: true } })
@@ -1748,7 +1810,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
            defense/captured — before this it always computed 0% and 60% losses and
            syncTerr deleted the just-won territory */
-        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null })
+        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct })
       }
       case 'pvp_capture_territory': {
         if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */

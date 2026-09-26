@@ -1397,3 +1397,29 @@ Stage Summary:
 - Country View واقعی و Server-Authoritative روی نسخه‌ی لایو است
 - اقتصاد CV همان استخراج playerRes است (بدون اقتصاد موازی)؛ نظامی به زنجیره‌ی calculateTotalAttack فعلی وصل است
 - ریسک‌های شفاف: تعریف ترِین بر اساس عرض جغرافیایی+seed (دیتای ارتفاع واقعی در بازی وجود ندارد)، ساحل تقریب آستانه‌ای، defPct فعلاً نمایشی (سیستم دفاع فعال در بازی وجود ندارد)، قفل درون‌حافظه‌ای per-instance با پشتیبان unique constraint
+
+---
+Task ID: v68-master-spec-p1 (V68 — Master Spec: Audit + Cleanup + Economy + Battle §9)
+Agent: main (Super Z)
+Task: اجرای Master Roadmap کاربر (۳۷بند/۱۸فاز) — فاز ۱ Audit کامل + فاز ۲ پاک‌سازی + فاز ۷ اقتصاد + فاز ۹ اتصال نبرد، طبق قوانین ۲۶/۲۸/۲۹/۳۱
+
+Work Log:
+- PHASE 1 Audit: ۴ کارشناس موازی (Map/Country/Camera، Economy/Army/Battle/PvP، Diplomacy/Tech/Meta، Shop/Olympics/Auth/Perf/Patch-chains) + تأیید خط‌به‌خط ادعاها — گزارش فارسی به کاربر ارائه شد
+- بحرانی کشف‌شده: (۱) دفترچه‌ی دوگانه‌ی اقتصاد — سیو ۸ثانیه‌ای کلاینت کسر سرور CV را برمی‌گرداند و تولید CV را می‌خورد؛ (۲) schema.postgres.prisma فاقد OlympicRecord.matchId/sv → ثبت رکورد المپیک روی پروداکشن Neon خطای runtime؛ (۳) شیرهای جعل منبع کلاینت (wd7_event +۸۰۰نفت بی‌سقف، missionComplete +۴۰۰طلا هر۳۰ثانیه، economyTick، WD5 zombie interval)
+- FIX-1: matchId/sv به اسکیمای postgres + اسکریپت scripts/schema-parity.mjs (پارسر مقاوم به کامنت) → ۴۳ مدل یکسان
+- FIX-2 اقتصاد: کسر خوش‌بینانه‌ی هزینه در tryBuild/tryUpgrade (هم‌فرمول سرور) + برگشت در خطا/duplicate؛ mergeServerRes با S.srvRes/S.mirrored → دلتای مثبت سرور (تولید CV) به playerRes می‌ریزد؛ close() به‌جای جایگزینی مطلق، دلتا (ضد rollback درآمد کلاینت)؛ clamp سمت سرور: انباشت نفت/غذا از سقف (هم‌فرمول oilStorageCap کلاینت ۶۰۰۰+۱۲۰۰قلمرو+۶۰۰۰انبار لابی + ۲۵۰۰انبار CV / غذا ۹۰۰۰+۲۵۰۰قلمرو) عبور نمی‌کند؛ انبار CV به oilStorageCap کلاینت وصل شد (__wdcvOilCapAdd) — ساختمان انبار که کاملاً بی‌اثر بود زنده شد
+- FIX-3 §9: cvMilBonus(userId, country?) — مهاجم: جمع atkPct پادگان‌های فعال × ضریب فناوری mil (سقف ۲۵٪)، مدافع: defPct خط دفاعی همان کشور (سقف ۳۰٪)؛ تزریق در pvp_attack قبل از chance + فیلدهای cv_atk_pct/cv_def_pct در پاسخ؛ ساخت ناتمام اثر ندارد
+- FIX-4 §26: حذف ۴ شیر جعل منبع WD7/WD5 (شبیه‌سازی داخلی WD7 سالم ماند)
+- FIX-5 §23/25/31: bindInput بایند-یک‌بار (لیک هر open حل شد)، تک‌هندلر pointerup (دبل‌تپ دیگر tap هم نمی‌دهد)، header نوشتن تفاضلی (قبلاً هر۲ثانیه innerHTML)
+- FIX-6 §29: حذف کد مرده‌ی اثبات‌شده — هوک PvP مرده wd-c7 (wd-c8 نهایی است)، wrapSpendGem، bundleBuy، decorateShop+RAR_OLD، بدنه‌ی قدیمی renderShop، SHOP.packs، اسکنر هاله‌ی V12 (هر۲.۸ثانیه کوئری بی‌فایده)، بدنه‌ی addNight، انتقال اسکریپت V67 به داخل body؛ نسخه‌ها: __WD_V=68 + v.txt=68 + cv-engine.js?v=68
+- FIX-7 §26: rate limit ۱۲۰/دقیقه/کاربر برای POST/PATCH/DELETE مسیر /api/db (تنها مسیر بدون نرخ‌سنج) + فیکس type-error از-قبل‌موجود db-route:236
+- تست: ۱۲ سوئیت = ۲۴۶ چک سبز، صفر pageerror — v68-master-test جدید ۳۲/۳۲ (ساختار/شیرها/زنجیره‌ی اقتصاد/اثر نبرد/سقف نفت)، cv-e2e-v67 ۳۳/۳۳، cv-e2e-client ۲۱/۲۱ (کسر خوش‌بینانه تأیید شد: ۵۰۳۰۰→۴۹۸۰۰ همان لحظه)، shop-v2 ۳۹/۳۹، e2e-v58 ۲۴/۲۴، apk-sim ۲۸/۲۸، map-visual ۱۶/۱۶، lowfx ۶/۶، sw-selfheal ۸/۸، verify-build ۹/۹، feature-v65 ۲۹/۲۹، cv-perf: ۶۰FPS پایدار/DOM=۱۱/heap ثابت
+- درس‌های تست: seed باید pseudo-email کلاینت (sha256('wd:'+nick)@players.worlddominion.app) بدهد وگرنه لاگین API می‌شکند؛ MultiEdit این محیط اتمی نیست — پس از هر batch، وضعیت را باید راستی‌آزمایی کرد؛ state بین سوئیت‌ها می‌ماند (seed پیش از هر گیت رگرسیون)
+- اسکریپت‌های جدید: scripts/schema-parity.mjs، scripts/pseudo-email.mjs، scripts/v68-master-test.mjs (+۵ diag موقت حذف‌شدنی)
+
+Stage Summary:
+- اقتصاد CV حالا تک‌دفترچه‌ای و ضد-برگشت است؛ ساخت/ارتقا/لغو/تولید/سقف همگی با سرور سازگار و مانا
+- Country View رسماً روی نبرد سرور اثر دارد (§9 دستور): پادگان/فناوری نظامی → حمله، خط دفاعی → دفاع — Server-Authoritative با سقف
+- پروداکشن Postgres از باگ رکورد المپیک نجات یافت (parity ۴۳/۴۳)
+- کاربر آگاه شود: clamp تولید CV یعنی انباشت بالای سقف ذخیره اتلاف می‌شود (رفتار هم‌تراز نقشه)؛ شیرهای WD7 حذف شدند (تغییر توازن عمدی امنیتی)
+- مانده برای فازهای بعد: ادغام ۷ هندلر zoomend، ادغام GD33 دوقلو، Fog corpse، تک‌نویسنده‌ی کامل saves.state.res (معماری بزرگ)، pass_xp validation، HMAC nonce المپیک، rate limit /api/rt

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser, type SessionUser } from '@/lib/auth'
+import { rateLimit } from '@/lib/ratelimit'
 
 export const dynamic = 'force-dynamic'
 
@@ -231,7 +232,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ table: stri
       /* V60sec: سقف پیش‌فرض — کوئری بی‌limit روی جدول‌های رشدکننده (scores) اسکن باز بود */
       take: Math.min(q.limit || 1000, 1000),
     })
-    let data = rows.map((r) => serialize(r, spec, q.select))
+    let data: (Record<string, unknown> | null)[] = rows.map((r) => serialize(r, spec, q.select))
     if (q.maybeSingle) data = data.length ? [data[0]] : [null]
     if (q.single) {
       if (!data.length) return NextResponse.json({ data: null, error: err('JSON object requested, multiple (or no) rows returned', 'PGRST116') })
@@ -251,6 +252,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ table: str
   if (spec.rpcOnly || spec.readOnly) return NextResponse.json({ data: null, error: err('permission denied') })
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ data: null, error: err('not authenticated', '401') })
+  /* V68 §26: نرخ‌سنج نوشتن — قبلاً /api/db تنها مسیر بدون نرخ‌سنج بود (RPC ۲۴۰/دقیقه دارد).
+     ۱۲۰/دقیقه/کاربر: سیو ۸ ثانیه‌ای ≈ ۷.۵/دقیقه — بازی عادی بی‌تأثیر؛ اسپم و ابرتختاره بسته می‌شود */
+  const rlPost = rateLimit(req, 'dbw:' + user.id, 120, 60_000)
+  if (rlPost) return rlPost
   if (spec.adminWrite && !user.isAdmin) return NextResponse.json({ data: null, error: err('permission denied') })
   let body: { payloads?: unknown; query?: Query } = {}
   try { body = await req.json() } catch {}
@@ -285,6 +290,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ table: st
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ data: null, error: err('not authenticated', '401') })
   /* V33.1: adminWrite tables (admin_grants) were PATCHable by ANY user → free resource minting */
+  const rlPatch = rateLimit(req, 'dbw:' + user.id, 120, 60_000)
+  if (rlPatch) return rlPatch
   if (spec.adminWrite && !user.isAdmin) return NextResponse.json({ data: null, error: err('permission denied') })
   let body: { payload?: Record<string, unknown>; query?: Query } = {}
   try { body = await req.json() } catch {}
@@ -319,6 +326,8 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ table: s
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ data: null, error: err('not authenticated', '401') })
   /* V33.1: adminWrite tables (admin_grants) were DELETEable by ANY user → could wipe everyone's grants */
+  const rlDelete = rateLimit(req, 'dbw:' + user.id, 120, 60_000)
+  if (rlDelete) return rlDelete
   if (spec.adminWrite && !user.isAdmin) return NextResponse.json({ data: null, error: err('permission denied') })
   let q: Query = {}
   const rawQ = req.nextUrl.searchParams.get('q')

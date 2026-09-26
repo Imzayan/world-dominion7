@@ -1,6 +1,8 @@
 // V65 feature harness — Living World (empire/glory/war-plan/chip/news/server-RPCs)
 // Run: node scripts/feature-v65.mjs   (dev server on :3000, DATABASE_URL set)
 import { chromium } from 'playwright'
+import { pseudoEmail } from './pseudo-email.mjs'
+const __ALI_EM = pseudoEmail('Alireza') /* V68: محاسبه در Node — داخل evaluate در دسترس نیست */
 
 const BASE = process.env.WD_BASE || 'http://127.0.0.1:3000'
 const URL = `${BASE}/game/index.html`
@@ -29,11 +31,18 @@ const waitVisible = async (expr, ms = 9000) => {
 await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 })
 await page.waitForTimeout(4000)
 
-const login = await page.evaluate(async () => {
-  const r = await (await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'alireza@wd.test', password: 'wd54e2e-pass' }) })).json()
-  return r && r.data && r.data.session ? 'ok' : 'fail'
-})
-check('login Alireza', login === 'ok')
+let login = 'fail'
+for (let attempt = 0; attempt < 3; attempt++) { /* V68: ضد ریس self-heal reload / 429 — ۳ تلاش با فاصله */
+  try {
+    login = await page.evaluate(async (em) => {
+      const r = await (await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: em, password: 'wd54e2e-pass' }) })).json()
+      return r && r.data && r.data.session ? 'ok' : 'fail'
+    }, __ALI_EM)
+  } catch (e) { login = 'retry:' + String(e.message).slice(0, 60) }
+  if (login === 'ok') break
+  await page.waitForTimeout(4000)
+}
+check('login Alireza', login === 'ok', login)
 await page.reload({ waitUntil: 'domcontentloaded' })
 await page.waitForTimeout(6000)
 await page.evaluate(() => { try {

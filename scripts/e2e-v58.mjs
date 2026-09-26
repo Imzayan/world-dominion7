@@ -7,6 +7,8 @@
 //  6) ranking: server events move scores immediately (pvp score bump) + live summary replaces the frozen list
 // Run: `node scripts/e2e-v58.mjs`
 import { chromium } from 'playwright'
+import { pseudoEmail } from './pseudo-email.mjs'
+const __ALI_EM = pseudoEmail('Alireza') /* V68: محاسبه در Node — داخل evaluate در دسترس نیست */
 import { PrismaClient } from '@prisma/client'
 
 const BASE = process.env.WD_BASE || 'http://127.0.0.1:3210'
@@ -34,11 +36,18 @@ await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 })
 await page.waitForTimeout(4500)
 
 /* ---------- login as Alireza (admin) ---------- */
-const login = await page.evaluate(async () => {
-  const r = await (await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'alireza@wd.test', password: 'wd54e2e-pass' }) })).json()
-  return r && r.data && r.data.session ? 'ok' : 'fail'
-})
-check('login Alireza', login === 'ok')
+let login = 'fail'
+for (let attempt = 0; attempt < 3; attempt++) { /* V68: ضد ریس self-heal reload / 429 — ۳ تلاش با فاصله */
+  try {
+    login = await page.evaluate(async (em) => {
+      const r = await (await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: em, password: 'wd54e2e-pass' }) })).json()
+      return r && r.data && r.data.session ? 'ok' : 'fail'
+    }, __ALI_EM)
+  } catch (e) { login = 'retry:' + String(e.message).slice(0, 60) }
+  if (login === 'ok') break
+  await page.waitForTimeout(4000)
+}
+check('login Alireza', login === 'ok', login)
 await page.reload({ waitUntil: 'domcontentloaded' })
 await page.waitForTimeout(6000)
 await clearOverlays()
@@ -177,9 +186,9 @@ await page.screenshot({ path: '/home/z/my-project/upload/v58-new-round.png' })
 await browser.close()
 
 /* ---------- server-truth assertions (Node/Prisma) ---------- */
-const uA = await db.user.findUnique({ where: { email: 'alireza@wd.test' } })
-const uB = await db.user.findUnique({ where: { email: 'bot@wd.test' } })
-const uC = await db.user.findUnique({ where: { email: 'bot2@wd.test' } })
+const uA = await db.user.findFirst({ where: { nickLower: 'alireza' } })
+const uB = await db.user.findFirst({ where: { nickLower: 'botone' } })
+const uC = await db.user.findFirst({ where: { nickLower: 'bottwo' } })
 const wA = await db.wallet.findUnique({ where: { userId: uA.id } })
 const wB = await db.wallet.findUnique({ where: { userId: uB.id } })
 const wC = await db.wallet.findUnique({ where: { userId: uC.id } })
