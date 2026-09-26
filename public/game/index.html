@@ -62,10 +62,10 @@
     #map {
       width: 100%; height: 100%;
       position: absolute; top: 0; left: 0; z-index: 1;
-      background: #020b18 !important;
+      /* V62: background حذف شد — رنگ دریا تک‌منبعی در انتهای فایل */
     }
 
-    .leaflet-container { background: #020b18 !important; font-family: inherit; }
+    .leaflet-container { font-family: inherit; }
     .leaflet-control-attribution { display: none !important; }
 
     #map::before {
@@ -213,11 +213,7 @@
     }
 
 /* ===== Visual upgrade layer ===== */
-#waves{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:radial-gradient(ellipse at 50% 35%,#0e6096 0%,#08365e 50%,#041b35 100%)}
-#waves::before,#waves::after{content:"";position:absolute;inset:-15%;will-change:transform}
-#waves::before{background:repeating-radial-gradient(circle at 30% 40%,transparent 0 22px,rgba(130,225,255,.09) 23px 25px,transparent 26px 50px);animation:drift 40s linear infinite}
-#waves::after{background:repeating-linear-gradient(100deg,transparent 0 34px,rgba(255,255,255,.06) 35px 37px,transparent 38px 80px);animation:drift 28s linear infinite reverse}
-@keyframes drift{to{transform:translate(70px,35px)}}
+/* V62: لایه‌ی تزئینی #waves حذف شد — رنگ دریا تک‌منبعی در انتهای فایل */
 .flag-wrap{background:none;border:0}
 .flag{position:absolute;left:0;top:0;transform:translate(-50%,-50%);border-radius:1px;object-fit:cover;box-shadow:0 1px 3px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.35);opacity:.95;pointer-events:none;transition:width .25s,height .25s}
 .flag.big{animation:wave 3.4s ease-in-out infinite}
@@ -1647,15 +1643,20 @@ function buildFlags(){
     FL[n]={m,code,g,el:m.getElement().firstChild}});
   sizeFlags();
 }
-function sizeFlags(){ // big countries -> bigger flags, tiny ones -> smaller / hidden until zoomed in
-  if(!map)return;Object.values(FL).forEach(f=>{const el=f.el;if(!el||!el.isConnected)return;
+/* V62 تک‌تعریفی: اندازه بر اساس زوم (سقف ۲۶) + منطق مالکیت V56 (کشور آزاد پرچم نشان نمی‌دهد) —
+   بازتعریف V56 در انتهای فایل حذف شد؛ only = اندازه‌ی تکی یک پرچم (از setFlag) */
+function sizeFlags(only){
+  if(!map)return;Object.entries(FL).forEach(([n,f])=>{if(only&&only!==n)return;const el=f&&f.el;if(!el||!el.isConnected)return;
+    let st='neutral';try{st=statusOf(n)}catch(e){}
+    let isOth=false;try{isOth=!!(typeof OTH!=='undefined'&&OTH[n])}catch(e){}
+    if(st==='neutral'&&!isOth){el.style.display='none';return}
     const a=map.latLngToContainerPoint([f.g.s,f.g.w]),b=map.latLngToContainerPoint([f.g.n,f.g.e]);
-    /* V61: پرچم = اطلاعات ثانویه — سقف ۲۶px (قبلاً ۳۸) و آستانه‌ی big پایین‌تر */
     const s=Math.min(Math.abs(b.x-a.x)*.22,Math.abs(b.y-a.y)*.42,26);
     if(s<10){el.style.display='none';return}
     el.style.display='';el.style.width=s+'px';el.style.height=s*.66+'px';el.classList.toggle('big',s>=22)})}
 function setFlag(n){const f=FL[n];if(!f||!f.el||!f.el.isConnected)return;const own=FL[myCountryName],s=statusOf(n);
-  const u=flagUrl(s!=='neutral'&&own?own.code:f.code);if(f.el.getAttribute('src')!==u){f.el.dataset.fb='';f.el.src=u}f.el.classList.toggle('cap',s!=='neutral')}
+  const u=flagUrl(s!=='neutral'&&own?own.code:f.code);if(f.el.getAttribute('src')!==u){f.el.dataset.fb='';f.el.src=u}f.el.classList.toggle('cap',s!=='neutral');
+  try{sizeFlags(n)}catch(e){}} /* V62: تغییر مالکیت = همان پرچم همین‌جا اندازه/نمایش می‌شود — بدون نیاز به زوم */
 
 // ---- colors per country ----
 /* V59 wave-2: تک‌تعریفی applyCountryColor — رنگ پایه + رجیستری fail-safe پس‌هوک‌ها.
@@ -1821,7 +1822,7 @@ const _uu=updateUI;
 updateUI=function(){_uu();['gold','food','oil','army'].forEach(k=>{const e=$('r-'+k);if(e._p!==e.textContent){if(e._p!==undefined){const c=e.parentNode;c.classList.remove('bump');void c.offsetWidth;c.classList.add('bump')}e._p=e.textContent}})};
 addEventListener('load',()=>{if(typeof map==='undefined'||!map)return;
   try{const w=document.createElement('div');w.id='waves';map.getContainer().prepend(w)}catch(e){console.log(e)}
-  try{map.on('zoomend',sizeFlags)}catch(e){}
+  try{map.on('zoomend',function(){try{sizeFlags()}catch(e){}})}catch(e){} /* V62: dispatch پویا به تک‌پیاده‌سازی فعلی */
   /* V55: تایمر decay مرده حذف شد (تابع خالی بود — فقط سیکل بیهوده) */});
    </script>
    <style>
@@ -2251,10 +2252,7 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){if(!myCountryName)return;const n=f.pr
 /* V25: top-right infra chip removed (was cluttering the HUD) — infra lives in the lobby, drawer and ☰ menu */
    </script>
    <style id="v3-css">
-    /* natural sea + land, no radar rings */
-#map,.leaflet-container{background:#134f7a!important}
-#waves{background:radial-gradient(ellipse at 50% 38%,#2b95b8 0%,#1d719b 48%,#134f7a 100%)!important}
-#waves::before,#waves::after{display:none!important}
+    /* V62: قوانین دریای V3 حذف شدند — تک‌منبع در انتهای فایل */
 .own-wrap{background:none;border:0}
 .own{position:absolute;left:0;top:0;transform:translate(-50%,13px);white-space:nowrap;font-size:9px;font-weight:900;color:#fff;background:rgba(0,0,0,.68);border:1px solid rgba(255,255,255,.55);border-radius:8px;padding:0 6px;line-height:14px}
 /* V61 LOD: زوم پایین = فقط پرچم (نام مخفی)؛ زوم ۳+ = پرچم+نام؛ z5 = +تعداد قلمرو */
@@ -2633,7 +2631,7 @@ function paintOther(n,force){const l=layersByName[n],o=OTH[n];if(!l||!o)return;
   try{otherLabel(n,o)}catch(e){}}
 function applyOthers(nw){const old=OTH;OTH=nw;
   Object.keys(old).forEach(n=>{if(!nw[n]){if(OL2[n]){OL2[n].remove();delete OL2[n]}try{applyCountryColor(n)}catch(e){}}});
-  Object.keys(nw).forEach(n=>paintOther(n));renderSrvChip()}
+  Object.keys(nw).forEach(n=>paintOther(n));renderSrvChip();try{sizeFlags()}catch(e){}} /* V62: رسیدن مالکیت = پرچم‌ها بدون زوم ظاهر شوند */
 /* V59 wave-2: paintOther برای کشورهای دیگران، پس‌هوک applyCountryColor (بعد از فیکس، پایه خودش OTH را می‌کشد؛ این هوک فقط ترمیم تغییر key مالک است) */
 try{WD_COLOR_HOOKS.after.push(function(n){if(OTH[n])paintOther(n)})}catch(e){console.error('wd-h3',e)};
 (function(){const ag=afterGeo;afterGeo=function(){ag();try{Object.keys(OTH).forEach(n=>paintOther(n));if(typeof wdLabelDeclutter==='function')wdLabelDeclutter()}catch(e){}}})();
@@ -4800,7 +4798,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
    <style id="wd10-majestic-css">
     :root{--wd10-c:#00f6e9;--wd10-p:#9b5cff;--wd10-b:#02030a;--wd10-g:#ffd66b}
 /* CINEMATIC MAP ATMOSPHERE — lightweight, no per-country filters */
-#map{background:#020712!important;isolation:isolate}
+#map{isolation:isolate}
 #map::before{z-index:800!important;background:
  radial-gradient(ellipse at 50% 48%,rgba(0,246,233,.055),transparent 48%),
  radial-gradient(ellipse at 18% 75%,rgba(155,92,255,.08),transparent 42%),
@@ -4809,7 +4807,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
  background-size:100% 100%!important;animation:none!important;opacity:.75!important;pointer-events:none!important}
 #map::after{content:"";position:absolute;inset:0;z-index:801;pointer-events:none;background:radial-gradient(ellipse at center,transparent 42%,rgba(0,0,0,.40) 100%);mix-blend-mode:normal}
 @keyframes wd10Ocean{from{opacity:.58}to{opacity:.9}}
-.leaflet-container{background:#020712!important}
+/* V62: پس‌زمینه‌ی تیره‌ی V10 حذف شد — تک‌منبع در انتهای فایل */
 /* Country borders: crisp and prestigious, but avoid expensive filters */
 .leaflet-overlay-pane path.leaflet-interactive{stroke:#07131f!important;stroke-width:1.05px!important;stroke-opacity:.95!important;transition:stroke .18s ease,stroke-width .18s ease,fill-opacity .18s ease}
 .leaflet-overlay-pane path.leaflet-interactive:hover{stroke:var(--wd10-c)!important;stroke-width:2.1px!important;fill-opacity:1!important}
@@ -4990,7 +4988,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 /* Do not let country drawer collide with the dock. */
 .country-drawer{bottom:calc(72px + env(safe-area-inset-bottom,0px))!important;backdrop-filter:blur(8px)!important}
 /* One lightweight animated ocean/radar layer. It is one element, not one animation per country. */
-#map{background:#020712!important;isolation:isolate!important;contain:paint!important}
+#map{isolation:isolate!important;contain:paint!important}
 #v12-map-fx{position:absolute;inset:0;z-index:850;pointer-events:none;overflow:hidden;opacity:.72}
 #v12-map-fx:before{content:"";position:absolute;inset:-20%;background:radial-gradient(circle at 50% 50%,rgba(0,246,233,.07),transparent 38%),radial-gradient(circle at 25% 75%,rgba(155,92,255,.08),transparent 36%);animation:v12Ocean 18s ease-in-out infinite alternate}
 #v12-map-fx:after{content:"";position:absolute;left:-20%;right:-20%;height:1px;top:18%;background:linear-gradient(90deg,transparent,rgba(0,246,233,.32),transparent);box-shadow:0 0 14px rgba(0,246,233,.12);animation:v12Scan 9s linear infinite}
@@ -5523,11 +5521,7 @@ setTimeout(clean,500);setTimeout(clean,1500);
 
 <style id="wd-ultimate-css">
 /* ============ ULTIMATE MAP & UI UPGRADE ============ */
-/* --- deep ocean with depth gradients --- */
-#map{background:
-  radial-gradient(1100px 640px at 72% 18%, rgba(28,90,140,.35) 0%, rgba(28,90,140,0) 62%),
-  radial-gradient(900px 560px at 18% 82%, rgba(20,70,115,.32) 0%, rgba(20,70,115,0) 58%),
-  radial-gradient(1400px 900px at 50% 50%, #0a2a47 0%, #071f38 55%, #041527 100%)!important}
+/* V62: اقیانوس ULTIMATE حذف شد — تک‌منبع در انتهای فایل */
 /* --- cinematic vignette --- */
 #wd-vignette{position:fixed;inset:0;pointer-events:none;z-index:970;
   box-shadow:inset 0 0 140px 30px rgba(0,0,0,.55);
@@ -6275,9 +6269,7 @@ window.renderAdmin=async function(){
    ============================================================ */
 :root{--g-gold:#ffc93c;--g-cyan:#38c6ff;--g-green:#2fd573;--g-orange:#ff9f43;--g-red:#ff5a7a;--g-blue:#4aa3ff;--g-purple:#9b6bff;--g-mut:#8fb3d9}
 
-/* ---------- 1) دریای آبی روشن ---------- */
-#map,.leaflet-container{background:#2e83ba!important}
-#waves{background:linear-gradient(180deg,#5cbcec 0%,#3d9bd3 45%,#2e83ba 100%)!important}
+/* V62: دریای V40 حذف شد — تک‌منبع در انتهای فایل */
 #map::before{animation:none!important;opacity:.28!important}
 #v12-map-fx{opacity:.3!important}
 #v12-map-fx:after{display:none!important}
@@ -9513,7 +9505,8 @@ window.addEventListener('load',()=>{setTimeout(()=>{try{
       window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}});
     D.body.appendChild(fab)}
   wdolFabPlace();window.WD33_EV_APPLY();
-  window.addEventListener('resize',wdolFabPlace);
+  window.addEventListener('resize',wdolFabPlace);}catch(e){}
+  try{ /* V62: try مجزا — خطای FAB نباید جایگزینی چیپ سرور را قربانی کند */
   const old=H('hud-srv');
   if(old&&!old.__wd31){const neo=old.cloneNode(false);neo.textContent=old.textContent;neo.title='شناسنامه‌ی سینمایی سرور';neo.style.cursor='pointer';
     neo.addEventListener('click',window.WD31_SERVER);old.replaceWith(neo);neo.__wd31=1}
@@ -10326,7 +10319,15 @@ async function wgRefresh(force){
     if(typeof sb==='undefined'||!sb)return;
     if(typeof ACC==='undefined'||!ACC||!ACC.uid){strip33Update(null);return}
     const r=await rpc33('olympic_games',{p_server:srvN()});
-    if(!r.ok||!r.d)return;
+    if(!r.ok||!r.d){ /* V62: خطا = کارت قابل‌مشاهده + تلاش دوباره — دیگر صفحه‌ی خالی نیست */
+      const wr=H('wg33-wrap');
+      if(wr&&wgOpenFlag&&!wr.children.length){
+        wr.innerHTML='<div style="text-align:center;padding:34px 18px"><div style="font-size:36px">📡</div>'+
+          '<div style="font-weight:900;font-size:15px;margin:10px 0 4px">دریافت داده‌های المپیک ناموفق بود</div>'+
+          '<div class="wd31-mini">اتصال اینترنت را چک کن و دوباره تلاش کن</div>'+
+          '<button id="wg33-retry" style="margin-top:14px;padding:9px 22px;border-radius:14px;border:1px solid rgba(255,214,80,.5);background:rgba(40,28,4,.6);color:#ffd75e;font-weight:900;font-family:inherit">تلاش دوباره</button>';
+        setTimeout(()=>{try{const b=document.getElementById('wg33-retry');if(b)b.addEventListener('click',()=>{wr.innerHTML='';wgRefresh(true)})}catch(e){}},0)}
+      return}
     /* V36: admin switch — the hub payload carries {disabled:true} when the olympics are off */
     if(r.d.disabled){WG33={disabled:true,edition:r.d.edition||0};if(wgOpenFlag)renderHub();return}
     WG33=r.d;
@@ -16328,8 +16329,9 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
     #vignette,#wd-vignette{display:none!important}
     #map::before{display:none!important}
     /* ۲) اقیانوس آرام و یک‌دست — بدون خیرگی و لایه‌های اضافه */
-    #map,.leaflet-container{background:linear-gradient(180deg,#17415d 0%,#0e3149 55%,#0b2840 100%)!important}
-    #waves{background:linear-gradient(180deg,#17415d 0%,#0e3149 55%,#0b2840 100%)!important}
+    /* V62: تک‌منبع رنگ دریا — آبی روشن؛ همه‌ی قوانین رقیب (V0/V3/V10/V12/ULTIMATE/V40) حذف شدند */
+    #map,.leaflet-container{background:linear-gradient(180deg,#4aa3d2 0%,#2e83ba 60%,#2774a6 100%)!important}
+    #waves{display:none!important}
     /* ۳) مرز قلمروها ثابت است — بدون انیمیشن مورچه‌ای */
     .wd-own-dash{animation:none!important}
     .wd-own-glow{filter:none!important}
@@ -16394,26 +16396,7 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
       window.mainRing.__wd56=1}
   }catch(e){}
 
-  /* ۳-ب) پرچم‌ها فقط برای «مالکیت» — کشورهای آزاد دیگر پرچم درخشان ندارند
-     (۱۷۰+ مستطیل رنگیِ پرچم = بار اصلی خستگی چشم) و پرچم مالکیت‌دارها کوچک می‌شود */
-  try{
-    if(typeof sizeFlags==='function'&&!sizeFlags.__wd56){
-      window.sizeFlags=function(){try{
-        if(typeof map==='undefined'||!map||typeof FL==='undefined')return;
-        Object.keys(FL).forEach(function(n){
-          var f=FL[n],el=f&&f.el;if(!el||!el.isConnected)return;
-          var s='neutral';try{s=statusOf(n)}catch(e){}
-          var isOth=false;try{isOth=!!(typeof OTH!=='undefined'&&OTH[n])}catch(e){}
-          if(s==='neutral'&&!isOth){el.style.display='none';return}
-          var a=map.latLngToContainerPoint([f.g.s,f.g.w]),b=map.latLngToContainerPoint([f.g.n,f.g.e]);
-          var sc=Math.min(Math.abs(b.x-a.x)*.3,Math.abs(b.y-a.y)*.55,20);
-          if(sc<10){el.style.display='none';return}
-          el.style.display='';el.style.width=sc+'px';el.style.height=sc*.66+'px';
-          el.classList.remove('big');
-        })
-      }catch(e){}};
-      window.sizeFlags.__wd56=1}
-  }catch(e){}
+  /* ۳-ب) V62: بازتعریف sizeFlags حذف شد — منطق مالکیت V56 داخل تعریف اصلی ادغام شد (تک‌پیاده‌سازی) */
 
   /* ۴) شبکه‌ی گراتیکول (۱۷ خط) بعد از ساخت نقشه حذف می‌شود — هم آرام‌تر هم سبک‌تر */
   try{
