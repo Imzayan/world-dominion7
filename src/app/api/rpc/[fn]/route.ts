@@ -8,6 +8,11 @@ import {
   skillOf, consistencyOf, potentialOf, evalAchievements, achDef, bullseyesFromTelemetry,
   type RecentScore,
 } from '@/lib/olyProfile'
+import { cvGenerateLayout } from '@/lib/cvGeo'
+import {
+  cvDef, cvCost, cvTimeSec, cvProdPerMin, cvCatalogPublic, cvTechMults,
+  CV_TECH, CV_MAX_LEVEL, CV_OFFLINE_CAP_MS, type CvTechLine,
+} from '@/lib/cvCatalog'
 
 export const dynamic = 'force-dynamic'
 
@@ -1331,6 +1336,138 @@ async function allianceTagMap(server: number): Promise<Record<string, string>> {
   const out: Record<string, string> = {}
   for (const m of mem) out[m.userId] = m.alliance.tag
   return out
+}
+
+/* ============================================================
+   V67 — COUNTRY VIEW ENGINE (Server-Authoritative)
+   قواعد سخت این بخش:
+   1. Layout استان‌ها فقط سرور (cvGeo از GeoJSON واقعی) — یک‌بار صادر و ذخیره.
+   2. هزینه/زمان/سطح/قواعد جغرافیا فقط از cvCatalog سمت سرور؛ کلاینت فقط p_type/p_province/p_slot می‌فرستد.
+   3. مالکیت کشور پیش از هر اقدام از جدول territories (منبع حقیقت) چک می‌شود.
+   4. هزینه از استخراج منابع واقعی بازی (saves.state.res) با گارد کسر می‌شود — نه جم، نه آرایه‌ی جعلی کلاینت.
+   5. تولید lazy-at-read + سقف ۸ ساعت آفلاین + باقیمانده‌ی کسری (rem) تا چیزی گم نشود.
+   6. Idempotency: reqId یکتا در cv_build/cv_upgrade — دبل‌کلیک و ریتِرای دوباره کسر نمی‌کند.
+   7. قفل درون‌حافظه‌ای هر کاربر برای جلوگیری از دو-خرج‌کردن همزمان (حتی با چند تب).
+   8. کشورِ باخته: ساختمان‌ها فریز می‌شوند (تولید صفر، مدیریت قفل) و با بازپس‌گیری زنده می‌شوند.
+   ============================================================ */
+type CvProv = { i: number; lat: number; lng: number; type: string; terrain: string; coastal: boolean; slots: number }
+type CvTechState = { eco?: number; mil?: number; log?: number }
+type CvCountryRow = { userId: string; country: string; server: number; seed: number; provinces: string; tech: string; rp: number; rem: string; lastTick: Date; createdAt: Date; updatedAt: Date }
+type CvBuildingRow = { id: string; userId: string; country: string; server: number; province: number; slot: number; type: string; level: number; status: string; startedAt: Date; doneAt: Date | null; reqId: string | null }
+
+function cvJson<T>(s: string | null | undefined, fb: T): T {
+  try { const v = JSON.parse(s || '') ; return (v == null ? fb : v) as T } catch { return fb }
+}
+
+/* قفل هر کاربر — هر اقدام CV داخل این می‌رود تا read-modify-write روی منابع/lastTick امن باشد */
+const CV_LOCKS = new Map<string, Promise<unknown>>()
+async function cvWithLock<T>(uid: string, fn: () => Promise<T>): Promise<T> {
+  const prev = CV_LOCKS.get(uid) || Promise.resolve()
+  const run = prev.then(fn, fn)
+  CV_LOCKS.set(uid, run.catch(() => {}))
+  return run
+}
+
+async function cvEnsure(userId: string, server: number, country: string): Promise<{ cv: CvCountryRow; provinces: CvProv[]; owned: boolean }> {
+  let cv = await db.cvCountry.findUnique({ where: { userId_country: { userId, country } } }) as CvCountryRow | null
+  if (!cv) {
+    const { seed, provinces } = cvGenerateLayout(country)
+    const created = await db.cvCountry.create({ data: { userId, country, server, seed, provinces: JSON.stringify(provinces) } }).catch(() => null)
+    cv = (created || await db.cvCountry.findUnique({ where: { userId_country: { userId, country } } })) as CvCountryRow | null
+  }
+  if (!cv) throw new Error('cv_ensure_failed')
+  const terr = await db.territory.findUnique({ where: { server_country: { server, country } } })
+  return { cv, provinces: cvJson<CvProv[]>(cv.provinces, []), owned: !!terr && terr.userId === userId }
+}
+
+async function cvReadRes(userId: string): Promise<{ gold: number; oil: number; food: number }> {
+  const save = await db.save.findUnique({ where: { userId }, select: { state: true } })
+  const st = cvJson<Record<string, unknown>>(save?.state || '{}', {})
+  const res = cvJson<Record<string, number>>(typeof st.res === 'string' ? st.res : JSON.stringify(st.res || {}), {})
+  return { gold: Math.round(Number(res.gold) || 0), oil: Math.round(Number(res.oil) || 0), food: Math.round(Number(res.food) || 0) }
+}
+
+/* کسر هزینه‌ی ساخت — با گارد؛ داخل cvWithLock صدا زده می‌شود */
+async function cvSpend(userId: string, cost: { g: number; o: number; f: number }): Promise<boolean> {
+  const save = await db.save.findUnique({ where: { userId } })
+  if (!save) return false
+  const { obj, res } = tradeRes(save.state)
+  const g = Number(res.gold) || 0, o = Number(res.oil) || 0, f = Number(res.food) || 0
+  if (g < cost.g || o < cost.o || f < cost.f) return false
+  res.gold = g - cost.g; res.oil = o - cost.o; res.food = f - cost.f
+  obj.res = res
+  await db.save.update({ where: { userId }, data: { state: JSON.stringify(obj) } })
+  return true
+}
+
+/* انباشت تولید — lazy-at-read؛ ساخت‌وسازهای تمام‌شده هم اینجا نهایی می‌شوند */
+async function cvAccrue(userId: string, cv: CvCountryRow, buildings: CvBuildingRow[]) {
+  const now = Date.now()
+  const finished = buildings.filter((b) => b.status === 'building' && b.doneAt && b.doneAt.getTime() <= now)
+  if (finished.length) await db.cvBuilding.updateMany({ where: { id: { in: finished.map((b) => b.id) } }, data: { status: 'active' } })
+  const doneIds = new Set(finished.map((b) => b.id))
+  const tech = cvJson<CvTechState>(cv.tech, {})
+  const mults = cvTechMults(tech)
+  const rates = { gold: 0, oil: 0, food: 0, rp: 0 }
+  let goldPct = 0, atkPct = 0, defPct = 0, oilCap = 0, ports = 0, airports = 0
+  for (const b of buildings) {
+    if (b.status !== 'active' && !doneIds.has(b.id)) continue
+    const def = cvDef(b.type)
+    if (!def) continue
+    const p = cvProdPerMin(def, b.level)
+    rates.gold += p.gold || 0; rates.oil += p.oil || 0; rates.food += p.food || 0; rates.rp += p.rp || 0
+    if (def.goldPct) goldPct += def.goldPct * b.level
+    if (def.atkPct) atkPct += def.atkPct * b.level
+    if (def.defPct) defPct += def.defPct * b.level
+    if (def.oilCap) oilCap += def.oilCap * b.level
+    if (b.type === 'port') ports++
+    if (b.type === 'airport') airports++
+  }
+  rates.gold = Math.round(rates.gold * mults.eco * 100) / 100
+  rates.oil = Math.round(rates.oil * mults.eco * 100) / 100
+  rates.food = Math.round(rates.food * mults.eco * 100) / 100
+  const elapsed = Math.min(CV_OFFLINE_CAP_MS, Math.max(0, now - cv.lastTick.getTime()))
+  const mins = elapsed / 60000
+  const rem = cvJson<Record<string, number>>(cv.rem, {})
+  const gain = { gold: 0, oil: 0, food: 0 }
+  for (const k of ['gold', 'oil', 'food'] as const) {
+    const tot = rates[k] * mins * (k === 'gold' ? 1 + goldPct / 100 : 1) + (rem[k] || 0)
+    gain[k] = Math.floor(tot)
+    rem[k] = Math.round((tot - gain[k]) * 100) / 100
+  }
+  const rpGain = Math.round(rates.rp * mins * 100) / 100
+  if (gain.gold || gain.oil || gain.food || rpGain > 0 || finished.length) {
+    await db.$transaction(async (tx) => {
+      if (gain.gold || gain.oil || gain.food) {
+        await tradeApply(userId, (r) => {
+          r.gold = (Number(r.gold) || 0) + gain.gold
+          r.oil = (Number(r.oil) || 0) + gain.oil
+          r.food = (Number(r.food) || 0) + gain.food
+        }, tx)
+      }
+      await tx.cvCountry.update({
+        where: { userId_country: { userId, country: cv.country } },
+        data: { lastTick: new Date(), ...(rpGain > 0 ? { rp: { increment: rpGain } } : {}), rem: JSON.stringify(rem) },
+      })
+    })
+  }
+  return {
+    rates, goldPct, oilCap, ports, airports, accrued: gain, rpAccrued: rpGain, elapsedMs: elapsed,
+    mil: { atkPct: Math.round(atkPct * mults.mil * 10) / 10, defPct: Math.round(defPct * 10) / 10 },
+  }
+}
+
+type CvSum = Awaited<ReturnType<typeof cvAccrue>>
+function cvPublicState(owned: boolean, country: string, server: number, provinces: CvProv[], buildings: CvBuildingRow[], cv: CvCountryRow, rpLive: number, sum: CvSum, res: { gold: number; oil: number; food: number }) {
+  return {
+    ok: true, owned, country, server,
+    provinces, buildings: owned ? buildings : [],
+    cat: cvCatalogPublic(), techCat: CV_TECH,
+    tech: cvJson<CvTechState>(cv.tech, {}), rp: Math.round(rpLive * 100) / 100,
+    rates: { gold: Math.round(sum.rates.gold), oil: Math.round(sum.rates.oil), food: Math.round(sum.rates.food), rp: sum.rates.rp },
+    mil: sum.mil, goldPct: sum.goldPct, oilCapAdd: sum.oilCap, counts: { ports: sum.ports, airports: sum.airports },
+    res, accrued: sum.accrued, offlineCapMs: CV_OFFLINE_CAP_MS, maxLevel: CV_MAX_LEVEL, now: Date.now(),
+  }
 }
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string }> }) {
@@ -3100,6 +3237,172 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           }
         }
         return R({ ok: true, titles: out })
+      }
+
+      /* ---------------- V67 — Country View Engine ---------------- */
+      case 'cv_state': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const country = String(args.p_country || '').slice(0, 64)
+        if (!country) return R({ ok: false, error: 'country' })
+        const { cv, provinces, owned } = await cvEnsure(user.id, server, country)
+        const out = await cvWithLock(user.id, async () => {
+          const buildings = owned
+            ? (await db.cvBuilding.findMany({ where: { userId: user.id, country }, orderBy: [{ province: 'asc' }, { slot: 'asc' }] })) as CvBuildingRow[]
+            : []
+          const sum = await cvAccrue(user.id, cv, buildings)
+          /* ساخت‌وسازهای همان‌حالا تمام‌شده در پاسخ هم active دیده شوند (نه فقط در DB) */
+          const nowMs = Date.now()
+          for (const b of buildings) if (b.status === 'building' && b.doneAt && b.doneAt.getTime() <= nowMs) b.status = 'active'
+          const res = await cvReadRes(user.id)
+          return cvPublicState(owned, country, server, provinces, buildings, cv, cv.rp + sum.rpAccrued, sum, res)
+        })
+        return R(out)
+      }
+
+      case 'cv_build': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const country = String(args.p_country || '').slice(0, 64)
+        const type = String(args.p_type || '').slice(0, 32)
+        const province = Number(args.p_province)
+        const slot = Number(args.p_slot)
+        const reqId = args.p_request_id ? String(args.p_request_id).slice(0, 80) : null
+        if (!country || !type || !Number.isInteger(province) || !Number.isInteger(slot)) return R({ ok: false, error: 'args' })
+        const def = cvDef(type)
+        if (!def) return R({ ok: false, error: 'type' })
+        if (reqId) {
+          const prior = await db.cvBuilding.findFirst({ where: { userId: user.id, reqId } })
+          if (prior) return R({ ok: true, duplicate: true, building: prior })
+        }
+        const out = await cvWithLock(user.id, async () => {
+          const { cv, provinces, owned } = await cvEnsure(user.id, server, country)
+          if (!owned) return { ok: false, error: 'not_owned' } as const
+          const prov = provinces[province]
+          if (!prov) return { ok: false, error: 'province' } as const
+          if (slot < 0 || slot >= prov.slots) return { ok: false, error: 'slot' } as const
+          if (def.capitalOnly && prov.type !== 'capital') return { ok: false, error: 'capital_only' } as const
+          if (def.coastal && !prov.coastal) return { ok: false, error: 'coastal' } as const
+          if (def.terrains[0] !== 'any' && !def.terrains.includes(prov.terrain)) return { ok: false, error: 'terrain' } as const
+          const existing = (await db.cvBuilding.findMany({ where: { userId: user.id, country } })) as CvBuildingRow[]
+          const inProv = existing.filter((b) => b.province === province)
+          if (inProv.some((b) => b.slot === slot)) return { ok: false, error: 'occupied' } as const
+          if (existing.filter((b) => b.type === type).length >= def.empireCap) return { ok: false, error: 'empire_cap' } as const
+          if (inProv.filter((b) => b.type === type).length >= def.maxPerProvince) return { ok: false, error: 'prov_cap' } as const
+          if (def.req === 'power' && !inProv.some((b) => b.type === 'power' && (b.status === 'active' || (b.doneAt && b.doneAt.getTime() <= Date.now())))) return { ok: false, error: 'need_power' } as const
+          const cost = cvCost(def, 1)
+          const timeSec = cvTimeSec(def, 1, cvTechMults(cvJson<CvTechState>(cv.tech, {})).log)
+          const okSpend = await cvSpend(user.id, cost)
+          if (!okSpend) return { ok: false, error: 'funds', cost } as const
+          const doneAt = new Date(Date.now() + timeSec * 1000)
+          try {
+            const b = await db.cvBuilding.create({ data: { userId: user.id, country, server, province, slot, type, level: 1, status: 'building', doneAt, reqId } })
+            return { ok: true as const, building: b, cost, timeSec, resNow: await cvReadRes(user.id) }
+          } catch (e) {
+            const code = (e as { code?: string })?.code
+            if (code === 'P2002') {
+              /* slot رقابت‌شده یا reqId تکراری — هیچ پولی دوباره کسر نمی‌شود؛ اگر reqId تکراری بود ردیف قبلی برمی‌گردد */
+              if (reqId) {
+                const prior = await db.cvBuilding.findFirst({ where: { userId: user.id, reqId } })
+                if (prior) return { ok: true as const, duplicate: true, building: prior, resNow: await cvReadRes(user.id) }
+              }
+              return { ok: false as const, error: 'race', resNow: await cvReadRes(user.id) }
+            }
+            throw e
+          }
+        })
+        return R(out)
+      }
+
+      case 'cv_upgrade': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const country = String(args.p_country || '').slice(0, 64)
+        const bid = String(args.p_id || '')
+        const reqId = args.p_request_id ? String(args.p_request_id).slice(0, 80) : null
+        if (!country || !bid) return R({ ok: false, error: 'args' })
+        if (reqId) {
+          const prior = await db.cvBuilding.findFirst({ where: { userId: user.id, reqId } })
+          if (prior) return R({ ok: true, duplicate: true, building: prior })
+        }
+        const out = await cvWithLock(user.id, async () => {
+          const { cv, owned } = await cvEnsure(user.id, server, country)
+          if (!owned) return { ok: false, error: 'not_owned' } as const
+          const row = (await db.cvBuilding.findFirst({ where: { id: bid, userId: user.id, country } })) as CvBuildingRow | null
+          if (!row) return { ok: false, error: 'not_found' } as const
+          if (row.status === 'building' && row.doneAt && row.doneAt.getTime() > Date.now()) return { ok: false, error: 'busy' } as const
+          if (row.level >= CV_MAX_LEVEL) return { ok: false, error: 'max_level' } as const
+          const def = cvDef(row.type)
+          if (!def) return { ok: false, error: 'type' } as const
+          const cost = cvCost(def, row.level + 1)
+          const timeSec = cvTimeSec(def, row.level + 1, cvTechMults(cvJson<CvTechState>(cv.tech, {})).log)
+          const okSpend = await cvSpend(user.id, cost)
+          if (!okSpend) return { ok: false, error: 'funds', cost } as const
+          const doneAt = new Date(Date.now() + timeSec * 1000)
+          try {
+            /* سطح همین حالا +۱ می‌شود ولی تا doneAt غیرفعال است (تولید/بونوس صفر) */
+            const upd = await db.cvBuilding.updateMany({ where: { id: row.id, status: { not: 'building' } }, data: { level: row.level + 1, status: 'building', startedAt: new Date(), doneAt, reqId } })
+            if (upd.count === 0) return { ok: false as const, error: 'race', resNow: await cvReadRes(user.id) }
+            return { ok: true as const, level: row.level + 1, cost, timeSec, resNow: await cvReadRes(user.id) }
+          } catch (e) {
+            const code = (e as { code?: string })?.code
+            if (code === 'P2002' && reqId) {
+              const prior = await db.cvBuilding.findFirst({ where: { userId: user.id, reqId } })
+              if (prior) return { ok: true as const, duplicate: true, building: prior, resNow: await cvReadRes(user.id) }
+            }
+            throw e
+          }
+        })
+        return R(out)
+      }
+
+      case 'cv_cancel': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const country = String(args.p_country || '').slice(0, 64)
+        const bid = String(args.p_id || '')
+        if (!country || !bid) return R({ ok: false, error: 'args' })
+        const out = await cvWithLock(user.id, async () => {
+          const { owned } = await cvEnsure(user.id, server, country)
+          if (!owned) return { ok: false, error: 'not_owned' } as const
+          const row = (await db.cvBuilding.findFirst({ where: { id: bid, userId: user.id, country } })) as CvBuildingRow | null
+          if (!row) return { ok: false, error: 'not_found' } as const
+          if (row.status !== 'building' || !row.doneAt) return { ok: false, error: 'not_building' } as const
+          const def = cvDef(row.type)
+          if (!def) return { ok: false, error: 'type' } as const
+          /* بازگشت ۷۰٪ هزینه‌ی همان چیزی که در حال ساخت بود */
+          const refundCost = cvCost(def, row.level)
+          const refund = { g: Math.round(refundCost.g * 0.7), o: Math.round(refundCost.o * 0.7), f: Math.round(refundCost.f * 0.7) }
+          if (row.level === 1) {
+            await db.cvBuilding.delete({ where: { id: row.id } })
+          } else {
+            await db.cvBuilding.update({ where: { id: row.id }, data: { level: row.level - 1, status: 'active', doneAt: null, reqId: null } })
+          }
+          await tradeApply(user.id, (r) => {
+            r.gold = (Number(r.gold) || 0) + refund.g
+            r.oil = (Number(r.oil) || 0) + refund.o
+            r.food = (Number(r.food) || 0) + refund.f
+          })
+          return { ok: true as const, refund, level: row.level === 1 ? 0 : row.level - 1, resNow: await cvReadRes(user.id) }
+        })
+        return R(out)
+      }
+
+      case 'cv_tech': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const country = String(args.p_country || '').slice(0, 64)
+        const line = String(args.p_line || '') as CvTechLine
+        if (!country || !(line in CV_TECH)) return R({ ok: false, error: 'args' })
+        const out = await cvWithLock(user.id, async () => {
+          let cv = (await db.cvCountry.findUnique({ where: { userId_country: { userId: user.id, country } } })) as CvCountryRow | null
+          if (!cv) ({ cv } = await cvEnsure(user.id, server, country))
+          const tech = cvJson<CvTechState>(cv!.tech, {})
+          const lvl = Math.max(0, Math.min(CV_TECH[line].max, tech[line] || 0))
+          if (lvl >= CV_TECH[line].max) return { ok: false, error: 'max' } as const
+          const cost = CV_TECH[line].costs[lvl]
+          const live = (await db.cvCountry.findUnique({ where: { userId_country: { userId: user.id, country } }, select: { rp: true } }))?.rp || 0
+          if (live < cost) return { ok: false, error: 'rp', need: cost, have: live } as const
+          tech[line] = lvl + 1
+          await db.cvCountry.update({ where: { userId_country: { userId: user.id, country } }, data: { rp: { decrement: cost }, tech: JSON.stringify(tech) } })
+          return { ok: true as const, line, level: lvl + 1, spent: cost, rp: Math.round((live - cost) * 100) / 100 }
+        })
+        return R(out)
       }
 
       default:

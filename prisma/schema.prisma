@@ -634,3 +634,50 @@ model HofTitle {
   @@unique([server, category])
   @@map("hof_titles")
 }
+
+/* ============ V67 — COUNTRY VIEW ENGINE (Server-Authoritative) ============
+   ساخت‌وساز داخل کشور. قواعد سخت:
+   - Layout استان‌ها سمت سرور از هندسه‌ی واقعی کشور (GeoJSON) با seed قطعی صادر و ذخیره می‌شود.
+   - هیچ هزینه/سطح/زمان/نوعی از کلاینت پذیرفته نمی‌شود — کلاینت فقط رندر می‌کند.
+   - تولید lazy-at-read است: در هر cv_state/اقدام، درآمد انباشته‌شده از lastTick
+     (سقف ۸ ساعت آفلاین) محاسبه و به استخراج منابع بازی (saves.state.res) اضافه می‌شود.
+   - مالکیت کشور پیش از هر اقدام با جدول territories بررسی می‌شود.
+   - کشورِ باخته ساختمان‌هایش را نگه می‌دارد (فریز: تولید صفر، مدیریت قفل)؛
+     با بازپس‌گیری دوباره فعال می‌شود — هیچ داده‌ای حذف نمی‌شود. */
+model CvCountry {
+  userId    String   @map("user_id")
+  country   String /* English geo name — همان کلید territories.country */
+  server    Int      @default(1)
+  seed      Int      @default(0) /* seed قطعی layout — یک‌بار صادر و برای همیشه ثابت */
+  provinces String   @default("[]") /* JSON: [{i,lat,lng,type,terrain,coastal,slots}] — خروجی سرور */
+  tech      String   @default("{}") /* JSON: {eco,mil,log} سطح خطوط فناوری */
+  rp        Float    @default(0) /* امتیاز پژوهش (از دانشگاه‌ها) — اعشاری برای انباشت دقیق */
+  rem       String   @default("{}") /* باقیمانده‌ی کسری تولید {gold,oil,food} برای انباشت بدون از‌دست‌رفت */
+  lastTick  DateTime @default(now()) @map("last_tick")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@id([userId, country])
+  @@index([userId])
+  @@map("cv_countries")
+}
+
+model CvBuilding {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  country   String
+  server    Int       @default(1)
+  province  Int /* ایندکس استان در layout صادره‌ی سرور */
+  slot      Int /* جایگاه ۰..N-1 در استان — جایگاه‌ها یکتا، بدون همپوشانی بصری */
+  type      String /* کلید کاتالوگ سمت سرور (cvCatalog) */
+  level     Int       @default(1)
+  status    String    @default("building") /* building | active */
+  startedAt DateTime  @default(now()) @map("started_at")
+  doneAt    DateTime? @map("done_at") /* null = در حال ساخت/ارتقا */
+  reqId     String?   @map("req_id") /* Idempotency — کلید یکتای درخواست کلاینت */
+
+  @@unique([userId, country, province, slot])
+  @@unique([userId, reqId])
+  @@index([userId, country])
+  @@map("cv_buildings")
+}

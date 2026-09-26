@@ -624,3 +624,42 @@ model HofTitle {
   @@unique([server, category])
   @@map("hof_titles")
 }
+
+/* ============ V67 — COUNTRY VIEW ENGINE (Server-Authoritative) — parity با sqlite ============ */
+model CvCountry {
+  userId    String   @map("user_id")
+  country   String
+  server    Int      @default(1)
+  seed      Int      @default(0)
+  provinces String   @default("[]")
+  tech      String   @default("{}")
+  rp        Float    @default(0)
+  rem       String   @default("{}")
+  lastTick  DateTime @default(now()) @map("last_tick")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@id([userId, country])
+  @@index([userId])
+  @@map("cv_countries")
+}
+
+model CvBuilding {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  country   String
+  server    Int       @default(1)
+  province  Int
+  slot      Int
+  type      String
+  level     Int       @default(1)
+  status    String    @default("building")
+  startedAt DateTime  @default(now()) @map("started_at")
+  doneAt    DateTime? @map("done_at")
+  reqId     String?   @map("req_id")
+
+  @@unique([userId, country, province, slot])
+  @@unique([userId, reqId])
+  @@index([userId, country])
+  @@map("cv_buildings")
+}

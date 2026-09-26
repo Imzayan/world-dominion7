@@ -5617,6 +5617,7 @@ function faName(n){if(!n)return '';var k=String(n).toLowerCase();
   if(FA[k])return FA[k];
   try{if(REAL_POWER_DATABASE[n]&&REAL_POWER_DATABASE[n].fa)return REAL_POWER_DATABASE[n].fa;}catch(e){}
   return n;}
+try{W.WD_ULT.faName=faName}catch(e){} /* V67: تک‌منبع نام فارسی برای Country View Engine (cv-engine.js) */
 
 /* ================= animated button ripple ================= */
 D.addEventListener('click',function(e){
@@ -17826,3 +17827,34 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
 
 </body>
 </html>
+   <script>
+    /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
+       الگوی رسمی drawer (قرینه‌ی هوک زیرساخت‌ها): فقط برای کشورهای owned.
+       موتور (cv-engine.js) با lazy-load فقط در اولین ورود لود می‌شود — صفحه‌ی اصلی سنگین نمی‌شود. */
+    (function(){
+      try{
+        WD_CLICK_HOOKS.post.push(function(f,l){
+          try{
+            if(typeof myCountryName==='undefined'||!myCountryName)return;
+            if(typeof owned!=='function'||!owned(f.properties.name))return;
+            const d=(typeof S$==='function')?S$('drawer-actions'):document.getElementById('drawer-actions');
+            if(!d)return;
+            const n=f.properties.name;
+            if(d.querySelector('#act-wdcv-enter'))return;
+            const b=(typeof el==='function')?el('button','🚪 ورود به کشور','action-btn btn-green',null):document.createElement('button');
+            b.id='act-wdcv-enter';
+            b.addEventListener('click',function(ev){
+              ev.stopPropagation();
+              if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
+              const s=document.createElement('script');
+              s.src='/game/cv-engine.js?v=67';
+              s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
+              s.onerror=function(){try{showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
+              document.head.appendChild(s);
+            });
+            d.append(b);
+          }catch(e){console.error('wdcv-drawer-hook',e)}
+        })
+      }catch(e){console.error('wdcv-hook-reg',e)}
+    })();
+   </script>
