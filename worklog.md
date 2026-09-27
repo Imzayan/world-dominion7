@@ -1705,3 +1705,15 @@ Stage Summary:
 - V77 = پریمیوم‌سازی + پرفورمنس روی همان معماری: +142 خط خالص، صفر RPC جدید، صفر state موازی، تک-loop حفظ شد
 - فایل کامل: public/game/cv-engine.js (۲۲۰۴خط) + کپی download/cv-engine-v77.js
 - مانده شناخته‌شده: تست دستی ۱۶ سناریویی روی دستگاه فیزیکی اندروید؛ پوش نیاز به توکن یک‌بارمصرف
+
+---
+Task ID: PUSH-V77-TO-GITHUB
+Agent: Super Z (main)
+Task: پوش V77
+
+Work Log:
+- Push موفق: 5d8de72..12a3930 main→main (توکن همان جلسه هنوز معتبر بود)
+- Verify: local==remote [0/0]
+
+Stage Summary:
+- V77 روی GitHub: 12a3930 — یادآوری: توکن را revoke کن (GitHub → Settings → Developer settings)
