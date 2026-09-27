@@ -1679,3 +1679,29 @@ Work Log:
 Stage Summary:
 - V76 به GitHub رسید: bddc8d8 روی Imzayan/world-dominion7 — لوکال==ریموت
 - کاربر باید همین حالا توکن را revoke کند (GitHub → Settings → Developer settings → Personal access tokens → Delete)
+
+---
+Task ID: V77-CV-PREMIUM-ART-PERFORMANCE
+Agent: Super Z (main)
+Task: مشخصات ۵۰بندی «Premium Art + Performance» برای Country View — Audit اول، سپس Upgrade روی همان موتور V76
+
+Work Log:
+- Audit کامل ۲۰۶۲خط cv-engine.js در برابر ۵۰بند: ۳۷بند سالم (حفظ)، ۱۳شکاف/ضعف مشخص شد
+- §22 FIT COUNTRY: ورود از z0.55 به fitZ محاسبه‌شده (۰٫۴۱ عرض/ارتفاع ≈ ۶۵–۷۵٪ فضای مفید) + pan محدود به پایتخت فقط تا وقتی کشور کامل در قاب بماند (به‌جای z=1.42 ثابت که لبه‌ها را بیرون می‌برد)
+- §48 clampCam: pan/زوم مهارشده — حداقل ۱۵٪ هم‌پوشانی کشور با قاب؛ در pan/zoomAt/loop اعمال
+- §26 idle render-skip: امضای تغییر (دوربین/انتخاب/hover/dirtyStatic/bucket/animating) — در نمای کشورِ بی‌حرکت صفر redraw (تست: ۷۸ فریم skip در ۱٫۳ثانیه) + stepAmbient زیر z1.4 فریز
+- §31 hysteresis: cooldown ۳۰ثانیه‌ای بعد از هر تغییر tier + restoreTier فقط بعد از ۴۵ثانیه FPS پایدار (بدون persist تا سشن بعد تشخیص تازه)
+- §11 سایه tiered: Low=خاموش / Med=ساده / High=جهت‌دار (+2.2px آفست)
+- §7 هویت شهر: امضای برداری city.kind واقعی (port=اسکله+کشتی، oil=دکل+مخزن، industrial=سقف اره‌ای، agri=نوار زراعی، military=پرچم، mountain=دهانه معدن) از z≥1.5 — bake
+- §6 تراکم: +۲ تا +۴ سیلوئت اضافه فقط در z≥2.2 (small≤۵، medium≤۸، capital≤۱۰ + چراغ/گلیف)
+- §15/§13 ریل+قطار فقط-ویژوال داده‌محور: پایتخت↔صنعتی‌ترین استانِ دارای کارخانه/پالایشگاه فعال؛ بدون صنعت فعال ریل هم نیست؛ Low خاموش؛ قطار (لوکوموتیو+۲واگن) روی همان مسیر
+- §17 نوار عمق دریا (۲۶px bake) + §5 hover ملایم دسکتاپی (throttle ۹۰ms، pointerType=mouse)
+- §16 رودخانه: داده ندارد → طبق بند ساخته نشد | §41 روز/شب و §42 آب‌وهوا: سیستم فعلی ندارد → طبق شرط بند skip
+- نسخه‌ها: __WD_V=77 + v.txt=77 + ?v=77×۳ + version:77 | گارد S.bbox null در entry
+- QA: cv-qa-v77 (جدید) 34/34 — شامل FIT-entry، idle-skip واقعی (۷۸فریم)، rail=null بدون صنعت، clamp بعد از pan+99999، پاکسازی rail/hover | frameMs=0 (skip مؤثر)، DOM=39
+- رگرسیون: cv-e2e 21/21، anticheat 24/24، apk-sim 28/28، lowfx 6/6، map-visual 16/16، sw-selfheal 8/8، verify-build 9/9، blocks 84/0، tsc فقط ۲خطای خارج از بازی (skills/)
+
+Stage Summary:
+- V77 = پریمیوم‌سازی + پرفورمنس روی همان معماری: +142 خط خالص، صفر RPC جدید، صفر state موازی، تک-loop حفظ شد
+- فایل کامل: public/game/cv-engine.js (۲۲۰۴خط) + کپی download/cv-engine-v77.js
+- مانده شناخته‌شده: تست دستی ۱۶ سناریویی روی دستگاه فیزیکی اندروید؛ پوش نیاز به توکن یک‌بارمصرف

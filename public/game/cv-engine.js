@@ -1,5 +1,5 @@
 /* ============================================================
-   WORLD DOMINION — V76 COUNTRY VIEW ENGINE (client) — VISUAL UPGRADE
+   WORLD DOMINION — V77 COUNTRY VIEW ENGINE (client) — PREMIUM ART + PERFORMANCE
    cv-engine.js — با lazy-load فقط هنگام اولین «ورود به کشور» لود می‌شود.
    معماری: Data-Driven + Performance-First (ارتقا روی همان V74/V75 — نه بازنویسی)
    - تک rAF loop — تیک ۱ثانیه‌ای داخل همان loop
@@ -9,6 +9,10 @@
      تلماسه/نوار مزرعه)، نشان هویت استان (برداری، بدون emoji)، خوشه‌ی شهر ۳سطحی،
      جاده‌ی ارگانیک چند-پیچی، Objectives/Story از داده‌ی واقعی، Landmark (≤۳)،
      هدر چیپ‌محور ریسپانسیو با جزئیات بازشو
+   - V77 (پریمیوم + پرفورمنس): FIT COUNTRY (بند ۲۲)، clamp دوربین (۴۸)، skip رندر بی‌کار
+     (۲۶)، سایه‌ی tiered (۱۱)، هویت بصری شهر از city.kind واقعی (۷)، تراکم شهر در z بالا
+     (۶)، ریل فقط-ویژوال داده‌محور + قطار (۱۵/۱۳)، نوار عمق ساحل (۱۷)، hover ملایم (۵)،
+     hysteresis عملکرد با بازگشت (۳۱) — همه روی همین موتور، بدون بازنویسی و بدون RPC جدید
    - صدا: سینت WebAudio سبک (بدون فایل/شبکه، بعد از اولین تعامل)
    - حداکثر ~۴۰ نود DOM (پنل‌ها) — هیچ DOM-Element-per-building
    ============================================================ */
@@ -24,6 +28,7 @@
     mil: { atkPct: 0, defPct: 0 }, counts: { ports: 0, airports: 0 },
     res: { gold: 0, oil: 0, food: 0 }, resAt: 0, maxLevel: 10, offlineCapMs: 0,
     sel: { prov: -1, bld: null, slot: null },
+    hover: -1,          /* V77 §5: استان زیر نشانگر (فقط دسکتاپ) */
     tier: 'med', cam: { x: 0, y: 0, z: 1.4, tx: 0, ty: 0, tz: 1.4, anim: false },
     ring: null, bbox: null, lastFrame: 0, frameMs: 60, paused: false,
     lastPoll: 0, pollTimer: null, builtOnce: false, dirtyStatic: true,
@@ -54,7 +59,7 @@
     } } catch (e) {}
     return null
   }
-  window.WDCV = { S, open, close, rpc, version: 76, openProvPanel, selectBuilding, openCityPanel, openTech }
+  window.WDCV = { S, open, close, rpc, version: 77, openProvPanel, selectBuilding, openCityPanel, openTech }
 
   /* ---------- Quality Tier (یک‌بار در ابتدا + افت خودکار) ---------- */
   function detectTier() {
@@ -71,18 +76,29 @@
     try { const saved = localStorage.getItem('wdcv_tier'); if (saved) return saved } catch (e) {}
     return t
   }
+  /* V77 §11/§29: سایه — Low=خاموش | Medium=ساده | High=جهت‌دار (روی سایت رسم) */
   const TIER = {
     low:  { particles: 0,  deco: 0, shadows: false, maxDpr: 1,   ambient: 0,  lights: 0,  smoke: 0, roads: 0 },
-    med:  { particles: 8,  deco: 1, shadows: false, maxDpr: 1.5, ambient: 8,  lights: 26, smoke: 2, roads: 1 },
+    med:  { particles: 8,  deco: 1, shadows: true,  maxDpr: 1.5, ambient: 8,  lights: 26, smoke: 2, roads: 1 },
     high: { particles: 18, deco: 2, shadows: true,  maxDpr: 2,   ambient: 16, lights: 56, smoke: 4, roads: 1 },
   }
   S.tier = detectTier()
   function tierCfg() { return TIER[S.tier] || TIER.med }
   function degradeTier() {
+    if (S._tierCd > 0) return /* V77 §31: hysteresis — بعد از هر تغییر ۳۰ثانیه آرامش */
     if (S.tier === 'high') S.tier = 'med'
     else if (S.tier === 'med') S.tier = 'low'
     else return
     try { localStorage.setItem('wdcv_tier', S.tier) } catch (e) {}
+    S.dirtyStatic = true; S._tierCd = 30
+  }
+  /* V77 §31: بازگشت tier فقط بعد از ۴۵ثانیه FPS پایدار — ذخیره نمی‌شود تا سشن بعد
+     تشخیص تازه انجام شود (فلپ‌فلپ بین tierها ممنوع) */
+  function restoreTier() {
+    if (S.tier === 'low') S.tier = 'med'
+    else if (S.tier === 'med') S.tier = 'high'
+    else return
+    try { localStorage.removeItem('wdcv_tier') } catch (e) {}
     S.dirtyStatic = true
   }
 
@@ -304,8 +320,11 @@
         }
       }
     }
-    /* هاله‌ی ساحل */
+    /* هاله‌ی ساحل + V77 §17: نوار عمق دریا (bake) */
     g.lineJoin = 'round'
+    g.strokeStyle = 'rgba(6,32,54,.34)'
+    g.lineWidth = 26 * S.cam.z
+    pathRing(g, ring); g.stroke()
     g.strokeStyle = 'rgba(120,200,255,.16)'
     g.lineWidth = 9 * S.cam.z
     pathRing(g, ring); g.stroke()
@@ -338,6 +357,28 @@
         const pts = roadPath([cap.cx, cap.cy], [S.cells[i].cx, S.cells[i].cy], i).map((q) => project(q[0], q[1]))
         strokePath(g, pts, 2.7 * Math.min(1.3, z), 'rgba(24,20,14,.42)')
         strokePath(g, pts, 1.5 * Math.min(1.3, z), 'rgba(216,198,152,.44)')
+      }
+    }
+    /* V77 §15: ریل فقط-ویژوال — پایتخت ↔ صنعتی‌ترین استان فعال (داده‌محور:
+       بدون کارخانه/پالایشگاه فعال، ریل هم نیست. Low tier خاموش.) */
+    S._rail = null
+    if (tierCfg().ambient > 0 && z >= 1.05 && S.cells.length > 1) {
+      let bi = -1, bn = 0
+      for (let i = 1; i < S.cells.length; i++) {
+        const ci = S.cells[i].prov.i
+        let nF = 0
+        for (const b of S.buildings) if (b.province === ci && b.status === 'active' && (b.type === 'factory' || b.type === 'tank_plant')) nF++
+        if (nF > bn) { bn = nF; bi = i }
+      }
+      if (bi >= 1) {
+        const capC = S.cells[0]
+        const rpGeo = roadPath([capC.cx, capC.cy], [S.cells[bi].cx, S.cells[bi].cy], 777)
+        const rpPx = rpGeo.map((q) => project(q[0], q[1]))
+        strokePath(g, rpPx, 1 * Math.min(1.3, z), 'rgba(30,26,20,.55)')
+        g.setLineDash([1.4, 2.8])
+        strokePath(g, rpPx, 2.6 * Math.min(1.3, z), 'rgba(238,226,196,.34)')
+        g.setLineDash([])
+        S._rail = { pts: rpGeo }
       }
     }
     /* شهرها — خوشه‌ی ۳سطحی از زوم ۱٫۲ + جاده‌ی فرعی از ۱٫۷ */
@@ -474,14 +515,17 @@
     }
   }
 
-  /* ---------- V76: خوشه‌ی شهر ۳سطحی — small/medium/capital (بدون صدها object) ---------- */
+  /* ---------- V76: خوشه‌ی شهر ۳سطحی — small/medium/capital (بدون صدها object) ----------
+     V77 §6/§7: تراکم در نمای ساختمان (z≥2.2 سیلوئت‌های بیشتر) + امضای برداری هویت شهر
+     بر اساس city.kind واقعی (port/oil/industrial/agri/military/mountain) از z≥1.5 */
   function drawCityCluster(g, x, y, city, isCapital, z) {
     const pop = city.popK || 100
     const big = isCapital ? 2 : pop >= 800 ? 1 : pop >= 300 ? 0.7 : 0.5
     const s = z * (0.8 + big * 0.35)
     g.fillStyle = 'rgba(30,38,48,.5)'
     g.beginPath(); g.ellipse(x, y + 1.5 * s, 6.5 * s, 2.6 * s, 0, 0, 6.3); g.fill()
-    const nB = isCapital ? 6 : pop >= 800 ? 5 : pop >= 300 ? 4 : 3
+    const extra = z >= 2.2 ? (isCapital ? 4 : pop >= 800 ? 3 : 2) : 0
+    const nB = (isCapital ? 6 : pop >= 800 ? 5 : pop >= 300 ? 4 : 3) + extra
     for (let k = 0; k < nB; k++) {
       const a = hash01(city.lng * 91 + k * 7.3) * 6.28
       const rr = (1.6 + hash01(city.lat * 77 + k * 5.1) * 3.4) * s
@@ -491,6 +535,29 @@
       g.fillStyle = k === 0 ? '#ffe9a8' : 'rgba(226,232,240,.88)'
       g.fillRect(bx - bw / 2, by - bh, bw, bh)
       g.strokeStyle = 'rgba(16,22,30,.55)'; g.lineWidth = 0.6; g.strokeRect(bx - bw / 2, by - bh, bw, bh)
+    }
+    if (z >= 1.5) {
+      const gx = x + 7.5 * s, gy = y - 1 * s
+      g.strokeStyle = 'rgba(16,22,30,.6)'; g.lineWidth = 0.8
+      const kd = city.kind
+      if (kd === 'port') {
+        g.fillStyle = 'rgba(79,107,134,.9)'; g.fillRect(gx - 3 * s, gy + 1.4 * s, 7 * s, 1.1 * s)
+        g.fillStyle = '#e8eef4'; g.fillRect(gx + 0.4 * s, gy - 1.8 * s, 3.4 * s, 1.8 * s)
+      } else if (kd === 'oil') {
+        g.strokeStyle = 'rgba(50,42,30,.85)'; g.beginPath(); g.moveTo(gx - 2 * s, gy + 1.6 * s); g.lineTo(gx, gy - 2.4 * s); g.lineTo(gx + 2 * s, gy + 1.6 * s); g.stroke()
+        g.fillStyle = 'rgba(70,58,34,.9)'; g.beginPath(); g.arc(gx + 3.4 * s, gy + 1 * s, 1.3 * s, 0, 6.3); g.fill()
+      } else if (kd === 'industrial') {
+        g.fillStyle = 'rgba(96,104,114,.9)'
+        g.beginPath(); g.moveTo(gx - 3 * s, gy + 1.6 * s); g.lineTo(gx - 3 * s, gy - 0.6 * s); g.lineTo(gx - 1.6 * s, gy - 1.6 * s); g.lineTo(gx - 1.6 * s, gy - 0.6 * s); g.lineTo(gx - 0.2 * s, gy - 1.6 * s); g.lineTo(gx - 0.2 * s, gy - 0.6 * s); g.lineTo(gx + 1.2 * s, gy - 1.6 * s); g.lineTo(gx + 1.2 * s, gy + 1.6 * s); g.closePath(); g.fill()
+      } else if (kd === 'agri') {
+        g.strokeStyle = 'rgba(252,244,190,.85)'
+        for (let k2 = -1; k2 <= 1; k2++) { g.beginPath(); g.moveTo(gx + k2 * 2 * s, gy + 1.6 * s); g.lineTo(gx + k2 * 2 * s, gy - 1.6 * s); g.stroke() }
+      } else if (kd === 'military') {
+        g.strokeStyle = 'rgba(70,84,60,.9)'; g.beginPath(); g.moveTo(gx, gy + 1.6 * s); g.lineTo(gx, gy - 2.6 * s); g.stroke()
+        g.fillStyle = 'rgba(120,150,90,.95)'; g.fillRect(gx, gy - 2.6 * s, 2.6 * s, 1.4 * s)
+      } else if (kd === 'mountain') {
+        g.strokeStyle = 'rgba(70,70,80,.9)'; g.beginPath(); g.arc(gx, gy + 1.4 * s, 1.8 * s, Math.PI, 0); g.stroke()
+      }
     }
     g.fillStyle = isCapital ? '#ffd84d' : '#f4f8fc'
     g.beginPath(); g.arc(x, y - 2.4 * s, isCapital ? 2 * s : 1.5 * s, 0, 6.3); g.fill()
@@ -610,9 +677,11 @@
       if (hasPort && c.prov.coastal) paths.push({ kind: 'ship', pts: [[c.cx, c.cy], [c.cx + (c.bboxW || 0.5) * 0.35, c.cy - (c.bboxH || 0.5) * 0.35]] })
       if (hasAir) paths.push({ kind: 'plane', pts: [[c.cx, c.cy], [c.cx + 0.55, c.cy + 0.35]] })
     }
+    if (S._rail && tierCfg().ambient > 0) paths.push({ kind: 'train', pts: S._rail.pts }) /* V77 §15/§13 */
     return paths
   }
   function stepAmbient(dt) {
+    if (S.cam.z < 1.4) return /* V77 §26: زیر z1.4 حمل‌ونقل نامرئی است — گام لازم نیست (idle-skip فعال می‌شود) */
     const cap = tierCfg().ambient
     if (!cap || !S.ambPaths) return
     /* پرکردن ظرفیت */
@@ -620,7 +689,7 @@
       const need = Math.min(cap - AMB.length, 2)
       for (let i = 0; i < need; i++) {
         const p = S.ambPaths[Math.floor(Math.random() * S.ambPaths.length)]
-        AMB.push({ kind: p.kind, path: p, t: Math.random(), sp: p.kind === 'car' ? 0.05 + Math.random() * 0.05 : p.kind === 'ship' ? 0.02 + Math.random() * 0.02 : 0.06 + Math.random() * 0.06, dir: Math.random() < 0.5 ? 1 : -1 })
+        AMB.push({ kind: p.kind, path: p, t: Math.random(), sp: p.kind === 'car' ? 0.05 + Math.random() * 0.05 : p.kind === 'ship' ? 0.02 + Math.random() * 0.02 : p.kind === 'train' ? 0.028 + Math.random() * 0.018 : 0.06 + Math.random() * 0.06, dir: Math.random() < 0.5 ? 1 : -1 })
       }
     }
     for (let i = AMB.length - 1; i >= 0; i--) {
@@ -650,6 +719,17 @@
         g.fillStyle = '#e8eef4'
         g.beginPath(); g.moveTo(p[0] - 5 * s, p[1]); g.lineTo(p[0] + 5 * s, p[1]); g.lineTo(p[0] + 3 * s, p[1] + 2.4 * s); g.lineTo(p[0] - 3 * s, p[1] + 2.4 * s); g.closePath(); g.fill()
         g.fillStyle = '#c2483f'; g.fillRect(p[0] - 1 * s, p[1] - 4.2 * s, 2 * s, 4.2 * s)
+      } else if (o.kind === 'train') {
+        /* V77 §13: قطار — لوکوموتیو + ۲ واگن روی همان ریل bake‌شده */
+        for (let w2 = 0; w2 < 3; w2++) {
+          const tt = clamp(o.t - w2 * 0.04 * o.dir, 0, 1)
+          const gp2 = pathPoint(o.path.pts, tt)
+          const p2 = project(gp2[0], gp2[1])
+          if (p2[0] < -30 || p2[1] < -30 || p2[0] > W + 30 || p2[1] > H + 30) continue
+          g.fillStyle = w2 ? '#9fb2c4' : '#3f4c5a'
+          g.fillRect(p2[0] - 3.4 * s, p2[1] - 2 * s, 6.8 * s, 4 * s)
+          g.fillStyle = 'rgba(16,22,30,.4)'; g.fillRect(p2[0] - 3.4 * s, p2[1] - 0.4 * s, 6.8 * s, 0.8 * s)
+        }
       } else {
         g.strokeStyle = '#eef4fa'; g.lineWidth = 1.6 * s
         g.beginPath(); g.moveTo(p[0] - 5 * s, p[1]); g.lineTo(p[0] + 5 * s, p[1]); g.moveTo(p[0], p[1] - 3 * s); g.lineTo(p[0], p[1] + 3 * s); g.stroke()
@@ -943,6 +1023,11 @@
         pathRing(ctx, c.poly.map((p) => project(p[0], p[1]))); ctx.fill()
       })
     }
+    /* V77 §5: هایلایت hover — بسیار ملایم، فقط دسکتاپ، بدون رقابت با انتخاب */
+    if (S.hover >= 0 && S.hover !== S.sel.prov && S.cells[S.hover] && S.cells[S.hover].poly) {
+      pathRing(ctx, S.cells[S.hover].poly.map((p) => project(p[0], p[1])))
+      ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1.4; ctx.stroke()
+    }
     const W = cv.clientWidth, H = cv.clientHeight
     const tSec = S.nowMs / 1000
 
@@ -1012,9 +1097,12 @@
         const active = b.status === 'active'
         let prog = 1
         if (!active && b.doneAt) prog = clamp(1 - (b.doneAt - S.nowMs) / Math.max(1, b.doneAt - b.startedAt), 0, 1)
-        /* سایه‌ی زمین */
-        ctx.beginPath(); ctx.ellipse(p[0], p[1] + 5 * z, 9 * Math.min(1.6, z), 3.4 * Math.min(1.6, z), 0, 0, 6.3)
-        ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill()
+        /* سایه‌ی زمین — V77 §11: Low=خاموش | Medium=ساده | High=جهت‌دار */
+        if (tierCfg().shadows) {
+          ctx.beginPath()
+          ctx.ellipse(p[0] + (S.tier === 'high' ? 2.2 : 0), p[1] + 5 * z, 9 * Math.min(1.6, z), 3.4 * Math.min(1.6, z), 0, 0, 6.3)
+          ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill()
+        }
         /* V76 §16: لندمارک — حلقه‌ی ثابت ظریف (حداکثر ۳ — محاسبه در تیک ۱ثانیه) */
         if (S._lm && S._lm[b.id] && active) {
           ctx.strokeStyle = 'rgba(255,216,77,.4)'; ctx.lineWidth = 1.4
@@ -1122,7 +1210,23 @@
       cam.z = lerp(cam.z, cam.tz, 1 - Math.pow(0.001, dt))
       if (Math.abs(cam.x - cam.tx) < 0.5 && Math.abs(cam.y - cam.ty) < 0.5 && Math.abs(cam.z - cam.tz) < 0.01) cam.anim = false
     }
-    render(dt)
+    clampCam()
+    /* V77 §26: اگر هیچ چیز تغییر نکرده — صفر کار رندر (باتری موبایل).
+       کانواس آخرین فریم را نگه می‌دارد؛ تیک ۱ثانیه‌ای همچنان داخل همین loop می‌چرخد. */
+    let animating = cam.anim || (S.enter && !S.enter.done) || S.cam.z >= 1.5 || (S.cam.z >= 1.4 && AMB.length > 0)
+    if (!animating) { for (const b of S.buildings) { if (b.status !== 'active') { animating = true; break } } }
+    if (!animating) {
+      for (const p of pool) { if (p.on) { animating = true; break } }
+      if (!animating) for (const r of RIPS) { if (r.on) { animating = true; break } }
+    }
+    const selKey = S.sel.prov + ':' + ((S.sel.bld && S.sel.bld.id) || '') + ':' + (S.hover | 0)
+    const camMoved = Math.abs(cam.x - (S._lcx == null ? 1e9 : S._lcx)) > 0.05 || Math.abs(cam.y - (S._lcy == null ? 1e9 : S._lcy)) > 0.05 || Math.abs(cam.z - (S._lcz == null ? 1e9 : S._lcz)) > 0.001
+    if (!animating && !camMoved && selKey === S._lselKey && !S.dirtyStatic && zoomBucket() === staticBucket) {
+      S._idleN = (S._idleN || 0) + 1
+    } else {
+      render(dt)
+      S._lcx = cam.x; S._lcy = cam.y; S._lcz = cam.z; S._lselKey = selKey
+    }
     /* V74: تیک ۱ثانیه‌ای داخل همین loop — بدون setInterval جدا (بند ۲۰ دستور) */
     S.acc += dt
     if (S.acc >= 1) {
@@ -1138,6 +1242,7 @@
           snd('complete')
           toast('✅ ' + (def ? def.fa : 'ساختمان') + ' سطح ' + fa(b.level) + ' آماده شد')
           S.ambPaths = ambPathPool() /* مسیر جدید (بندر/فرودگاه) ممکن است فعال شود */
+          if (b.type === 'factory' || b.type === 'tank_plant') S.dirtyStatic = true /* V77: ریل ممکن است مسیر جدید بگیرد */
           const pp = S.provinces[b.province]
           if (pp && S.sel.prov === b.province) openProvPanel(b.province) /* پنل باز را تازه کن */
         }
@@ -1149,6 +1254,11 @@
       S._lm = {}
       for (const b of lms) S._lm[b.id] = 1
       if ((S.hdrT = (S.hdrT || 0) + 1) % 2 === 0) header()
+      /* V77 §31: hysteresis عملکرد — سردشدن ۳۰ثانیه‌ای بعد از هر تغییر tier +
+         بازگشت فقط بعد از ۴۵ثانیه FPS پایدار (frameMs<9) */
+      if (S._tierCd > 0) S._tierCd--
+      else if (S.frameMs < 9 && S.tier !== 'high') { S._fast = (S._fast || 0) + 1; if (S._fast >= 45) { S._fast = 0; restoreTier(); S.ambPaths = ambPathPool(); S._tierCd = 45 } }
+      else S._fast = 0
       /* بازسازی مسیرهای محیط هر ۵ ثانیه (سبک — فقط وقتی tier اجازه می‌دهد) */
       if ((S._ambT = (S._ambT || 0) + 1) >= 5) { S._ambT = 0; if (tierCfg().ambient) S.ambPaths = ambPathPool() }
     }
@@ -1189,6 +1299,7 @@
         if (Math.abs(dx) + Math.abs(dy) > 4) moved = true
         S.cam.x += dx / S.cam.z; S.cam.y += dy / S.cam.z
         S.cam.anim = false
+        clampCam()
         p.x = e.clientX; p.y = e.clientY
       } else if (pointers.size === 2) {
         const pts = [...pointers.values()]
@@ -1216,6 +1327,19 @@
       if (!moved && now - lastTap.t < 400) onTap(e.clientX, e.clientY)
     })
     cvEl.addEventListener('pointercancel', (e) => pointers.delete(e.pointerId))
+    cvEl.addEventListener('pointerleave', () => { if (S.hover !== -1) { S.hover = -1; S._lselKey = '' } }) /* V77 §5 */
+    /* V77 §5: hover استان — فقط موس دسکتاپ، throttle ۹۰ms، بدون هیج هزینه‌ی لمسی */
+    cvEl.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse' || pointers.size) return
+      const now = performance.now()
+      if (now - (S._hovT || 0) < 90) return
+      S._hovT = now
+      const sxh = e.clientX - rectLeft(), syh = e.clientY - rectTop()
+      const [lng, lat] = unproject(sxh, syh)
+      let hi = -1
+      for (let i = 0; i < S.cells.length; i++) { const c2 = S.cells[i]; if (c2.poly && pointInPoly([lng, lat], c2.poly)) { hi = i; break } }
+      if (hi !== S.hover) { S.hover = hi; S._lselKey = '' }
+    })
     cvEl.addEventListener('wheel', (e) => {
       e.preventDefault()
       zoomAt(e.offsetX, e.offsetY, clamp(S.cam.z * (e.deltaY < 0 ? 1.12 : 0.89), 0.6, 4))
@@ -1244,7 +1368,19 @@
     S.cam.z = clamp(nz, 0.6, 4)
     S.cam.x = (sx - cv.clientWidth / 2) / S.cam.z - wx
     S.cam.y = (sy - cv.clientHeight / 2) / S.cam.z - wy
+    clampCam() /* V77 §48 */
     S.cam.anim = false
+  }
+  /* V77 §48: دوربین clamp — کشور هرگز کامل از قاب خارج نمی‌شود
+     (حداقل ۱۵٪ قاب هم‌پوشانی کشور بماند — pan/زوم آزاد ولی مهارشده) */
+  function clampCam() {
+    if (!S.bbox || !cv || !view.base) return
+    const z = S.cam.z, W = cv.clientWidth, H = cv.clientHeight
+    const exW = (S.bbox.maxX - S.bbox.minX) * view.scale * kmPerLon() / 2
+    const exH = (S.bbox.maxY - S.bbox.minY) * view.scale * 111.32 / 2
+    const mW = exW + W * 0.35 / z, mH = exH + H * 0.35 / z
+    S.cam.x = clamp(S.cam.x, -mW, mW)
+    S.cam.y = clamp(S.cam.y, -mH, mH)
   }
   function onResize() {
     if (!S.active) return
@@ -1995,15 +2131,21 @@
     setupCanvas()
     buildCells()
     const c = computeView(); view.base = { cx: c.cx, cy: c.cy }
-    /* V76 §26/§1: شروع کلان + شیرجه به سمت پایتخت (pan جزئی — فضای خالی کمتر، ساختمان‌ها در قاب) */
+    /* V77 §22: FIT COUNTRY — کشور ~۶۵–۷۵٪ فضای مفید را بگیرد؛ نه ریز، نه بیرون‌زده.
+       شیرجه‌ی نرم از نمای کلان (0.55) به زوم fit + pan محدود سمت پایتخت (تا وقتی کشور کامل در قاب بماند) */
     const capE = S.cells[0]
+    const bbo = S.bbox || { minX: 0, minY: 0, maxX: 1, maxY: 1 } /* گارد: کشور بدون هندسه */
+    const exW2 = (bbo.maxX - bbo.minX) * view.scale * kmPerLon() / 2
+    const exH2 = (bbo.maxY - bbo.minY) * view.scale * 111.32 / 2
+    const fitZ = clamp(Math.min(cv.clientWidth * 0.41 / Math.max(1, exW2), cv.clientHeight * 0.41 / Math.max(1, exH2)), 0.8, 1.5)
     let etx = 0, ety = 0
     if (capE) {
-      etx = (capE.cx - view.base.cx) * view.scale * kmPerLon() * 0.42
-      ety = -(capE.cy - view.base.cy) * view.scale * 111.32 * 0.42
+      const mW = Math.max(0, cv.clientWidth / (2 * fitZ) - exW2), mH = Math.max(0, cv.clientHeight / (2 * fitZ) - exH2)
+      etx = clamp((capE.cx - view.base.cx) * view.scale * kmPerLon() * 0.35, -mW * 0.7, mW * 0.7)
+      ety = clamp(-(capE.cy - view.base.cy) * view.scale * 111.32 * 0.35, -mH * 0.7, mH * 0.7)
     }
     S.cam.x = 0; S.cam.y = 0; S.cam.z = 0.55
-    S.cam.tx = etx; S.cam.ty = ety; S.cam.tz = 1.42; S.cam.anim = true
+    S.cam.tx = etx; S.cam.ty = ety; S.cam.tz = fitZ; S.cam.anim = true
     S.enter = { t0: Date.now(), done: false, ms: S.tier === 'low' ? 700 : 1200 }
     S.doneIds = null
     S.nowMs = Date.now()
@@ -2044,6 +2186,7 @@
     for (const r of RIPS) r.on = false
     for (const p of pool) p.on = false
     S.enter = null; S.doneIds = null; S.acc = 0; S.hdrT = 0
+    S.hover = -1; S._rail = null; S._idleN = 0; S._tierCd = 0; S._fast = 0; S._lselKey = ''; S._lcx = null; S._lcy = null; S._lcz = null /* V77 */
     try { if (AC && AC.state === 'running') AC.suspend() } catch (e) {}
     try { if (window.WD_BACK) { const ix = WD_BACK.stack.indexOf('#wdcv-stage'); if (ix > -1) WD_BACK.stack.splice(ix, 1); if (typeof wdBackSync === 'function') wdBackSync() } } catch (e) {}
     resumeMap()
