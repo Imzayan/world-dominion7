@@ -210,6 +210,21 @@
     sun: 'rgba(255,250,210,.13)',      /* نور از بالا-چپ (V81: کمی قوی‌تر — حس نقاشی) */
     shade: 'rgba(24,38,18,.17)',       /* سایه به پایین-راست */
   }
+  /* V84 PREMIUM — لایه‌ی ظاهر لوکس (همه bake-only؛ صفر هزینه per-frame) */
+  const V84 = {
+    beach: 'rgba(240,224,168,.42)',      /* نوار ماسه‌ی ساحلی */
+    beachCore: 'rgba(250,242,206,.30)',
+    lagoon: 'rgba(64,196,220,.16)',      /* هاله‌ی لاگون زیر کشور */
+    hillLit: 'rgba(255,255,238,.10)',    /* تپه‌ی روشن */
+    valley: 'rgba(18,40,20,.10)',        /* دره‌ی سایه */
+    window: 'rgba(255,214,120,.85)',     /* پنجره‌ی طلایی شهر */
+    biomes: [                             /* [maxAbsLat, tint] — استوایی/خشک/معتدل/بورئال */
+      [13, 'rgba(16,104,42,.11)'],
+      [32, 'rgba(196,152,58,.11)'],
+      [52, null],
+      [90, 'rgba(38,84,96,.12)'],
+    ],
+  }
   const PROV_TYPE_FA = { capital: 'پایتخت', industrial: 'صنعتی', agricultural: 'کشاورزی', resource: 'منبع‌خیز', generic: 'عمومی' }
   /* V79: نردبان لقب فتح (آینه‌ی RANKS بازی — فقط نمایش) */
   const V79_RANKS = [[0, '🎖️ آغازگر'], [3, '🥉 فرمانده'], [6, '🥈 سردار'], [10, '🥇 فتحگر'], [15, '💎 فتحگر بزرگ'], [22, '👑 امپراتور'], [30, '🌐 سایه‌ی جهان'], [40, '👑 فرمانروای زمین']]
@@ -407,6 +422,15 @@
     const ring = S.ring.map((p) => project(p[0], p[1]))
     /* موج ساحل — قطعی، بیرون‌سوی نرمال (bake) */
     if (ring.length > 8) {
+      /* V84 PREMIUM: هاله‌ی لاگون — گرادیان شعاعی فیروزه‌ای زیرِ کشور (bake-only) */
+      let lcx = 0, lcy = 0
+      for (const p of ring) { lcx += p[0]; lcy += p[1] }
+      lcx /= ring.length; lcy /= ring.length
+      let lr = 0
+      for (const p of ring) { const d = Math.hypot(p[0] - lcx, p[1] - lcy); if (d > lr) lr = d }
+      const lg2 = g.createRadialGradient(lcx, lcy, lr * 0.55, lcx, lcy, lr + 150)
+      lg2.addColorStop(0, V84.lagoon); lg2.addColorStop(1, 'rgba(64,196,220,0)')
+      g.fillStyle = lg2; g.fillRect(0, 0, ww, wh)
       let cxs = 0, cys = 0
       for (const p of ring) { cxs += p[0]; cys += p[1] } cxs /= ring.length; cys /= ring.length
       g.strokeStyle = 'rgba(150,210,240,.10)'; g.lineWidth = 1.4
@@ -434,6 +458,9 @@
     }
     g.strokeStyle = V79.foam
     g.lineWidth = 1.6
+    /* V84 PREMIUM: ساحل شنی — باند پهن نرم + خط روشن (نیمه‌ی داخلی با fill زمین پوشیده می‌شود) */
+    g.strokeStyle = V84.beach; g.lineWidth = 9 * S.cam.z; pathRing(g, ring); g.stroke()
+    g.strokeStyle = V84.beachCore; g.lineWidth = 3 * S.cam.z; pathRing(g, ring); g.stroke()
     g.fillStyle = '#144258'
     pathRing(g, ring); g.fill(); g.stroke()
     /* سلول‌های استان + ترِین + tint هویت */
@@ -462,10 +489,32 @@
       const lgr = g.createLinearGradient(lnx, lny, lxx, lxy)
       lgr.addColorStop(0, V79.sun); lgr.addColorStop(0.55, 'rgba(0,0,0,0)'); lgr.addColorStop(1, V79.shade)
       pathRing(g, poly); g.fillStyle = lgr; g.fill()
+      /* V84 PREMIUM §RELIEF: تپه‌ی روشن + دره‌ی سایه — دو گرادیان شعاعی قطعی هر سلول (bake-only) */
+      if (tierCfg().deco > 0) {
+        const cw2 = lxx - lnx, ch2 = lxy - lny
+        const hr2 = Math.max(cw2, ch2) * 0.42
+        const hx = lnx + cw2 * (0.25 + 0.5 * hash01(c.prov.i * 57.3)), hy = lny + ch2 * (0.22 + 0.5 * hash01(c.prov.i * 91.7))
+        const hg2 = g.createRadialGradient(hx, hy, 0, hx, hy, hr2)
+        hg2.addColorStop(0, V84.hillLit); hg2.addColorStop(1, 'rgba(0,0,0,0)')
+        pathRing(g, poly); g.fillStyle = hg2; g.fill()
+        const vx = lnx + cw2 * (0.3 + 0.45 * hash01(c.prov.i * 23.9)), vy = lny + ch2 * (0.5 + 0.42 * hash01(c.prov.i * 63.1))
+        const vg2 = g.createRadialGradient(vx, vy, 0, vx, vy, hr2 * 0.9)
+        vg2.addColorStop(0, V84.valley); vg2.addColorStop(1, 'rgba(0,0,0,0)')
+        pathRing(g, poly); g.fillStyle = vg2; g.fill()
+      }
       /* V81: تنوع طبیعی — شست‌وی سبز/زیتونی/خاکی با هش استان (bake-only، صفر هزینه فریم) */
       const jw = hash01(c.prov.i * 7.31)
       g.fillStyle = jw < 0.34 ? 'rgba(64,116,44,.08)' : jw < 0.67 ? 'rgba(148,158,58,.07)' : 'rgba(128,96,44,.07)'
       pathRing(g, poly); g.fill()
+      /* V84 PREMIUM §BIOME: تینت عرض جغرافیایی — استوایی اشباع / کمربند خشک گرم /
+         بورئال خنک؛ معتدل = پالت فعلی. عرض از مرکز سلول در فضای جهان محاسبه می‌شود. */
+      {
+        const blat = (view.base ? view.base.cy : 0) - c.cy / (view.scale * 111.32)
+        const alat = Math.abs(blat)
+        let bt = null
+        for (const b of V84.biomes) { if (alat < b[0]) { bt = b[1]; break } }
+        if (bt) { g.fillStyle = bt; pathRing(g, poly); g.fill() }
+      }
       /* V81: مرز نرم — هاله‌ی پهن کم‌رنگ + خط ظریف داخلی (به‌جای خط تیز مصنوعی) */
       g.strokeStyle = 'rgba(24,34,18,.15)'; g.lineWidth = 2.8; g.stroke()
       g.strokeStyle = 'rgba(24,34,18,.30)'; g.lineWidth = 1; g.stroke()
@@ -743,10 +792,20 @@
       g.fillStyle = 'rgba(255,250,225,.30)'
       g.fillRect(bx - bw / 2, by - bh, bw, Math.max(1, bh * 0.28))
       g.strokeStyle = 'rgba(14,20,28,.4)'; g.lineWidth = 0.6; g.strokeRect(bx - bw / 2, by - bh, bw, bh)
+      /* V84 PREMIUM: پنجره‌های طلایی — شهرِ زنده (bake-only، فقط نمای بالا) */
+      if (z >= 1.9 && hash01(city.lng * 13 + k * 3.7) > 0.35) {
+        g.fillStyle = V84.window
+        g.fillRect(bx - bw * 0.18, by - bh * 0.72, Math.max(0.8, bw * 0.16), Math.max(0.8, bh * 0.16))
+        if (bh > 4.5 * z) g.fillRect(bx + bw * 0.06, by - bh * 0.5, Math.max(0.8, bw * 0.16), Math.max(0.8, bh * 0.14))
+      }
     }
-    /* §14: لندمارک پایتخت — تالار مرکزی + ستاره‌ی برداری بزرگ‌تر (بدون پالس/گلو) */
+    /* §14: لندمارک پایتخت — تالار مرکزی + ستاره‌ی برداری بزرگ‌تر */
     if (isCapital) {
       const lw = (3.6 * grow) * z, lh = (3.4 * grow) * z, ly = y - R * 0.12
+      /* V84 PREMIUM: هاله‌ی گرم پایتخت (bake-only) */
+      const capG = g.createRadialGradient(x, ly, 0, x, ly, R * 1.15)
+      capG.addColorStop(0, 'rgba(255,216,77,.20)'); capG.addColorStop(1, 'rgba(255,216,77,0)')
+      g.fillStyle = capG; g.beginPath(); g.arc(x, ly, R * 1.15, 0, 6.3); g.fill()
       g.fillStyle = '#c9b788'; g.fillRect(x - lw / 2, ly - lh, lw, lh)
       g.fillStyle = 'rgba(255,250,225,.35)'; g.fillRect(x - lw / 2, ly - lh, lw, Math.max(1, lh * 0.3))
       g.strokeStyle = 'rgba(22,18,8,.5)'; g.lineWidth = 0.7; g.strokeRect(x - lw / 2, ly - lh, lw, lh)
@@ -1499,6 +1558,12 @@
     if (S.hover >= 0 && S.hover !== S.sel.prov && S.cells[S.hover] && S.cells[S.hover].poly) {
       pathRing(ctx, S.cells[S.hover].poly.map((p) => project(p[0], p[1])))
       ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1.4; ctx.stroke()
+    }
+    /* V84 PREMIUM: حلقه‌ی انتخاب — رینگ دوتایی طلایی با گلوی نرم (دو استروک باریک) */
+    if (S.sel.prov >= 0 && S.cells[S.sel.prov] && S.cells[S.sel.prov].poly) {
+      pathRing(ctx, S.cells[S.sel.prov].poly.map((p) => project(p[0], p[1])))
+      ctx.strokeStyle = 'rgba(255,216,77,.25)'; ctx.lineWidth = 7; ctx.stroke()
+      ctx.strokeStyle = 'rgba(255,232,150,.95)'; ctx.lineWidth = 2.2; ctx.stroke()
     }
     const tSec = S.nowMs / 1000
 
@@ -2522,19 +2587,19 @@
       '#wdcv-line{font-size:12px;opacity:.95;text-shadow:0 1px 4px rgba(0,0,0,.6)}' +
       '#wdcv-exit{position:relative;float:left;background:rgba(0,240,255,.14);border:1px solid rgba(0,240,255,.5);color:#bff;border-radius:10px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}' +
       '#wdcv-snd{position:relative;float:left;margin-left:6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.35);color:#bff;border-radius:10px;padding:7px 9px;font-size:13px;cursor:pointer}' +
-      '#wdcv-panel{position:absolute;bottom:12px;left:10px;right:10px;background:rgba(6,22,42,.94);border:1px solid rgba(0,240,255,.35);border-radius:14px;padding:10px;pointer-events:auto;max-height:46vh;overflow-y:auto;display:none;transform:translateY(10px);opacity:0;transition:transform .18s ease,opacity .18s ease}' +
+      '#wdcv-panel{position:absolute;bottom:12px;left:10px;right:10px;background:linear-gradient(165deg,rgba(12,32,58,.88),rgba(6,18,36,.93));backdrop-filter:blur(16px) saturate(1.35);-webkit-backdrop-filter:blur(16px) saturate(1.35);border:1px solid rgba(120,220,255,.22);border-radius:16px;padding:10px;pointer-events:auto;max-height:46vh;overflow-y:auto;display:none;transform:translateY(10px);opacity:0;transition:transform .22s cubic-bezier(.22,1,.36,1),opacity .22s ease;box-shadow:0 18px 50px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08)}' +
       '#wdcv-panel:not(:empty){display:block;transform:translateY(0);opacity:1}' +
       '.wdcv-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;font-size:13px}' +
       '.wdcv-sub{font-size:11.5px;opacity:.85;padding:2px 0}' +
       '.wdcv-chip{display:inline-block;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.3);border-radius:99px;padding:2px 8px;font-size:10.5px;white-space:nowrap}' +
-      '.wdcv-hchip{display:inline-block;background:rgba(13,19,28,.88);border:1px solid rgba(255,255,255,.14);border-radius:99px;padding:3px 9px;font-size:12px;margin:2px 3px 0 0;white-space:nowrap}' +
+      '.wdcv-hchip{display:inline-block;background:rgba(10,20,34,.66);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(140,220,255,.18);border-radius:99px;padding:3px 9px;font-size:12px;margin:2px 3px 0 0;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.28)}' +
       '.wdcv-hchip small{opacity:.9;font-size:10px;margin-right:4px}' +
       '.wdcv-hchip small.up{color:#6fe08a}' +
       '.wdcv-hchip small.dn{color:#ff9d8a}' +
       '#wdcv-hname{font-size:17px;font-weight:800;display:flex;align-items:center;gap:6px;margin-bottom:3px;text-shadow:0 1px 6px rgba(0,0,0,.6)}' +
       '#wdcv-hname small{font-size:10.5px;font-weight:600;opacity:.9;color:#ffe9a8}' +
       'img.wdcv-flag{width:21px;height:15px;object-fit:cover;border-radius:2.5px;box-shadow:0 0 0 1px rgba(255,255,255,.3);flex:0 0 auto}' +
-      '#wdcv-goals{position:absolute;bottom:12px;left:10px;background:rgba(13,19,28,.88);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:7px 10px;pointer-events:auto;max-width:64vw;min-width:150px;z-index:2}' +
+      '#wdcv-goals{position:absolute;bottom:12px;left:10px;background:linear-gradient(165deg,rgba(12,32,58,.9),rgba(6,18,36,.93));backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);border:1px solid rgba(120,220,255,.2);border-radius:14px;padding:7px 10px;pointer-events:auto;max-width:64vw;min-width:150px;z-index:2;box-shadow:0 12px 34px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.07)}' +
       '#wdcv-goals:empty{display:none}' +
       '.wdcv-goalhd{font-size:11px;font-weight:800;color:#ffe9a8;margin-bottom:3px}' +
       '.wdcv-goal{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2.5px 0;font-size:11px;cursor:pointer}' +
@@ -2579,8 +2644,14 @@
       '#wdcv-errcard button{min-width:180px;min-height:46px;border-radius:11px;border:1px solid rgba(0,240,255,.5);background:rgba(0,240,255,.14);color:#cff;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}' +
       '#wdcv-errcard button:active{transform:scale(.97)}' +
       '#wdcv-errcard .wdcv-errback{border-color:rgba(255,120,90,.5);background:rgba(255,90,70,.12);color:#fcc}' +
-      '#wdcv-loading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,14,26,.6);font-size:14px;pointer-events:none;transition:opacity .3s}' +
+      '#wdcv-loading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,14,26,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);font-size:14px;pointer-events:none;transition:opacity .3s}' +
+      /* V84 PREMIUM: اسپینر + هاور ظریف دکمه‌ها/کارت‌ها */
       '#wdcv-loading.on{display:flex}' +
+      '#wdcv-loading::after{content:"";width:20px;height:20px;margin-right:10px;border-radius:50%;border:2.5px solid rgba(120,220,255,.22);border-top-color:#7de0ff;animation:wdcvspin .85s linear infinite}' +
+      '@keyframes wdcvspin{to{transform:rotate(360deg)}}' +
+      '#wdcv-exit:hover,#wdcv-hbtn:hover,#wdcv-snd:hover,.wdcv-mini:not(:disabled):hover,.wdcv-tab:hover,.wdcv-focusbtn:hover{filter:brightness(1.22)}' +
+      '.wdcv-bcard,.wdcv-brow,.wdcv-tab,.wdcv-mini{transition:transform .12s ease,filter .15s ease,border-color .15s ease}' +
+      '.wdcv-bcard:hover,.wdcv-brow:hover{border-color:rgba(120,220,255,.45);filter:brightness(1.12)}' +
       '@media (max-width:480px){.wdcv-stats{grid-template-columns:1fr}#wdcv-hname{font-size:15px}.wdcv-hchip{font-size:11px;padding:2px 6px}#wdcv-obj{font-size:11px;padding:4px 8px}#wdcv-goals{max-width:70vw;font-size:10.5px}}'
     document.head.appendChild(css)
     st.querySelector('#wdcv-exit').addEventListener('click', () => close())

@@ -1999,3 +1999,21 @@ Stage Summary:
 - 63 یافته با خط و مدرک؛ 2 فیکس تک‌خطی فوری (GET alias حذف، S.mirrored reset) + XSS escape
 - نقشه راه ۴ فاز (صفر<۱ ساعت / یک ۱-۳ روز / دو ۱-۲ هفته / سه ۲-۴ هفته) — پیش‌نیاز منطقی فاز Premium Visual Upgrade
 - توصیه: Release v83 بعد از بسته فاز صفر
+
+---
+Task ID: FIX-V83
+Agent: Super Z (main)
+Task: اجرای فاز صفر ممیزی (فیکس‌های P0/P1) + ارتقا نسخه + QA کامل
+
+Work Log:
+- cv-engine.js: فیکس P0 تکثیر منابع (عدم-Adopt کردن resNow در tryBuild/tryUpgrade + مارج متقارن mergeServerRes با کف صفر) + گارد سشن S.sess در syncState/close + ریست هندسه/اقتصاد بین سشن‌ها + entryFail برای هندسه‌ی گم‌شده + try/finally دور bake + کوچک‌سازی بوم در close + realloc مشروط + گارد computeView
+- index.html: wdEscNick روی همه‌ی sinkهای innerHTML لیبل مالکیت (XSS P0) + گارد document.hidden برای حلقه‌ی درآمد + keepalive برای سیو pagehide در wdFetch + clamp خرید بازار/مبادله قبل از کسر طلا + wrap lose() با defBonus (بونوس دفاعی حالا در PvE هم اثر دارد) + متن‌های صادقانه‌تر + گارد دبل‌تپ لودر CV + saveLocal فقط با موفقیت LS.set
+- بک‌اند: GET alias حذف شد (405) — CSRF بسته؛ oly_host_bid داخل تراکنش Serializable با گارد gte + retry P2034؛ لیترال 'alireza' از login حذف؛ streakTick/transferTerritory شرطی؛ فیلتر کاراکتر نیک در signup
+- فایل یتیم cv-engine-v83-uploaded.js از public/ حذف شد (git rm)
+- نسخه: v.txt=83، beacon __WD_V=83، ?v=83 ×3
+- QA: cv-qa-v82 21/22 (فقط flake شناخته‌شده ویتنام)، v81 20/20، v80 17/17، v79 19/19، v78 27/27، apk-sim 28/28، lowfx 6/6، map-visual 16/16، sw-selfheal 8/8، check-html-js 84/0، verify-build 9/9 — صفر pageerror؛ GET→405 و فیلتر نیک و login روی سرور زنده تست شد
+- پوش ناموفق: توکن ghp_...OD69 منقضی (API 401) — کامیت محلی 38fdd80 آماده؛ بدون تکرار هشدار امنیتی طبق خواسته‌ی کاربر
+
+Stage Summary:
+- V83 محلی آماده و QA-سبز؛ نیازمند توکن تازه برای push/tag/Release
+- فایل‌ها: cv-engine.js (۷ فیکس)، index.html (۸ فیکس)، rpc route (۴ فیکس)، login/signup (۲ فیکس)

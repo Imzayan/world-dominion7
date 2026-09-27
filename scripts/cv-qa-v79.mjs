@@ -83,7 +83,8 @@ const hdr = await page.evaluate(() => {
   };
 });
 check('V79: resource chips ≥3 with rate arrows', hdr.chips >= 3 && hdr.upArrows >= 3, 'chips=' + hdr.chips + ' up=' + hdr.upArrows);
-check('V79: chips are dark rounded (rgb(13,19,28))', hdr.chipBg.indexOf('13, 19, 28') > -1, hdr.chipBg);
+/* V84: چیپ شیشه‌ای شد (rgba(10,20,34,.66)) — چک «تیره + گرد» نه رنگ دقیق قدیمی */
+check('V79: chips are dark rounded (glass V84)', hdr.chipBg.indexOf('10, 20, 34') > -1 || hdr.chipBg.indexOf('13, 19, 28') > -1, hdr.chipBg);
 check('V79: country flag shown (self-hosted /cdn/flags)', hdr.flag && hdr.flagSrc.indexOf('/cdn/flags/') > -1, hdr.flagSrc.split('/').pop());
 check('V79: world rank title shown (rankOf from game)', hdr.rank.length > 0, hdr.rank);
 

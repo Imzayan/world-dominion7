@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=83;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=83"></script>
+  <script>window.__WD_V=84;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=84"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2272,7 +2272,7 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){if(!myCountryName)return;const n=f.pr
    <style id="v3-css">
     /* V62: قوانین دریای V3 حذف شدند — تک‌منبع در انتهای فایل */
 .own-wrap{background:none;border:0}
-.own{position:absolute;left:0;top:0;transform:translate(-50%,13px);white-space:nowrap;font-size:9px;font-weight:900;color:#fff;background:rgba(0,0,0,.68);border:1px solid rgba(255,255,255,.55);border-radius:8px;padding:0 6px;line-height:14px}
+.own{position:absolute;left:0;top:0;transform:translate(-50%,13px);white-space:nowrap;font-size:9px;font-weight:900;color:#fff;background:rgba(8,14,22,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.42);border-radius:8px;padding:0 6px;line-height:14px;box-shadow:0 2px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.12)}
 /* V61 LOD: زوم پایین = فقط پرچم (نام مخفی)؛ زوم ۳+ = پرچم+نام؛ z5 = +تعداد قلمرو */
 .leaflet-container:not(.z3) .own{display:none}
 .own b{margin-inline-start:4px;font-weight:700;opacity:.85}
@@ -4706,11 +4706,12 @@ body.wd-low-power *{scroll-behavior:auto!important}
    <style id="wd-v19-ocean-news-css">
     /* V19: premium but lightweight ocean. Land polygons remain untouched. */
     /* V22: bright friendly ocean with sun-glint and depth vignette. Land polygons untouched. */
+    /* V84 PREMIUM: اقیانوس عمیق‌تر و لاکچری — گرادیان سه‌مرحله‌ای + گلینگ خورشید ظریف‌تر */
 #map,.leaflet-container{
   background:
-    radial-gradient(ellipse at 50% 36%,rgba(255,255,255,.55) 0%,rgba(255,255,255,.14) 32%,transparent 60%),
-    radial-gradient(ellipse at 50% 110%,rgba(6,50,90,.38) 0%,transparent 62%),
-    linear-gradient(180deg,#a6ddf4 0%,#7cc4ea 48%,#5eb1e2 100%) !important;
+    radial-gradient(ellipse at 50% 30%,rgba(255,255,255,.5) 0%,rgba(255,255,255,.12) 30%,transparent 58%),
+    radial-gradient(ellipse at 50% 115%,rgba(4,38,74,.45) 0%,transparent 64%),
+    linear-gradient(180deg,#93d4f0 0%,#5fb4e2 46%,#3d92cd 100%) !important;
 }
 #map::before{
   content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5;
@@ -16733,7 +16734,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=83';
+              s.src='/game/cv-engine.js?v=84';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -16744,6 +16745,6 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=83"></script>
+<script src="/game/oly3.js?v=84"></script>
 </body>
 </html>
