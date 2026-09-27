@@ -78,7 +78,7 @@
     } } catch (e) {}
     return null
   }
-  window.WDCV = { S, open, close, rpc, version: 81, openProvPanel, selectBuilding, openCityPanel, openTech }
+  window.WDCV = { S, open, close, rpc, version: 82, openProvPanel, selectBuilding, openCityPanel, openTech }
 
   /* ---------- Quality Tier (یک‌بار در ابتدا + افت خودکار) ---------- */
   function detectTier() {
@@ -367,7 +367,10 @@
     const budget = ({ low: 2.6e6, med: 5.5e6, high: 12e6 })[S.tier] || 5.5e6
     const need = Math.max(1, ww * dpr) * Math.max(1, wh * dpr)
     const bsCap = clamp(Math.sqrt(budget / need), 0.5, 4)
-    const bs = Math.min(bz, bsCap) /* مقیاس bake — گیت‌های LOD با bz می‌مانند */
+    /* V82: سقف ابعاد بوم — بعضی GPUهای موبایل سقف تکسچر ۴۰۹۶ دارند؛ بوم بزرگ‌تر «خالیِ کامل»
+       می‌شود (هم‌خانواده‌ی باگ terrain ناپدید). روی دستگاه‌های عادی bsDim>4 ⇒ کاملاً بی‌اثر. */
+    const bsDim = Math.max(0.4, 4096 / (Math.max(ww, wh) * dpr))
+    const bs = Math.min(bz, bsCap, bsDim) /* مقیاس bake — گیت‌های LOD با bz می‌مانند */
     const ox = -ww / 2, oyTop = -wh / 2 /* لبه‌ی جهان کشور وسط‌چین است */
     staticCv.width = Math.max(2, Math.round(ww * bs * dpr))
     staticCv.height = Math.max(2, Math.round(wh * bs * dpr))
@@ -531,6 +534,24 @@
     }
     /* V78 §1/§21: برچسب متنی تایپ استان حذف شد — با گلیف + tint منتقل می‌شود؛
        متن زیر گلیف با اسم شهرها تداخل می‌ساخت («شهر صنعتی» روی «بندر» و…) */
+    /* V82 DEBUG_TERRAIN (پیش‌فرض خاموش — فقط با window.__WD_DBG_TERRAIN={} فعال می‌شود):
+       وضعیت bake برای تشخیص «ناپدید شدن terrain» — ابعاد بوم، پیکسل مرکز، bbox رینگ در bake */
+    if (window.__WD_DBG_TERRAIN) {
+      try {
+        const px = staticCtx.getImageData(staticCv.width >> 1, staticCv.height >> 1, 1, 1).data
+        let rx0 = 1e9, ry0 = 1e9, rx1 = -1e9, ry1 = -1e9
+        for (const q of ring) { if (q[0] < rx0) rx0 = q[0]; if (q[0] > rx1) rx1 = q[0]; if (q[1] < ry0) ry0 = q[1]; if (q[1] > ry1) ry1 = q[1] }
+        window.__WD_DBG_TERRAIN.bake = {
+          cvW: staticCv.width, cvH: staticCv.height, bs, bz, ww: +ww.toFixed(1), wh: +wh.toFixed(1), dpr, W, H,
+          centerPx: [px[0], px[1], px[2], px[3]],
+          ringBox: [Math.round(rx0), Math.round(ry0), Math.round(rx1), Math.round(ry1)],
+          cellsWithPoly: S.cells.filter((c) => c.poly).length,
+          viewScale: +view.scale.toFixed(4),
+          base: view.base ? { cx: +view.base.cx.toFixed(3), cy: +view.base.cy.toFixed(3) } : null,
+          kx: +kx.toFixed(2),
+        }
+      } catch (e) { window.__WD_DBG_TERRAIN.bakeErr = String(e) }
+    }
     S.cam = camSave
     staticBucket = bz
     S.dirtyStatic = false
@@ -1392,7 +1413,20 @@
   function render(dt) {
     if (!ctx) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    if (S.dirtyStatic || zoomBucket() !== staticBucket) bakeStatic() /* V81: trigger حفظ شد — فقط استراتژی bake عوض شد */
+    /* V82 FIX ریشه‌ای «terrain هنگام زوم ناپدید شد» (regression V81):
+       ۱) drawImage مقصد را با ww*(z/bs) می‌کشید در حالی که محتوای bake با مقیاس bs نقاشی شده
+          و اندازه‌ی جهانِ آن ww است ⇒ مقصد درست ww*z است (نه تقسیم بر bs) —
+          در نتیجه در هر bucket>1 کل terrain به اندازه‌ی bs کوچک‌تر شده به گوشه‌ی بالا-چپ می‌رفت
+          (fit سالم می‌ماند چون آنجا bs=1 بود — همان «buildings هست، زمین نیست»)
+       ۲) debounce rebake: تغییر bucket در حین پینچ/چرخ سریع فقط ۳۵۰ms بعد از آخرین عبور bake می‌شود
+          (منشأ اصلی «لگ شدید»: ۵-۶ rebake کامل پشت‌سرهم در یک پینچ) — dirtyStatic همچنان فوری */
+    {
+      const zbN = zoomBucket()
+      if (S.dirtyStatic || zbN !== staticBucket) {
+        if (zbN !== S._pendB) { S._pendB = zbN; S._pendT = performance.now() }
+        if (S.dirtyStatic || performance.now() - (S._pendT || 0) >= 350) bakeStatic()
+      }
+    }
     const W = cv.clientWidth, H = cv.clientHeight
     const z = S.cam.z
     ctx.clearRect(0, 0, W, H)
@@ -1409,8 +1443,19 @@
     /* V81: بوم جهان-مُدار (کشور + حاشیه) — مستقیم با نسبت z/bs رسم می‌شود؛
        پان/زوم بین bucketها صفر rebake مثل قبل، ولی پوشش دیگر به دوربین خنثی محدود نیست */
     if (S._bakeS) {
-      const k2 = z / S._bakeS
-      ctx.drawImage(staticCv, W / 2 + (S._bakeOX + S.cam.x) * z, H / 2 + (S._bakeOY + S.cam.y) * z, S._bakeW * k2, S._bakeH * k2)
+      /* V82 FIX: اندازه‌ی مقصد = اندازه‌ی جهانِ bake × زوم فعلی — بدون تقسیم بر bs */
+      ctx.drawImage(staticCv, W / 2 + (S._bakeOX + S.cam.x) * z, H / 2 + (S._bakeOY + S.cam.y) * z, S._bakeW * z, S._bakeH * z)
+      /* V82 DEBUG_TERRAIN: پیکسل مرکزِ صفحه + مقصد واقعی drawImage */
+      if (window.__WD_DBG_TERRAIN) {
+        try {
+          const px = ctx.getImageData(Math.round(W / 2 * dpr), Math.round(H / 2 * dpr), 1, 1).data
+          window.__WD_DBG_TERRAIN.screen = {
+            z: +z.toFixed(2), bakeS: S._bakeS, camX: +S.cam.x.toFixed(1), camY: +S.cam.y.toFixed(1),
+            centerPx: [px[0], px[1], px[2], px[3]],
+            dest: [Math.round(W / 2 + (S._bakeOX + S.cam.x) * z), Math.round(H / 2 + (S._bakeOY + S.cam.y) * z), Math.round(S._bakeW * z), Math.round(S._bakeH * z)],
+          }
+        } catch (e) {}
+      }
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     /* V79: شیمر دریا — یک استروک دش‌دار روی خط ساحل؛ فاز ۹۰۰ms از loop (باتری‌دوست،

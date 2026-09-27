@@ -1881,3 +1881,26 @@ Work Log:
 
 Stage Summary:
 - V81 کامل روی گیت‌هاب (کد + Release + ZIP) | توکن هنوز revoke نشده — پنجمین هشدار در گزارش
+
+---
+Task ID: V82-CV-TERRAIN-RECOVERY
+Agent: Super Z (main)
+Task: «رفع باگ برش نقشه هنگام زوم + غنی‌سازی بصری» → کاربر گزارش داد Country View بعد از آپدیت اخیر خراب است: terrain/province/country-ground ناپدید، buildings/labels/ships سالم + «لگ شدید و ورود کند». قانون: فقط BUG FIX، بدون قابلیت جدید، rollback در صورت نیاز، علت دقیق با نام تابع و خط.
+
+Work Log:
+- تعیین نسخه‌ی واقعی کاربر: Vercel (world-dominion7.vercel.app/game) همان V81 را سرو می‌کند (v.txt=81، برنچ دیگری نیست، تگ‌ها فقط v78-v81) → «آخرین تغییر» = زنجیره V80/V81
+- cv-engine.js کامل خواند شد (نقشه‌ی ۱۶ آیتمی کاربر + فرضیه‌های A-L). سلول‌ها سالم (لیبل از cells می‌آید)، loop بدون try/catch → exception منتفی؛ سوظن روی bake/drawImage
+- بازتولید در headless: سوئد/مصر — z=1 سالم (۶۵٪ land)، z≥1.5 → landPct=0-2٪ (دریای خالص) → باگ قطعی دستگاه-مستقل و شِپ‌شده در V81؛ اسکرین‌شات قدیمی v81-zoom-2.2.png (برزیل) دقیقاً همین را نشان می‌دهد → QA قبلی کور بود (پروب فقط آلفا؛ دریای per-frame همه‌جا را opaque می‌کند)
+- ابزار DEBUG_TERRAIN (پیش‌فرض خاموش، window.__WD_DBG_TERRAIN={}) اضافه شد: bake centerPx/ringBox/dims + screen dest/centerPx
+- **ریشه‌ی دقیق با عدد**: bake در bs=2 → بوم CSS=۱۳۰۶×۱۲۲۱ و رینگ دقیقاً وسط [320,320,986,908] (محتوا سالم) ولی drawImage مقصد را ۶۵۳×۶۱۴ می‌کشد = ww*(z/bs) به‌جای ww*z ⇒ کل terrain به اندازه‌ی bs کوچک شده به بالا-چپ می‌چسبد؛ مرکز کشور به (-130,119) بیرون قاب. در bs=1 (fit/bucket 1) تصادفی درست → ورود سالم به نظر می‌رسید
+- PATCH حداقلی (۳ اصلاح): (A) render خط ۱۴۴۷: مقصد drawImage = S._bakeW*z × S._bakeH*z (بدون تقسیم بر bs) — یک‌خطی ریشه‌ای؛ (B) خطوط ۱۴۲۰-۱۴۲۶: debounce rebake bucket (۳۵۰ms، dirtyStatic فوری) — منشأ «لگ شدید»: ۵-۶ rebake کامل در یک پینچ/چرخ؛ (C) خط ۳۷۲: سقف ابعاد بوم bsDim=4096/(max(ww,wh)*dpr) — GPUهای با سقف تکسچر ۴۰۹۶ بوم بزرگ‌تر را «خالی کامل» می‌کنند (هم‌خانواده‌ی باگ روی گوشی واقعی)
+- version→82 (engine + v.txt + index ?v=82×3 + beacon __WD_V=82)
+- اسکریپت‌ها: scripts/diag-v84-terrain.mjs (تشخیصی) + scripts/hist-calib.mjs (کالیبراسیون classifier) + scripts/cv-qa-v82.mjs (۲۲چک جدید)
+- QA نوک‌زن‌پذیری: پروب جدید CENT = پیکسلِ «مرکز واقعی هر استان» روی صفحه (ریاضی engine از beacon) — نسبت به fit نسبی است و کشور-مستقل (ژاپن/اندونزی مجمع‌الجزایری هم درست سنجیده می‌شود)
+- رگرسیون کامل: cv-qa-v82 22/22 (کشورهای Sweden/Egypt/Indonesia/Japan/France/Canada) + cv-qa-v81 20/20 + cv-qa-v80 17/17 + cv-qa-v79 19/19 + cv-qa-v78 27/27 + apk-sim 28/28 + lowfx 6/6 + map-visual 16/16 + sw-selfheal 8/8 + verify-build 9/9 + check-html-js 84/0 — صفر pageerror
+- CANDS سوئیت‌های v80/v81 گسترش یافت (استخر کشورهای آزاد DB محلی تمام شده بود — artefact تست، نه باگ)
+- تحویل: download/cv-engine-v82.js + download/v82-fit.png + v82-zoom-2.5.png + v82-corner-TR.png
+
+Stage Summary:
+- ریشه‌ی باگ «terrain ناپدید»: یک خط در render (dest = ww*(z/bs) به‌جای ww*z) — regression خودِ V81، از bucket>1 فعال؛ با یک‌خط ریشه‌ای مرده + debounce برای لگ + سقف ۴۰۹۶ برای GPU محدود. بدون هیچ قابلیت جدید؛ معماری (rAF واحد، LOD، bake، pool، cleanup) دست‌نخورده
+- V82 کامیت محلی آماده است؛ پوش نیازمند توکن (کاربر هنوز توکن revoke نکرده/ارسال نکرده) — ششمین هشدار revoke در گزارش

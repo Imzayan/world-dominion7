@@ -4,7 +4,7 @@
 import { chromium } from 'playwright';
 
 const BASE = process.env.WD_BASE || 'http://127.0.0.1:3210';
-const URL = `${BASE}/game/index.html?v=80`;
+const URL = `${BASE}/game/index.html?v=82`;
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok });
@@ -30,7 +30,7 @@ await page.waitForTimeout(6000);
 const opened = await page.evaluate(async () => {
   await new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = '/game/cv-engine.js?v=80';
+    s.src = '/game/cv-engine.js?v=82';
     s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
     setTimeout(rej, 8000);
