@@ -17,7 +17,7 @@ const nick = 'cvsh79' + Date.now().toString(36).slice(-6);
 const resp = await page.request.post(BASE + '/api/auth/signup', { data: { email: nick + '@wd.test', password: 'cvqa123456', nick } });
 if (!resp.ok()) { console.log('signup failed', resp.status()); process.exit(1); }
 
-await page.goto(`${BASE}/game/index.html?v=79`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+await page.goto(`${BASE}/game/index.html?v=80`, { waitUntil: 'domcontentloaded', timeout: 45000 });
 await page.waitForTimeout(6000);
 // بستن مراسم المپیک/اسپلش که روی کاربر جدید می‌افتد
 await page.evaluate(() => {
@@ -28,7 +28,7 @@ await page.waitForTimeout(1500);
 await page.evaluate(async () => {
   await new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = '/game/cv-engine.js?v=79';
+    s.src = '/game/cv-engine.js?v=80';
     s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
     setTimeout(rej, 8000);

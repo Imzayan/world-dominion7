@@ -74,10 +74,11 @@
       case 'N2C': return typeof N2C !== 'undefined' ? N2C : (window.N2C || null)
       case 'rankOf': return typeof rankOf !== 'undefined' ? rankOf : window.rankOf
       case 'wdTerrCount': return typeof wdTerrCount !== 'undefined' ? wdTerrCount : window.wdTerrCount
+      case 'syncTerr': return typeof syncTerr !== 'undefined' ? syncTerr : (window.syncTerr || null) /* V80 §ENTRY */
     } } catch (e) {}
     return null
   }
-  window.WDCV = { S, open, close, rpc, version: 79, openProvPanel, selectBuilding, openCityPanel, openTech }
+  window.WDCV = { S, open, close, rpc, version: 80, openProvPanel, selectBuilding, openCityPanel, openTech }
 
   /* ---------- Quality Tier (یک‌بار در ابتدا + افت خودکار) ---------- */
   function detectTier() {
@@ -2301,7 +2302,7 @@
       S.mil = r.mil || S.mil
       S.counts = r.counts || S.counts
       S.res = r.res || S.res
-      if (!r.owned) { if (!silent) toast('❌ این کشور در کنترل تو نیست'); return false } /* V74: layout پر شد — فقط اقدامات با مالکیت (سرور مرجع است) */
+      if (!r.owned) { S._entryWhy = 'own' /* V80 §ENTRY: علت ورود ناموفق برای پنل شفاف */; if (!silent) toast('❌ این کشور در کنترل تو نیست'); return false } /* V74: layout پر شد — فقط اقدامات با مالکیت (سرور مرجع است) */
       /* V68 — §7/§28: دلتای مثبت سرور → playerRes (تولید CV دیگر گم نمی‌شود؛ سیو ۸ثانیه‌ای ماندگارش می‌کند) */
       mergeServerRes(r.res)
       if (typeof r.oilCapAdd === 'number') window.__wdcvOilCapAdd = r.oilCapAdd
@@ -2314,7 +2315,8 @@
       header()
       return true
     } catch (e) {
-      if (!silent) toast('❌ ' + (String(e.message).indexOf('401') >= 0 || String(e).indexOf('auth') >= 0 ? 'برای ساخت‌وساز باید با حساب آنلاین وارد شوی' : 'همگام‌سازی نشد — اینترنت را چک کن'))
+      S._entryWhy = String(e.message).indexOf('401') >= 0 || String(e).indexOf('auth') >= 0 ? 'auth' : 'net' /* V80 §ENTRY */
+      if (!silent) toast('❌ ' + (S._entryWhy === 'auth' ? 'برای ساخت‌وساز باید با حساب آنلاین وارد شوی' : 'همگام‌سازی نشد — اینترنت را چک کن'))
       return false
     } finally {
       if (st) setTimeout(() => st.classList.remove('on'), 150)
@@ -2427,6 +2429,15 @@
       '.wdcv-danger{background:rgba(255,80,80,.12);border-color:rgba(255,90,90,.5);color:#fcc}' +
       '#wdcv-toast{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:12.5px;opacity:0;transition:opacity .2s;pointer-events:none}' +
       '#wdcv-toast.on{opacity:1}' +
+      /* V80 §ENTRY: کارت ورود ناموفق — پیام شفاف به‌جای بستنِ بی‌صدا */
+      '#wdcv-errcard{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(4,12,24,.86);pointer-events:auto;text-align:center;padding:28px;z-index:6}' +
+      '#wdcv-errcard.on{display:flex}' +
+      '#wdcv-errcard .wdcv-erric{font-size:36px}' +
+      '#wdcv-errcard b{font-size:16px;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.6)}' +
+      '#wdcv-errcard p{font-size:12.5px;opacity:.85;max-width:280px;line-height:1.9;margin:0}' +
+      '#wdcv-errcard button{min-width:180px;min-height:46px;border-radius:11px;border:1px solid rgba(0,240,255,.5);background:rgba(0,240,255,.14);color:#cff;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}' +
+      '#wdcv-errcard button:active{transform:scale(.97)}' +
+      '#wdcv-errcard .wdcv-errback{border-color:rgba(255,120,90,.5);background:rgba(255,90,70,.12);color:#fcc}' +
       '#wdcv-loading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,14,26,.6);font-size:14px;pointer-events:none;transition:opacity .3s}' +
       '#wdcv-loading.on{display:flex}' +
       '@media (max-width:480px){.wdcv-stats{grid-template-columns:1fr}#wdcv-hname{font-size:15px}.wdcv-hchip{font-size:11px;padding:2px 6px}#wdcv-obj{font-size:11px;padding:4px 8px}#wdcv-goals{max-width:70vw;font-size:10.5px}}'
@@ -2497,9 +2508,37 @@
     } catch (e) {}
   }
 
+  /* V80 §ENTRY: پنلِ شفافِ «ورود ناموفق» — به‌جای بستنِ بی‌صدا. علت + تلاش مجدد + بازگشت به نقشه.
+     «تلاش مجدد» مسیر رسمی خود بازی (syncTerr → cv_state) را از نو اجرا می‌کند؛ هیچ دور زدنی در کار نیست. */
+  function entryFail(country, detail) {
+    const u = document.getElementById('wdcv-ui')
+    const ldg = document.getElementById('wdcv-loading')
+    if (ldg) ldg.classList.remove('on')
+    let card = document.getElementById('wdcv-errcard')
+    if (!card && u) { card = document.createElement('div'); card.id = 'wdcv-errcard'; u.appendChild(card) }
+    if (!card) { close(); return }
+    card.innerHTML =
+      '<div class="wdcv-erric">🚫</div>' +
+      '<b>ورود به ' + (S.countryFa || country) + ' انجام نشد</b>' +
+      '<p>' + (detail || 'همگام‌سازی با سرور ناموفق بود.') + '</p>' +
+      '<button id="wdcv-errretry">🔄 تلاش مجدد</button>' +
+      '<button id="wdcv-errback" class="wdcv-errback">🌍 بازگشت به نقشه</button>'
+    card.classList.add('on')
+    const rt = card.querySelector('#wdcv-errretry')
+    const bk = card.querySelector('#wdcv-errback')
+    if (rt) rt.addEventListener('click', function () {
+      card.classList.remove('on')
+      close()
+      setTimeout(function () { try { open(country, {}) } catch (e) {} }, 350)
+    })
+    if (bk) bk.addEventListener('click', function () { card.classList.remove('on'); close() })
+  }
+
   async function open(country, opts) {
     if (S.active) return
     ensureDom()
+    /* V80 §ENTRY: کشوی کشور نقشه بسته شود — هم تداخل z-index با کارت خطا نداشته باشد هم تمیزتر است */
+    try { const cd = document.getElementById('country-drawer'); if (cd) cd.classList.remove('open') } catch (e) {}
     /* V75: اگر کانتکست صدا از خروج قبلی suspend مانده، همین اول زنده شود */
     try { if (AC && AC.state === 'suspended') AC.resume() } catch (e) {}
     const st = document.getElementById('wdcv-stage')
@@ -2526,8 +2565,29 @@
     const ldg = document.getElementById('wdcv-loading')
     if (ldg) ldg.classList.add('on')
     if (!(await buildGeometryAsync(country))) toast('⚠️ هندسه‌ی کشور یافت نشد — از سرور ادامه می‌دهیم')
-    const ok = await syncState(false)
-    if (!ok && !force) { close(); return }
+    let ok = await syncState(false)
+    if (!ok && !force) {
+      /* V80 §ENTRY-FIX (باگ «اصلا بالا نمیاد»): قبلاً اینجا close() بی‌صدای بود.
+         حالا: تا ۲ بار syncTerr بازی را صدا می‌زنیم (بوت‌استرپ مالکیت از اثباتِ سیو — همان مسیر رسمی خود بازی)
+         و cv_state را دوباره می‌پرسیم؛ اگر syncBusy بود، به سینکِ در-جریان هم فرصت می‌دهیم.
+         اگر باز هم نشد، پنلِ شفافِ «ورود ناموفق» با علت + تلاش مجدد. */
+      for (let att = 0; att < 2 && !ok; att++) {
+        try {
+          if (att > 0) await new Promise((r) => setTimeout(r, 1100)) /* فرصت برای syncTerr در-جریان */
+          const st2 = gameRef('syncTerr')
+          if (typeof st2 === 'function') await Promise.race([st2(), new Promise((r) => setTimeout(r, 4500))])
+          ok = await syncState(true) /* بی‌توست — پیام در کارت خطا می‌آید */
+        } catch (e) {}
+      }
+    }
+    if (!ok && !force) {
+      entryFail(country, S._entryWhy === 'own'
+        ? 'مالکیت این کشور روی سرور تأیید نشد — ممکن است کشور دیگری انتخاب کرده باشی یا این سرور کشور دیگری برایت ثبت کرده باشد. از نقشه، کشورت را دوباره انتخاب کن.'
+        : S._entryWhy === 'auth'
+          ? 'برای ورود به کشور باید با حساب آنلاین وارد شوی.'
+          : 'همگام‌سازی با سرور ناموفق بود — اتصال اینترنت را بررسی کن و دوباره تلاش کن.')
+      return
+    }
     setupCanvas()
     buildCells()
     const c = computeView(); view.base = { cx: c.cx, cy: c.cy }
@@ -2580,6 +2640,8 @@
     S.obj = null; S._lm = null
     const st = document.getElementById('wdcv-stage')
     if (st) st.classList.remove('on')
+    const ec = document.getElementById('wdcv-errcard')
+    if (ec) ec.classList.remove('on') /* V80 §ENTRY: کارت خطا هم بسته شود */
     closePanels()
     /* V74 — پاکسازی کامل حافظه (بند ۲۴): poolها، مسیرها، صدا، enter */
     AMB.length = 0; S.ambPaths = null

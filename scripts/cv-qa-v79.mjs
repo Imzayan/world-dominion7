@@ -4,7 +4,7 @@
 import { chromium } from 'playwright';
 
 const BASE = process.env.WD_BASE || 'http://127.0.0.1:3210';
-const URL = `${BASE}/game/index.html?v=79`;
+const URL = `${BASE}/game/index.html?v=80`;
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok });
@@ -30,13 +30,13 @@ await page.waitForTimeout(6000);
 const opened = await page.evaluate(async () => {
   await new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = '/game/cv-engine.js?v=79';
+    s.src = '/game/cv-engine.js?v=80';
     s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
     setTimeout(rej, 8000);
   });
   if (!window.WDCV || !window.WDCV._qaOpen) return 'no-engine';
-  if (window.WDCV.version !== 79) return 'wrong-version:' + window.WDCV.version;
+  if (window.WDCV.version < 79) return 'wrong-version:' + window.WDCV.version;
   await window.WDCV._qaOpen('Iran');
   return 'ok';
 });

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=79;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=79"></script>
+  <script>window.__WD_V=80;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=80"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1624,8 +1624,10 @@ function baseStyle(n){let h=11;const s=String(n||'');
 /* V59 wave-2 §8: سقف مرکزی کشورها — تک‌ثابت کلاینت (قرینه‌ی سرور در src/app/api/rpc/[fn]/route.ts: MAX_COUNTRIES) */
 const WD_MAX_COUNTRIES=15;
 function wdTerrCount(){let c=conqueredCountries?conqueredCountries.size:0;if(myCountryName&&!conqueredCountries.has(myCountryName))c++;return c}
-const N2C={"united states of america":"us","democratic republic of the congo":"cd","republic of the congo":"cg","united republic of tanzania":"tz","republic of serbia":"rs","macedonia":"mk","ivory coast":"ci","czech republic":"cz","guinea bissau":"gw","the bahamas":"bs","east timor":"tl","swaziland":"sz","myanmar":"mm","turkey":"tr","french southern and antarctic lands":"tf","kosovo":"xk","bosnia and herzegovina":"ba","trinidad and tobago":"tt","west bank":"ps"};
-try{const dn=new Intl.DisplayNames(['en'],{type:'region'});for(let i=65;i<91;i++)for(let j=65;j<91;j++){const c=String.fromCharCode(i,j),n=dn.of(c);if(n&&n!==c&&!/^(DD|VD|YD|BU|TP|ZR|FX|NT|SU|CS|YU)$/.test(c)&&!N2C[n.toLowerCase()])N2C[n.toLowerCase()]=c.toLowerCase()}}catch(e){}
+const N2C={"united states of america":"us","democratic republic of the congo":"cd","republic of the congo":"cg","united republic of tanzania":"tz","republic of serbia":"rs","macedonia":"mk","ivory coast":"ci","czech republic":"cz","guinea bissau":"gw","the bahamas":"bs","east timor":"tl","swaziland":"sz","myanmar":"mm","turkey":"tr","french southern and antarctic lands":"tf","kosovo":"xk","bosnia and herzegovina":"ba","trinidad and tobago":"tt","west bank":"ps","vanuatu":"vu","zimbabwe":"zw","curaçao":"cw"};
+try{const dn=new Intl.DisplayNames(['en'],{type:'region'});for(let i=65;i<91;i++)for(let j=65;j<91;j++){const c=String.fromCharCode(i,j),n=dn.of(c);if(n&&n!==c&&!/^(AA|AC|AN|BL|BU|CP|CS|CT|DD|DY|FQ|FX|HV|JT|MI|NH|NQ|NT|PC|PU|PZ|RH|SU|TP|VD|WK|YD|YU|ZR)$/.test(c)&&!N2C[n.toLowerCase()])N2C[n.toLowerCase()]=c.toLowerCase()}}catch(e){}
+/* V80: کدهای منسوخ ISO (NH=وانواتوی قدیم، RH=زیمبابوی قدیم، AN=آنتیل/کوراسائو و…) از Intl نشت می‌کردند و
+   پرچم vanuatu/zimbabwe را روی کد قدیم می‌بردند ← 404 و پرچم گم‌شده. بذرِ کد مدرن + بلک‌لیست کامل منسوخ‌ها */
 /* V29 — flags are self-hosted (same origin, works without VPN); flagcdn is only a fallback. */
 function wdFlagErr(img){if(img&&!img.dataset.fb){img.dataset.fb='1';const c=img.dataset.c;if(c)img.src='https://flagcdn.com/w80/'+c+'.png';else img.remove()}else if(img)img.remove()}
 const flagUrl=c=>'/cdn/flags/w80/'+c+'.png';
@@ -2680,7 +2682,10 @@ async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
 const _eo=enterOnline;enterOnline=async function(u,nick){await _eo(u,nick);initServer()};
 /* other players' countries can't be attacked/claimed (PvP comes later) */
 /* V59: wrapper V28 حذف شد — چک مالکیت لحظه‌ای + syncTerr داخل attackTarget واحد ادغام شد */
-const _ccv=claimCapital;claimCapital=function(n){if(OTH[n]){showToast('❌ این کشور در سرور تو مال بازیکن دیگری است؛ کشور دیگری انتخاب کن','lose');return}_ccv(n);setTimeout(syncTerr,300)};
+const _ccv=claimCapital;claimCapital=function(n){if(OTH[n]){showToast('❌ این کشور در سرور تو مال بازیکن دیگری است؛ کشور دیگری انتخاب کن','lose');return}_ccv(n);setTimeout(syncTerr,300);
+  /* V80 FIX (باگ «گزینه‌ها باگه»): claimCapital کشوی کشور را با innerHTML بازنویسی می‌کند و هوک‌های post دیگر اجرا
+     نمی‌شوند ← دکمه‌ی «🚪 ورود به کشور» تا تپِ دوم مخفی می‌ماند. همان کشور دوباره fire می‌شود تا کشوی تازه با دکمه‌ی ورود بیاید */
+  setTimeout(function(){try{const L=(typeof layersByName!=='undefined')?layersByName[n]:null;if(L&&L.fire)L.fire('click')}catch(e){}},420)};
 /* V59 wave-2: wrapper حذف شد — نقش کشورِ دیگران (OTH)، پس‌هوک کلیک */
 try{WD_CLICK_HOOKS.post.push(function(f,l){const o=OTH[f.properties.name];if(!o)return;
   const r=S$('c-role'),d=S$('drawer-actions');if(r)r.textContent='🏴 تحت کنترل '+o.nick+(o.cap?' (پایتخت)':'')+' — سرور '+SRV;
@@ -16691,7 +16696,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=79';
+              s.src='/game/cv-engine.js?v=80';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -16702,6 +16707,6 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=79"></script>
+<script src="/game/oly3.js?v=80"></script>
 </body>
 </html>
