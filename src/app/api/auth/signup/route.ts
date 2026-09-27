@@ -26,6 +26,11 @@ export async function POST(req: NextRequest) {
     if (nick.length < 2 || nick.length > 20) {
       return NextResponse.json({ data: {}, error: { message: 'Nickname must be 2-20 characters', status: 400 } })
     }
+    /* V83sec (AUDIT-C P2): فیلتر کاراکترِ نیک سمت سرور — قبلاً خام ذخیره و توسط territories/chat/scores/news
+       بازتاب داده می‌شد (کلاینت حالا escape می‌کند؛ دفاع در منبع ارزان‌تر است). ZWNJ مجاز. */
+    if (!/^[\w\u0600-\u06FF\u200C ]+$/.test(nick)) {
+      return NextResponse.json({ data: {}, error: { message: 'Nickname can only contain letters, numbers and spaces', status: 400 } })
+    }
 
     const nickLower = nick.toLowerCase()
     /* V54: ثبت‌نام با نام ادمین مجاز است و isAdmin می‌گیرد (اولین ثبت‌نامِ صاحب بازی روی سرور تازه).

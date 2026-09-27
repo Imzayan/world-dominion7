@@ -675,7 +675,10 @@ async function transferTerritory(server: number, country: string, uid: string, n
   if (!t) return { ok: false, error: 'not found' }
   if (t.userId === uid) return { ok: false, error: 'own' }
   const prevOwner = t.userId
-  await db.territory.update({ where: { server_country: { server, country } }, data: { userId: uid, nick, isCapital: false } })
+  /* V83sec (AUDIT-C P2): آپدیت شرطی — دو مهاجم همزمان هر دو «برد» نمی‌گیرند
+     (پیروزی مشروط به مالکیتِ همان prevOwner در لحظه‌ی نوشتن) */
+  const upd = await db.territory.updateMany({ where: { server_country: { server, country }, userId: prevOwner }, data: { userId: uid, nick, isCapital: false } })
+  if (upd.count === 0) return { ok: false, error: 'race' }
   const cnt = await db.territory.count({ where: { server, userId: prevOwner } })
   if (cnt === 0) {
     // the defender lost everything: free the capital too so they can restart
@@ -1234,7 +1237,13 @@ async function streakTick(userId: string, server: number, nick: string) {
       throw e
     }
   } else {
-    await db.dailyStreak.update({ where: { userId }, data: { streak, best, lastDay: today, totalClaims: { increment: 1 } } })
+    /* V83sec (AUDIT-C P2): آپدیت شرطی — دو get_wallet همزمان هر دو جایزه نمی‌گیرند
+       (قبلاً گارد read-then-write بود؛ پیروزی مشروط به lastDay≠today) */
+    const upd = await db.dailyStreak.updateMany({ where: { userId, NOT: { lastDay: today } }, data: { streak, best, lastDay: today, totalClaims: { increment: 1 } } })
+    if (upd.count === 0) {
+      const cur = await db.dailyStreak.findUnique({ where: { userId } })
+      if (cur && cur.lastDay === today) return { streak: cur.streak, best: cur.best, total: cur.totalClaims, claimed: false, day_in_cycle: ((cur.streak - 1) % 7) + 1, reward: null as null | typeof STREAK_CYCLE[number] }
+    }
   }
   /* deliver the reward: resources into the save (server-authoritative), gems/boost into wallet */
   if (rw.gold || rw.oil || rw.food) {
@@ -2657,21 +2666,41 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const delta = Math.round(Number(args.p_delta) || 0)
         if (!(delta > 0 && delta <= 100000)) return R({ ok: false, reason: 'delta' })
         const key = 'oly_host_e' + g0.edition
-        const cur = await getSetting<{ uid: string; nick: string; amount: number; city: string; country: string } | null>(key, null)
-        const prevUid = cur && cur.amount > 0 ? cur.uid : null
-        const prevAmt = cur ? cur.amount : 0
-        if (prevUid) { try { await db.wallet.update({ where: { userId: prevUid }, data: { gems: { increment: prevAmt } } }) } catch (e) { console.log('olyhostref', e) } }
-        const dec = await db.wallet.updateMany({ where: { userId: user.id, gems: { gte: delta } }, data: { gems: { decrement: delta } } })
-        if (dec.count === 0) {
-          if (prevUid) { try { await db.wallet.update({ where: { userId: prevUid }, data: { gems: { decrement: prevAmt } } }) } catch (e) { console.log('olyhostback', e) } }
-          const w = await ensureWallet(user.id)
-          return R({ ok: false, reason: 'funds', gems: w.gems, need: prevAmt + 5 })
+        /* V83sec (AUDIT-C P1-2): خواندن→refund→کسر→ثبت داخل یک تراکنش Serializable — قبلاً دو
+           رِیس همزمان هر دو همان prev را refund می‌کردند (ضرب جم) و decrement بدون گاردِ gte
+           کیف را منفی می‌کرد. P2034 = شکست قفل‌بندی → تا ۳ بار تلاش.
+           نکته: ensureWallet داخل تراکنش صدا زده نمی‌شود (کانکشن جدا = بن‌بست قفل با همان ردیف). */
+        let bidRes: { ok: boolean; reason?: string; top?: { nick: string; amount: number }; gems?: number; need?: number } | null = null
+        for (let att = 0; att < 3 && !bidRes; att++) {
+          try {
+            bidRes = await db.$transaction(async (tx) => {
+              const row = await tx.gameSetting.findUnique({ where: { key } })
+              const cur = row ? (JSON.parse(row.value) as { uid: string; nick: string; amount: number; city: string; country: string } | null) : null
+              const prevUid = cur && cur.amount > 0 ? cur.uid : null
+              const prevAmt = cur ? cur.amount : 0
+              if (prevUid) await tx.wallet.update({ where: { userId: prevUid }, data: { gems: { increment: prevAmt } } }).catch(() => {})
+              const dec = await tx.wallet.updateMany({ where: { userId: user.id, gems: { gte: delta } }, data: { gems: { decrement: delta } } })
+              if (dec.count === 0) {
+                if (prevUid) await tx.wallet.update({ where: { userId: prevUid }, data: { gems: { decrement: prevAmt } } }).catch(() => {})
+                return { ok: false, reason: 'funds', need: prevAmt + 5 }
+              }
+              const next = { uid: user.id, nick: user.nick, amount: prevAmt + delta, city: g0.host.c, country: g0.host.n }
+              await tx.gameSetting.upsert({ where: { key }, create: { key, value: JSON.stringify(next) }, update: { value: JSON.stringify(next) } })
+              const nw = await tx.wallet.findUnique({ where: { userId: user.id } })
+              return { ok: true, top: { nick: next.nick, amount: next.amount }, gems: nw ? nw.gems : 0 }
+            }, { isolationLevel: 'Serializable' })
+          } catch (e: unknown) {
+            const code = (e as { code?: string })?.code
+            if (code !== 'P2034' || att === 2) {
+              console.log('olyhostbid', e)
+              bidRes = { ok: false, reason: 'race' }
+            }
+          }
         }
-        const next = { uid: user.id, nick: user.nick, amount: prevAmt + delta, city: g0.host.c, country: g0.host.n }
-        await setSetting(key, next)
-        olyHostCache = { ed: g0.edition, v: next, at: Date.now() }
-        const nw = await ensureWallet(user.id)
-        return R({ ok: true, top: { nick: next.nick, amount: next.amount }, gems: nw.gems })
+        if (bidRes && bidRes.ok) {
+          olyHostCache = { ed: g0.edition, v: { uid: user.id, nick: user.nick, amount: bidRes.top?.amount || 0, city: g0.host.c, country: g0.host.n }, at: Date.now() }
+        }
+        return R(bidRes || { ok: false, reason: 'race' })
       }
 
       /* ============ V36 — per-discipline leaderboard with MY progress ============
@@ -3573,6 +3602,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
   }
 }
 
-export async function GET(req: NextRequest, ctx: { params: Promise<{ fn: string }> }) {
-  return POST(req, ctx)
+/* V83sec (AUDIT-C P1-1): GET دیگر aliasِ POST نیست — کوکی SameSite=Lax روی ناوبری GETِ
+   top-level همراه می‌شود؛ یک <a href> ساده همه‌ی mutatorهای بدون-آرگومان را شلیک می‌کرد
+   (territory_sync = آزادسازی همه‌ی قلمروهای قربانی، season_reset ادمین = پاک‌شدن نقشه،
+   alliance_leave، pass_claim، …). کلاینت همه‌جا POST می‌زند؛ این alias هرگز مصرف تولیدی نداشت. */
+export async function GET() {
+  return NextResponse.json({ data: null, error: { message: 'POST only', code: 'PGRST301' } }, { status: 405 })
 }

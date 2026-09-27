@@ -314,6 +314,7 @@
   let view = { scale: 1, ox: 0, oy: 0 }
   function computeView() {
     const bb = S.bbox
+    if (!bb) return { cx: 0, cy: 0 } /* V83 §GUARD: بدون هندسه TypeError نمی‌دهیم (پدافند لایه‌دوم) */
     const w = cv.clientWidth, h = cv.clientHeight
     const pad = 60
     const kx = kmPerLon() /* برای شکل درست، طول جغرافیایی را با cos مرکز جمع می‌کنیم */
@@ -358,8 +359,13 @@
   const BAKE_MARGIN = 160 /* px جهان — باند فیروزه‌ای ساحل + کفک + جاده‌ی ساحلی */
   function bakeStatic() {
     if (!S.ring || !S.bbox) return
-    const bz = zoomBucket()
     const camSave = S.cam
+    let bz = 0
+    /* V83 §CONTAIN (AUDIT-B P1-2): کل بدنه‌ی bake در try/finally — یک استثنا (گرادیان NaN،
+       OOM بوم) دیگر دوربین را در bake-cam گیر نمی‌اندازد و dirtyStatic را برای rebakeِ
+       هر-فریمی نمی‌گذارد (همان کلاس «لگ شدیدِ همیشگی» که V82 برای مسیر bucket بست) */
+    try {
+    bz = zoomBucket()
     const W = cv.clientWidth, H = cv.clientHeight
     const kx = kmPerLon()
     const ww = (S.bbox.maxX - S.bbox.minX) * view.scale * kx + BAKE_MARGIN * 2
@@ -372,8 +378,9 @@
     const bsDim = Math.max(0.4, 4096 / (Math.max(ww, wh) * dpr))
     const bs = Math.min(bz, bsCap, bsDim) /* مقیاس bake — گیت‌های LOD با bz می‌مانند */
     const ox = -ww / 2, oyTop = -wh / 2 /* لبه‌ی جهان کشور وسط‌چین است */
-    staticCv.width = Math.max(2, Math.round(ww * bs * dpr))
-    staticCv.height = Math.max(2, Math.round(wh * bs * dpr))
+    /* V83 (AUDIT-B P3-4): بازتخصیص ابعاد فقط با تغییر واقعی — حتی هم‌اندازه هم پاک/realloc می‌کند */
+    const nw = Math.max(2, Math.round(ww * bs * dpr)), nh = Math.max(2, Math.round(wh * bs * dpr))
+    if (staticCv.width !== nw || staticCv.height !== nh) { staticCv.width = nw; staticCv.height = nh }
     S._bakeS = bs; S._bakeOX = ox; S._bakeOY = oyTop; S._bakeW = ww; S._bakeH = wh
     S._seaY0 = -(wh / 2 + 500); S._seaY1 = wh / 2 + 500 /* گرادیان دریا در فضای جهان */
     /* دوربینِ bake طوری تنظیم می‌شود که project() مستقیم مختصات بوم بدهد —
@@ -552,9 +559,11 @@
         }
       } catch (e) { window.__WD_DBG_TERRAIN.bakeErr = String(e) }
     }
-    S.cam = camSave
-    staticBucket = bz
-    S.dirtyStatic = false
+    } finally {
+      S.cam = camSave
+      staticBucket = bz || staticBucket
+      S.dirtyStatic = false
+    }
   }
 
   /* ---------- V79: نقاش‌های سبک اسپرایتی (bake-only — یک‌بار per bucket) ----------
@@ -2316,10 +2325,15 @@
     const dop = S.srvRes.oil - prev.oil - S.mirrored.oil
     const df = S.srvRes.food - prev.food - S.mirrored.food
     S.mirrored = { gold: 0, oil: 0, food: 0 }
-    if (dg > 0 || dop > 0 || df > 0) {
-      if (dg > 0) pr.gold = Math.round((Number(pr.gold) || 0) + dg)
-      if (dop > 0) pr.oil = Math.round((Number(pr.oil) || 0) + dop)
-      if (df > 0) pr.food = Math.round((Number(pr.food) || 0) + df)
+    /* V83 §LEDGER (AUDIT-B P0-1): مارج متقارن — دلتای منفی هم اعمال می‌شود.
+       تنها کاهنده‌ی کیف سرور cvSpend است که کلاینت با mirrored خنثی‌اش می‌کند؛ dg منفی فقط از
+       رِیسِ «poll قبل از پردازشِ build روی سرور» می‌آید (کسر هنوز ثبت نشده بود). قبلاً فقط
+       مثبت‌ها اعمال می‌شد ⇒ همان کسر در poll بعد دوباره برمی‌گشت (دوبرابرشدن منابع).
+       با مارج متقارن هر تداخل پاسخ/پول در همان poll بعدی خودترمیم می‌شود. */
+    if (dg || dop || df) {
+      if (dg) pr.gold = Math.max(0, Math.round((Number(pr.gold) || 0) + dg))
+      if (dop) pr.oil = Math.max(0, Math.round((Number(pr.oil) || 0) + dop))
+      if (df) pr.food = Math.max(0, Math.round((Number(pr.food) || 0) + df))
       const uu = gameRef('updateUI'); if (typeof uu === 'function') uu()
     }
   }
@@ -2340,7 +2354,10 @@
         if (r.duplicate) { localApply(cost68.g, cost68.o, cost68.f); toast('ℹ️ این ساخت قبلاً ثبت شده بود') } /* سرور برای تکراری هزینه نگرفته */
         else {
           S.res = r.resNow || S.res
-          S.srvRes = r.resNow ? { gold: Number(r.resNow.gold) || 0, oil: Number(r.resNow.oil) || 0, food: Number(r.resNow.food) || 0 } : S.srvRes
+          /* V83 §LEDGER-FIX (P0 تکثیر منابع): resNow مبنا‌ی جدید نمی‌شود — mirrored=-cost باید با
+             poll بعدی در برابر baselineِ قبل‌از‌کسر خنثی شود. قبلاً baseline جلو برده می‌شد ولی
+             mirrored ریست نمی‌شد ⇒ dg بعدی = prod + cost ⇒ کسرِ هر ساخت برمی‌گشت (اکسپلویت).
+             tryCancel عمداً Adopt می‌کند (refund بعد از baseline) — با مارج متقارن هر دو درست‌اند. */
           const d = r.building.doneAt ? new Date(r.building.doneAt) : null
           S.buildings.push({ ...r.building, doneAt: d, startedAt: r.building.startedAt ? new Date(r.building.startedAt) : new Date() })
           spawnParticles(...slotPos(provIdx, free), 'gold')
@@ -2366,7 +2383,7 @@
         if (r.duplicate) { localApply(cost68.g, cost68.o, cost68.f); toast('ℹ️ همین ارتقا قبلاً ثبت شده بود') }
         else {
           S.res = r.resNow || S.res
-          S.srvRes = r.resNow ? { gold: Number(r.resNow.gold) || 0, oil: Number(r.resNow.oil) || 0, food: Number(r.resNow.food) || 0 } : S.srvRes
+          /* V83 §LEDGER-FIX (P0): همان tryBuild — baseline جلو نمی‌رود؛ mirrored با poll بعدی خنثی می‌شود */
           b.level = r.level; b.status = 'building'; b.startedAt = new Date(Date.now()); b.doneAt = new Date(Date.now() + (r.timeSec || 30) * 1000)
           toast('⬆️ ارتقا به سطح ' + fa(r.level) + ' شروع شد')
         }
@@ -2406,6 +2423,7 @@
 
   /* ---------- همگام‌سازی سرور ---------- */
   async function syncState(silent) {
+    const sess = S.sess /* V83 §GUARD: پاسخِ دیرِ poll از سشن قبلی به سشن جدید merge نمی‌شود */
     const st = document.getElementById('wdcv-loading')
     if (!silent && st) st.classList.add('on')
     try {
@@ -2426,6 +2444,7 @@
       S.res = r.res || S.res
       if (!r.owned) { S._entryWhy = 'own' /* V80 §ENTRY: علت ورود ناموفق برای پنل شفاف */; if (!silent) toast('❌ این کشور در کنترل تو نیست'); return false } /* V74: layout پر شد — فقط اقدامات با مالکیت (سرور مرجع است) */
       /* V68 — §7/§28: دلتای مثبت سرور → playerRes (تولید CV دیگر گم نمی‌شود؛ سیو ۸ثانیه‌ای ماندگارش می‌کند) */
+      if (sess !== S.sess) return false /* V83 §GUARD: سشن عوض شده — این پاسخ مال سشن قبلی است */
       mergeServerRes(r.res)
       if (typeof r.oilCapAdd === 'number') window.__wdcvOilCapAdd = r.oilCapAdd
       S.resAt = performance.now()
@@ -2678,6 +2697,12 @@
     S.sel = { prov: -1, bld: null, slot: null }
     S.srvRes = null /* V68: مبناي دلتای منابع سرور — هر سشن از نو */
     S.mirrored = { gold: 0, oil: 0, food: 0 }
+    S.sess = (S.sess || 0) + 1 /* V83 §GUARD: شناسه‌ی سشن — پاسخ‌های در-راهِ سشن قبلی merge نمی‌شوند */
+    /* V83 §RESET (AUDIT-B P1-1/P2-4): هندسه/سلول/اقتصاد کشور قبلی به سشن جدید نشت نکند
+       (نقشه‌ی کایمرا: رینگ کشور قبلی + استان‌های کشور جدید = سلول/تپ/fit اشتباه) */
+    S.ring = null; S.bbox = null; S.cells = []; S.provinces = []; S.buildings = []; S.cat = []
+    S.rates = null; S.counts = { airports: 0, ports: 0 }; S.mil = { atkPct: 0 }; S.res = null
+    S.tech = {}; S.focus = {}; S.focusCat = {}; S.rp = 0; S._pendB = 0; S._pendT = 0
     S.tabCat = 'all'
     S.obj = null; S._lm = null; S._hdrCache = ''
     S.acc = 0; S.hdrT = 0; S._ambT = 0
@@ -2686,7 +2711,13 @@
     /* V74 — WOW ENTRY (بند ۳): فاز ۱ = نمای کلان کشور با تپش مرز، فاز ۲ = شیرجه‌ی نرم دوربین */
     const ldg = document.getElementById('wdcv-loading')
     if (ldg) ldg.classList.add('on')
-    if (!(await buildGeometryAsync(country))) toast('⚠️ هندسه‌ی کشور یافت نشد — از سرور ادامه می‌دهیم')
+    if (!(await buildGeometryAsync(country))) {
+      /* V83 §ENTRY-FIX (AUDIT-B P1-1): ادامه‌دادن بدون هندسه = computeView روی bbox تهی می‌میرد
+         (لودینگ مرده) یا بدتر: رینگ/سلول‌های کشور قبلی برای کشور جدید استفاده می‌شد. حالا ورود
+         با کارتِ شفافِ خطا بسته می‌شود — همان مسیر V80؛ «تلاش مجدد» کل open را از نو اجرا می‌کند. */
+      entryFail(country, 'هندسه‌ی کشور بارگیری نشد — اتصال اینترنت را بررسی کن و دوباره تلاش کن.')
+      return
+    }
     let ok = await syncState(false)
     if (!ok && !force) {
       /* V80 §ENTRY-FIX (باگ «اصلا بالا نمیاد»): قبلاً اینجا close() بی‌صدای بود.
@@ -2760,6 +2791,7 @@
   async function close() {
     if (!S.active) return
     S.active = false
+    const sess = S.sess /* V83 §GUARD: مارج نهایی فقط اگر سشن جدیدی باز نشده باشد */
     snd('exit')
     clearInterval(S.pollTimer); S.pollTimer = null
     document.removeEventListener('visibilitychange', onVis)
@@ -2779,6 +2811,8 @@
     S._lbl = null; S._rn = null; S._ambDrawn = 0 /* V78: cache لیبل/شبکه‌ی جاده هم باید پاک شود */
     S._hdrCache = ''; S._lwave = -1 /* V79: کش هدر و فاز موج برای open بعدی */
     S._bakeS = 0; S._seaY0 = null; S._ring2W = null /* V81: وضعیت bake جهان-مُدار پاک شود */
+    /* V83 §MEM (AUDIT-B P2-3): بوم bake (تا ~۴۸MB) بعد از خروج آزاد شود — setupCanvas دوباره می‌سازد */
+    try { if (staticCv) { staticCv.width = 2; staticCv.height = 2 } } catch (e) {}
     try { if (AC && AC.state === 'running') AC.suspend() } catch (e) {}
     try { if (window.WD_BACK) { const ix = WD_BACK.stack.indexOf('#wdcv-stage'); if (ix > -1) WD_BACK.stack.splice(ix, 1); if (typeof wdBackSync === 'function') wdBackSync() } } catch (e) {}
     resumeMap()
@@ -2786,7 +2820,9 @@
        درآمد کلاینتیِ ۸ ثانیه‌ی آخر را rollback می‌کرد) */
     try {
       const r = await rpc('cv_state', { p_country: S.country, p_server: S.server })
-      if (r && r.ok && r.res) mergeServerRes(r.res)
+      /* V83 §GUARD: اگر بین dispatch و پاسخ open() جدید اجرا شده باشد (S.sess عوض شده)، این
+         پاسخِ کشورِ قدیم است و نباید روی کیف کشور جدید مارج شود (پرش منابع بین‌کشوری) */
+      if (r && r.ok && r.res && S.sess === sess) mergeServerRes(r.res)
     } catch (e) {}
   }
 

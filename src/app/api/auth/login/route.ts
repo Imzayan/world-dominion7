@@ -31,7 +31,9 @@ export async function POST(req: NextRequest) {
     await db.wallet.upsert({ where: { userId: user.id }, create: { userId: user.id, gems: 40 }, update: {} })
     const su = supaUser({
       id: user.id, email: user.email, nick: user.nick,
-      isAdmin: user.isAdmin || user.nickLower === 'alireza', deviceId: user.deviceId,
+      /* V83sec (AUDIT-C P1-3): ادمین فقط فلگ DB — لیترال هاردکدِ 'alireza' از ADMIN_NICKS
+         عبور می‌کرد و حتی با حذف از env هم ادمین می‌ماند */
+      isAdmin: user.isAdmin, deviceId: user.deviceId,
     })
     return NextResponse.json({ data: { session: { user: su }, user: su }, error: null })
   } catch (e: unknown) {

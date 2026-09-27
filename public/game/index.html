@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=82;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=82"></script>
+  <script>window.__WD_V=83;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=83"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2168,7 +2168,9 @@ function armyUpkeep(){
   return Math.max(0,atk-UK.freeAttack)*UK.goldPerAttackMin;
 }
 function armyUpkeepTick(){return armyUpkeep()*BALANCE.economy.tickMs/60000}
-setInterval(()=>{if(typeof myCountryName==='undefined'||!myCountryName)return;
+/* V83 §ECON (AUDIT-A P1-1): تبِ مخفی دیگر درآمد مجانی جمع نمی‌کند — همان گاردِ gameTick
+   (نگهداری/شورش/تحریم در تب مخفی متوقف‌اند)؛ حالا درآمد هم متوقف می‌شود = اقتصاد متقارن */
+setInterval(()=>{if(typeof myCountryName==='undefined'||!myCountryName||document.hidden)return;
   /* V40: تولید پایه + تولید نفت به‌ازای هر قلمرو (که UI سال‌ها وعده داده بود ولی هرگز پرداخت نمی‌شد!) */
   /* V72: تک‌حلقه‌ی درآمد (PHASE 4) — قبلاً دو setInterval موازی ۴ثانیه‌ای؛ اعداد از BALANCE */
   const p=prod();const _terr=conqueredCountries.size||0;const bm=boostMult();
@@ -2308,6 +2310,9 @@ buildFlags=function(){const ks=Object.keys(layersByName).filter(n=>N2C[n.toLower
     sizeFlags();if(i<ks.length)requestAnimationFrame(step);else Object.keys(layersByName).filter(n=>statusOf(n)!=='neutral').forEach(setFlag)})()};
 /* ---- ownership: player color + name label + counter ---- */
 const OL={};
+/* V83 §XSS (AUDIT-A P0-1): نیکِ بازیکن (خودی/غیرخودی) از متادیتای قابل‌نوشتنِ کاربر می‌آید؛
+   هر innerHTML در لیبل‌های مالکیت فقط با همین escape عبور می‌کند — ۱۹ کاراکتر برای <img onerror> کافی است */
+const wdEscNick=s=>String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});
 const plNick=()=>(typeof ACC!=='undefined'&&ACC.nick)||'شما';
 function plHue(){let h=11;for(const c of plNick())h=(h*37+c.charCodeAt(0))%360;return h}
 /* V57: اسم من فقط روی کشور اصلی (پایتخت) — نه روی هر کشوری که گرفته می‌شود */
@@ -2316,11 +2321,11 @@ function plHue(){let h=11;for(const c of plNick())h=(h*37+c.charCodeAt(0))%360;r
 function wdOwnLabelHTML(t,cnt){try{if(typeof map!=='undefined'&&map&&map.getZoom&&map.getZoom()>=5&&cnt!=null)return t+' <b>· '+cnt+'</b>'}catch(e){}return t}
 function wdCountOf(nick){let c=0;for(const k in OTH)if(OTH[k]&&OTH[k].nick===nick)c++;return c}
 function wdOwnInfoRefresh(){try{if(typeof map==='undefined'||!map||!map.getZoom)return;
-  Object.keys(OL).forEach(n=>{const e=OL[n]&&OL[n].getElement();if(e&&e.firstChild)e.firstChild.innerHTML=wdOwnLabelHTML('⭐ '+plNick(),wdTerrCount())});
-  Object.keys(OL2).forEach(n=>{const o=OTH[n],e=OL2[n]&&OL2[n].getElement();if(o&&e&&e.firstChild)e.firstChild.innerHTML=wdOwnLabelHTML('⭐ '+o.nick,wdCountOf(o.nick))})}catch(e){}}
+  Object.keys(OL).forEach(n=>{const e=OL[n]&&OL[n].getElement();if(e&&e.firstChild)e.firstChild.innerHTML=wdOwnLabelHTML('⭐ '+wdEscNick(plNick()),wdTerrCount())});
+  Object.keys(OL2).forEach(n=>{const o=OTH[n],e=OL2[n]&&OL2[n].getElement();if(o&&e&&e.firstChild)e.firstChild.innerHTML=wdOwnLabelHTML('⭐ '+wdEscNick(o.nick),wdCountOf(o.nick))})}catch(e){}}
 function ownLabel(n,st){const g=getG(n),has=OL[n];
   if(st!=='capital'||!g){if(has){has.remove();delete OL[n]}return}
-  const t='⭐ '+plNick();
+  const t='⭐ '+wdEscNick(plNick());
   if(has){has.getElement().firstChild.innerHTML=wdOwnLabelHTML(t,wdTerrCount());return}
   const d=document.createElement('div');d.className='own';d.innerHTML=wdOwnLabelHTML(t,wdTerrCount());
   OL[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:500,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
@@ -2427,7 +2432,13 @@ const COOL={tax:0,un:0}; /* cooldown end times (saved with the game so a refresh
 const A$=id=>document.getElementById(id);
 function mk(tag,txt,cls,fn){const e=document.createElement(tag);if(txt)e.textContent=txt;if(cls)e.className=cls;if(fn)e.addEventListener('click',fn);return e}
 const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}};
-const wdFetch=(u,o)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),12000);if(o&&o.signal)o.signal.addEventListener('abort',()=>c.abort());return fetch(u,Object.assign({},o,{signal:c.signal})).finally(()=>clearTimeout(t))};
+/* V83 §SAVE (AUDIT-A P1-2): سیوی که در pagehide/مخفی‌شدن دیسپچ می‌شود با keepalive فرستاده
+   می‌شود — fetch معمولی هنگام teardown مرورگر اغلب کشته می‌شد (تا ۸ ثانیه پیشرفت می‌پرید).
+   فقط برای نوشتنِ /rest/v1/saves — بقیه‌ی درخواست‌ها مثل قبل. */
+const wdFetch=(u,o)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),12000);if(o&&o.signal)o.signal.addEventListener('abort',()=>c.abort());
+  const init=Object.assign({},o,{signal:c.signal});
+  try{if(document.visibilityState==='hidden'&&typeof u==='string'&&u.indexOf('/rest/v1/saves')>0&&init&&((init.method||'GET')!=='GET'))init.keepalive=true}catch(e){}
+  return fetch(u,init).finally(()=>clearTimeout(t))};
 let sb=null;
 try{if(CONFIGURED&&window.supabase)sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{global:{fetch:wdFetch}})}catch(e){console.log(e)}
 
@@ -2516,8 +2527,10 @@ function enterLocal(a){ACC.nick=a.nick;ACC.key=a.nick.toLowerCase();LS.set('wd_l
   restoreState(sv&&sv.state);ACC.last=sv&&sv.state?JSON.stringify(sv.state):'';ACC.ready=true;A$('auth').classList.remove('active');
   showChip(a.nick);
   A$('status-banner').textContent='👤 '+a.nick+' — پیشرفت بازی خودکار ذخیره می‌شود';showToast('🌍 خوش آمدی '+a.nick,'win')}
-function saveLocal(){const st=snapState(),j=JSON.stringify(st);if(j===ACC.last)return;ACC.last=j;
-  LS.set('wd_save_'+ACC.key,JSON.stringify({state:st,conquered:conqueredCountries.size,score:conqueredCountries.size*1000+calculateTotalAttack(),updated:Date.now()}))}
+function saveLocal(){const st=snapState(),j=JSON.stringify(st);if(j===ACC.last)return;
+  /* V83 (AUDIT-A P2-4): اگر نوشتن شکست خورد (کوتا/حالت خصوصی) «last» علامت نمی‌خورد —
+     قبلاً قبل از موفقیت ثبت می‌شد و همه‌ی سیوهای بعدی برای همیشه skip می‌شدند */
+  if(LS.set('wd_save_'+ACC.key,JSON.stringify({state:st,conquered:conqueredCountries.size,score:conqueredCountries.size*1000+calculateTotalAttack(),updated:Date.now()})))ACC.last=j}
 function rankLocal(box){box.append(mk('div','👥 بازیکنان این دستگاه','lr-h'));const acs=accounts(),rows=[];
   Object.keys(acs).forEach(k=>{let sv=null;try{sv=JSON.parse(LS.get('wd_save_'+k)||'null')}catch(e){}rows.push({k,nick:acs[k].nick,score:sv?sv.score:0,c:sv?sv.conquered:0})});
   rows.sort((x,y)=>y.score-x.score).slice(0,10).forEach((x,i)=>{const r=mk('div','','lr-row'+(x.k===ACC.key?' me':''));r.append(mk('span',(i+1)+'. '+x.nick),mk('span',x.c+' کشور'));box.append(r)});
@@ -2631,7 +2644,7 @@ const OL2={};
 /* V57: اسم بازیکن دیگر هم فقط روی پایتختش — نه روی هر کشوری که گرفته */
 function otherLabel(n,o){const g=getG(n),has=OL2[n];
   if(!g||!o||!o.cap){if(has){has.remove();delete OL2[n]}return}
-  const t='⭐ '+o.nick;
+  const t='⭐ '+wdEscNick(o.nick);
   if(has){has.getElement().firstChild.innerHTML=wdOwnLabelHTML(t,wdCountOf(o.nick));return}
   const d=document.createElement('div');d.className='own oth';d.innerHTML=wdOwnLabelHTML(t,wdCountOf(o.nick));d.style.borderColor=`hsl(${nickHue(o.nick)},80%,65%)`;
   OL2[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:480,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
@@ -2881,7 +2894,13 @@ function capStore(){const t=Math.max(1,conqueredCountries.size);
 setInterval(()=>{if(myCountryName&&capStore())updateUI()},3000);
 /* V71: buyMarket حذف شد — دکمه‌های قدیمی #act-buy-oil/#act-buy-food از اولین بازشدن بازار با WD28 بازنویسی می‌شدند */
 barterTrade=function(gt,ga,rt,ra){if(playerRes[gt]<ga){showToast('❌ موجودی کافی برای این مبادله ندارید!','lose');return}
-  const r=recentN(TR.sells),got=Math.round(ra*Math.max(.4,1-.12*r));playerRes[gt]-=ga;playerRes[rt]+=got;TR.sells.push(Date.now());capStore();updateUI();
+  const r=recentN(TR.sells);let got=Math.round(ra*Math.max(.4,1-.12*r));
+  /* V83 (AUDIT-A P1-4): دریافتِ مبادله هم قبل از دریافتِ طلا clamp شد — قبلاً capStore بعد از دریافت نابود می‌کرد */
+  try{if(rt==='oil'||rt==='food'){var tB=Math.max(1,conqueredCountries.size),SBB=BALANCE.economy.storage;
+    var capB=rt==='oil'?((typeof window.oilStorageCap==='function')?window.oilStorageCap():SBB.oilBase+SBB.oilPerTerr*tB):(SBB.foodBase+SBB.foodPerTerr*tB);
+    got=Math.min(got,Math.max(0,Math.floor(capB-playerRes[rt])))}}catch(e){}
+  if(got<=0){showToast('📦 انبار برای دریافت پر است','lose');return}
+  playerRes[gt]-=ga;playerRes[rt]+=got;TR.sells.push(Date.now());capStore();updateUI();
   showToast('🔄 مبادله با موفقیت انجام شد: '+got+' دریافت شد'+(r?' (نرخ به‌خاطر معاملات پشت‌سرهم کمتر شد)':''),'win')};
 /* ---- realistic explosions: missile -> flash, fireball, shockwave, smoke, sparks, scorch, screen shake ---- */
 function shake(){const c=map.getContainer();c.classList.remove('shk');void c.offsetWidth;c.classList.add('shk');setTimeout(()=>c.classList.remove('shk'),380)}
@@ -7048,7 +7067,7 @@ var ADV={basics:[
   {ic:'💱',t:'سفارش خودکار',p:'در بازار، «سفارش محدود» بگذار: مثلاً «وقتی طلا به قیمت X رسید، خودکار بخر». بازی به‌عنوان یک بورس واقعی کار می‌کند؛ سفارش‌ها حتی وقتی آفلاینی بررسی می‌شوند.'}],
  war:[
   {ic:'🎖️',t:'فرماندهان',p:'با بازی کردن، فرماندهان جدید آزاد می‌شوند. هرکدام تخصصی دارد: «آریا» حمله را قوی می‌کند، «بوستانه» دفاع، «ساهی» اقتصاد. فقط یکی در هر زمان فعال است.'},
-  {ic:'🧱',t:'استحکامات مرزی',p:'دیوار بساز! هر سطح استحکامات، تلفات دفاعی را ۴٪ کم می‌کند (تا ۲۰٪). ساختش با منابع است، نه جم — استراتژی واقعی، نه خرید قدرت.'},
+  {ic:'🧱',t:'استحکامات مرزی',p:'دیوار بساز! هر سطح استحکامات، تلفات خودی‌ات را در نبردها ۴٪ کم می‌کند (تا ۲۰٪). ساختش با منابع است، نه جم — استراتژی واقعی، نه خرید قدرت.'},
   {ic:'⚔️',t:'ترکیب یگان‌ها',p:'ترکیب متعادل = قدرت بیشتر! تانک بدون پشتیبانی پیاده ضعیف است؛ «هم‌افزایی» در بخش ارتش نشان می‌دهد چه ترکیبی بونس می‌گیرد.'},
   {ic:'📊',t:'آمار نبردها',p:'پیروزی‌ها، شکست‌ها و بهترین روز جنگی‌ات در بخش «ارتش» ثبت می‌شود. بعد از هر حمله، گزارش زنده با تلفات و لحظه سقوط را می‌بینی.'}],
  diplo:[
@@ -7342,6 +7361,16 @@ function trade28(k,side,qty){
   if(typeof playerRes==='undefined')return false;
   if(side==='buy'){
     if(playerRes.gold<goldDelta){showToast('❌ طلای کافی نیست (نیاز: '+num(goldDelta)+')','lose');return false}
+    /* V83 (AUDIT-A P1-4): خرید تا فضای آزاد انبار clamp می‌شود — قبلاً ۳ثانیه بعد capStore
+       مازادِ پرداخت‌شده را نابود می‌کرد (طلا می‌رفت، کالا هیچ). مبلغ هم به همان نسبت clamp. */
+    var t28=Math.max(1,conqueredCountries.size),SB28=BALANCE.economy.storage;
+    var free28=k==='oil'?Math.max(0,Math.floor(((typeof window.oilStorageCap==='function')?window.oilStorageCap():SB28.oilBase+SB28.oilPerTerr*t28)-playerRes.oil)):(k==='food'?Math.max(0,Math.floor(SB28.foodBase+SB28.foodPerTerr*t28-playerRes.food)):qty);
+    if(free28<qty){
+      qty=Math.max(0,free28);
+      if(qty<=0){showToast('📦 انبار '+RES[k].fa+' پر است — جا برای خرید نیست','lose');return false}
+      goldDelta=qty*p*(1+FEE_BUY);
+      showToast('📦 انبار پر بود — فقط '+num(qty)+' '+RES[k].fa+' جا داشت (بقیه خریده نشد)','lose');
+    }
     playerRes.gold-=goldDelta;playerRes[k]+=qty;bump(k,0.5);
   }else{
     if(playerRes[k]<qty){showToast('❌ '+RES[k].fa+' کافی نیست','lose');return false}
@@ -7795,6 +7824,12 @@ setTimeout(function(){
     applyBattleLosses=function(f){var b=defBonus();return _abl(f*(1-b))};
   }catch(e){console.log('wd28abl',e)}
   try{
+    /* V83 (AUDIT-A P1-3): بونوس استحکامات/راهبرد حالا در مسیر اصلی نبرد PvE هم اعمال می‌شود —
+       lose() فقط در نبرد کشورهای خنثی استفاده می‌شود و هرگز wrap نشده بود (ویژگی پرداختی no-op بود) */
+    var _lose=window.lose;
+    if(typeof _lose==='function')window.lose=function(f){var b=defBonus();return _lose(f*(1-b))};
+  }catch(e){console.log('wd28lose',e)}
+  try{
     var _pr=window.prod;
     if(typeof _pr==='function')window.prod=function(){var p=_pr();if(st28.cmdr==='sahi')p.gold=Math.round(p.gold*1.06);return p};
   }catch(e){}
@@ -7846,7 +7881,7 @@ function renderArmy28(){
   var s3=D.createElement('div');s3.className='wd28-army-sec';
   var cost={g:400*(st28.fort+1),o:150*(st28.fort+1)};
   var can=(st28.fort<5)&&(typeof playerRes!=='undefined'&&playerRes.gold>=cost.g&&playerRes.oil>=cost.o);
-  s3.innerHTML='<div class="h">🧱 استحکامات مرزی<small>هر سطح: تلفات دفاعی −۴٪ (با منابع، نه جم)</small></div>'+
+  s3.innerHTML='<div class="h">🧱 استحکامات مرزی<small>هر سطح: تلفات خودی −۴٪ در همه‌ی نبردها (با منابع، نه جم)</small></div>'+
     '<div class="wd28-fort-row"><div class="wd28-fort-lv">'+Array.from({length:5},function(_,i){return '<i class="'+(i<st28.fort?'on':'')+'"></i>'}).join('')+'</div>'+
     '<button class="wd28-fbuild" '+(can?'':'disabled')+'>'+(st28.fort>=5?'حداکثر':'🧱 '+num(cost.g)+'💰 + '+num(cost.o)+'🛢️')+'</button></div>'+
     '<div class="wd28-fee">دفاع مؤثر فعلی: <b style="color:#7dffcf">−'+fa(Math.round(defBonus()*100))+'٪ تلفات</b></div>';
@@ -7863,7 +7898,7 @@ function renderArmy28(){
   host.append(s3);
   /* وضعیت دفاعی */
   var s4=D.createElement('div');s4.className='wd28-army-sec';
-  s4.innerHTML='<div class="h">🛡️ راهبرد دفاع<small>وقتی آفلاینی، این چینش از قلمروت محافظت می‌کند</small></div>';
+  s4.innerHTML='<div class="h">🛡️ راهبرد دفاع<small>همراه استحکامات، تلفات خودی‌ات را در نبردها کم می‌کند — اثر فوری</small></div>';
   var sr=D.createElement('div');sr.className='wd28-stand-row';
   [['attack','⚔️ تهاجمی — حمله کامل'],['balanced','⚖️ متعادل — دفاع +۴٪'],['fortress','🏰 سنگر — دفاع +۸٪، حمله −۵٪']].forEach(function(x){
     var bt=D.createElement('button');bt.className=st28.stance===x[0]?'on':'';
@@ -16692,13 +16727,15 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
             b.id='act-wdcv-enter';
             b.addEventListener('click',function(ev){
               ev.stopPropagation();
+              if(b.dataset.loading)return; /* V83 (AUDIT-A P2-5): گارد دبل‌تپ — موتور دو بار تزریق/init نشود */
+              b.dataset.loading='1';
               /* V74 — WOW MOMENT (بند ۳): فلش مرز کشور (سبک — فقط setStyle Leaflet) بعد شیرجه */
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=82';
+              s.src='/game/cv-engine.js?v=83';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
-              s.onerror=function(){try{showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
+              s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
             });
             d.append(b);
@@ -16707,6 +16744,6 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=82"></script>
+<script src="/game/oly3.js?v=83"></script>
 </body>
 </html>
