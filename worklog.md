@@ -1663,3 +1663,19 @@ Stage Summary:
 - V76 = ارتقای بصری کامل CV روی همان معماری: +558/−197 خط، صفر RPC جدید، صفر state موازی، تک-loop حفظ شد
 - فایل کامل: public/game/cv-engine.js (+ کپی download/cv-engine-v76.js)
 - مانده شناخته‌شده: تست دستی ۱۶ سناریویی §33 روی دستگاه فیزیکی اندروید (QA خودکار مرورگری انجام شد)؛ پوش به GitHub نیاز به توکن یک‌بارمصرف دارد (کامیت لوکال آماده است)
+
+---
+Task ID: PUSH-V76-TO-GITHUB
+Agent: Super Z (main)
+Task: پوش ۳ کامیت معلق V76 (بعد از ارائه‌ی توکن یک‌بارمصرف توسط کاربر)
+
+Work Log:
+- دریافت توکن جدید در چت → اعتبارسنجی با GET /user (HTTP 200) — ذخیره نشد
+- شناسایی ۳ کامیت معلق: 59690de (worklog)، 05b8283 (V76 CV پیاده‌سازی)، bddc8d8 (worklog V76)
+- اسکن پیش از پوش: git diff origin/main..HEAD با regex روی ghp_/github_pat_/ghs_/پیشوندهای توکن شناخته‌شده → صفر تطابق (پاک)
+- Push یک‌بارمصرف: c0ca7a2..bddc8d8 main→main موفق
+- Verify: git fetch → main...origin/main [0/0]، HEAD==origin/main==bddc8d8c906
+
+Stage Summary:
+- V76 به GitHub رسید: bddc8d8 روی Imzayan/world-dominion7 — لوکال==ریموت
+- کاربر باید همین حالا توکن را revoke کند (GitHub → Settings → Developer settings → Personal access tokens → Delete)
