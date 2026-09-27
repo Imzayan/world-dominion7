@@ -1,5 +1,5 @@
 /* ============================================================
-   WORLD DOMINION — V77 COUNTRY VIEW ENGINE (client) — PREMIUM ART + PERFORMANCE
+   WORLD DOMINION — V78 COUNTRY VIEW ENGINE (client) — VISUAL BUG FIX + PREMIUM MAP POLISH
    cv-engine.js — با lazy-load فقط هنگام اولین «ورود به کشور» لود می‌شود.
    معماری: Data-Driven + Performance-First (ارتقا روی همان V74/V75 — نه بازنویسی)
    - تک rAF loop — تیک ۱ثانیه‌ای داخل همان loop
@@ -15,6 +15,17 @@
      hysteresis عملکرد با بازگشت (۳۱) — همه روی همین موتور، بدون بازنویسی و بدون RPC جدید
    - صدا: سینت WebAudio سبک (بدون فایل/شبکه، بعد از اولین تعامل)
    - حداکثر ~۴۰ نود DOM (پنل‌ها) — هیچ DOM-Element-per-building
+   - V78 (رفع باگ بصری + پالیش — بدون Feature جدید):
+     §24 ریشه‌ای: bake استاتیک در فضای جهان (دوربین خنثی) + رسم با transform دوربین —
+       pan دیگر زمین را منجمد نمی‌گذارد (باگ V≤77: static با دوربینِ لحظه‌ی bake می‌ماند)
+     §1-§6/§25: سیستم لیبل شهر — اولویت ۱۰۰/۸۰/۶۰/۳۰ + Box Collision + cache؛
+       بدون عدد کنار اسم (بند ۴)، پایتخت = «پایتخت» + ستاره برداری (بند ۶)
+     §8-§10: LOD سه‌گانه‌ی ساختمان (سیلوئت/شناختنی/جزئیات) + آستانه‌ی ۲px
+     §13/§14: خوشه‌ی شهر با پالت مات + ترکیب لندمارک پایتخت — بدون مربع‌های سفید
+     §15/§16: شبکه‌ی جاده‌ی درختی (نه شعاعی) + LOD سه‌طبقه‌ای tier
+     §20/§21: حذف White-pixel noise (چراغ‌ها/pips سطح/هاله‌ی پالسی/گلیف generic)
+     §22/§23: خودرو فقط z≥2 با سقف tier (۳/۶) + سیلوئت هواپیمای واقعی
+     §11/§12: FIT ۷۲٪ فضای مفید بین safe-area بالا/پایین
    ============================================================ */
 (function () {
   'use strict'
@@ -41,6 +52,9 @@
     tabCat: 'all',        /* تب فعال کاتالوگ در پنل استان */
     obj: null,            /* V76: هدف فعال (از داده‌ی واقعی — بند ۱۴) */
     _lm: null,            /* V76: لندمارک‌های فعلی (حداکثر ۳ — بند ۱۶) */
+    _lbl: null,           /* V78 §25: cache لیبل‌ها — فقط با تغییر دوربین/داده بازچینی */
+    _rn: null,            /* V78 §15: cache شبکه‌ی جاده (درختی، قطعی) */
+    _ambDrawn: 0,         /* V78 QA: شمارنده‌ی فریم‌های رسم خودرو */
   }
   /* ---------- دسترسی امن به bindingهای سراسری بازی (let/const — روی window نیستند) ---------- */
   function gameRef(name) {
@@ -77,10 +91,13 @@
     return t
   }
   /* V77 §11/§29: سایه — Low=خاموش | Medium=ساده | High=جهت‌دار (روی سایت رسم) */
+  /* V78: roads سه‌طبقه (۱=فقط اصلی | ۲=+فرعی مهم | ۳=شبکه کامل — بند ۱۶).
+     ambient سقف خودرو: Low=0 | Med=۳ | High=۶ (بند ۲۲: ۲-۴ / ۴-۸ — نه صدها).
+     lights حذف شد (بند ۲۱: نقطه‌های ریس فلیکر = white noise). */
   const TIER = {
-    low:  { particles: 0,  deco: 0, shadows: false, maxDpr: 1,   ambient: 0,  lights: 0,  smoke: 0, roads: 0 },
-    med:  { particles: 8,  deco: 1, shadows: true,  maxDpr: 1.5, ambient: 8,  lights: 26, smoke: 2, roads: 1 },
-    high: { particles: 18, deco: 2, shadows: true,  maxDpr: 2,   ambient: 16, lights: 56, smoke: 4, roads: 1 },
+    low:  { particles: 0,  deco: 0, shadows: false, maxDpr: 1,   ambient: 0,  lights: 0, smoke: 0, roads: 1 },
+    med:  { particles: 8,  deco: 1, shadows: true,  maxDpr: 1.5, ambient: 3,  lights: 0, smoke: 2, roads: 2 },
+    high: { particles: 18, deco: 2, shadows: true,  maxDpr: 2,   ambient: 6,  lights: 0, smoke: 4, roads: 3 },
   }
   S.tier = detectTier()
   function tierCfg() { return TIER[S.tier] || TIER.med }
@@ -291,15 +308,23 @@
      V76: بافت terrain + نشان هویت + جاده‌ی ارگانیک + خوشه‌ی شهر — همه bake (صفر هزینه per-frame) */
   let staticBucket = 0
   function zoomBucket() { return clamp(Math.round(S.cam.z * 2) / 2, 0.5, 4) }
+  /* V78 §24 (رفع باگ ریشه‌ای): bake در فضای جهان — دوربینِ خنثی (x=y=0، z=bucket).
+     رسم بعدی با transform دوربین انجام می‌شود؛ pan دیگر rebake نمی‌خواهد و لایه‌ی
+     استاتیک هرگز از دوربین عقب نمی‌ماند (در V≤77 static با دوربینِ لحظه‌ی bake
+     منجمد می‌شد و از ساختمان‌ها/لیبل‌های داینامیک جدا می‌افتاد = نقشه‌ی دیباگی).
+     rebake فقط با تغییر zoom-bucket (LOD) یا dirtyStatic. */
   function bakeStatic() {
+    const bz = zoomBucket()
+    const camSave = S.cam
+    S.cam = { x: 0, y: 0, z: bz, tx: 0, ty: 0, tz: bz, anim: false }
     const g = staticCtx
     g.setTransform(dpr, 0, 0, dpr, 0, 0)
     const W = cv.clientWidth, H = cv.clientHeight
     g.clearRect(0, 0, W, H)
-    /* دریا: گرادیان عمقی */
-    const grd = g.createLinearGradient(0, 0, 0, H)
+    /* دریا: گرادیان عمقی — با حاشیه‌ی سخاوتمندانه (چون pan با transform جابجا می‌شود) */
+    const grd = g.createLinearGradient(0, -H * 0.6, 0, H * 1.6)
     grd.addColorStop(0, '#0b2c47'); grd.addColorStop(1, '#071e33')
-    g.fillStyle = grd; g.fillRect(0, 0, W, H)
+    g.fillStyle = grd; g.fillRect(-W * 0.6, -H * 0.6, W * 2.2, H * 2.2)
     const ring = S.ring.map((p) => project(p[0], p[1]))
     /* موج ساحل — قطعی، بیرون‌سوی نرمال (فضای خالی دریا زنده می‌شود — bake) */
     if (ring.length > 8) {
@@ -342,7 +367,8 @@
       const poly = c.poly.map((p) => project(p[0], p[1]))
       pathRing(g, poly)
       g.fillStyle = (i % 2 ? t.fill : t.alt)
-      g.globalAlpha = 0.95; g.fill(); g.globalAlpha = 1
+      /* V78 §17: تغییر ظریف روشنایی هر استان — کشور «طبیعی» دیده شود، نه یکدست مصنوعی */
+      g.globalAlpha = 0.88 + (hash01(c.prov.i * 7.31) - 0.5) * 0.1; g.fill(); g.globalAlpha = 1
       const tint = TYPE_TINT[c.prov.type]
       if (tint) { g.fillStyle = tint; g.fill() }
       g.strokeStyle = 'rgba(16,22,30,.5)'; g.lineWidth = 1.1; g.stroke()
@@ -350,13 +376,21 @@
       g.strokeStyle = 'rgba(255,255,255,.05)'; g.lineWidth = 0.8; g.stroke()
       if (tierCfg().deco > 0 && z >= 1.05) drawCellTexture(g, c, poly, zc)
     })
-    /* جاده‌ی اصلی — ارگانیک چند-پیچی (به‌جای خط اسپوک دیباگ‌نما) — دو-استروک ظریف */
+    /* V78 §15: جاده‌ی اصلی — شبکه‌ی درختی: پایتخت↔۴ قطب اصلی + Prim برای بقیه.
+       (قبلاً از پایتخت به «همه‌ی» استان‌ها خط می‌رفت = شعاعی/دیباگ‌نما — بند ۱۵ ممنوع) */
     if (tierCfg().roads && z >= 1.05 && S.cells.length > 1) {
-      const cap = S.cells[0]
-      for (let i = 1; i < S.cells.length; i++) {
-        const pts = roadPath([cap.cx, cap.cy], [S.cells[i].cx, S.cells[i].cy], i).map((q) => project(q[0], q[1]))
-        strokePath(g, pts, 2.7 * Math.min(1.3, z), 'rgba(24,20,14,.42)')
-        strokePath(g, pts, 1.5 * Math.min(1.3, z), 'rgba(216,198,152,.44)')
+      const rn = roadNetwork()
+      for (const [na, nb] of rn.mains) {
+        const pts = roadPath([S.cells[na].cx, S.cells[na].cy], [S.cells[nb].cx, S.cells[nb].cy], na * 31 + nb * 7).map((q) => project(q[0], q[1]))
+        strokePath(g, pts, 2.6 * Math.min(1.3, z), 'rgba(24,20,14,.38)')
+        strokePath(g, pts, 1.4 * Math.min(1.3, z), 'rgba(216,198,152,.4)')
+      }
+      /* V78 §16: فرعی — فقط tier ≥۲ و نمای بالا؛ Low هیچ‌وقت فرعی ندارد */
+      if (tierCfg().roads >= 2 && z >= 1.8) {
+        for (const [na, nb] of rn.spurs) {
+          const pts = roadPath([S.cells[na].cx, S.cells[na].cy], [S.cells[nb].cx, S.cells[nb].cy], na * 17 + nb * 11).map((q) => project(q[0], q[1]))
+          strokePath(g, pts, Math.max(0.9, 1 * z), 'rgba(216,198,152,.22)')
+        }
       }
     }
     /* V77 §15: ریل فقط-ویژوال — پایتخت ↔ صنعتی‌ترین استان فعال (داده‌محور:
@@ -381,22 +415,23 @@
         S._rail = { pts: rpGeo }
       }
     }
-    /* شهرها — خوشه‌ی ۳سطحی از زوم ۱٫۲ + جاده‌ی فرعی از ۱٫۷ */
+    /* شهرها — خوشه از زوم ۱٫۲ + جاده‌ی فرعی شهر←مرکز استان (فقط tier≥۲، نمای بالا) */
     if (z >= 1.2) {
       S.cells.forEach((c) => {
         const cities = c.prov.cities || []
         cities.forEach((city, k) => {
           const p = project(city.lng, city.lat)
           drawCityCluster(g, p[0], p[1], city, k === 0 && c.prov.i === 0, zc)
-          if (z >= 1.7 && tierCfg().roads) {
+          if (z >= 1.9 && tierCfg().roads >= 2) {
             const pc = project(c.cx, c.cy)
-            strokePath(g, roadPath([c.cx, c.cy], [city.lng, city.lat], 100 + c.prov.i * 7 + k).map((q) => project(q[0], q[1])), Math.max(0.8, 0.9 * z), 'rgba(216,198,152,.22)')
+            strokePath(g, roadPath([c.cx, c.cy], [city.lng, city.lat], 100 + c.prov.i * 7 + k).map((q) => project(q[0], q[1])), Math.max(0.8, 0.9 * z), 'rgba(216,198,152,.2)')
           }
         })
       })
     }
-    /* نشان هویت استان — گلیف برداری کوچک (بدون emoji) */
-    if (z >= 1.05) {
+    /* نشان هویت استان — گلیف برداری کوچک؛ فقط برای نوع‌های معنادار (V78: گلیف مربعی
+       generic حذف شد — بند ۲۱: مربع کوچک = نشانه‌ی دیباگ) */
+    if (z >= 1.3) {
       S.cells.forEach((c) => {
         if (!c.poly) return
         const p = project(c.cx, c.cy)
@@ -405,25 +440,10 @@
         g.globalAlpha = 1
       })
     }
-    /* برچسب استان‌ها — زیر نشان (LOD: از زوم ۱٫۱۵) */
-    if (z >= 1.15) {
-      g.textAlign = 'center'; g.textBaseline = 'middle'
-      S.cells.forEach((c) => {
-        if (!c.poly) return
-        const p = project(c.cx, c.cy)
-        const txt = (PROV_TYPE_FA[c.prov.type] || '')
-        g.font = '600 ' + Math.round(10.5 * Math.min(1.5, z)) + 'px Vazirmatn, Tahoma, sans-serif'
-        g.fillStyle = 'rgba(0,0,0,.5)'
-        g.fillText(txt, p[0] + 1, p[1] + 13 * Math.min(1.4, z) + 1)
-        g.fillStyle = c.prov.type === 'capital' ? '#ffd84d' : 'rgba(255,255,255,.8)'
-        g.fillText(txt, p[0], p[1] + 13 * Math.min(1.4, z))
-      })
-    }
-    /* وینیت ملایم لبه‌ها (bake) */
-    const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.72)
-    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(2,8,16,.34)')
-    g.fillStyle = vg; g.fillRect(0, 0, W, H)
-    staticBucket = zoomBucket()
+    /* V78 §1/§21: برچسب متنی تایپ استان حذف شد — با گلیف + tint منتقل می‌شود؛
+       متن زیر گلیف با اسم شهرها تداخل می‌ساخت («شهر صنعتی» روی «بندر» و…) */
+    S.cam = camSave
+    staticBucket = bz
     S.dirtyStatic = false
   }
 
@@ -449,6 +469,22 @@
       for (let k = 0; k < 3; k++) {
         const bx = mnx + cw * (0.2 + 0.6 * H1(k + 9)), by = mny + ch * (0.2 + 0.6 * H1(k + 19))
         g.beginPath(); g.arc(bx, by, (4 + H1(k + 29) * 3) * z, Math.PI * 1.15, Math.PI * 1.85); g.stroke()
+      }
+    } else if (ty === 'resource' || ty === 'industrial') {
+      /* V78 §17: هویت زمینی منبع/صنعتی — خیلی subtle، bake-only */
+      if (ty === 'resource') {
+        g.fillStyle = 'rgba(50,42,28,.34)'
+        for (let k = 0; k < 2; k++) {
+          const bx = mnx + cw * (0.25 + 0.5 * H1(k + 71)), by = mny + ch * (0.25 + 0.5 * H1(k + 81))
+          g.beginPath(); g.moveTo(bx - 2 * z, by + 1.6 * z); g.lineTo(bx, by - 1.8 * z); g.lineTo(bx + 2 * z, by + 1.6 * z); g.closePath(); g.fill()
+          g.beginPath(); g.arc(bx + 3.4 * z, by + 0.8 * z, 1.1 * z, 0, 6.3); g.fill()
+        }
+      } else {
+        g.fillStyle = 'rgba(88,96,104,.13)'
+        for (let k = 0; k < 2; k++) {
+          const bx = mnx + cw * (0.2 + 0.55 * H1(k + 91)), by = mny + ch * (0.3 + 0.4 * H1(k + 92))
+          g.fillRect(bx, by, 7 * z, 3.4 * z)
+        }
       }
     } else if (ty === 'agricultural' || ter === 'plains' || ter === 'hills') {
       if (ty === 'agricultural') {
@@ -482,8 +518,10 @@
   }
 
   /* ---------- V76: نشان هویت استان — پلیت تیره + گلیف برداری ----------
-     اولویت: پایتخت(ستاره) ← منبع(دکل) ← صنعتی(چرخ‌دنده) ← کشاورزی(گندم) ← ساحلی(موج) ← عمومی(شبکه) */
+     اولویت: پایتخت(ستاره) ← منبع(دکل) ← صنعتی(چرخ‌دنده) ← کشاورزی(گندم) ← ساحلی(موج) */
   function drawIdentityGlyph(g, x, y, prov, z) {
+    /* V78 §21: نوع عمومی بدون گلیف — مربع کوچکِ دیباگ‌نما ممنوع */
+    if (prov.type === 'generic' && !prov.coastal) return
     const r = 5.2 * z
     g.beginPath(); g.arc(x, y, r, 0, 6.3)
     g.fillStyle = 'rgba(10,18,28,.72)'; g.fill()
@@ -510,47 +548,73 @@
       g.beginPath(); g.arc(x - 1.2 * u, y + 0.8 * u, 1.6 * u, Math.PI * 1.15, Math.PI * 1.95); g.stroke()
       g.beginPath(); g.arc(x + 1.2 * u, y + 0.8 * u, 1.6 * u, Math.PI * 1.15, Math.PI * 1.95); g.stroke()
       g.beginPath(); g.moveTo(x - 3 * u, y - 1.6 * u); g.lineTo(x + 3 * u, y - 1.6 * u); g.stroke()
-    } else {
-      g.strokeRect(x - 2 * u, y - 2 * u, 4 * u, 4 * u)
     }
   }
 
-  /* ---------- V76: خوشه‌ی شهر ۳سطحی — small/medium/capital (بدون صدها object) ----------
+  /* ---------- V78 §13/§14/§20: خوشه‌ی شهر — سیلوئت مات خوانا، نه مربع‌های سفید ----------
      V77 §6/§7: تراکم در نمای ساختمان (z≥2.2 سیلوئت‌های بیشتر) + امضای برداری هویت شهر
      بر اساس city.kind واقعی (port/oil/industrial/agri/military/mountain) از z≥1.5 */
   function drawCityCluster(g, x, y, city, isCapital, z) {
     const pop = city.popK || 100
-    const big = isCapital ? 2 : pop >= 800 ? 1 : pop >= 300 ? 0.7 : 0.5
-    const s = z * (0.8 + big * 0.35)
-    g.fillStyle = 'rgba(30,38,48,.5)'
-    g.beginPath(); g.ellipse(x, y + 1.5 * s, 6.5 * s, 2.6 * s, 0, 0, 6.3); g.fill()
-    const extra = z >= 2.2 ? (isCapital ? 4 : pop >= 800 ? 3 : 2) : 0
-    const nB = (isCapital ? 6 : pop >= 800 ? 5 : pop >= 300 ? 4 : 3) + extra
+    const big = isCapital ? 2.2 : pop >= 600 ? 1.5 : pop >= 250 ? 1 : 0.6
+    const R = (4.6 + big * 2.6) * z /* شعاع پروژه‌شده‌ی خوشه */
+    if (R < 3.2) { /* §10: زیر آستانه — تک‌نقطه‌ی مات (نه مربع ریز) */
+      g.fillStyle = isCapital ? '#ffd84d' : 'rgba(186,198,210,.92)'
+      g.beginPath(); g.arc(x, y, isCapital ? 2.2 : 1.6, 0, 6.3); g.fill()
+      return
+    }
+    if (tierCfg().shadows) { /* یک سایه‌ی نرم زیر کل خوشه */
+      g.fillStyle = 'rgba(10,16,24,.26)'
+      g.beginPath(); g.ellipse(x, y + R * 0.22, R * 1.05, R * 0.38, 0, 0, 6.3); g.fill()
+    }
+    /* پایه‌ی شهری — لکه‌ی مات زیر بلوک‌ها (وحدت خوشه) */
+    g.fillStyle = isCapital ? 'rgba(58,52,36,.6)' : 'rgba(30,38,48,.55)'
+    g.beginPath(); g.ellipse(x, y, R * 0.95, R * 0.62, 0, 0, 6.3); g.fill()
+    /* بلوک‌ها — پالت مات + آستانه‌ی ۲px (§10) */
+    const lod = z >= 2.4 ? 2 : z >= 1.7 ? 1 : 0
+    const nB = Math.round((lod === 0 ? 4 : lod === 1 ? 7 : 10) + big * 2)
     for (let k = 0; k < nB; k++) {
       const a = hash01(city.lng * 91 + k * 7.3) * 6.28
-      const rr = (1.6 + hash01(city.lat * 77 + k * 5.1) * 3.4) * s
-      const bx = x + Math.cos(a) * rr, by = y + Math.sin(a) * rr * 0.55
-      const bw = (1.5 + hash01(k * 31 + city.popK + k) * 1.6) * s
-      const bh = (1.1 + hash01(k * 17 + city.popK * 3 + k) * 1.3) * s
-      g.fillStyle = k === 0 ? '#ffe9a8' : 'rgba(226,232,240,.88)'
+      const rr = (0.28 + hash01(city.lat * 77 + k * 5.1) * 0.6) * R
+      const bx = x + Math.cos(a) * rr, by = y + Math.sin(a) * rr * 0.6 - R * 0.06
+      const bw = (2.7 + hash01(k * 31 + city.popK + k) * 2.4) * z
+      const bh = (2.1 + hash01(k * 17 + city.popK * 3 + k) * 2.1) * z
+      if (bw < 2 || bh < 2) continue /* §10: زیر ۲px = نویز سفید */
+      g.fillStyle = k % 3 ? (k % 2 ? CITY_WALL : CITY_WALL2) : CITY_ROOF
       g.fillRect(bx - bw / 2, by - bh, bw, bh)
-      g.strokeStyle = 'rgba(16,22,30,.55)'; g.lineWidth = 0.6; g.strokeRect(bx - bw / 2, by - bh, bw, bh)
+      g.strokeStyle = 'rgba(14,20,28,.4)'; g.lineWidth = 0.6; g.strokeRect(bx - bw / 2, by - bh, bw, bh)
     }
-    if (z >= 1.5) {
-      const gx = x + 7.5 * s, gy = y - 1 * s
-      g.strokeStyle = 'rgba(16,22,30,.6)'; g.lineWidth = 0.8
+    /* §14: لندمارک پایتخت — تالار مرکزی + ستاره‌ی برداری (بدون پالس/گلو) */
+    if (isCapital) {
+      const lw = 3.6 * z, lh = 3.4 * z, ly = y - R * 0.12
+      g.fillStyle = '#c9b788'; g.fillRect(x - lw / 2, ly - lh, lw, lh)
+      g.strokeStyle = 'rgba(22,18,8,.5)'; g.lineWidth = 0.7; g.strokeRect(x - lw / 2, ly - lh, lw, lh)
+      const su = Math.min(1.5, z)
+      g.fillStyle = '#ffd84d'; g.beginPath()
+      for (let k = 0; k < 10; k++) {
+        const a2 = -1.5708 + k * 0.6283, rr2 = (k % 2 ? 1.1 : 2.2) * su
+        const px = x + Math.cos(a2) * rr2, py = ly - lh - 3.6 * su + Math.sin(a2) * rr2
+        if (k) g.lineTo(px, py); else g.moveTo(px, py)
+      }
+      g.closePath(); g.fill()
+    }
+    /* امضای هویت شهر از city.kind واقعی (V77 §7) — فقط نمای متوسط به بالا، ظریف */
+    if (z >= 1.8 && !isCapital) {
+      const s = Math.min(1.5, z)
+      const gx = x + R * 0.95, gy = y - R * 0.15
+      g.strokeStyle = 'rgba(16,22,30,.55)'; g.lineWidth = 0.8
       const kd = city.kind
       if (kd === 'port') {
-        g.fillStyle = 'rgba(79,107,134,.9)'; g.fillRect(gx - 3 * s, gy + 1.4 * s, 7 * s, 1.1 * s)
-        g.fillStyle = '#e8eef4'; g.fillRect(gx + 0.4 * s, gy - 1.8 * s, 3.4 * s, 1.8 * s)
+        g.fillStyle = 'rgba(79,107,134,.85)'; g.fillRect(gx - 3 * s, gy + 1.4 * s, 7 * s, 1.1 * s)
+        g.fillStyle = '#b9c6d2'; g.fillRect(gx + 0.4 * s, gy - 1.8 * s, 3.4 * s, 1.8 * s)
       } else if (kd === 'oil') {
         g.strokeStyle = 'rgba(50,42,30,.85)'; g.beginPath(); g.moveTo(gx - 2 * s, gy + 1.6 * s); g.lineTo(gx, gy - 2.4 * s); g.lineTo(gx + 2 * s, gy + 1.6 * s); g.stroke()
         g.fillStyle = 'rgba(70,58,34,.9)'; g.beginPath(); g.arc(gx + 3.4 * s, gy + 1 * s, 1.3 * s, 0, 6.3); g.fill()
       } else if (kd === 'industrial') {
-        g.fillStyle = 'rgba(96,104,114,.9)'
+        g.fillStyle = 'rgba(96,104,114,.88)'
         g.beginPath(); g.moveTo(gx - 3 * s, gy + 1.6 * s); g.lineTo(gx - 3 * s, gy - 0.6 * s); g.lineTo(gx - 1.6 * s, gy - 1.6 * s); g.lineTo(gx - 1.6 * s, gy - 0.6 * s); g.lineTo(gx - 0.2 * s, gy - 1.6 * s); g.lineTo(gx - 0.2 * s, gy - 0.6 * s); g.lineTo(gx + 1.2 * s, gy - 1.6 * s); g.lineTo(gx + 1.2 * s, gy + 1.6 * s); g.closePath(); g.fill()
       } else if (kd === 'agri') {
-        g.strokeStyle = 'rgba(252,244,190,.85)'
+        g.strokeStyle = 'rgba(232,220,160,.8)'
         for (let k2 = -1; k2 <= 1; k2++) { g.beginPath(); g.moveTo(gx + k2 * 2 * s, gy + 1.6 * s); g.lineTo(gx + k2 * 2 * s, gy - 1.6 * s); g.stroke() }
       } else if (kd === 'military') {
         g.strokeStyle = 'rgba(70,84,60,.9)'; g.beginPath(); g.moveTo(gx, gy + 1.6 * s); g.lineTo(gx, gy - 2.6 * s); g.stroke()
@@ -559,9 +623,6 @@
         g.strokeStyle = 'rgba(70,70,80,.9)'; g.beginPath(); g.arc(gx, gy + 1.4 * s, 1.8 * s, Math.PI, 0); g.stroke()
       }
     }
-    g.fillStyle = isCapital ? '#ffd84d' : '#f4f8fc'
-    g.beginPath(); g.arc(x, y - 2.4 * s, isCapital ? 2 * s : 1.5 * s, 0, 6.3); g.fill()
-    g.strokeStyle = 'rgba(16,22,30,.6)'; g.lineWidth = 0.7; g.stroke()
   }
   function pathRing(g, pts) {
     g.beginPath()
@@ -668,8 +729,9 @@
     const paths = []
     const cap = S.cells[0]
     if (cap && tierCfg().roads) {
-      /* V76: خودروها روی همان جاده‌ی ارگانیک bake‌شده حرکت کنند */
-      for (let i = 1; i < S.cells.length; i++) paths.push({ kind: 'car', pts: roadPath([cap.cx, cap.cy], [S.cells[i].cx, S.cells[i].cy], i) })
+      /* V78 §15/§22: خودرو فقط روی جاده‌های اصلی شبکه‌ی درختی — نه همه‌ی مسیرها */
+      const rn = roadNetwork()
+      for (const [na, nb] of rn.mains) paths.push({ kind: 'car', pts: roadPath([S.cells[na].cx, S.cells[na].cy], [S.cells[nb].cx, S.cells[nb].cy], na * 31 + nb * 7) })
     }
     for (const c of S.cells) {
       const hasPort = S.buildings.some((b) => b.province === c.prov.i && b.type === 'port' && b.status === 'active')
@@ -681,7 +743,7 @@
     return paths
   }
   function stepAmbient(dt) {
-    if (S.cam.z < 1.4) return /* V77 §26: زیر z1.4 حمل‌ونقل نامرئی است — گام لازم نیست (idle-skip فعال می‌شود) */
+    if (S.cam.z < 2) return /* V78 §22: خودرو فقط از زوم ۲ (قبلاً ۱٫۴ بود) — گام لازم نیست */
     const cap = tierCfg().ambient
     if (!cap || !S.ambPaths) return
     /* پرکردن ظرفیت */
@@ -702,6 +764,7 @@
     }
   }
   function drawAmbient(g) {
+    S._ambDrawn = (S._ambDrawn || 0) + 1 /* V78 QA */
     const z = S.cam.z
     const W = cv.clientWidth, H = cv.clientHeight
     for (const o of AMB) {
@@ -731,8 +794,17 @@
           g.fillStyle = 'rgba(16,22,30,.4)'; g.fillRect(p2[0] - 3.4 * s, p2[1] - 0.4 * s, 6.8 * s, 0.8 * s)
         }
       } else {
-        g.strokeStyle = '#eef4fa'; g.lineWidth = 1.6 * s
-        g.beginPath(); g.moveTo(p[0] - 5 * s, p[1]); g.lineTo(p[0] + 5 * s, p[1]); g.moveTo(p[0], p[1] - 3 * s); g.lineTo(p[0], p[1] + 3 * s); g.stroke()
+        /* V78 §23: سیلوئت هواپیما — بدنه + بال swept + دم (به‌جای علامت +) */
+        g.fillStyle = '#dfe7ef'
+        g.beginPath()
+        g.moveTo(p[0], p[1] - 5.5 * s)
+        g.lineTo(p[0] + 1.3 * s, p[1] - 3.2 * s); g.lineTo(p[0] + 1.1 * s, p[1] + 0.6 * s)
+        g.lineTo(p[0] + 5.2 * s, p[1] + 2.6 * s); g.lineTo(p[0] + 5.2 * s, p[1] + 3.4 * s); g.lineTo(p[0] + 1 * s, p[1] + 2.2 * s)
+        g.lineTo(p[0] + 0.7 * s, p[1] + 4.2 * s); g.lineTo(p[0] + 1.9 * s, p[1] + 5.2 * s); g.lineTo(p[0] + 1.9 * s, p[1] + 5.8 * s)
+        g.lineTo(p[0], p[1] + 5 * s); g.lineTo(p[0] - 1.9 * s, p[1] + 5.8 * s); g.lineTo(p[0] - 1.9 * s, p[1] + 5.2 * s)
+        g.lineTo(p[0] - 0.7 * s, p[1] + 4.2 * s); g.lineTo(p[0] - 1 * s, p[1] + 2.2 * s); g.lineTo(p[0] - 5.2 * s, p[1] + 3.4 * s)
+        g.lineTo(p[0] - 5.2 * s, p[1] + 2.6 * s); g.lineTo(p[0] - 1.1 * s, p[1] + 0.6 * s); g.lineTo(p[0] - 1.3 * s, p[1] - 3.2 * s)
+        g.closePath(); g.fill()
       }
       g.globalAlpha = 1
     }
@@ -808,12 +880,15 @@
     if (type === 'port' || type === 'airport') return BPAL.port
     return BPAL.default
   }
-  function drawBuilding(g, x, y, type, level, z, state, tSec) {
-    const s = Math.min(1.7, z)
-    const u = 1.15 * s /* واحد پایه */
+  function drawBuilding(g, x, y, type, level, z, state, tSec, lod) {
+    const s = Math.min(2, z)
+    const u = 1.3 * s /* V78 §8: واحد بزرگ‌تر — سیلوئت خوانا، نه نقطه */
     const P = bpalOf(type)
     const glass = 'rgba(140,220,255,.85)', accent = '#7fe3ff'
     g.lineWidth = 1 * s
+    if (9 * u < 5) { /* §10: آستانه‌ی سایز — هیچ جزئیاتی زیر ~۵px */
+      g.fillStyle = P.wall; g.fillRect(x - 1.4, y - 1.4, 2.8, 2.8); return
+    }
     /* باکس دو-رنگ: بدنه + سایه‌ی پیش‌زمینه (حس حجم بدون گرادیان سنگین) */
     const box = (w, h, dy, fill) => {
       const bx = x - w * u / 2, by = y + dy * u - h * u
@@ -836,11 +911,35 @@
       for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(x - 4 * u + i * 4 * u, y + 3 * u, 1.6 * u, 0, 6.3); g.fill() }
       return
     }
+    /* ---- V78 §9: LOD0 — سیلوئت تک‌حجمی با پالت دسته (بدون جزئیات ریز) ----
+       نمای متوسط (z<2.05): ساختمان باید «شکل» داشته باشد نه جزئیات نویزی.
+       LOD1 (z≥2.05): شکل کامل شاخص | LOD2 (z≥2.8): + رشد سطح/پرچم/لندمارک */
+    if (lod === 0) {
+      g.fillStyle = 'rgba(0,0,0,.18)'
+      g.fillRect(x - 7 * u, y + 3.4 * u, 14 * u, 1.4 * u)
+      switch (type) {
+        case 'farm':
+          g.fillStyle = '#a5813f'; g.fillRect(x - 7 * u, y - 1 * u, 14 * u, 5 * u); roof(4.5, 1.2, 1.6); break
+        case 'port': case 'naval_base':
+          g.fillStyle = P.trim; g.fillRect(x - 6 * u, y + 2.2 * u, 12 * u, 1.4 * u); box(5.5, 2.6, 0.6); break
+        case 'airport': case 'airbase':
+          g.fillStyle = '#55606d'; g.fillRect(x - 7 * u, y + 1.2 * u, 14 * u, 2.2 * u); box(4.4, 2.2, 1); break
+        case 'oil_rig': case 'mine':
+          g.strokeStyle = P.trim; g.beginPath(); g.moveTo(x - 3.4 * u, y + 4 * u); g.lineTo(x, y - 5 * u); g.lineTo(x + 3.4 * u, y + 4 * u); g.stroke(); break
+        case 'power':
+          g.strokeStyle = P.trim; g.beginPath(); g.moveTo(x - 2.6 * u, y + 4.6 * u); g.lineTo(x - 0.7 * u, y - 4.6 * u); g.lineTo(x + 0.7 * u, y - 4.6 * u); g.lineTo(x + 2.6 * u, y + 4.6 * u); g.closePath(); g.stroke(); break
+        case 'radar':
+          g.strokeStyle = P.trim; g.beginPath(); g.moveTo(x, y + 4 * u); g.lineTo(x, y - 1.4 * u); g.stroke()
+          g.fillStyle = glass; g.beginPath(); g.ellipse(x, y - 3 * u, 3.4 * u, 2.2 * u, -0.5, 0, 6.3); g.fill(); break
+        default:
+          box(9, 4.5, 2.5); roof(9.5, 2.5, 2)
+      }
+      return
+    }
     switch (type) {
       case 'factory': case 'tank_plant':
         box(9, 4, 2); box(4, 3, 5.6) /* سالن + بخش اداری */
         g.fillStyle = P.trim; g.fillRect(x + 2.4 * u, y - 6.5 * u, 1.6 * u, 4.5 * u) /* دودکش */
-        if (state === 0 && tierCfg().smoke && S.cam.z >= 2) { g.fillStyle = 'rgba(220,228,236,.5)'; g.beginPath(); g.arc(x + 3.2 * u, y - 7.5 * u - Math.sin(tSec * 2) * 1.2 * u, 1.4 * u, 0, 6.3); g.fill() }
         if (type === 'tank_plant') { g.fillStyle = '#5b6b52'; g.fillRect(x - 3.4 * u, y + 0.4 * u, 3.2 * u, 1.4 * u); g.fillRect(x - 2.2 * u, y - 0.4 * u, 1.6 * u, 0.9 * u) } /* تانک کوچک */
         break
       case 'house':
@@ -894,7 +993,7 @@
         break
       case 'radar':
         g.strokeStyle = P.trim; g.beginPath(); g.moveTo(x, y + 4 * u); g.lineTo(x, y - 1.4 * u); g.stroke()
-        g.fillStyle = glass; g.beginPath(); g.ellipse(x, y - 3 * u, 3.4 * u, 2.2 * u, -0.5 + Math.sin(tSec * 0.8) * 0.25, 0, 6.3); g.fill(); g.stroke()
+        g.fillStyle = glass; g.beginPath(); g.ellipse(x, y - 3 * u, 3.4 * u, 2.2 * u, -0.5, 0, 6.3); g.fill(); g.stroke()
         break
       case 'university':
         box(8, 4, 3.6); g.fillStyle = glass; g.beginPath(); g.arc(x, y - 2.2 * u, 2.2 * u, Math.PI, 0); g.fill(); g.strokeStyle = P.trim; g.stroke()
@@ -926,19 +1025,18 @@
       else if (type === 'port' || type === 'naval_base') box(4, 2.2, 1.4) /* انبار بندر */
       else if (type !== 'defense') box(3, 1.8, 8.4) /* توسعه‌ی عمومی */
     }
-    if (level >= 8) { /* پرچم سطح بالا */
+    if (level >= 8 && lod >= 2) { /* پرچم سطح بالا — فقط نمای جزئیات */
       g.strokeStyle = P.trim; g.lineWidth = 1 * s
       g.beginPath(); g.moveTo(x - 6.4 * u, y + 3.4 * u); g.lineTo(x - 6.4 * u, y - 8.4 * u); g.stroke()
       g.fillStyle = '#ffd84d'; g.fillRect(x - 6.4 * u, y - 8.4 * u, 3 * u, 1.8 * u)
     }
-    if (level >= 10) { /* نشان لندمارک — الماس درخشان کوچک */
-      const by2 = y - 11.4 * u - Math.sin(tSec * 1.8) * 0.6 * u
+    if (level >= 10 && lod >= 2) { /* نشان لندمارک — الماس ثابت (بدون باب — بند ۴۰) */
+      const by2 = y - 11.4 * u
       g.fillStyle = 'rgba(255,216,77,.9)'
       g.beginPath(); g.moveTo(x, by2 + 2 * u); g.lineTo(x - 1.5 * u, by2); g.lineTo(x, by2 - 2 * u); g.lineTo(x + 1.5 * u, by2); g.closePath(); g.fill()
     }
-    /* سطح ۵+: آنتن | سطح ۸+: هاله (فقط HIGH) */
-    if (level >= 5 && level < 8) { g.strokeStyle = accent; g.beginPath(); g.moveTo(x + 5.4 * u, y + 0.6 * u); g.lineTo(x + 5.4 * u, y - 4.4 * u); g.stroke(); g.fillStyle = accent; g.beginPath(); g.arc(x + 5.4 * u, y - 5 * u, 0.9 * u, 0, 6.3); g.fill() }
-    if (level >= 8 && tierCfg().shadows) { g.globalAlpha = 0.35 + 0.15 * Math.sin(tSec * 2.4); g.strokeStyle = '#ffd84d'; g.lineWidth = 1.6 * s; g.beginPath(); g.arc(x, y, 11 * u, 0, 6.3); g.stroke(); g.globalAlpha = 1 }
+    /* سطح ۵+: آنتن (فقط LOD2) — V78: هاله‌ی پالسی سطح ۸ حذف شد (پالس دائمی ممنوع) */
+    if (level >= 5 && level < 8 && lod >= 2) { g.strokeStyle = accent; g.beginPath(); g.moveTo(x + 5.4 * u, y + 0.6 * u); g.lineTo(x + 5.4 * u, y - 4.4 * u); g.stroke(); g.fillStyle = accent; g.beginPath(); g.arc(x + 5.4 * u, y - 5 * u, 0.9 * u, 0, 6.3); g.fill() }
   }
 
   /* ---------- جاده‌ها (V76) — مسیر ارگانیک قطعی + رسم نرم چند-قطعه‌ای ---------- */
@@ -973,6 +1071,41 @@
     return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * f, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * f]
   }
 
+  /* ---------- V78 §15: شبکه‌ی جاده — درختی، نه شعاعی ----------
+     پایتخت ↔ ۴ قطب اصلی (بیشترین جمعیت شهر اول) + اتصال Prim بقیه به نزدیک‌ترین
+     گره‌ی متصل → هیچ خط شعاعی از پایتخت به همه‌چیز. قطعی + cache (S._rn).
+     mains: کلاس اصلی (دو-استروک) | spurs: کلاس فرعی (فقط tier≥۲ و نمای بالا). */
+  function roadNetwork() {
+    if (S._rn) return S._rn
+    const cells = S.cells
+    const n = cells.length
+    if (n < 2) return (S._rn = { mains: [], spurs: [] })
+    const kxN = kmPerLon()
+    const D = (i, j) => Math.hypot((cells[i].cx - cells[j].cx) * kxN, cells[i].cy - cells[j].cy)
+    const popOf = (i) => { const cs = cells[i].prov.cities || []; return cs.length ? cs[0].popK : 0 }
+    const order = []
+    for (let i = 1; i < n; i++) order.push(i)
+    order.sort((a, b) => popOf(b) - popOf(a))
+    const inTree = new Set([0])
+    const mains = [], spurs = []
+    for (let k = 0; k < order.length && mains.length < 4; k++) { mains.push([0, order[k]]); inTree.add(order[k]) }
+    while (inTree.size < n) {
+      let bi = -1, bj = -1, bd = 1e9
+      for (const i of inTree) {
+        for (let j = 0; j < n; j++) {
+          if (inTree.has(j)) continue
+          const d = D(i, j)
+          if (d < bd) { bd = d; bi = i; bj = j }
+        }
+      }
+      if (bj < 0) break
+      const important = popOf(bj) >= 600 || cells[bj].prov.type === 'industrial' || cells[bj].prov.coastal
+      ;(important ? mains : spurs).push([bi, bj])
+      inTree.add(bj)
+    }
+    return (S._rn = { mains, spurs })
+  }
+
   /* ---------- جایگاه‌های slot هر استان (V76) — پراکندگی ارگانیک قطعی داخل سلول ----------
      فقط presentation است: slot index سرور دست‌نخورده؛ مختصات geo ثابت (دیگر با زوم جابجا نمی‌شود). */
   function slotLayout(ci) {
@@ -1005,14 +1138,80 @@
   }
   function catOf(type) { return S.cat.find((x) => x.id === type) }
 
+  /* ============================================================
+     V78 §1-§6/§25 — سیستم لیبل شهر: اولویت + برخورد + cache
+     اولویت: پایتخت=۱۰۰ | شهر اصلی پرجمعیت (popK≥۶۰۰)=۸۰ | صنعتی/نفت/بندر/نظامی=۶۰ | عادی=۳۰
+     §3: قبل از رسم sort بر اساس اولویت؛ هر لیبلِ برخوردی پنهان می‌شود (نه چاپ روی هم) —
+         برخورد با نقطه‌ی شهرهای دیگر + الماس هدف هم چک می‌شود.
+     §4: عدد داخل اسم تولیدی («شهرک صنعتی ۲») در لیبل حذف — لیبل = نوع شهر؛
+         پایتخت = «پایتخت» + ستاره‌ی برداری (§6). اسم کامل فقط در پنل شهر.
+     §25: boxها cache می‌شوند؛ فقط با تغییر دوربین/زوم/داده بازچینی می‌شود.
+     ============================================================ */
+  const SHORT_KIND_FA = { metro: 'شهر مرکزی', industrial: 'شهرک صنعتی', agri: 'شهر کشاورزی', port: 'بندر', oil: 'شهر نفتی', military: 'شهرک نظامی', mountain: 'شهر کوهپایه‌ای' }
+  function layoutLabels(g, W, H, z) {
+    const key = [Math.round(S.cam.x * 3), Math.round(S.cam.y * 3), Math.round(z * 10), S.buildings.length, S.sel.prov, S.obj ? S.obj.id : '-'].join('|')
+    if (S._lbl && S._lbl.key === key) return S._lbl
+    const cands = []
+    S.cells.forEach((c) => {
+      ;(c.prov.cities || []).forEach((city, k) => {
+        const p = project(city.lng, city.lat)
+        if (p[0] < -30 || p[1] < -30 || p[0] > W + 30 || p[1] > H + 30) return
+        const isCap = c.prov.i === 0 && k === 0
+        const pri = isCap ? 100 : city.popK >= 600 ? 80 : (city.kind === 'port' || city.kind === 'oil' || city.kind === 'industrial' || city.kind === 'military') ? 60 : 30
+        if (k > 0 && z < 2) return /* شهرهای ثانویه فقط نمای نزدیک */
+        cands.push({ x: p[0], y: p[1], txt: isCap ? 'پایتخت' : (SHORT_KIND_FA[city.kind] || 'شهر'), pri, popK: city.popK || 0, isCap })
+      })
+    })
+    cands.sort((a, b) => b.pri - a.pri || b.popK - a.popK)
+    const minPri = z < 1.5 ? 80 : z < 2 ? 60 : 0
+    const maxN = z < 1.5 ? 4 : z < 2 ? 9 : 18
+    const fs = Math.round(9.5 * Math.min(1.35, z))
+    g.font = '600 ' + fs + 'px Vazirmatn, Tahoma, sans-serif'
+    const placed = [], boxes = [], reserves = []
+    /* رزرو نشانه‌ها (§3): نقطه‌ی همه‌ی شهرهای کاندید + الماس هدف */
+    for (const c of cands) reserves.push({ x0: c.x - 4, y0: c.y - 4, x1: c.x + 4, y1: c.y + 4 })
+    if (S.obj && S.obj.prov != null && S.cells[S.obj.prov]) {
+      const op = project(S.cells[S.obj.prov].cx, S.cells[S.obj.prov].cy)
+      reserves.push({ x0: op[0] - 9, y0: op[1] - 48, x1: op[0] + 9, y1: op[1] - 18, noOwn: -2 })
+    }
+    const hits = (b, selfIdx) => {
+      for (let i = 0; i < boxes.length; i++) { const q = boxes[i]; if (b.x0 < q.x1 && b.x1 > q.x0 && b.y0 < q.y1 && b.y1 > q.y0) return true }
+      for (let i = 0; i < reserves.length; i++) { if (i === selfIdx) continue; const q = reserves[i]; if (b.x0 < q.x1 && b.x1 > q.x0 && b.y0 < q.y1 && b.y1 > q.y0) return true }
+      return false
+    }
+    for (let i = 0; i < cands.length; i++) {
+      if (placed.length >= maxN) break
+      const c = cands[i]
+      if (c.pri < minPri) continue
+      const ly = c.y - 9 * z - (c.isCap ? 5 * z : 0)
+      const halfW = g.measureText(c.txt).width / 2 + 4
+      const halfH = fs / 2 + 3
+      const bx = { x0: c.x - halfW, y0: ly - halfH, x1: c.x + halfW, y1: ly + halfH }
+      if (hits(bx, i)) continue /* §1/§3: برخورد = پنهان */
+      boxes.push(bx)
+      placed.push({ x: c.x, y: ly, txt: c.txt, isCap: c.isCap, fs })
+    }
+    S._lbl = { key, list: placed, boxes }
+    return S._lbl
+  }
+
   /* ---------- رندر پویا (هر فریم — فقط چیزهای دیدنی) ---------- */
   function render(dt) {
     if (!ctx) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     if (S.dirtyStatic || zoomBucket() !== staticBucket) bakeStatic()
-    ctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight)
-    ctx.drawImage(staticCv, 0, 0, cv.clientWidth, cv.clientHeight)
+    const W = cv.clientWidth, H = cv.clientHeight
     const z = S.cam.z
+    ctx.clearRect(0, 0, W, H)
+    /* V78 §24: استاتیک در فضای جهان bake شده — با transform دوربین رسم می‌شود؛
+       pan/زومِ بین bucketها صفر rebake — لایه‌ی زمین همیشه هم‌راستای دوربین */
+    ctx.save()
+    ctx.translate(W / 2 + S.cam.x * z, H / 2 + S.cam.y * z)
+    ctx.scale(z / staticBucket, z / staticBucket)
+    ctx.translate(-W / 2, -H / 2)
+    ctx.drawImage(staticCv, 0, 0, W, H)
+    ctx.restore()
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     const showBuildings = z >= 1.5   /* V76 §17: ساختمان‌ها از نمای شهر */
     const showDetails = z >= 2.2     /* V76 §17: جزئیات از نمای ساختمان */
     /* V76 §25: سلسله‌مراتب — وقتی استانی انتخاب است، بقیه کم‌رنگ شوند */
@@ -1028,7 +1227,6 @@
       pathRing(ctx, S.cells[S.hover].poly.map((p) => project(p[0], p[1])))
       ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1.4; ctx.stroke()
     }
-    const W = cv.clientWidth, H = cv.clientHeight
     const tSec = S.nowMs / 1000
 
     /* V74: لحظه‌ی ورود — تپش مرز کشور + قاب شناور (سبک: فقط stroke متحرک) */
@@ -1044,51 +1242,36 @@
       if (k >= 1) S.enter.done = true
     }
 
-    /* V74: چراغ شهرها (فقط MED/HIGH، سقف tier، فلیکر سبک سینوسی) */
-    const lightsN = tierCfg().lights
-    if (lightsN && z >= 1.5) {
-      ctx.fillStyle = 'rgba(255,224,130,.85)'
-      let li = 0
-      for (const c of S.cells) {
-        const cities = c.prov.cities || []
-        for (const city of cities) {
-          if (li >= lightsN) break
-          const p = project(city.lng, city.lat)
-          if (p[0] < 0 || p[1] < 0 || p[0] > W || p[1] > H) continue
-          const dev = ((c.prov.stats && c.prov.stats.dev) || 40) / 100
-          const nL = Math.max(2, Math.round(2 + dev * 4))
-          for (let k = 0; k < nL && li < lightsN; k++, li++) {
-            const h = (li * 37 + 11)
-            const lx = p[0] + Math.cos(h) * (5 + (h % 9)) * Math.min(1.5, z)
-            const ly = p[1] + Math.sin(h * 1.3) * (4 + (h % 7)) * Math.min(1.5, z)
-            ctx.globalAlpha = 0.35 + 0.3 * Math.sin(tSec * 2.2 + h)
-            ctx.fillRect(lx, ly, 1.6 * Math.min(1.4, z), 1.6 * Math.min(1.4, z))
-          }
-          if (li >= lightsN) break
-        }
-      }
-      ctx.globalAlpha = 1
-    }
+    /* V78 §21: چراغ‌های فلیکر شهر حذف شد — نقطه‌های ریز روشن = white-pixel noise
+       روی نقشه‌ی روز؛ هویت شهر حالا با خوشه/گلیف/لیبل منتقل می‌شود */
 
-    /* V76: برچسب شهرها (LOD z≥1.5 — با Culling) */
-    if (z >= 1.5) {
+    /* V78 §1-§6: برچسب شهرها — اولویت + برخورد + cache (بدون روی‌هم‌افتادن) */
+    {
+      const lab = layoutLabels(ctx, W, H, z)
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-      for (const c of S.cells) {
-        for (const city of (c.prov.cities || [])) {
-          const p = project(city.lng, city.lat)
-          if (p[0] < -40 || p[1] < -40 || p[0] > W + 40 || p[1] > H + 40) continue
-          const fs = Math.round(9.5 * Math.min(1.4, z))
-          ctx.font = '600 ' + fs + 'px Vazirmatn, Tahoma, sans-serif'
-          ctx.fillStyle = 'rgba(0,0,0,.5)'
-          ctx.fillText(city.name, p[0] + 1, p[1] - 8 * z + 1)
-          ctx.fillStyle = '#f4f8fc'
-          ctx.fillText(city.name, p[0], p[1] - 8 * z)
+      for (const L of lab.list) {
+        ctx.font = '600 ' + L.fs + 'px Vazirmatn, Tahoma, sans-serif'
+        ctx.fillStyle = 'rgba(6,12,20,.6)'
+        ctx.fillText(L.txt, L.x + 1, L.y + 1)
+        ctx.fillStyle = L.isCap ? '#ffe9a8' : '#eef4fa'
+        ctx.fillText(L.txt, L.x, L.y)
+        if (L.isCap) { /* §6: ستاره‌ی برداری بالای لیبل پایتخت — بدون emoji */
+          const su = Math.min(1.35, z)
+          ctx.fillStyle = '#ffd84d'; ctx.beginPath()
+          for (let k = 0; k < 10; k++) {
+            const a2 = -1.5708 + k * 0.6283, rr2 = (k % 2 ? 1.2 : 2.6) * su
+            const px = L.x + Math.cos(a2) * rr2, py = L.y - L.fs * 0.95 - 2.6 * su + Math.sin(a2) * rr2
+            if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py)
+          }
+          ctx.closePath(); ctx.fill()
         }
       }
+      ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic'
     }
 
-    /* ساخت‌وسازهای در حال ساخت + ساختمان‌ها — رسم برداری + Culling */
+    /* ساخت‌وسازهای در حال ساخت + ساختمان‌ها — رسم برداری + Culling + LOD سه‌گانه */
     if (showBuildings) {
+      const bLod = z >= 2.8 ? 2 : z >= 2.05 ? 1 : 0 /* V78 §9 */
       for (const b of S.buildings) {
         const p = slotPos(b.province, b.slot)
         if (p[0] < -60 || p[1] < -60 || p[0] > W + 60 || p[1] > H + 60) continue
@@ -1120,25 +1303,18 @@
           ctx.stroke()
           ctx.beginPath(); ctx.moveTo(p[0] + 5.5 * u2, p[1] - 4.5 * u2); ctx.lineTo(p[0] + 10 * u2, p[1] - 8.5 * u2); ctx.stroke() /* بازوی جرثقیل */
         } else if (st === 0) {
-          drawBuilding(ctx, p[0], p[1], b.type, b.level, z, 0, tSec)
+          drawBuilding(ctx, p[0], p[1], b.type, b.level, z, 0, tSec, bLod)
         }
         /* حلقه‌ی پیشرفت ساخت */
         if (!active && b.doneAt) {
           ctx.beginPath(); ctx.arc(p[0], p[1], 13 * Math.min(1.6, z), -Math.PI / 2, -Math.PI / 2 + prog * 6.283)
           ctx.strokeStyle = '#ffd84d'; ctx.lineWidth = 2.2; ctx.stroke()
         }
-        /* پله‌های سطح — فقط نمای ساختمان (V76 §17) */
-        if (z >= 2.2 && b.level > 1) {
-          const pips = Math.min(10, b.level)
-          for (let k = 0; k < pips; k++) {
-            ctx.fillStyle = k < b.level ? '#7fe3ff' : 'rgba(255,255,255,.2)'
-            ctx.fillRect(p[0] - pips * 2.2 + k * 4.4, p[1] + 12 * Math.min(1.5, z), 2.6, 2)
-          }
-        }
-        /* پالس انتخاب */
+        /* V78 §4/§21: پله‌های سطح (rectهای ریز کنار ساختمان) حذف شد —
+           سطح با رشد خود ساختمان (L3/L5/L8/L10) و پنل منتقل می‌شود، نه نویز ریز */
+        /* V78 §40: انتخاب — حلقه‌ی ثابت (بدون پالس دائمی) */
         if (S.sel.bld && S.sel.bld.id === b.id) {
-          const a = 0.45 + 0.3 * Math.sin(tSec * 5)
-          ctx.globalAlpha = a
+          ctx.globalAlpha = 0.85
           ctx.strokeStyle = '#ffd84d'; ctx.lineWidth = 2
           ctx.beginPath(); ctx.arc(p[0], p[1], 15 * Math.min(1.6, z), 0, 6.3); ctx.stroke()
           ctx.globalAlpha = 1
@@ -1175,8 +1351,7 @@
       const oc = S.cells[S.obj.prov]
       const op = project(oc.cx, oc.cy)
       if (op[0] > -20 && op[1] > -20 && op[0] < W + 20 && op[1] < H + 20) {
-        const bob = Math.sin(tSec * 2.6) * 3 * Math.min(1.4, z)
-        const oy = op[1] - 34 * Math.min(1.5, z) + bob
+        const oy = op[1] - 34 * Math.min(1.5, z) /* V78: الماس ثابت — بدون باب دائمی */
         const mz = Math.min(1.4, z)
         ctx.globalAlpha = 0.92
         ctx.fillStyle = '#ffd84d'
@@ -1187,11 +1362,15 @@
     }
 
     /* V76: محیط زنده + ذرات + رد ضربه — همه فقط وقتی در Viewport */
-    if (z >= 1.4) drawAmbient(ctx)
+    if (z >= 2 && AMB.length) drawAmbient(ctx) /* V78 §22: خودرو فقط زوم ≥۲ */
     drawParticles(ctx)
     drawRipples(ctx, dt)
     stepParticles(dt)
     stepSmoke(dt)
+    /* وینیت لبه‌ها — صفحه‌ثابت (V78: از bake به render — bake با دوربین transform می‌شود) */
+    const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.72)
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(2,8,16,.34)')
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H)
   }
 
   /* ---------- حلقه‌ی اصلی (تک rAF) ---------- */
@@ -1211,9 +1390,11 @@
       if (Math.abs(cam.x - cam.tx) < 0.5 && Math.abs(cam.y - cam.ty) < 0.5 && Math.abs(cam.z - cam.tz) < 0.01) cam.anim = false
     }
     clampCam()
-    /* V77 §26: اگر هیچ چیز تغییر نکرده — صفر کار رندر (باتری موبایل).
-       کانواس آخرین فریم را نگه می‌دارد؛ تیک ۱ثانیه‌ای همچنان داخل همین loop می‌چرخد. */
-    let animating = cam.anim || (S.enter && !S.enter.done) || S.cam.z >= 1.5 || (S.cam.z >= 1.4 && AMB.length > 0)
+    /* V78 §26: اگر هیچ چیز تغییر نکرده — صفر کار رندر (باتری موبایل).
+       کانواس آخرین فریم را نگه می‌دارد؛ تیک ۱ثانیه‌ای همچنان داخل همین loop می‌چرخد.
+       (V78: پالس‌های دائمی حذف شدند — دیگر z≥1.5 همیشه-متحرف نیست؛ idle-skip واقعی) */
+    let animating = cam.anim || (S.enter && !S.enter.done)
+    if (!animating && S.cam.z >= 2 && AMB.length > 0) animating = true
     if (!animating) { for (const b of S.buildings) { if (b.status !== 'active') { animating = true; break } } }
     if (!animating) {
       for (const p of pool) { if (p.on) { animating = true; break } }
