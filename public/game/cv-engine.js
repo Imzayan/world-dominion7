@@ -105,6 +105,9 @@
     high: { particles: 18, deco: 2, shadows: true,  maxDpr: 2,   ambient: 6,  lights: 0, smoke: 4, roads: 3 },
   }
   S.tier = detectTier()
+  /* V85: گلس تطبیقی — در tier پایین backdrop-filter پنل‌ها خاموش (روی canvas متحرک گران‌ترین
+     هزینه‌ی رندر گوشی‌های ضعیف است). هماهنگ با hysteresis موجود tier. */
+  function applyGlass() { try { const st = stage(); if (st) st.classList.toggle('wdcv-noglass', S.tier === 'low') } catch (e) {} }
   function tierCfg() { return TIER[S.tier] || TIER.med }
   function degradeTier() {
     if (S._tierCd > 0) return /* V77 §31: hysteresis — بعد از هر تغییر ۳۰ثانیه آرامش */
@@ -112,7 +115,7 @@
     else if (S.tier === 'med') S.tier = 'low'
     else return
     try { localStorage.setItem('wdcv_tier', S.tier) } catch (e) {}
-    S.dirtyStatic = true; S._tierCd = 30
+    S.dirtyStatic = true; S._tierCd = 30; applyGlass()
   }
   /* V77 §31: بازگشت tier فقط بعد از ۴۵ثانیه FPS پایدار — ذخیره نمی‌شود تا سشن بعد
      تشخیص تازه انجام شود (فلپ‌فلپ بین tierها ممنوع) */
@@ -121,7 +124,7 @@
     else if (S.tier === 'med') S.tier = 'high'
     else return
     try { localStorage.removeItem('wdcv_tier') } catch (e) {}
-    S.dirtyStatic = true
+    S.dirtyStatic = true; applyGlass()
   }
 
   /* ---------- ابزار ---------- */
@@ -2575,6 +2578,7 @@
       '<div id="wdcv-loading">📡 در حال ورود به کشور…</div>' +
       '</div>'
     document.body.appendChild(st)
+    applyGlass() /* V85: tier از سشن قبل — کلاس گلس از همان ابتدا درست */
     const css = document.createElement('style')
     css.id = 'wdcv-css'
     css.textContent =
@@ -2652,7 +2656,14 @@
       '#wdcv-exit:hover,#wdcv-hbtn:hover,#wdcv-snd:hover,.wdcv-mini:not(:disabled):hover,.wdcv-tab:hover,.wdcv-focusbtn:hover{filter:brightness(1.22)}' +
       '.wdcv-bcard,.wdcv-brow,.wdcv-tab,.wdcv-mini{transition:transform .12s ease,filter .15s ease,border-color .15s ease}' +
       '.wdcv-bcard:hover,.wdcv-brow:hover{border-color:rgba(120,220,255,.45);filter:brightness(1.12)}' +
-      '@media (max-width:480px){.wdcv-stats{grid-template-columns:1fr}#wdcv-hname{font-size:15px}.wdcv-hchip{font-size:11px;padding:2px 6px}#wdcv-obj{font-size:11px;padding:4px 8px}#wdcv-goals{max-width:70vw;font-size:10.5px}}'
+      '@media (max-width:480px){.wdcv-stats{grid-template-columns:1fr}#wdcv-hname{font-size:15px}.wdcv-hchip{font-size:11px;padding:2px 6px}#wdcv-obj{font-size:11px;padding:4px 8px}#wdcv-goals{max-width:70vw;font-size:10.5px}}' +
+      /* V85: گلس تطبیقی — tier=low → بدون backdrop-filter (گران‌ترین pass روی canvas متحرک) */
+      '#wdcv-stage.wdcv-noglass #wdcv-panel,#wdcv-stage.wdcv-noglass #wdcv-goals{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(6,18,36,.96)!important}' +
+      '#wdcv-stage.wdcv-noglass .wdcv-hchip{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(10,20,34,.92)!important}' +
+      /* V85: گوشی‌های لمسی — شعاع بلور کمتر (هزینه‌ی GPU به‌مراتب کمتر، حس شیشه حفظ می‌شود) */
+      '@media (pointer:coarse){#wdcv-panel{backdrop-filter:blur(10px) saturate(1.25);-webkit-backdrop-filter:blur(10px) saturate(1.25)}#wdcv-goals{backdrop-filter:blur(9px) saturate(1.2);-webkit-backdrop-filter:blur(9px) saturate(1.2)}}' +
+      /* V85 PREMIUM: قاب طلایی ظریف استیج — ثابت، صفر هزینه‌ی فریم */
+      '#wdcv-stage.on::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:3;box-shadow:inset 0 0 0 1px rgba(255,204,0,.09),inset 0 0 70px rgba(0,0,0,.30)}'
     document.head.appendChild(css)
     st.querySelector('#wdcv-exit').addEventListener('click', () => close())
     const sndBtn = st.querySelector('#wdcv-snd')

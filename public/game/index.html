@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=84;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=84"></script>
+  <script>window.__WD_V=85;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=85"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -537,6 +537,8 @@
     if(left)return; left=true;
     try{sessionStorage.setItem('wd_intro_seen','1')}catch(e){}
     sp.classList.add('out');
+    /* V85: نقشه زیر اسپلش مونتاژ می‌شود — یک invalidateSize تک‌بار برای اطمینان از اندازه‌ها */
+    try{if(typeof map!=='undefined'&&map&&map.invalidateSize)map.invalidateSize()}catch(e){}
     setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp)},760);
   }
   var left=false;
@@ -1108,13 +1110,12 @@ function initGame() {
       const timeout = setTimeout(() => controller.abort(), 8000);
       fetch(geoUrls[index], { signal: controller.signal })
         .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
-        .then(d => waitSplash(d))
         .then(geoData => { clearTimeout(timeout); mountWorld(geoData); })
         .catch((err) => { clearTimeout(timeout); window.__geoErr = err; console.log(err); fetchGeoJSON(index + 1); });
     }
-    function waitSplash(d) {
-      return new Promise(r => { let k = 0; (function w() { if (!document.getElementById('wd-splash') || ++k > 60) r(d); else setTimeout(w, 100); })(); });
-    }
+    /* V85: waitSplash حذف شد — نقشه زیر اسپلش مونتاژ می‌شود. قبلاً mountWorld منتظر پایان
+       سینماتیک (۲.۳ تا ۶.۵ ثانیه) می‌ماند و ساخت نقشه تازه بعد از آن شروع می‌شد؛
+       حالا همزمان با سینماتیک ساخته می‌شود — کل مسیر ورود چند ثانیه جلو می‌افتد. */
     function mountWorld(geoData) {
           const feats = (geoData.features || []).slice();
           // Performance: simplify world geometry before creating Leaflet paths.
@@ -1182,7 +1183,6 @@ function initGame() {
     /* V29 — the early prefetch (started at page top) usually wins; URL chain is the fallback. */
     if (window.__geoPromise) {
       window.__geoPromise
-        .then(d => waitSplash(d))
         .then(geoData => mountWorld(geoData))
         .catch((err) => { window.__geoErr = err; console.log('prefetch failed, falling back', err); fetchGeoJSON(0); });
     } else {
@@ -2280,8 +2280,8 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){if(!myCountryName)return;const n=f.pr
    <script>
     /* ===== v3: economy rebalance, Gem shop, real calendar, ownership on the map, more infrastructure ===== */
 /* ---- SHOP CONFIG: put your payment-link URLs here (Stripe Payment Link, Zarinpal, ...). Empty url = button disabled ---- */
-/* PriceSync-v2 — پک‌های جم: قیمت‌های نهایی ثبت‌شده در پنل مایکت — ۳۰٬۰۰۰ / ۸۵٬۰۰۰ / ۱۵۰٬۰۰۰ / ۳۰۰٬۰۰۰ تومان.
-   نرخ هر جم: ۳۰۰ / ۲۸۳ / ۲۷۳ / ۳۰۰ — بسته‌ی ۵۵۰ جم بهترین نرخ را دارد.
+/* PriceSync-v3 (V85) — پک‌های جم: قیمت‌های جدید پنل مایکت — ۴۰٬۰۰۰ / ۱۱۰٬۰۰۰ / ۲۰۰٬۰۰۰ / ۳۸۰٬۰۰۰ تومان.
+   نرخ هر جم: ۴۰۰ / ۳۶۷ / ۳۶۴ / ۳۸۰ — بسته‌ی ۵۵۰ جم همچنان بهترین نرخ را دارد.
    V68: آبجکت نمایشی SHOP.packs حذف شد (کد مرده — فقط مسیر رندر قدیمی مصرفش می‌کرد؛ گارد TWA گارد‌شده است).
    تک‌منبع قیمت: SHOP_PACKS سمت سرور. شناسه‌های SKU مایکت بدون تغییر: gems_100/300/550/1000 */
 let GEMS=0,BOOST=0,WALLET_OK=false;
@@ -9379,7 +9379,9 @@ function gPhase33(){
     if(sp&&sp.at&&(Date.now()-sp.at)<300000&&sp.phase&&sp.edition){
       const off0=Number(localStorage.getItem('wd33toff')||0)||0;
       const ed0=Math.floor((Date.now()+off0-ANCHOR)/EDM)+1;
-      if(ed0===sp.edition){
+      if(sp.edition>=ed0){ /* V85: گارد >= — شماره‌ی سرور = تقویم + دوره‌های دستی ادمین (oly_edoff)؛
+         بعد از «شروع دور جدید المپیک» شماره‌ی سرور همیشه بزرگ‌تر است و با گارد === قبلی
+         اسنپ‌شات فاز برای همیشه رد می‌شد → افتتاحیه/اختتامیه/آتش‌بس دیگر دیده نمی‌شد */
         return{edition:sp.edition,phase:sp.phase,gameDay:sp.gameDay||0,
           regAt:sp.regAt||(ANCHOR+(sp.edition-1)*EDM+REGO),
           openAt:sp.openAt||(ANCHOR+(sp.edition-1)*EDM+OPENO),
@@ -14962,7 +14964,15 @@ function ensureAdminBox(){
           }else{
             showToast(mode==='reset'?'↩️ برنامه‌ی عادی برگشت':(mode==='open'?'🎬 افتتاحیه انجام شد — بازی‌ها زنده شد و جوایز دور قبل قبلاً واریز شده بود':(mode==='close'?'🏁 اختتامیه انجام شد — جوایز (قهرمان + نقره + برنز + شرکت‌کنندگان) واریز شد':'✅ انجام شد — فاز جدید: '+(PH[x.phase]||x.phase))),'win');
             /* V55: فاز جدید فوراً authoritative می‌شود — اختتامیه بی‌درنگ برای خود ادمین هم تمام است */
-            try{if(typeof window.WD55_SETPHASE==='function')window.WD55_SETPHASE({edition:x.edition,phase:x.phase})}catch(e){}
+            try{if(typeof window.WD55_SETPHASE==='function')window.WD55_SETPHASE({edition:x.edition,phase:x.phase,openAt:Date.now()})}catch(e){}
+            /* V85 (ریشه‌ی «افتتاحیه می‌زنم انجام نمیشه»): تا V84 فقط اختتامیه پخش فوری داشت؛
+               برای open هیچ‌وقت مراسم صدا زده نمی‌شد و اگر فلگ wd33open_ از قبل سوزانده بود
+               یا آینه‌ی فاز کهنه بود، هیچ مراسی دیده نمی‌شد. حالا فلگ دوره‌ی تازه سوخته و
+               مراسم افتتاحیه همان لحظه پخش می‌شود (مستقل از آینه‌ی فاز). */
+            try{if(mode==='open'){
+              var edn85=(x.edition||((window.WD33_PHASE&&window.WD33_PHASE().edition)||1));
+              try{localStorage.setItem('wd33open_'+edn85,'1')}catch(e){}
+              setTimeout(function(){try{window.WD33_OPEN_CEREMONY&&window.WD33_OPEN_CEREMONY()}catch(e){}},450)}}catch(e){}
             /* V57: اختتامیه = رویداد فوری و پیداست — مراسم همان لحظه پخش می‌شود، تاج/پرچم نقشه پاک و
                همه‌ی آثار المپیک بسته می‌شوند؛ دیگر هیچ‌وقت «زدیم ولی هیچ اتفاقی نیفتاد» نیست */
             try{if(mode==='close'&&x.close&&typeof window.WD33_END_NOW==='function')window.WD33_END_NOW(x.close)}catch(e){}
@@ -16334,10 +16344,14 @@ function viewHome(c){c.append(vHero());
 function viewGems(c){
   c.append(el('div','💎 بسته‌های جم','wd66-h'));
   var g=el('div',null,'wd66-packgrid');
+  /* V85 پریمیوم: تشخیص بهترین نرخ (کمترین perGem) — نشان «بهترین نرخ» + قاب طلایی */
+  var best85=null;(CAT66.packs||[]).forEach(function(p){var n=Number(p.perGem);if(n&&(!best85||n<best85.n))best85={n:n,p:p}});
   (CAT66.packs||[]).forEach(function(p){
-    var r=el('div',null,'wd66-card');r.style.cssText='display:block';
+    var isBest=best85&&best85.p===p;
+    var r=el('div',null,'wd66-card wd66-pack'+(isBest?' best':''));r.style.cssText='display:block';
+    if(isBest)r.append(el('div','👑 بهترین نرخ','wd66-besttag'));
     var hd=el('div');hd.style.cssText='display:flex;align-items:center;gap:8px';
-    hd.append(el('div','💎','wd66-ico'));
+    hd.append(el('div','💎','wd66-ico wd66-gemico'));
     var tx=el('div',null,'wd66-tx');tx.append(el('b',gemN(p.gems)+' جم — پک '+p.name));
     tx.append(el('small','هر جم ≈ '+p.perGem+' تومان'));
     hd.append(tx);r.append(hd);
@@ -16734,7 +16748,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=84';
+              s.src='/game/cv-engine.js?v=85';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -16745,6 +16759,24 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=84"></script>
+<script src="/game/oly3.js?v=85"></script>
+<style id="v85-css">
+/* ============ V85: پریمیوم شاپ جم — قاب طلایی لوکس، صفر هزینه‌ی per-frame ============ */
+.wd66-pack{position:relative;overflow:hidden;
+  background:linear-gradient(165deg,rgba(24,42,74,.92),rgba(8,18,38,.95)),radial-gradient(circle at 80% -10%,rgba(255,215,94,.18),transparent 50%)!important;
+  border:1px solid rgba(255,215,94,.22)!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08)!important;
+  transition:transform .25s cubic-bezier(.22,1,.36,1),box-shadow .25s ease,border-color .25s ease}
+.wd66-pack:hover{transform:translateY(-2px);border-color:rgba(255,215,94,.45)!important;
+  box-shadow:0 14px 34px rgba(0,0,0,.5),0 0 18px rgba(255,204,0,.12),inset 0 1px 0 rgba(255,255,255,.1)!important}
+.wd66-pack .wd66-gemico{background:radial-gradient(circle at 32% 26%,#fff6c9,#ffd75e 45%,#b8860b 130%)!important;
+  box-shadow:0 0 12px rgba(255,204,0,.5),inset 0 1px 2px rgba(255,255,255,.7)!important}
+.wd66-pack.best{border-color:rgba(255,215,94,.55)!important;
+  background:linear-gradient(165deg,rgba(46,38,10,.9),rgba(20,16,6,.95)),radial-gradient(circle at 80% -10%,rgba(255,215,94,.3),transparent 55%)!important}
+.wd66-besttag{position:absolute;top:0;left:0;font-size:8.5px;font-weight:950;color:#1d1502;
+  background:linear-gradient(135deg,#ffe9a8,#ffc93c);padding:2px 8px;border-radius:0 0 9px 0;
+  box-shadow:0 2px 8px rgba(255,180,0,.35);z-index:2}
+@media(prefers-reduced-motion:reduce){.wd66-pack{transition:none!important}}
+</style>
 </body>
 </html>
