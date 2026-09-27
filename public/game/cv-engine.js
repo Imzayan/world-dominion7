@@ -70,10 +70,14 @@
       case 'airBonus': return typeof airBonus !== 'undefined' ? airBonus : window.airBonus
       case 'ovsMult': return typeof ovsMult !== 'undefined' ? ovsMult : window.ovsMult
       case 'SRV': return typeof SRV !== 'undefined' ? SRV : window.SRV
+      case 'FL': return typeof FL !== 'undefined' ? FL : (window.FL || null)
+      case 'N2C': return typeof N2C !== 'undefined' ? N2C : (window.N2C || null)
+      case 'rankOf': return typeof rankOf !== 'undefined' ? rankOf : window.rankOf
+      case 'wdTerrCount': return typeof wdTerrCount !== 'undefined' ? wdTerrCount : window.wdTerrCount
     } } catch (e) {}
     return null
   }
-  window.WDCV = { S, open, close, rpc, version: 78, openProvPanel, selectBuilding, openCityPanel, openTech }
+  window.WDCV = { S, open, close, rpc, version: 79, openProvPanel, selectBuilding, openCityPanel, openTech }
 
   /* ---------- Quality Tier (یک‌بار در ابتدا + افت خودکار) ---------- */
   function detectTier() {
@@ -138,9 +142,12 @@
   }
 
   /* ---------- هندسه: Voronoi نیم‌صفحه‌ای + برش با رینگ کشور ---------- */
-  function clipHalf(poly, a, b) { /* نگه‌داشتن سمتِ نقطه‌ی a از خط عمودمنصف ab */
+  function clipHalf(poly, a, b) { /* نگه‌داشتن سمتِ نقطه‌ی a از «عمودمنصفِ» ab — V79 FIX:
+    فرمول قبلی خطِ عمود بر ab «از خودِ نقطه‌ی a» بود نه عمودمنصف ← سلول‌ها جابجا/فرو-ریخته
+    (ریشه‌ی واقعی زمینِ تیره از V74). شرط صحیح: |p-a|² ≤ |p-b|² ⇔ (p-mid)·(b-a) ≤ 0 */
     const out = []
-    const side = (p) => ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1]))
+    const mx2 = (a[0] + b[0]) / 2, my2 = (a[1] + b[1]) / 2
+    const side = (p) => ((p[0] - mx2) * (b[0] - a[0]) + (p[1] - my2) * (b[1] - a[1]))
     for (let i = 0; i < poly.length; i++) {
       const p = poly[i], q = poly[(i + 1) % poly.length]
       const sp = side(p), sq = side(q)
@@ -161,7 +168,14 @@
     return out
   }
   function cellOf(seedIdx, seeds, ring) {
-    let poly = ring
+    /* V79 FIX (ریشه‌ای): voronoi باید از پلی‌گان «محدب» شروع شود — ring کشور غیر-محدب است و
+       Sutherland–Hodgman روی آن فرو می‌ریزد (سلول null/تیکه‌ای ← زمینِ تیره و بافت مصنوعی).
+       گام ۱: برش از مستطیل محدبِ bbox با حاشیه ← سلول همیشه کامل و محدب.
+       گام ۲: برش با خودِ ring فقط در bake با ctx.clip (غیر-محدب را درست می‌بُرد). */
+    let x0 = 180, x1 = -180, y0 = 90, y1 = -90
+    for (const p of ring) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1] }
+    const mx = (x1 - x0) * 0.25 + 0.2, my = (y1 - y0) * 0.25 + 0.2
+    let poly = [[x0 - mx, y0 - my], [x1 + mx, y0 - my], [x1 + mx, y1 + my], [x0 - mx, y1 + my]]
     for (let j = 0; j < seeds.length; j++) {
       if (j === seedIdx) continue
       poly = clipHalf(poly, seeds[seedIdx], seeds[j])
@@ -171,14 +185,33 @@
   }
 
   /* ---------- رنگ زمین‌شناسی ---------- */
+  /* V79: پالت نقاشی‌شده — سبزهای گرم و طبیعی (به‌جای سبز نظامی تخت) */
   const TERRAIN = {
-    plains: { fill: '#567d43', alt: '#60884b' },
-    hills: { fill: '#6f8448', alt: '#798e52' },
-    mountain: { fill: '#7f828c', alt: '#8a8d97' },
-    desert: { fill: '#bfa05c', alt: '#c8aa66' },
-    tundra: { fill: '#8fa8ae', alt: '#99b2b8' },
+    plains: { fill: '#6f9c50', alt: '#7da95c' },
+    hills: { fill: '#8ca54e', alt: '#98b158' },
+    mountain: { fill: '#8e9099', alt: '#9a9ca5' },
+    desert: { fill: '#d9b96e', alt: '#e2c37a' },
+    tundra: { fill: '#a3b5ae', alt: '#aebfba' },
+  }
+  /* V79 STYLE — کلیدهای ظاهر نقاشی‌شده (همه bake-only یا اسپرایت؛ صفر هزینه per-frame) */
+  const V79 = {
+    seaShore: 'rgba(122,214,224,.30)',   /* فیروزه‌ای نزدیک ساحل */
+    seaMid: 'rgba(78,178,204,.20)',
+    seaFar: 'rgba(46,120,170,.16)',
+    foam: 'rgba(220,246,250,.5)',
+    roadEdge: 'rgba(96,74,36,.34)',
+    roadFill: '#ecdcae',               /* کرم گرم — روشن‌تر از زمین */
+    roadFillSub: 'rgba(236,220,174,.30)',
+    pillBg: 'rgba(17,24,32,.80)',      /* پیل تیره برچسب شهر (مثل تصویر مرجع) */
+    pillEdge: 'rgba(255,255,255,.16)',
+    pillText: '#f2f7fc',
+    capPillBg: 'rgba(46,36,12,.86)',
+    sun: 'rgba(255,250,210,.10)',      /* نور از بالا-چپ */
+    shade: 'rgba(24,38,18,.13)',       /* سایه به پایین-راست */
   }
   const PROV_TYPE_FA = { capital: 'پایتخت', industrial: 'صنعتی', agricultural: 'کشاورزی', resource: 'منبع‌خیز', generic: 'عمومی' }
+  /* V79: نردبان لقب فتح (آینه‌ی RANKS بازی — فقط نمایش) */
+  const V79_RANKS = [[0, '🎖️ آغازگر'], [3, '🥉 فرمانده'], [6, '🥈 سردار'], [10, '🥇 فتحگر'], [15, '💎 فتحگر بزرگ'], [22, '👑 امپراتور'], [30, '🌐 سایه‌ی جهان'], [40, '👑 فرمانروای زمین']]
 
   /* ---------- ساخت layout از feature نقشه‌ی جهانی (یا fetch fallback) ---------- */
   function buildGeometry(country) {
@@ -345,22 +378,26 @@
         }
       }
     }
-    /* هاله‌ی ساحل + V77 §17: نوار عمق دریا (bake) */
+    /* V79: عمق نقاشی‌شده‌ی دریا — ۳ باند فیروزه‌ای همیار ساحل + کفک (همه bake، صفر هزینه فریم) */
     g.lineJoin = 'round'
-    g.strokeStyle = 'rgba(6,32,54,.34)'
-    g.lineWidth = 26 * S.cam.z
-    pathRing(g, ring); g.stroke()
-    g.strokeStyle = 'rgba(120,200,255,.16)'
-    g.lineWidth = 9 * S.cam.z
-    pathRing(g, ring); g.stroke()
-    g.strokeStyle = 'rgba(150,220,255,.32)'
-    g.lineWidth = 2
-    g.fillStyle = '#123a52'
+    const bands = [[44, V79.seaFar], [28, V79.seaMid], [14, V79.seaShore]]
+    for (const [w, col] of bands) {
+      g.strokeStyle = col
+      g.lineWidth = w * S.cam.z
+      pathRing(g, ring); g.stroke()
+    }
+    g.strokeStyle = V79.foam
+    g.lineWidth = 1.6
+    g.fillStyle = '#144258'
     pathRing(g, ring); g.fill(); g.stroke()
     /* سلول‌های استان + ترِین + tint هویت */
     const z = S.cam.z
     const zc = Math.min(1.6, z)
     const TYPE_TINT = { industrial: 'rgba(96,104,114,.10)', resource: 'rgba(70,56,30,.10)', agricultural: 'rgba(130,170,70,.08)', capital: 'rgba(255,210,90,.06)' }
+    /* V79 FIX: برش با شکل واقعی کشور (غیر-محدب — ctx.clip درست می‌بُرد)؛
+        سلول‌های voronoi (محدب از bbox) کل کشور را می‌پوشانند — بدون حفره/زمین تیره */
+    g.save()
+    pathRing(g, ring); g.clip()
     S.cells.forEach((c, i) => {
       if (!c.poly) return
       const t = TERRAIN[c.prov.terrain] || TERRAIN.plains
@@ -371,25 +408,34 @@
       g.globalAlpha = 0.88 + (hash01(c.prov.i * 7.31) - 0.5) * 0.1; g.fill(); g.globalAlpha = 1
       const tint = TYPE_TINT[c.prov.type]
       if (tint) { g.fillStyle = tint; g.fill() }
-      g.strokeStyle = 'rgba(16,22,30,.5)'; g.lineWidth = 1.1; g.stroke()
+      /* V79: نور نقاشی — گرادیان خورشید (بالا-چپ روشن ← پایین-راست سایه) روی مسیر همان سلول؛
+         فقط یک fill گرادیانی اضافه در bake — صفر هزینه در فریم‌های عادی */
+      let lnx = 1e9, lny = 1e9, lxx = -1e9, lxy = -1e9
+      for (const p of poly) { if (p[0] < lnx) lnx = p[0]; if (p[0] > lxx) lxx = p[0]; if (p[1] < lny) lny = p[1]; if (p[1] > lxy) lxy = p[1] }
+      const lgr = g.createLinearGradient(lnx, lny, lxx, lxy)
+      lgr.addColorStop(0, V79.sun); lgr.addColorStop(0.55, 'rgba(0,0,0,0)'); lgr.addColorStop(1, V79.shade)
+      pathRing(g, poly); g.fillStyle = lgr; g.fill()
+      g.strokeStyle = 'rgba(24,34,18,.44)'; g.lineWidth = 1.1; g.stroke()
       /* لبه‌ی داخلی روشن — حس عمق بدون سایه‌ی سنگین */
       g.strokeStyle = 'rgba(255,255,255,.05)'; g.lineWidth = 0.8; g.stroke()
       if (tierCfg().deco > 0 && z >= 1.05) drawCellTexture(g, c, poly, zc)
     })
+    g.restore()
     /* V78 §15: جاده‌ی اصلی — شبکه‌ی درختی: پایتخت↔۴ قطب اصلی + Prim برای بقیه.
        (قبلاً از پایتخت به «همه‌ی» استان‌ها خط می‌رفت = شعاعی/دیباگ‌نما — بند ۱۵ ممنوع) */
     if (tierCfg().roads && z >= 1.05 && S.cells.length > 1) {
       const rn = roadNetwork()
       for (const [na, nb] of rn.mains) {
         const pts = roadPath([S.cells[na].cx, S.cells[na].cy], [S.cells[nb].cx, S.cells[nb].cy], na * 31 + nb * 7).map((q) => project(q[0], q[1]))
-        strokePath(g, pts, 2.6 * Math.min(1.3, z), 'rgba(24,20,14,.38)')
-        strokePath(g, pts, 1.4 * Math.min(1.3, z), 'rgba(216,198,152,.4)')
+        /* V79: جاده‌ی کرمی نرم — لبه‌ی خاکی + بدنه‌ی کرم روشن (bake-only) */
+        strokePath(g, pts, 3.2 * Math.min(1.3, z), V79.roadEdge)
+        strokePath(g, pts, 2.2 * Math.min(1.3, z), V79.roadFill)
       }
       /* V78 §16: فرعی — فقط tier ≥۲ و نمای بالا؛ Low هیچ‌وقت فرعی ندارد */
       if (tierCfg().roads >= 2 && z >= 1.8) {
         for (const [na, nb] of rn.spurs) {
           const pts = roadPath([S.cells[na].cx, S.cells[na].cy], [S.cells[nb].cx, S.cells[nb].cy], na * 17 + nb * 11).map((q) => project(q[0], q[1]))
-          strokePath(g, pts, Math.max(0.9, 1 * z), 'rgba(216,198,152,.22)')
+          strokePath(g, pts, Math.max(0.9, 1 * z), V79.roadFillSub)
         }
       }
     }
@@ -422,6 +468,7 @@
         cities.forEach((city, k) => {
           const p = project(city.lng, city.lat)
           drawCityCluster(g, p[0], p[1], city, k === 0 && c.prov.i === 0, zc)
+          if (city._provI == null) city._provI = c.prov.i /* V79: برای رشد خوشه از ساختمان‌های واقعی استان */
           if (z >= 1.9 && tierCfg().roads >= 2) {
             const pc = project(c.cx, c.cy)
             strokePath(g, roadPath([c.cx, c.cy], [city.lng, city.lat], 100 + c.prov.i * 7 + k).map((q) => project(q[0], q[1])), Math.max(0.8, 0.9 * z), 'rgba(216,198,152,.2)')
@@ -447,6 +494,30 @@
     S.dirtyStatic = false
   }
 
+  /* ---------- V79: نقاش‌های سبک اسپرایتی (bake-only — یک‌بار per bucket) ----------
+     درخت: سایه + تنه + تاج دولایه | کوه: هرم ایزومتریک دو-رویه + برف + پایه‌ی چمنی */
+  function paintTree(g, x, y, s, v) {
+    g.fillStyle = 'rgba(22,40,16,.28)'
+    g.beginPath(); g.ellipse(x + s * 0.12, y + s * 0.14, s * 0.85, s * 0.32, 0, 0, 6.3); g.fill()
+    g.fillStyle = v ? '#6b4a2e' : '#7a5535'
+    g.fillRect(x - s * 0.11, y - s * 0.1, s * 0.22, s * 0.5)
+    g.fillStyle = v ? '#3e7a34' : '#4c8a3c'
+    g.beginPath(); g.arc(x, y - s * 0.55, s * 0.62, 0, 6.3); g.fill()
+    g.fillStyle = v ? '#549242' : '#63a44c'
+    g.beginPath(); g.arc(x - s * 0.16, y - s * 0.72, s * 0.42, 0, 6.3); g.fill()
+  }
+  function paintMountainIso(g, x, y, w2) {
+    g.fillStyle = 'rgba(30,34,40,.25)'
+    g.beginPath(); g.ellipse(x + w2 * 0.1, y + w2 * 0.5, w2 * 1.15, w2 * 0.3, 0, 0, 6.3); g.fill()
+    g.fillStyle = '#7c7f8a' /* رویه‌ی سایه (راست) */
+    g.beginPath(); g.moveTo(x, y - w2 * 0.95); g.lineTo(x + w2, y + w2 * 0.5); g.lineTo(x, y + w2 * 0.42); g.closePath(); g.fill()
+    g.fillStyle = '#a3a6b0' /* رویه‌ی نور (چپ) */
+    g.beginPath(); g.moveTo(x, y - w2 * 0.95); g.lineTo(x - w2, y + w2 * 0.5); g.lineTo(x, y + w2 * 0.42); g.closePath(); g.fill()
+    g.fillStyle = '#f4f8fb' /* برف */
+    g.beginPath(); g.moveTo(x, y - w2 * 0.95); g.lineTo(x + w2 * 0.3, y - w2 * 0.42); g.lineTo(x, y - w2 * 0.3); g.lineTo(x - w2 * 0.3, y - w2 * 0.44); g.closePath(); g.fill()
+    g.fillStyle = 'rgba(90,130,60,.45)' /* پایه‌ی چمنی */
+    g.beginPath(); g.ellipse(x, y + w2 * 0.42, w2 * 0.9, w2 * 0.22, 0, 0, 6.3); g.fill()
+  }
   /* ---------- V76: بافت terrain — سبک، قطعی، bake-only ---------- */
   function drawCellTexture(g, c, poly, z) {
     const ter = c.prov.terrain, ty = c.prov.type
@@ -455,17 +526,14 @@
     const cw = mxx - mnx, ch = mxy - mny
     const H1 = (k) => hash01(c.prov.i * 97 + k * 13.7)
     if (ter === 'mountain') {
-      g.fillStyle = 'rgba(56,60,70,.55)'
       const n = 3 + Math.round(H1(1) * 2)
       for (let k = 0; k < n; k++) {
         const bx = mnx + cw * (0.18 + 0.64 * H1(k * 3 + 2)), by = mny + ch * (0.25 + 0.5 * H1(k * 3 + 3))
-        const w2 = (5 + H1(k * 3 + 4) * 4) * z
-        g.beginPath(); g.moveTo(bx - w2, by + w2 * 0.55); g.lineTo(bx, by - w2 * 0.8); g.lineTo(bx + w2, by + w2 * 0.55); g.closePath(); g.fill()
-        g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1
-        g.beginPath(); g.moveTo(bx - w2 * 0.3, by - w2 * 0.5); g.lineTo(bx, by - w2 * 0.8); g.lineTo(bx + w2 * 0.3, by - w2 * 0.5); g.stroke()
+        /* V79: کوه ایزومتریک حجمی (نور/سایه/برف) — bake-only */
+        paintMountainIso(g, bx, by, (5 + H1(k * 3 + 4) * 4) * z)
       }
     } else if (ter === 'desert') {
-      g.strokeStyle = 'rgba(120,92,40,.35)'; g.lineWidth = 1.2
+      g.strokeStyle = 'rgba(150,110,48,.4)'; g.lineWidth = 1.2
       for (let k = 0; k < 3; k++) {
         const bx = mnx + cw * (0.2 + 0.6 * H1(k + 9)), by = mny + ch * (0.2 + 0.6 * H1(k + 19))
         g.beginPath(); g.arc(bx, by, (4 + H1(k + 29) * 3) * z, Math.PI * 1.15, Math.PI * 1.85); g.stroke()
@@ -488,29 +556,33 @@
       }
     } else if (ty === 'agricultural' || ter === 'plains' || ter === 'hills') {
       if (ty === 'agricultural') {
-        /* نوارهای مزرعه در کل سلول — clip سبک در bake */
+        /* V79: نوارهای مزرعه‌ی رنگی — سبز/زرد/طلایی متناوب (bake) */
         g.save(); pathRing(g, poly); g.clip()
-        g.strokeStyle = 'rgba(255,244,180,.10)'; g.lineWidth = 2.2 * z
         const ang = H1(5) * Math.PI
         const cx2 = (mnx + mxx) / 2, cy2 = (mny + mxy) / 2
         const R2 = Math.max(cw, ch) * 0.75
+        const stripCols = ['rgba(210,230,120,.16)', 'rgba(240,220,120,.14)', 'rgba(150,200,90,.15)']
         for (let k = -4; k <= 4; k++) {
           const ox = Math.cos(ang) * k * 5 * z, oy = Math.sin(ang) * k * 5 * z
+          g.strokeStyle = stripCols[(k + 4) % 3]
+          g.lineWidth = 2.4 * z
           g.beginPath()
           g.moveTo(cx2 + ox - Math.cos(ang + 1.57) * R2, cy2 + oy - Math.sin(ang + 1.57) * R2)
           g.lineTo(cx2 + ox + Math.cos(ang + 1.57) * R2, cy2 + oy + Math.sin(ang + 1.57) * R2)
           g.stroke()
         }
         g.restore()
+        /* چند درخت حاشیه‌ی مزرعه */
+        paintTree(g, mnx + cw * 0.12, mny + ch * 0.85, 2.2 * z, H1(3) > 0.5 ? 1 : 0)
+        paintTree(g, mnx + cw * 0.88, mny + ch * 0.2, 2 * z, H1(4) > 0.5 ? 1 : 0)
       } else {
-        /* دسته‌های جنگل کوچک */
-        g.fillStyle = 'rgba(38,66,38,.4)'
+        /* V79: جنگل اسپرایتی — درخت‌های تنه‌دار با سایه (به‌جای خوشه‌ی نقطه) */
         const n = 2 + Math.round(H1(7) * 2)
         for (let k = 0; k < n; k++) {
           const bx = mnx + cw * (0.15 + 0.7 * H1(k * 5 + 31)), by = mny + ch * (0.15 + 0.7 * H1(k * 5 + 41))
-          for (let j = 0; j < 4; j++) {
+          for (let j = 0; j < 3; j++) {
             const dx2 = (H1(k * 17 + j * 3 + 51) - 0.5) * 9 * z, dy2 = (H1(k * 17 + j * 3 + 61) - 0.5) * 7 * z
-            g.beginPath(); g.arc(bx + dx2, by + dy2, 1.5 * z, 0, 6.3); g.fill()
+            paintTree(g, bx + dx2, by + dy2, (1.6 + H1(k * 7 + j) * 1.1) * z, H1(k * 11 + j * 5) > 0.5 ? 1 : 0)
           }
         }
       }
@@ -555,7 +627,9 @@
      V77 §6/§7: تراکم در نمای ساختمان (z≥2.2 سیلوئت‌های بیشتر) + امضای برداری هویت شهر
      بر اساس city.kind واقعی (port/oil/industrial/agri/military/mountain) از z≥1.5 */
   /* V78 §13: پالت مات خوشه‌ی شهر — دیوار روشنِ غیرسفید + سقف تیره؛ هیچ بلوک سفیدِ خالص */
-  const CITY_WALL = '#c3ccd6', CITY_WALL2 = '#b0bac6', CITY_ROOF = '#7d5a50'
+  const CITY_WALL = '#cfd3d8', CITY_WALL2 = '#c0c5cc', CITY_ROOF = '#9c6b5a'
+  /* V79: سطح واقعی شهر = تابع جمعیت popK (داده‌ی سرور) — برای برچسب و رشد خوشه */
+  function cityLevel(city) { return clamp(Math.round(1 + (city.popK || 80) / 110), 1, 10) }
   function drawCityCluster(g, x, y, city, isCapital, z) {
     const pop = city.popK || 100
     const big = isCapital ? 2.2 : pop >= 600 ? 1.5 : pop >= 250 ? 1 : 0.6
@@ -569,36 +643,50 @@
       g.fillStyle = 'rgba(10,16,24,.26)'
       g.beginPath(); g.ellipse(x, y + R * 0.22, R * 1.05, R * 0.38, 0, 0, 6.3); g.fill()
     }
-    /* پایه‌ی شهری — لکه‌ی مات زیر بلوک‌ها (وحدت خوشه) */
+    /* V79: رشد با سطح واقعی — جمعیت شهر + تعداد ساختمان فعال استان (داده‌ی سرور) */
+    const lv = cityLevel(city)
+    let bN0 = 0
+    try { for (const b of S.buildings) if (b.province === city._provI && b.status === 'active') bN0++ } catch (e) {}
+    const grow = 1 + Math.min(0.35, (lv - 1) * 0.045 + bN0 * 0.02)
+    /* V79: پایه‌ی شهری — میدان روشن پایتخت + لکه‌ی مات زیر بلوک‌ها (وحدت خوشه) */
+    if (isCapital) {
+      g.fillStyle = 'rgba(228,214,168,.30)'
+      g.beginPath(); g.ellipse(x, y + R * 0.05, R * 1.25, R * 0.85, 0, 0, 6.3); g.fill()
+    }
     g.fillStyle = isCapital ? 'rgba(58,52,36,.6)' : 'rgba(30,38,48,.55)'
     g.beginPath(); g.ellipse(x, y, R * 0.95, R * 0.62, 0, 0, 6.3); g.fill()
-    /* بلوک‌ها — پالت مات + آستانه‌ی ۲px (§10) */
+    /* بلوک‌ها — پالت مات + آستانه‌ی ۲px (§10) + رشد با سطح */
     const lod = z >= 2.4 ? 2 : z >= 1.7 ? 1 : 0
-    const nB = Math.round((lod === 0 ? 4 : lod === 1 ? 7 : 10) + big * 2)
+    const nB = Math.round(((lod === 0 ? 4 : lod === 1 ? 7 : 10) + big * 2) * grow)
     for (let k = 0; k < nB; k++) {
       const a = hash01(city.lng * 91 + k * 7.3) * 6.28
       const rr = (0.28 + hash01(city.lat * 77 + k * 5.1) * 0.6) * R
       const bx = x + Math.cos(a) * rr, by = y + Math.sin(a) * rr * 0.6 - R * 0.06
-      const bw = (2.7 + hash01(k * 31 + city.popK + k) * 2.4) * z
-      const bh = (2.1 + hash01(k * 17 + city.popK * 3 + k) * 2.1) * z
+      const bw = (2.7 + hash01(k * 31 + city.popK + k) * 2.4) * z * (k % 3 === 1 ? grow : 1)
+      const bh = (2.1 + hash01(k * 17 + city.popK * 3 + k) * 2.1) * z * (k % 3 === 1 ? grow : 1)
       if (bw < 2 || bh < 2) continue /* §10: زیر ۲px = نویز سفید */
       g.fillStyle = k % 3 ? (k % 2 ? CITY_WALL : CITY_WALL2) : CITY_ROOF
       g.fillRect(bx - bw / 2, by - bh, bw, bh)
+      /* V79: رخ ایزومتریک — نوار نور روی سقف هر بلوک (۱ fill اضافه، bake) */
+      g.fillStyle = 'rgba(255,250,225,.30)'
+      g.fillRect(bx - bw / 2, by - bh, bw, Math.max(1, bh * 0.28))
       g.strokeStyle = 'rgba(14,20,28,.4)'; g.lineWidth = 0.6; g.strokeRect(bx - bw / 2, by - bh, bw, bh)
     }
-    /* §14: لندمارک پایتخت — تالار مرکزی + ستاره‌ی برداری (بدون پالس/گلو) */
+    /* §14: لندمارک پایتخت — تالار مرکزی + ستاره‌ی برداری بزرگ‌تر (بدون پالس/گلو) */
     if (isCapital) {
-      const lw = 3.6 * z, lh = 3.4 * z, ly = y - R * 0.12
+      const lw = (3.6 * grow) * z, lh = (3.4 * grow) * z, ly = y - R * 0.12
       g.fillStyle = '#c9b788'; g.fillRect(x - lw / 2, ly - lh, lw, lh)
+      g.fillStyle = 'rgba(255,250,225,.35)'; g.fillRect(x - lw / 2, ly - lh, lw, Math.max(1, lh * 0.3))
       g.strokeStyle = 'rgba(22,18,8,.5)'; g.lineWidth = 0.7; g.strokeRect(x - lw / 2, ly - lh, lw, lh)
-      const su = Math.min(1.5, z)
+      const su = Math.min(1.8, z) + 0.5 /* V79: ستاره‌ی پایتخت برجسته‌تر */
       g.fillStyle = '#ffd84d'; g.beginPath()
       for (let k = 0; k < 10; k++) {
-        const a2 = -1.5708 + k * 0.6283, rr2 = (k % 2 ? 1.1 : 2.2) * su
-        const px = x + Math.cos(a2) * rr2, py = ly - lh - 3.6 * su + Math.sin(a2) * rr2
+        const a2 = -1.5708 + k * 0.6283, rr2 = (k % 2 ? 1.3 : 2.9) * su
+        const px = x + Math.cos(a2) * rr2, py = ly - lh - 4.2 * su + Math.sin(a2) * rr2
         if (k) g.lineTo(px, py); else g.moveTo(px, py)
       }
       g.closePath(); g.fill()
+      g.strokeStyle = 'rgba(120,84,10,.6)'; g.lineWidth = 0.7; g.stroke()
     }
     /* امضای هویت شهر از city.kind واقعی (V77 §7) — فقط نمای متوسط به بالا، ظریف */
     if (z >= 1.8 && !isCapital) {
@@ -742,25 +830,45 @@
       if (hasAir) paths.push({ kind: 'plane', pts: [[c.cx, c.cy], [c.cx + 0.55, c.cy + 0.35]] })
     }
     if (S._rail && tierCfg().ambient > 0) paths.push({ kind: 'train', pts: S._rail.pts }) /* V77 §15/§13 */
+    /* V79: لاین‌های دریایی تزئینی — کشتی‌های آرام در دریای آزاد (قطعی از ring واقعی کشور؛
+        visual-only مثل ریل V77؛ tier-gated: حداکثر ۳ مسیر) */
+    if (tierCfg().ambient > 0 && S.ring && S.ring.length > 8) {
+      const bb = S.bbox || { minX: 0, minY: 0, maxX: 1, maxY: 1 }
+      const dgx = (bb.maxX - bb.minX) * 0.12 || 0.5, dgy = (bb.maxY - bb.minY) * 0.12 || 0.4
+      const nL = Math.min(tierCfg().ambient, 3)
+      for (let k = 0; k < nL; k++) {
+        const i0 = Math.floor(hash01(k * 37.7 + 5.1) * S.ring.length)
+        const i1 = (i0 + Math.floor(S.ring.length / 3) + k * 7) % S.ring.length
+        const a = S.ring[i0], b2 = S.ring[i1]
+        paths.push({ kind: 'ship', sea: true, pts: [[a[0] + dgx * (k % 2 ? 0.5 : -0.8), a[1] - dgy * 0.6], [b2[0] + dgx * (k % 2 ? -0.9 : 0.6), b2[1] + dgy * 0.7]] })
+      }
+    }
     return paths
   }
   function stepAmbient(dt) {
-    if (S.cam.z < 2) return /* V78 §22: خودرو فقط از زوم ۲ (قبلاً ۱٫۴ بود) — گام لازم نیست */
+    /* V79: کشتی از زوم ۱٫۴ (دریای آزاد — شلوغ نمی‌کند)؛ خودرو/قطار/هواپیما فقط از ۲ (V78 §22) */
+    if (S.cam.z < 1.4) return
     const cap = tierCfg().ambient
     if (!cap || !S.ambPaths) return
-    /* پرکردن ظرفیت */
-    if (S.ambPaths.length && AMB.length < cap) {
+    if (S.cam.z < 2) { /* خروج از نمای نزدیک: غیر-کشتی‌ها تخلیه شوند */
+      for (let i = AMB.length - 1; i >= 0; i--) if (AMB[i].kind !== 'ship') AMB.splice(i, 1)
+    }
+    /* پرکردن ظرفیت — فقط از مسیرهای مجازِ زوم فعلی */
+    const carOk = S.cam.z >= 2
+    const elig = carOk ? S.ambPaths : S.ambPaths.filter((p) => p.kind === 'ship')
+    if (elig.length && AMB.length < cap) {
       const need = Math.min(cap - AMB.length, 2)
       for (let i = 0; i < need; i++) {
-        const p = S.ambPaths[Math.floor(Math.random() * S.ambPaths.length)]
-        AMB.push({ kind: p.kind, path: p, t: Math.random(), sp: p.kind === 'car' ? 0.05 + Math.random() * 0.05 : p.kind === 'ship' ? 0.02 + Math.random() * 0.02 : p.kind === 'train' ? 0.028 + Math.random() * 0.018 : 0.06 + Math.random() * 0.06, dir: Math.random() < 0.5 ? 1 : -1 })
+        const p = elig[Math.floor(Math.random() * elig.length)]
+        if (AMB.some((o) => o.path === p)) continue /* یک لاین = یک ساکن (کشتی‌ها پراکنده بمانند) */
+        AMB.push({ kind: p.kind, path: p, t: Math.random(), sp: p.kind === 'car' ? 0.05 + Math.random() * 0.05 : p.kind === 'ship' ? 0.012 + Math.random() * 0.012 : p.kind === 'train' ? 0.028 + Math.random() * 0.018 : 0.06 + Math.random() * 0.06, dir: Math.random() < 0.5 ? 1 : -1 })
       }
     }
     for (let i = AMB.length - 1; i >= 0; i--) {
       const o = AMB[i]
       o.t += o.sp * dt * o.dir
       if (o.t > 1 || o.t < 0) { /* پایان مسیر: بازیافت روی مسیر دیگر (بدون ایجاد/حذف DOM) */
-        if (S.ambPaths.length) o.path = S.ambPaths[Math.floor(Math.random() * S.ambPaths.length)]
+        if (elig.length) o.path = elig[Math.floor(Math.random() * elig.length)]
         o.t = o.dir > 0 ? 0 : 1
       }
     }
@@ -770,6 +878,7 @@
     const z = S.cam.z
     const W = cv.clientWidth, H = cv.clientHeight
     for (const o of AMB) {
+      if (o.kind !== 'ship' && z < 2) continue /* V79: خودرو/قطار/هواپیما فقط از زوم ۲ */
       const gp = pathPoint(o.path.pts, o.t)
       const p = project(gp[0], gp[1])
       if (p[0] < -30 || p[1] < -30 || p[0] > W + 30 || p[1] > H + 30) continue
@@ -884,6 +993,11 @@
   }
   function drawBuilding(g, x, y, type, level, z, state, tSec, lod) {
     const s = Math.min(2, z)
+    /* V79: سایه‌ی زمینی ساختمان — یک ellipse fill (فقط نمای ساختمان z≥1.5 + culling؛ هزینه سرریز صفر) */
+    if (tierCfg().shadows) {
+      g.fillStyle = 'rgba(18,26,14,.22)'
+      g.beginPath(); g.ellipse(x + 1.4 * s, y + 0.9 * s, 3.4 * s, 1.4 * s, 0, 0, 6.3); g.fill()
+    }
     const u = 1.3 * s /* V78 §8: واحد بزرگ‌تر — سیلوئت خوانا، نه نقطه */
     const P = bpalOf(type)
     const glass = 'rgba(140,220,255,.85)', accent = '#7fe3ff'
@@ -1150,6 +1264,17 @@
      §25: boxها cache می‌شوند؛ فقط با تغییر دوربین/زوم/داده بازچینی می‌شود.
      ============================================================ */
   const SHORT_KIND_FA = { metro: 'شهر مرکزی', industrial: 'شهرک صنعتی', agri: 'شهر کشاورزی', port: 'بندر', oil: 'شهر نفتی', military: 'شهرک نظامی', mountain: 'شهر کوهپایه‌ای' }
+  /* V79: مسیر گرد شدهٔ سازگار (بدون ctx.roundRect برای سازگاری WebView قدیمی) */
+  function pillPath(g, x0, y0, w, h, r) {
+    r = Math.min(r, h / 2, w / 2)
+    g.beginPath()
+    g.moveTo(x0 + r, y0)
+    g.lineTo(x0 + w - r, y0); g.arc(x0 + w - r, y0 + r, r, -1.5708, 0)
+    g.lineTo(x0 + w, y0 + h - r); g.arc(x0 + w - r, y0 + h - r, r, 0, 1.5708)
+    g.lineTo(x0 + r, y0 + h); g.arc(x0 + r, y0 + h - r, r, 1.5708, 3.14159)
+    g.lineTo(x0, y0 + r); g.arc(x0 + r, y0 + r, r, 3.14159, 4.71239)
+    g.closePath()
+  }
   function layoutLabels(g, W, H, z) {
     const key = [Math.round(S.cam.x * 3), Math.round(S.cam.y * 3), Math.round(z * 10), S.buildings.length, S.sel.prov, S.obj ? S.obj.id : '-'].join('|')
     if (S._lbl && S._lbl.key === key) return S._lbl
@@ -1161,7 +1286,10 @@
         const isCap = c.prov.i === 0 && k === 0
         const pri = isCap ? 100 : city.popK >= 600 ? 80 : (city.kind === 'port' || city.kind === 'oil' || city.kind === 'industrial' || city.kind === 'military') ? 60 : 30
         if (k > 0 && z < 2) return /* شهرهای ثانویه فقط نمای نزدیک */
-        cands.push({ x: p[0], y: p[1], txt: isCap ? 'پایتخت' : (SHORT_KIND_FA[city.kind] || 'شهر'), pri, popK: city.popK || 0, isCap })
+        /* V79: برچسب = نام نوع + عدد سطح واقعی (از popK سرور) — مثل تصویر مرجع */
+        const lv = cityLevel(city)
+        const base = isCap ? 'پایتخت' : (SHORT_KIND_FA[city.kind] || 'شهر')
+        cands.push({ x: p[0], y: p[1], txt: base + ' · ' + fa(lv), pri, popK: city.popK || 0, isCap })
       })
     })
     cands.sort((a, b) => b.pri - a.pri || b.popK - a.popK)
@@ -1185,8 +1313,8 @@
       if (placed.length >= maxN) break
       const c = cands[i]
       if (c.pri < minPri) continue
-      const halfW = g.measureText(c.txt).width / 2 + 4
-      const halfH = fs / 2 + 3
+      const halfW = g.measureText(c.txt).width / 2 + 7 /* V79: پیل تیره — عرض + پدینگ */
+      const halfH = fs / 2 + 4.5
       const capB = c.isCap ? 5 * z : 0
       /* V78 §1: سه جایگاه کاندید — بالا/پایین/راست؛ اولین جایگاهِ بدون برخورد برده.
          هیچ‌کدام برخوردی رسم نمی‌شود (HIDE) — پایتخت هم فقط وقتی واقعاً جا نیست حذف می‌شود. */
@@ -1224,6 +1352,16 @@
     ctx.drawImage(staticCv, 0, 0, W, H)
     ctx.restore()
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    /* V79: شیمر دریا — یک استروک دش‌دار روی خط ساحل؛ فاز ۹۰۰ms از loop (باتری‌دوست،
+        در idle فقط ۱ بازرسم اضافه per فاز)؛ Low-tier خاموش */
+    if (S.tier !== 'low' && z >= 0.85 && S.ring && S.ring.length > 8) {
+      const wp = Math.floor((S.nowMs || 0) / 900) % 2
+      ctx.strokeStyle = 'rgba(210,244,250,' + (wp ? 0.17 : 0.09) + ')'
+      ctx.lineWidth = 1.6
+      ctx.setLineDash([3, 11]); ctx.lineDashOffset = wp ? -7 : -16
+      pathRing(ctx, S.ring.map((p) => project(p[0], p[1]))); ctx.stroke()
+      ctx.setLineDash([])
+    }
     const showBuildings = z >= 1.5   /* V76 §17: ساختمان‌ها از نمای شهر */
     const showDetails = z >= 2.2     /* V76 §17: جزئیات از نمای ساختمان */
     /* V76 §25: سلسله‌مراتب — وقتی استانی انتخاب است، بقیه کم‌رنگ شوند */
@@ -1257,22 +1395,27 @@
     /* V78 §21: چراغ‌های فلیکر شهر حذف شد — نقطه‌های ریز روشن = white-pixel noise
        روی نقشه‌ی روز؛ هویت شهر حالا با خوشه/گلیف/لیبل منتقل می‌شود */
 
-    /* V78 §1-§6: برچسب شهرها — اولویت + برخورد + cache (بدون روی‌هم‌افتادن) */
+    /* V79: پیل تیره‌ی برچسب شهر (اسم + عدد سطح) — مثل تصویر مرجع؛ برخورد صفر مثل V78 */
     {
       const lab = layoutLabels(ctx, W, H, z)
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
       for (const L of lab.list) {
         ctx.font = '600 ' + L.fs + 'px Vazirmatn, Tahoma, sans-serif'
-        ctx.fillStyle = 'rgba(6,12,20,.6)'
-        ctx.fillText(L.txt, L.x + 1, L.y + 1)
-        ctx.fillStyle = L.isCap ? '#ffe9a8' : '#eef4fa'
-        ctx.fillText(L.txt, L.x, L.y)
-        if (L.isCap) { /* §6: ستاره‌ی برداری بالای لیبل پایتخت — بدون emoji */
+        const pw = ctx.measureText(L.txt).width + 14, ph = L.fs + 8
+        pillPath(ctx, L.x - pw / 2, L.y - ph / 2, pw, ph, ph / 2)
+        ctx.fillStyle = L.isCap ? V79.capPillBg : V79.pillBg
+        ctx.fill()
+        ctx.strokeStyle = L.isCap ? 'rgba(255,216,77,.4)' : V79.pillEdge
+        ctx.lineWidth = 1
+        ctx.stroke()
+        ctx.fillStyle = L.isCap ? '#ffe9a8' : V79.pillText
+        ctx.fillText(L.txt, L.x, L.y + 0.5)
+        if (L.isCap) { /* §6: ستاره‌ی برداری بالای پیل پایتخت — بدون emoji */
           const su = Math.min(1.35, z)
           ctx.fillStyle = '#ffd84d'; ctx.beginPath()
           for (let k = 0; k < 10; k++) {
             const a2 = -1.5708 + k * 0.6283, rr2 = (k % 2 ? 1.2 : 2.6) * su
-            const px = L.x + Math.cos(a2) * rr2, py = L.y - L.fs * 0.95 - 2.6 * su + Math.sin(a2) * rr2
+            const px = L.x + Math.cos(a2) * rr2, py = L.y - ph / 2 - 3.4 * su + Math.sin(a2) * rr2
             if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py)
           }
           ctx.closePath(); ctx.fill()
@@ -1374,7 +1517,7 @@
     }
 
     /* V76: محیط زنده + ذرات + رد ضربه — همه فقط وقتی در Viewport */
-    if (z >= 2 && AMB.length) drawAmbient(ctx) /* V78 §22: خودرو فقط زوم ≥۲ */
+    if (z >= 1.4 && AMB.length) drawAmbient(ctx) /* V79: کشتی از ۱٫۴؛ خودرو گیت درون */
     drawParticles(ctx)
     drawRipples(ctx, dt)
     stepParticles(dt)
@@ -1406,19 +1549,21 @@
        کانواس آخرین فریم را نگه می‌دارد؛ تیک ۱ثانیه‌ای همچنان داخل همین loop می‌چرخد.
        (V78: پالس‌های دائمی حذف شدند — دیگر z≥1.5 همیشه-متحرف نیست؛ idle-skip واقعی) */
     let animating = cam.anim || (S.enter && !S.enter.done)
-    if (!animating && S.cam.z >= 2 && AMB.length > 0) animating = true
+    if (!animating && S.cam.z >= 1.4 && AMB.length > 0) animating = true /* V79: کشتی از ۱٫۴؛ خودرو فقط از ۲ (گیت درون fill) */
     if (!animating) { for (const b of S.buildings) { if (b.status !== 'active') { animating = true; break } } }
     if (!animating) {
       for (const p of pool) { if (p.on) { animating = true; break } }
       if (!animating) for (const r of RIPS) { if (r.on) { animating = true; break } }
     }
     const selKey = S.sel.prov + ':' + ((S.sel.bld && S.sel.bld.id) || '') + ':' + (S.hover | 0)
+    /* V79: فاز موج دریا — حداکثر ۱ بازرسم اضافه در ~۹۰۰ms در نمای آرام (باتری‌دوست) */
+    const waveP = (S.cam.z >= 0.85 && S.tier !== 'low') ? (Math.floor((S.nowMs || 0) / 900) % 2) : 0
     const camMoved = Math.abs(cam.x - (S._lcx == null ? 1e9 : S._lcx)) > 0.05 || Math.abs(cam.y - (S._lcy == null ? 1e9 : S._lcy)) > 0.05 || Math.abs(cam.z - (S._lcz == null ? 1e9 : S._lcz)) > 0.001
-    if (!animating && !camMoved && selKey === S._lselKey && !S.dirtyStatic && zoomBucket() === staticBucket) {
+    if (!animating && !camMoved && selKey === S._lselKey && waveP === S._lwave && !S.dirtyStatic && zoomBucket() === staticBucket) {
       S._idleN = (S._idleN || 0) + 1
     } else {
       render(dt)
-      S._lcx = cam.x; S._lcy = cam.y; S._lcz = cam.z; S._lselKey = selKey
+      S._lcx = cam.x; S._lcy = cam.y; S._lcz = cam.z; S._lselKey = selKey; S._lwave = waveP
     }
     /* V74: تیک ۱ثانیه‌ای داخل همین loop — بدون setInterval جدا (بند ۲۰ دستور) */
     S.acc += dt
@@ -1652,7 +1797,8 @@
      بدون RPC جدید (presentation-only؛ سرور همچنان مرجع اقتصاد است).
      ============================================================ */
   const MILITARY_IDS = ['barracks', 'defense', 'radar', 'naval_base', 'airbase', 'tank_plant']
-  function computeObjective() {
+  /* V79: اهداف فعال با پیشرفت واقعی (۲/۵) — از همان قوانین computeObjective */
+  function objRules() {
     const B = S.buildings || []
     const act = (t, pi) => B.some((b) => b.type === t && b.status === 'active' && (pi == null || b.province === pi))
     const cntProv = (pi) => B.filter((b) => b.province === pi).length
@@ -1661,24 +1807,39 @@
     const agP = S.provinces.findIndex((p) => p.type === 'agricultural')
     const inP = S.provinces.findIndex((p) => p.type === 'industrial')
     const coP = S.provinces.findIndex((p) => p.coastal)
-    const rules = [
-      { id: 'first', fa: 'اولین ساختمان کشور را بساز', prov: 0, done: () => B.length >= 1 },
-      { id: 'power', fa: 'نیروگاه بساز تا انرژی پایدار شود', prov: 0, done: () => act('power') },
-      { id: 'food', fa: 'تولید غذا: مزرعه در استان کشاورزی', prov: agP >= 0 ? agP : 0, done: () => act('farm') },
-      { id: 'industry', fa: 'اولین کارخانه صنعتی را بساز', prov: inP >= 0 ? inP : 0, done: () => act('factory') },
-      { id: 'oil', fa: 'تولید نفت: چاه/پالایشگاه در استان نفتی', prov: resP >= 0 ? resP : 0, done: () => act('oil_rig') || act('tank_plant') },
-      { id: 'mil', fa: 'امنیت: یک تاسیسات نظامی بساز', prov: 0, done: () => B.some((b) => MILITARY_IDS.indexOf(b.type) >= 0) },
-      { id: 'cap4', fa: 'پایتخت را توسعه بده (۴ ساختمان)', prov: 0, done: () => cntProv(0) >= 4 },
-      { id: 'port', fa: coP >= 0 ? 'بندر در استان ساحلی بساز' : '۶ ساختمان فعال در کشور', prov: coP >= 0 ? coP : null, done: () => coP >= 0 ? act('port') : actN >= 6 },
-      { id: 'res', fa: 'مرکز پژوهش بساز (پایتخت)', prov: 0, done: () => act('university') },
-      { id: 'net3', fa: 'در ۳ استان مختلف ساختمان فعال بساز', prov: null, done: () => new Set(B.filter((b) => b.status === 'active').map((b) => b.province)).size >= 3 },
-      { id: 'lv5', fa: 'یک ساختمان را به سطح ۵ برسان', prov: null, done: () => B.some((b) => b.level >= 5) },
-      { id: 'act8', fa: '۸ ساختمان فعال — موتور اقتصاد کشور', prov: null, done: () => actN >= 8 },
-      { id: 'land', fa: 'یک لندمارک بساز (سطح ۸)', prov: null, done: () => B.some((b) => b.level >= 8) },
-      { id: 'act14', fa: '۱۴ ساختمان فعال — قدرت منطقه‌ای', prov: null, done: () => actN >= 14 },
+    const maxLv = B.reduce((m, b) => Math.max(m, b.level || 0), 0)
+    const actC = (n, t) => actN >= n || act(t)
+    return [
+      { id: 'first', fa: 'اولین ساختمان کشور را بساز', prov: 0, done: () => B.length >= 1, prog: () => [Math.min(1, B.length), 1] },
+      { id: 'power', fa: 'نیروگاه بساز تا انرژی پایدار شود', prov: 0, done: () => act('power'), prog: () => [act('power') ? 1 : 0, 1] },
+      { id: 'food', fa: 'تولید غذا: مزرعه در استان کشاورزی', prov: agP >= 0 ? agP : 0, done: () => act('farm'), prog: () => [act('farm') ? 1 : 0, 1] },
+      { id: 'industry', fa: 'اولین کارخانه صنعتی را بساز', prov: inP >= 0 ? inP : 0, done: () => act('factory'), prog: () => [act('factory') ? 1 : 0, 1] },
+      { id: 'oil', fa: 'تولید نفت: چاه/پالایشگاه در استان نفتی', prov: resP >= 0 ? resP : 0, done: () => act('oil_rig') || act('tank_plant'), prog: () => [(act('oil_rig') || act('tank_plant')) ? 1 : 0, 1] },
+      { id: 'mil', fa: 'امنیت: یک تاسیسات نظامی بساز', prov: 0, done: () => B.some((b) => MILITARY_IDS.indexOf(b.type) >= 0), prog: () => [B.some((b) => MILITARY_IDS.indexOf(b.type) >= 0) ? 1 : 0, 1] },
+      { id: 'cap4', fa: 'پایتخت را توسعه بده (۴ ساختمان)', prov: 0, done: () => cntProv(0) >= 4, prog: () => [Math.min(cntProv(0), 4), 4] },
+      { id: 'port', fa: coP >= 0 ? 'بندر در استان ساحلی بساز' : '۶ ساختمان فعال در کشور', prov: coP >= 0 ? coP : null, done: () => coP >= 0 ? act('port') : actN >= 6, prog: () => coP >= 0 ? [act('port') ? 1 : 0, 1] : [Math.min(actN, 6), 6] },
+      { id: 'res', fa: 'مرکز پژوهش بساز (پایتخت)', prov: 0, done: () => act('university'), prog: () => [act('university') ? 1 : 0, 1] },
+      { id: 'net3', fa: 'در ۳ استان مختلف ساختمان فعال بساز', prov: null, done: () => new Set(B.filter((b) => b.status === 'active').map((b) => b.province)).size >= 3, prog: () => [Math.min(new Set(B.filter((b) => b.status === 'active').map((b) => b.province)).size, 3), 3] },
+      { id: 'lv5', fa: 'یک ساختمان را به سطح ۵ برسان', prov: null, done: () => maxLv >= 5, prog: () => [Math.min(maxLv, 5), 5] },
+      { id: 'act8', fa: '۸ ساختمان فعال — موتور اقتصاد کشور', prov: null, done: () => actN >= 8, prog: () => [Math.min(actN, 8), 8] },
+      { id: 'land', fa: 'یک لندمارک بساز (سطح ۸)', prov: null, done: () => maxLv >= 8, prog: () => [Math.min(maxLv, 8), 8] },
+      { id: 'act14', fa: '۱۴ ساختمان فعال — قدرت منطقه‌ای', prov: null, done: () => actN >= 14, prog: () => [Math.min(actN, 14), 14] },
     ]
-    for (const r of rules) if (!r.done()) return { id: r.id, fa: r.fa, prov: r.prov, t0: Date.now() }
+  }
+  function computeObjective() {
+    for (const r of objRules()) if (!r.done()) return { id: r.id, fa: r.fa, prov: r.prov, t0: Date.now() }
     return null
+  }
+  /* V79: فهرست ۳ هدف بعدی با پیشرفت — برای باکس پایین-چپ (مثل تصویر مرجع) */
+  function goalsList() {
+    const out = []
+    for (const r of objRules()) {
+      if (r.done()) continue
+      const p = r.prog ? r.prog() : [0, 1]
+      out.push({ fa: r.fa, d: p[0], t: p[1], prov: r.prov })
+      if (out.length >= 3) break
+    }
+    return out
   }
   function refreshObjective() {
     const prev = S.obj
@@ -1708,19 +1869,48 @@
 
   function header() {
     const u = ui(); if (!u) return
-    /* V68 — §23: نوشتن تفاضلی | V76: چیپ‌های منابع + هدف فعال + مسیر داستان */
+    /* V68 — §23: نوشتن تفاضلی | V76: چیپ‌های منابع + هدف فعال + مسیر داستان | V79: فلش + پرچم/رتبه + باکس اهداف */
     const story = storyState()
+    const goals = goalsList()
+    const rankOfF = gameRef('rankOf'), terrF = gameRef('wdTerrCount')
+    let rankTxt = ''
+    let terrN = 0
+    try { if (terrF) terrN = Math.max(0, terrF() | 0) } catch (e) { terrN = 0 }
+    /* V79: لقب فتح از همون نردبان بازی — rankOf اسکوپ-ماژول است و از اینجا در دسترس نیست؛
+        مقادیر یکسان محلی (presentation-only). اگر روزی rankOf سراسری شد، اولویت با او. */
+    try {
+      if (rankOfF) rankTxt = rankOfF(terrN)[1] || ''
+      else {
+        for (const [th, t2] of V79_RANKS) if (terrN >= th) rankTxt = t2
+      }
+    } catch (e) {}
     const sig = [S.countryFa || S.country, fmtRes(S.res.gold), fmtRes(S.res.oil), fmtRes(S.res.food),
       S.rates.gold, S.rates.oil, S.rates.food, S.mil.atkPct, S.mil.defPct, S.counts.ports, S.counts.airports, Math.floor(S.rp),
-      S.obj ? S.obj.id : '-', story.cur].join('|')
+      S.obj ? S.obj.id : '-', story.cur, rankTxt,
+      goals.map((g2) => g2.d + '/' + g2.t).join(',')].join('|')
     if (sig === (S._hdrCache || '')) return
     S._hdrCache = sig
-    u.querySelector('#wdcv-hname').textContent = S.countryFa || S.country
-    /* V76 §13: منابع به‌صورت چیپ — خوانا و ریسپانسیو */
+    /* V79: پرچم + نام کشور + رتبه جهانی (همه از state موجود بازی — صفر شبکه) */
+    let flagHtml = ''
+    try {
+      const FLR = gameRef('FL'), N2C = gameRef('N2C')
+      const code = (FLR && FLR[S.country] && FLR[S.country].code) || (N2C && N2C[String(S.country || '').toLowerCase()])
+      if (code) flagHtml = '<img class="wdcv-flag" alt="" src="/cdn/flags/w80/' + code + '.png" onerror="this.remove()">'
+    } catch (e) {}
+    u.querySelector('#wdcv-hname').innerHTML = flagHtml + '<span>' + (S.countryFa || S.country) + '</span>' + (rankTxt ? '<small id="wdcv-hrank">' + rankTxt + '</small>' : '')
+    /* V79: چیپ‌های تیره‌ی گرد با فلش سبز/قرمز نرخ (مثل تصویر مرجع) */
+    const arrow = (v) => v >= 0 ? '<small class="up">▲+' + fa(Math.round(v)) + '</small>' : '<small class="dn">▼' + fa(Math.round(v)) + '</small>'
     u.querySelector('#wdcv-hres').innerHTML =
-      '<span class="wdcv-hchip">💰 ' + fmtRes(S.res.gold) + ' <small>+' + fa(S.rates.gold) + '</small></span>' +
-      '<span class="wdcv-hchip">🛢️ ' + fmtRes(S.res.oil) + ' <small>+' + fa(S.rates.oil) + '</small></span>' +
-      '<span class="wdcv-hchip">🌾 ' + fmtRes(S.res.food) + ' <small>+' + fa(S.rates.food) + '</small></span>'
+      '<span class="wdcv-hchip">💰 ' + fmtRes(S.res.gold) + arrow(S.rates.gold) + '</span>' +
+      '<span class="wdcv-hchip">🛢️ ' + fmtRes(S.res.oil) + arrow(S.rates.oil) + '</span>' +
+      '<span class="wdcv-hchip">🌾 ' + fmtRes(S.res.food) + arrow(S.rates.food) + '</span>' +
+      (S.rp > 0.5 ? '<span class="wdcv-hchip">🔬 ' + fa(Math.floor(S.rp)) + '</span>' : '')
+    /* V79: باکس اهداف پایین-چپ — ۳ هدف بعدی با پیشرفت واقعی «۲/۵» */
+    const goalEl = u.querySelector('#wdcv-goals')
+    if (goalEl) {
+      goalEl.innerHTML = '<div class="wdcv-goalhd">🎯 اهداف</div>' + goals.map((g2) =>
+        '<div class="wdcv-goal" data-prov="' + (g2.prov == null ? '' : g2.prov) + '"><span>' + g2.fa + '</span><b>' + fa(g2.d) + '/' + fa(g2.t) + '</b></div>').join('')
+    }
     /* V76 §14: هدف فعال از وضعیت واقعی کشور — قابل لمس → پنل استان هدف */
     const objEl = u.querySelector('#wdcv-obj')
     if (objEl) {
@@ -1728,13 +1918,12 @@
       objEl._prov = S.obj ? S.obj.prov : null
       objEl.style.display = S.obj ? '' : 'none'
     }
-    /* جزئیات بازشو (نظامی/بندر/پژوهش + مسیر داستان — بند ۱۵) */
+    /* جزئیات بازشو (نظامی/بندر + مسیر داستان — بند ۱۵) — V79: 🔬 به hres منتقل شد */
     u.querySelector('#wdcv-hmil').innerHTML =
       '<span class="wdcv-hchip">⚔️ +' + fa(S.mil.atkPct) + '٪</span>' +
       '<span class="wdcv-hchip">🛡️ ' + fa(S.mil.defPct) + '٪</span>' +
       '<span class="wdcv-hchip">⚓ ' + fa(S.counts.ports) + '</span>' +
       '<span class="wdcv-hchip">✈️ ' + fa(S.counts.airports) + '</span>' +
-      (S.rp > 0.5 ? '<span class="wdcv-hchip">🔬 ' + fa(Math.floor(S.rp)) + '</span>' : '') +
       '<div class="wdcv-story"><small>مسیر پیشرفت: ' + story.name + (story.next ? ' → ' + story.next : ' (کامل)') + '</small>' +
       '<span class="wdcv-storybar"><i style="width:' + Math.round((story.cur / story.total) * 100) + '%\"></i></span></div>'
   }
@@ -2172,6 +2361,7 @@
       '<canvas id="wdcv-canvas"></canvas>' +
       '<div id="wdcv-ui">' +
       '<div id="wdcv-top"><button id="wdcv-exit">🌍 بازگشت به نقشه</button><button id="wdcv-hbtn" title="جزئیات">⋯</button><button id="wdcv-snd" title="صدا">🔊</button><b id="wdcv-hname"></b><div id="wdcv-hres" class="wdcv-line"></div><div id="wdcv-obj" class="wdcv-line" style="display:none"></div><div id="wdcv-hmil" class="wdcv-line"></div></div>' +
+      '<div id="wdcv-goals"></div>' +
       '<div id="wdcv-panel"></div>' +
       '<div id="wdcv-toast"></div>' +
       '<div id="wdcv-loading">📡 در حال ورود به کشور…</div>' +
@@ -2186,7 +2376,6 @@
       '#wdcv-ui{position:absolute;inset:0;pointer-events:none;color:#eaf6ff}' +
       '#wdcv-top{position:absolute;top:0;left:0;right:0;padding:10px 12px;background:linear-gradient(180deg,rgba(4,14,26,.92),rgba(4,14,26,0));pointer-events:auto;transform:translateY(-8px);opacity:0;transition:transform .35s ease,opacity .35s ease}' +
       '#wdcv-stage.on #wdcv-top{transform:translateY(0);opacity:1}' +
-      '#wdcv-hname{font-size:17px;font-weight:800;display:block;margin-bottom:2px;text-shadow:0 1px 6px rgba(0,0,0,.6)}' +
       '#wdcv-line{font-size:12px;opacity:.95;text-shadow:0 1px 4px rgba(0,0,0,.6)}' +
       '#wdcv-exit{position:relative;float:left;background:rgba(0,240,255,.14);border:1px solid rgba(0,240,255,.5);color:#bff;border-radius:10px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}' +
       '#wdcv-snd{position:relative;float:left;margin-left:6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.35);color:#bff;border-radius:10px;padding:7px 9px;font-size:13px;cursor:pointer}' +
@@ -2195,8 +2384,18 @@
       '.wdcv-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;font-size:13px}' +
       '.wdcv-sub{font-size:11.5px;opacity:.85;padding:2px 0}' +
       '.wdcv-chip{display:inline-block;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.3);border-radius:99px;padding:2px 8px;font-size:10.5px;white-space:nowrap}' +
-      '.wdcv-hchip{display:inline-block;background:rgba(0,40,60,.55);border:1px solid rgba(0,240,255,.22);border-radius:9px;padding:3px 8px;font-size:12px;margin:2px 3px 0 0;white-space:nowrap}' +
-      '.wdcv-hchip small{opacity:.65;font-size:10px}' +
+      '.wdcv-hchip{display:inline-block;background:rgba(13,19,28,.88);border:1px solid rgba(255,255,255,.14);border-radius:99px;padding:3px 9px;font-size:12px;margin:2px 3px 0 0;white-space:nowrap}' +
+      '.wdcv-hchip small{opacity:.9;font-size:10px;margin-right:4px}' +
+      '.wdcv-hchip small.up{color:#6fe08a}' +
+      '.wdcv-hchip small.dn{color:#ff9d8a}' +
+      '#wdcv-hname{font-size:17px;font-weight:800;display:flex;align-items:center;gap:6px;margin-bottom:3px;text-shadow:0 1px 6px rgba(0,0,0,.6)}' +
+      '#wdcv-hname small{font-size:10.5px;font-weight:600;opacity:.9;color:#ffe9a8}' +
+      'img.wdcv-flag{width:21px;height:15px;object-fit:cover;border-radius:2.5px;box-shadow:0 0 0 1px rgba(255,255,255,.3);flex:0 0 auto}' +
+      '#wdcv-goals{position:absolute;bottom:12px;left:10px;background:rgba(13,19,28,.88);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:7px 10px;pointer-events:auto;max-width:64vw;min-width:150px;z-index:2}' +
+      '#wdcv-goals:empty{display:none}' +
+      '.wdcv-goalhd{font-size:11px;font-weight:800;color:#ffe9a8;margin-bottom:3px}' +
+      '.wdcv-goal{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2.5px 0;font-size:11px;cursor:pointer}' +
+      '.wdcv-goal b{color:#ffd84d;font-weight:800;flex:0 0 auto}' +
       '#wdcv-obj{display:inline-block;margin-top:5px;background:rgba(255,216,77,.12);border:1px solid rgba(255,216,77,.45);color:#ffe9a8;border-radius:10px;padding:5px 10px;font-size:12px;cursor:pointer}' +
       '#wdcv-hbtn{position:relative;float:left;margin-left:6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.35);color:#bff;border-radius:10px;padding:7px 9px;font-size:13px;cursor:pointer}' +
       '#wdcv-hmil{display:none;flex-wrap:wrap;align-items:center;margin-top:4px}' +
@@ -2230,7 +2429,7 @@
       '#wdcv-toast.on{opacity:1}' +
       '#wdcv-loading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,14,26,.6);font-size:14px;pointer-events:none;transition:opacity .3s}' +
       '#wdcv-loading.on{display:flex}' +
-      '@media (max-width:480px){.wdcv-stats{grid-template-columns:1fr}#wdcv-hname{font-size:15px}.wdcv-hchip{font-size:11px;padding:2px 6px}#wdcv-obj{font-size:11px;padding:4px 8px}}'
+      '@media (max-width:480px){.wdcv-stats{grid-template-columns:1fr}#wdcv-hname{font-size:15px}.wdcv-hchip{font-size:11px;padding:2px 6px}#wdcv-obj{font-size:11px;padding:4px 8px}#wdcv-goals{max-width:70vw;font-size:10.5px}}'
     document.head.appendChild(css)
     st.querySelector('#wdcv-exit').addEventListener('click', () => close())
     const sndBtn = st.querySelector('#wdcv-snd')
@@ -2255,6 +2454,14 @@
     objEl.addEventListener('click', () => {
       const pi = objEl._prov
       if (pi != null && pi >= 0 && S.provinces[pi]) { S.sel.prov = pi; S.sel.bld = null; S.sel.slot = null; openProvPanel(pi); snd('tap') }
+    })
+    /* V79: لمس ردیف هدف در باکس پایین-چپ → پنل استان هدف (delegation — یک لیسنر) */
+    const goalsEl = st.querySelector('#wdcv-goals')
+    if (goalsEl) goalsEl.addEventListener('click', (e) => {
+      const row = e.target.closest && e.target.closest('.wdcv-goal')
+      if (!row) return
+      const pi = parseInt(row.dataset.prov, 10)
+      if (!isNaN(pi) && pi >= 0 && S.provinces[pi]) { S.sel.prov = pi; S.sel.bld = null; S.sel.slot = null; openProvPanel(pi); snd('tap') }
     })
   }
 
@@ -2381,6 +2588,7 @@
     S.enter = null; S.doneIds = null; S.acc = 0; S.hdrT = 0
     S.hover = -1; S._rail = null; S._idleN = 0; S._tierCd = 0; S._fast = 0; S._lselKey = ''; S._lcx = null; S._lcy = null; S._lcz = null /* V77 */
     S._lbl = null; S._rn = null; S._ambDrawn = 0 /* V78: cache لیبل/شبکه‌ی جاده هم باید پاک شود */
+    S._hdrCache = ''; S._lwave = -1 /* V79: کش هدر و فاز موج برای open بعدی */
     try { if (AC && AC.state === 'running') AC.suspend() } catch (e) {}
     try { if (window.WD_BACK) { const ix = WD_BACK.stack.indexOf('#wdcv-stage'); if (ix > -1) WD_BACK.stack.splice(ix, 1); if (typeof wdBackSync === 'function') wdBackSync() } } catch (e) {}
     resumeMap()
