@@ -2033,3 +2033,22 @@ Work Log:
 
 Stage Summary:
 - V84 محلی آماده و QA-کامل-سبز؛ پوش نیازمند توکن تازه (V83 هم محلی منتظر است: 38fdd80)
+
+---
+Task ID: PUSH-V83V84
+Agent: Super Z (main)
+Task: تحویل نهایی V83 + V84 با توکن تازه — پوش، تگ، ریلیز، تأیید لینک عمومی
+
+Work Log:
+- چک بهداشتی پیش از پوش: v.txt=84 + ?v=84 ×3 + beacon __WD_V=84 + check-html-js 84/0
+- اسکن راز روی دیف خروجی cea4b23..HEAD (3,291 خط): پاک
+- پوش main موفق: cea4b23..cf826fc (۴ کامیت: 3f60402 ورک‌لاگ ممیزی، 38fdd80 V83، 5b8a068 V84، cf826fc ورک‌لاگ)
+- تگ‌ها: v83 → 38fdd80، v84 → 5b8a068 (هر دو پوش شد)
+- ریلیز V83 id=397769837 + asset World-Dominion-SecurityFix-V83.zip = 7,176,305 بایت (state=uploaded)
+- ریلیز V84 id=397769874 + asset World-Dominion-PremiumVisual-V84.zip = 7,178,932 بایت (state=uploaded)
+- تأیید لینک عمومی: HEAD→200 (هر دو)، ranged GET→206 (هر دو)
+- خروجی‌ها با sed 's/ghp_*/[REDACTED]/' ماسک شدند
+
+Stage Summary:
+- زنجیره V82→V83→V84 کامل تحویل شد؛ remote==local؛ لینک‌های عمومی سبز
+- ریلیزها: releases/tag/v83 و releases/tag/v84
