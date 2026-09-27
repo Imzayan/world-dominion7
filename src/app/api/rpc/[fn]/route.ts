@@ -2189,7 +2189,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           reg_at: new Date(g.regAt).toISOString(), open_at: new Date(g.openAt).toISOString(),
           close_at: new Date(g.closeAt).toISOString(), next_reg: new Date(g.nextReg).toISOString(),
           truce: g.phase === 'live',
-          my: { reg: myReg, entries: myE, country: (myEntries[0] && myEntries[0].countryFa) || null,
+          my: { reg: myReg, entries: myE, /* P1-V73: سقف تلاش رسمی (میزبان ۶ / بقیه ۵) — هاب دیگر حدس نمی‌زند */ att_max: hostMaxO4, country: (myEntries[0] && myEntries[0].countryFa) || null,
             /* O2 / PHASE 28: رشته‌هایی که الان رکورددار جهانی‌شان خودت هستی — کلاینت با
                مقایسه با آخرین وضعیت ذخیره‌شده، بنر RECORD BROKEN + [پس بگیر] می‌سازد */
             my_records: (sh.records || []).filter((r) => r.nick === user.nick).map((r) => r.discipline),

@@ -9954,6 +9954,8 @@ async function wgRefresh(force){
     WG33=r.d;
     /* V55: فاز authoritative — payload کامل games همین‌جا اسنپ‌شات می‌شود (اختتامیه فوری ادمین → فوراً after) */
     if(typeof window.WD55_SETPHASE==='function'&&r.d.phase){window.WD55_SETPHASE(r.d)}
+    /* P1-V73: att_max از داور — قبلاً هاب تا اولین start «X/5» نشان می‌داد و دکمه‌ی تلاش ششم میزبان را قفل می‌کرد */
+    if(window.WD33_API&&r.d.my&&Number(r.d.my.att_max)>0)window.WD33_API.setAttMax(r.d.my.att_max);
     window.__wg33career=r.d.career||{};
     window.WD33_CAREER=function(n){try{return (window.__wg33career||{})[n]||null}catch(e){return null}};
     window.__wg33data=r.d;
@@ -10524,6 +10526,7 @@ window.WD33_PLAY=openGame33;
 /* V41: پل به موتور شبیه‌سازی تاکتیکی — GAMES با getter late-bound (جلوگیری از TDZ) */
 window.WD33_API={FX,JUICE,sndK2:sndK2||function(){},loop33,on33,tm33,faN,esc,
   hud,foot,ensureStage,closeStage,getStage:()=>stage,isOpen:()=>sOpen,
+  setAttMax:function(v){try{var n=Number(v);if(n>0)ATT_MAX=n}catch(e){}}, /* P1-V73: سقف تلاش رسمی از داور — میزبان ۶، بقیه ۵ */
   get GAMES(){return GAMES},get TELE(){return TELE},get MODE(){return MODE},get MATCH(){return MATCH}};
 function showToast2(m,k){try{showToast(m,k)}catch(e){}}
 function intro33(bd,m,e,live,onOfficial,onTrain){
@@ -12419,7 +12422,7 @@ function gFootball(el,done){
     H.stat('مالکیت ٪',50,100,'#7fd8ff');H.stat('شوت‌های من',0,16,'#ffe08a');H.stat('شوت حریف',0,14,'#ff8ba0');H.stat('شانس برد ٪',50,100,'#7dff9e');
     const total=90,stepMs=420;let paused=false;
     const timer=setInterval(async()=>{
-      if(H.done){clearInterval(timer);return}
+      if(H.done||!sOpen){clearInterval(timer);return} /* P1-V73: رهاکردن صحنه (✕/Back/Esc) چون H.done را ست نمی‌کند — شبیه‌سازی شبح و ثبت تلاش رهاشده اینجا بسته می‌شود */
       if(paused)return;
       minute++;H.time(minute/total);H.clockSet(faN(minute)+'′');
       const pMine=chance(tac.atk*(1+boost),0.55,B*.95,R());
@@ -12489,7 +12492,7 @@ function gRace(el,done,cfg){
     let t=0,boost=1,fatigue=1,decisionUsed=0,deciding=false;
     const dur=cfg.dur;
     const timer=setInterval(async()=>{
-      if(H.done){clearInterval(timer);return} /* V71: رهاکردن مسابقه دیگر زامبی ۱۰۰ms نمی‌گذارد — الگوی درست gMatch */
+      if(H.done||!sOpen){clearInterval(timer);return} /* P1-V73: گارد کامل — V71 فقط H.done را چک می‌کرد که در رهاکردن هرگز ست نمی‌شود؛ زامبی ابدیِ حالت deciding هم اینجا بسته می‌شود */
       if(deciding){return}
       t++;const p=t/dur;
       H.time(Math.min(1,p));H.clockSet(faN(Math.max(0,Math.round(cfg.durReal*(1-p))))+'″');
