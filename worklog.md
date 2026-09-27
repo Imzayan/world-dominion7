@@ -2017,3 +2017,19 @@ Work Log:
 Stage Summary:
 - V83 محلی آماده و QA-سبز؛ نیازمند توکن تازه برای push/tag/Release
 - فایل‌ها: cv-engine.js (۷ فیکس)، index.html (۸ فیکس)، rpc route (۴ فیکس)، login/signup (۲ فیکس)
+
+---
+Task ID: PREMIUM-V84
+Agent: Super Z (main)
+Task: Premium Visual Upgrade — لایه‌ی لوکس بصری، همه bake-only یا CSS (صفر هزینه per-frame)
+
+Work Log:
+- cv-engine.js — پالت V84 (beach/lagoon/hillLit/valley/window/biomes): تینت عرض جغرافیایی (استوایی/خشک/معتدل/بورئال از عرض فضای-جهان سلول)، رِلief نرم هر سلول (تپه‌روشن+دره‌سایه قطعی)، نوار ماسه ساحلی، هاله لاگون، پنجره‌های طلایی شهر z>=1.9، هاله پایتخت، حلقه انتخاب طلایی دوتایی
+- cv-engine.js — شیشه‌ای: پنل/goals/hchip با backdrop-filter blur+saturate، سایه لایه‌ای، اسپینر CSS در لودینگ، هاور روشنایی دکمه‌ها/کارت‌ها
+- index.html — چیپ مالکیت شیشه‌ای + اقیانوس ۳-مرحله‌ای عمیق‌تر با گلینگ نرم‌تر
+- نسخه: v.txt=84، beacon=84، ?v=84 ×3
+- QA: v82 22/22 (پروب ویتنام هم سبز)، v81 20/20، v80 17/17، v79 19/19 (انتظار رنگ چیپ برای طراحی شیشه‌ای به‌روز شد)، v78 27/27، apk-sim 28/28، lowfx 6/6، map-visual 16/16، sw-selfheal 8/8، check-html-js 84/0، verify-build 9/9 — صفر pageerror
+- شواهد: download/v84-worldmap.png، v84-zoom-{0.9,1.4,2.2,3.0}.png، v84-panel-select.png
+
+Stage Summary:
+- V84 محلی آماده و QA-کامل-سبز؛ پوش نیازمند توکن تازه (V83 هم محلی منتظر است: 38fdd80)
