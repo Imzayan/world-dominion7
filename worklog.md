@@ -1868,3 +1868,16 @@ Stage Summary:
 - V81 = باگ «برش گوشه‌ها هنگام زوم» ریشه‌ای مرده (نه با کلمپ سخت‌تر — با bake جهان-مُدار + دریای underlay) + ۶ بهبود بصری با هزینه صفر تا ~۰٫۰۵ms در فریم
 - معماری دست‌نخورده: تک-rAF، idle-skip، bake per-bucket، LOD/TIER، pool، bind یک‌بار
 - پوش + Release v81 با توکن همان نشست (هشدار revoke برای پنجمین بار در گزارش)
+
+---
+Task ID: PUSH-V81 + RELEASE-V81
+Agent: Super Z (main)
+Task: پوش V81 و Release با ZIP
+
+Work Log:
+- اسکن مخفی-اسکنر: NO_SECRETS_IN_DIFF | push یک‌بارمصرف base64: 90b3eee..26ff99c main->main
+- ZIP از git archive: 415 فایل، 7207905 بایت، v.txt=81 | Release v81 (id 397696954) + آپلود asset state=uploaded
+- لینک عمومی تست شد: GET 206 ✓ — https://github.com/Imzayan/world-dominion7/releases/download/v81/World-Dominion-CountryView-V81.zip
+
+Stage Summary:
+- V81 کامل روی گیت‌هاب (کد + Release + ZIP) | توکن هنوز revoke نشده — پنجمین هشدار در گزارش
