@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=72;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=74;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <script src="/game/balance.js?v=72"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
@@ -1477,7 +1477,9 @@ const WD_BACK={sent:false,sup:false,stack:[]};
 function wdBackSync(){
   try{
     const stageOpen=!!(window.WD33_API&&window.WD33_API.isOpen&&window.WD33_API.isOpen());
-    const open=stageOpen||WD_BACK.stack.length>0||document.querySelectorAll('.modal.active').length>0;
+    /* V74: مرحله‌ی Country View هم در محاسبه‌ی سنتینل Back شرکت می‌کند */
+    const cvEl=document.getElementById('wdcv-stage');const cvOpen=!!(cvEl&&cvEl.classList.contains('on'));
+    const open=stageOpen||cvOpen||WD_BACK.stack.length>0||document.querySelectorAll('.modal.active').length>0;
     if(open&&!WD_BACK.sent){try{history.pushState({wdm:1},'');WD_BACK.sent=true}catch(e){}}
     else if(!open&&WD_BACK.sent&&!WD_BACK.sup){WD_BACK.sent=false;WD_BACK.sup=true;try{history.back()}catch(e){WD_BACK.sup=false}}
   }catch(e){}
@@ -1489,6 +1491,8 @@ window.addEventListener('popstate',function(){
     if(!WD_BACK.sent)return;
     WD_BACK.sent=false; /* همین popstate سنتینل را مصرف کرد */
     if(window.WD33_API&&window.WD33_API.isOpen&&window.WD33_API.isOpen()){window.WD33_API.closeStage(true);wdBackSync();return}
+    /* V74: Country View بالای پشته — Back گوشی CV را می‌بندد */
+    if(WD_BACK.stack.indexOf('#wdcv-stage')>-1){try{if(window.WDCV&&window.WDCV.close)window.WDCV.close()}catch(e){}wdBackSync();return}
     /* LIFO: آخرین مودالِ واقعاً باز بسته می‌شود؛ شناسه‌های مرده‌ی پشته دور ریخته می‌شوند */
     while(WD_BACK.stack.length){
       const id=WD_BACK.stack[WD_BACK.stack.length-1];
@@ -1725,15 +1729,15 @@ function lose(f){Object.values(ARMY_UNITS).forEach(u=>{const k=u.count*(1-f);u.c
 /* ================= V59: UNIFIED attackTarget — یک منبع، بدون زنجیره‌ی Wrapper =================
    قبلاً ۲ تعریف + ۹ wrapper (V13/V22/V28/pvp/wd5/wd6/wd7/V30/V33) روی هم سوار بودند. همه در همین
    تابع ادغام شدند و سیستم‌های اختیاری از رجیستری WD_ATTACK_HOOKS استفاده می‌کنند (هرکدام fail-safe):
-     truce(n)->bool | doctrinePre(n) | doctrinePost(n,fa) | pvpRoute(n)->result|undefined
+     truce(n)->bool | pvpRoute(n)->result|undefined  — (V74: doctrinePre/Post با حذف WD5 برداشته شدند)
      cinemaStart(n,fa) | cinemaEnd(n,t0,wasMine)                                       */
 const WD_ATTACK_HOOKS={};window.WD_ATTACK_HOOKS=WD_ATTACK_HOOKS;
 async function attackTarget(n){
   if(battleBusy)return;                                            /* [گارد] همه‌ی لایه‌ها همین را داشتند */
-  if(window.__wd39inflight)return;                                 /* [wd5] نبرد PvP در جریان است */
+  if(window.__wd39inflight)return;                                 /* [V39] نبرد PvP در جریان است (برچسب قدیمی wd5 اصلاح شد) */
   if(!myCountryName){showToast('❌ اول باید یک پایتخت انتخاب کنید!','lose');return} /* [core] برابری ترتیب قدیمی: پایتخت قبل از مرز */
   try{const T=WD_ATTACK_HOOKS.truce;if(T&&T(n))return}catch(e){console.error('wd-truce',e)}                 /* [V33] آتش‌بس المپیک */
-  try{if(WD_ATTACK_HOOKS.doctrinePre)await WD_ATTACK_HOOKS.doctrinePre(n)}catch(e){console.error('wd-doctrine',e)} /* [wd5] دکترین */
+  /* V74: هوک doctrinePre حذف شد (تنها ثبت‌کننده‌اش WD5 بود) */
   try{news('⚔️ آغاز عملیات علیه '+getCountryData(n).fa)}catch(e){}                                          /* [wd7] خبر آغاز */
   try{const R=WD_ATTACK_HOOKS.pvpRoute;if(R){const rr=await R(n);if(rr!==undefined)return rr}}catch(e){console.error('wd-pvp',e)} /* [pvp] مسیر PvP */
   try{ /* [V28] مالکیت لحظه‌ای سرور — ممکن است کسی در ثانیه‌های آخر گرفته باشد */
@@ -1787,7 +1791,7 @@ async function attackTarget(n){
   else{const cback=Math.min(15,start);if(cback>0){occupationPct[n]=Math.max(0,start-cback);setHatch(n,occupationPct[n],false,start)}/* V41: ضدحمله‌ی مدافع */
     txt.innerHTML=(power<=0?'💀 ارتش شما نابود شد!<br>':'')+`🛡️ <b style="color:var(--red-glow)">حمله دفع شد!</b> مدافعان ضدحمله زدند${cback>0?' و '+cback+'٪ از پیشروی را عقب راندند':''}.<br>تلفات: ${lostPct}٪`;showToast(`🛡️ حمله به ${t.fa} شکست خورد${cback>0?' — ضدحمله‌ی مدافع':''}`,"lose")}
   try{if(conqueredCountries.has(n)&&!wasMine){tension=Math.min(100,tension+8);news('🏴 '+t0.fa+' سقوط کرد؛ جهان نگران است');snd('win')}}catch(e){} /* [V13 post] تنش */
-  try{if(WD_ATTACK_HOOKS.doctrinePost)WD_ATTACK_HOOKS.doctrinePost(n,t0.fa)}catch(e){console.error('wd-doctrine2',e)} /* [wd5 post] مأموریت */
+  /* V74: هوک doctrinePost حذف شد (تنها ثبت‌کننده‌اش WD5 بود) */
   /* V59 wave-2: قبلاً mission/addXP اینجا به global اشاره می‌کرد که وجود ندارد (wd6/wd7 خصوصی‌اند)
      → هر حمله ReferenceError خاموش و پیشرفت XP مرده بود؛ حالا رجیستری xpPost (لیست fail-safe) */
   try{if(WD_ATTACK_HOOKS.xpPost)WD_ATTACK_HOOKS.xpPost.forEach(fn=>{try{fn(n)}catch(e){console.error('wd-xp',e)}})}catch(e){}
@@ -3280,261 +3284,16 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){
     b.textContent='🏳️ رها کردن این کشور (−'+Math.round(ABANDON_PCT*100)+'٪ ارتش و منابع)';
     b.addEventListener('click',()=>releaseCountry(n));d.appendChild(b)})}catch(e){console.error('wd-c6',e)}
    </script>
-   <style id="wd5-css">
-    #wd5-launcher{position:fixed;right:10px;bottom:74px;z-index:26000;width:52px;height:52px;border-radius:16px;border:1px solid rgba(0,240,255,.55);background:linear-gradient(145deg,#12385c,#071523);color:#fff;box-shadow:0 8px 30px rgba(0,0,0,.45),0 0 18px rgba(0,220,255,.18);font-size:22px;cursor:pointer}
-#wd5-panel{position:fixed;inset:0;z-index:25999;display:none;background:rgba(1,7,14,.72);backdrop-filter:blur(7px);align-items:flex-end;justify-content:center}
-#wd5-panel.open{display:flex}
-#wd5-card{width:min(720px,100%);height:min(86vh,760px);background:linear-gradient(180deg,#071b31,#04101e);border:1px solid #24557d;border-radius:22px 22px 0 0;box-shadow:0 -20px 60px rgba(0,0,0,.55);overflow:hidden;color:#eaf7ff}
-.wd5-head{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid #173b5a;background:rgba(10,31,53,.94)}
-.wd5-title{font-weight:900;font-size:15px}.wd5-sub{font-size:9px;color:#82a9c8;margin-top:2px}
-.wd5-close{font-size:22px;color:#9db7ca;cursor:pointer;padding:4px 8px}
-.wd5-tabs{display:flex;gap:6px;overflow:auto;padding:8px;border-bottom:1px solid #12334f;background:#061626}
-.wd5-tab{flex:0 0 auto;border:1px solid #1a4567;background:#0a2035;color:#b9d7eb;border-radius:10px;padding:8px 10px;font-size:10px}.wd5-tab.active{border-color:#00d9ff;background:#0b3851;color:#fff}
-.wd5-body{padding:12px;overflow:auto;height:calc(100% - 108px)}
+   <style id="wd65-legacy-css">
+    /* V74: WD5 حذف شد — ولی سیستم زنده‌ی WD65 («زندگی کشور») از ۶ کلاسِ ظاهریِ همان بلاک
+       استفاده می‌کند. این بلاک مینیمال، فقط کلاس‌های مصرفی WD65 را بازتعریف می‌کند
+       (هیچ کد/منطق/DOM از WD5 برگشت نخورده). .wd5-meter هم که از قبل بی‌تعریف بود همین‌جا درست شد. */
 .wd5-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.wd5-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .wd5-card{background:rgba(8,29,48,.8);border:1px solid #173f5d;border-radius:13px;padding:10px}
 .wd5-k{font-size:9px;color:#7fa5c2}.wd5-v{font-size:18px;font-weight:900;margin-top:3px}.wd5-small{font-size:9px;color:#a7c3d7;line-height:1.6}
-.wd5-btn{width:100%;border:1px solid #245a7e;background:linear-gradient(180deg,#103451,#092238);color:#eaf8ff;border-radius:10px;padding:9px 7px;margin-top:7px;font-size:10px;cursor:pointer}.wd5-btn:active{transform:scale(.98)}
-.wd5-btn.gold{border-color:#806728}.wd5-btn.red{border-color:#74353c}.wd5-btn.green{border-color:#21684d}.wd5-btn.cyan{border-color:#187c91}
-.wd5-bar{height:7px;background:#07111d;border-radius:99px;overflow:hidden;border:1px solid #173a54;margin-top:6px}.wd5-bar i{display:block;height:100%;background:linear-gradient(90deg,#00c8ff,#00ff88);width:0}
-.wd5-list{display:flex;flex-direction:column;gap:7px}.wd5-row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:9px;background:rgba(8,25,41,.7);border:1px solid #143850;border-radius:11px}
-.wd5-row b{font-size:10px}.wd5-row span{font-size:9px;color:#91b2c8}
-.wd5-pill{display:inline-block;padding:3px 7px;border-radius:99px;background:#0d3148;color:#9bdcff;font-size:8px;margin:2px}
 .wd5-section{font-size:12px;font-weight:800;margin:4px 0 9px}
-.wd5-empty{text-align:center;padding:28px 10px;color:#7190a7;font-size:10px}
-.wd5-notify{position:fixed;top:74px;left:50%;transform:translateX(-50%);z-index:27000;background:#071a2c;border:1px solid #1e6587;color:#e8fbff;padding:8px 13px;border-radius:12px;font-size:10px;box-shadow:0 8px 30px #0008;display:none}
-#wd5-battle-visual{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:18px}
-.wd5-projectile{position:absolute;font-size:20px;animation:wd5fly 1.25s ease-in forwards}.wd5-explosion{position:absolute;font-size:26px;animation:wd5boom .8s ease-out forwards}
-@keyframes wd5fly{0%{transform:translate(0,70px) scale(.5);opacity:0}20%{opacity:1}100%{transform:translate(220px,-70px) scale(1.15);opacity:0}}
-@keyframes wd5boom{0%{transform:scale(.2);opacity:0}25%{opacity:1}100%{transform:scale(2.3);opacity:0}}
-@media(max-width:480px){#wd5-card{height:89vh}.wd5-grid3{grid-template-columns:repeat(2,minmax(0,1fr))}.wd5-body{height:calc(100% - 108px)}}
+.wd5-meter{height:7px;background:#07111d;border-radius:99px;overflow:hidden;border:1px solid #173a54;margin-top:6px}.wd5-meter i{display:block;height:100%;background:linear-gradient(90deg,#00c8ff,#00ff88)}
    </style>
-   <script id="wd5-upgrade">
-    (function(){
-'use strict';
-const W=window, K='wd5_meta_v5';
-const $=id=>document.getElementById(id);
-const safe=(f,d)=>{try{const x=f();return x===undefined?d:x}catch(e){console.warn('[WD5]',e);return d}};
-const st=JSON.parse(localStorage.getItem(K)||'{}');
-st.research=st.research||{}; st.missions=st.missions||{}; st.market=st.market||{};
-st.diplomacy=st.diplomacy||{pacts:[],sanctions:[]}; st.alliance=st.alliance||{name:'',members:1};
-st.general=st.general||{name:'سپهبد آریا',level:1,xp:0};
-st.stats=st.stats||{battles:0,wins:0,losses:0,trades:0,spies:0};
-st.tactic=st.tactic||'balanced'; st.lastDaily=st.lastDaily||0; st.event=st.event||null;
-const save=()=>localStorage.setItem(K,JSON.stringify(st));
-function toast(m){if(typeof W.showToast==='function')W.showToast(m,'win');else{const n=$('wd5-notify');if(n){n.textContent=m;n.style.display='block';setTimeout(()=>n.style.display='none',2200)}}}
-function res(){return (typeof playerRes!=='undefined'&&playerRes)||{gold:0,oil:0,food:0}}
-function spend(a){const r=res();for(const k of Object.keys(a))if((r[k]||0)<a[k])return false;for(const k of Object.keys(a))r[k]-=a[k];safe(()=>W.updateUI&&W.updateUI());safe(()=>W.saveNow&&W.saveNow());return true}
-function earn(a){const r=res();for(const k of Object.keys(a))r[k]=(r[k]||0)+a[k];safe(()=>W.updateUI&&W.updateUI());safe(()=>W.saveNow&&W.saveNow())}
-function num(v){return Math.floor(Number(v)||0).toLocaleString('en-US')}
-function pct(v){return Math.max(0,Math.min(100,Math.round(v)))}
-function accountKey(){return (W.ACC&&W.ACC.uid)||localStorage.getItem('wd_user')||'guest'}
-function initDaily(){
- const day=Math.floor(Date.now()/86400000);
- if(st.lastDaily!==day){st.lastDaily=day;st.missions={};st.event=null;save();}
-}
-initDaily();
-
-/* V72 (PHASE 4): هزینه/سقف فناوری‌ها فقط از BALANCE.technology.research */
-const RESEARCH={
- logistics:   Object.assign({n:'لجستیک پیشرفته',d:'کاهش مصرف غذا و نفت ارتش',e:'gold'},BALANCE.technology.research.logistics),
- industry:    Object.assign({n:'صنعت سنگین',d:'افزایش تولید طلا',e:'gold'},BALANCE.technology.research.industry),
- refinery:    Object.assign({n:'پالایش مدرن',d:'افزایش بهره‌وری نفت',e:'gold'},BALANCE.technology.research.refinery),
- armor:       Object.assign({n:'دکترین زرهی',d:'افزایش قدرت تانک‌ها',e:'gold'},BALANCE.technology.research.armor),
- air:         Object.assign({n:'برتری هوایی',d:'افزایش قدرت یگان‌های هوایی',e:'gold'},BALANCE.technology.research.air),
- intelligence:Object.assign({n:'اطلاعات سیگنالی',d:'بهبود جاسوسی',e:'gold'},BALANCE.technology.research.intelligence),
- diplomacy:   Object.assign({n:'دیپلماسی نوین',d:'هزینه قراردادها کمتر می‌شود',e:'gold'},BALANCE.technology.research.diplomacy),
- nuclear:     Object.assign({n:'فناوری راهبردی',d:'باز کردن Endgame',e:'gold'},BALANCE.technology.research.nuclear)
-};
-/* V72 (PHASE 4): هدف/پاداش مأموریت‌ها فقط از BALANCE.missions.defs — پرداخت واقعی = داور سرور (§26) */
-const MISSIONS=[
- Object.assign({id:'war',n:'فرمانده جنگ',d:'یک نبرد را آغاز کن',type:'battles'},BALANCE.missions.defs.war),
- Object.assign({id:'trade',n:'بازرگان جهان',d:'دو معامله انجام بده',type:'trades'},BALANCE.missions.defs.trade),
- Object.assign({id:'spy',n:'چشم عقاب',d:'یک عملیات جاسوسی انجام بده',type:'spies'},BALANCE.missions.defs.spy),
- Object.assign({id:'research',n:'دانشمند نظامی',d:'یک فناوری تحقیق کن',type:'research'},BALANCE.missions.defs.research),
- Object.assign({id:'empire',n:'گسترش قلمرو',d:'یک کشور جدید تصرف کن',type:'wins'},BALANCE.missions.defs.empire)
-];
-
-function researchLevel(k){return Number(st.research[k]||0)}
-function completeMission(id){
- const m=MISSIONS.find(x=>x.id===id); if(!m)return;
- const key='m_'+id, done=Number(st.missions[key]||0);
- if(done>=m.goal)return;
- st.missions[key]=done+1;
- /* V71: شیر طلای کلاینت حذف شد (تکمیل §26 در V68) — مأموریت WD5 دیگر منبع نمی‌سازد؛ پاداش واقعی فقط از داور سرور */
- if(st.missions[key]>=m.goal){st.missions[key]=m.goal;toast('🏆 ماموریت کامل شد: '+m.n)}
- save();
-}
-function missionProgress(m){
- const v=Number(st.missions['m_'+m.id]||0);
- if(m.type==='battles')return Math.min(v,st.stats.battles);
- if(m.type==='trades')return Math.min(v,st.stats.trades);
- if(m.type==='spies')return Math.min(v,st.stats.spies);
- if(m.type==='wins')return Math.min(v,st.stats.wins);
- return v;
-}
-function bump(type){st.stats[type]=(st.stats[type]||0)+1;save();MISSIONS.forEach(m=>{if(m.type===type)completeMission(m.id)})}
-
-/* V71: marketBuy/marketSell پنل مرده‌ی WD5 حذف شد — بازار زنده: WD28 + P2P اسکرو سرور */
-
-/* V71: research() پنل مرده‌ی WD5 حذف شد — درخت تکنولوژی واقعی = CV_TECH (سرور-مأخذ) */
-
-function spy(){
- const target=(typeof activeEngName!=='undefined'&&activeEngName)||(typeof myCountryName!=='undefined'&&myCountryName);
- if(!target||target===W.myCountryName){toast('🛰️ ابتدا یک کشور را روی نقشه انتخاب کن');return}
- const cost=700+researchLevel('intelligence')*150;
- if(!spend({gold:cost})){toast('❌ هزینه جاسوسی: '+num(cost)+' طلا');return}
- st.stats.spies++;save();completeMission('spy');
- const c=safe(()=>W.getCountryData&&W.getCountryData(target),{def:0,pop:'?',gold:0,oil:0});
- toast('🛰️ گزارش اطلاعاتی دریافت شد');
- /* V59 wave-2 §19: alert() در TWA/APK اندروید نمایش داده نمی‌شد — طلای واقعی کم می‌شد و گزارش گم می‌شد؛
-    حالا دیالوگ درون‌برنامه‌ای (TWA-safe) */
- wd5Report('🛰️ گزارش محرمانه — '+(c.fa||target),
-   'دفاع تقریبی: '+num(c.def)+'<br>ذخیره طلا: '+num(c.gold)+'<br>ذخیره نفت: '+num(c.oil)+'<br>دقت اطلاعات: '+(75+researchLevel('intelligence')*5)+'%');
- render()
-}
-/* V59 wave-2: دیالوگ درون‌برنامه‌ای سبک (به‌جای alert) — همیشه روی همه‌ی پلتفرم‌ها دیده می‌شود */
-function wd5Report(title,html){
- try{
-  const old=document.getElementById('wd5-report');if(old)old.remove();
-  const ov=document.createElement('div');ov.id='wd5-report';ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(2,8,18,.72);display:flex;align-items:center;justify-content:center;padding:18px';
-  const box=document.createElement('div');box.style.cssText='width:min(420px,100%);background:linear-gradient(180deg,#0e2440,#081527);border:1px solid rgba(0,240,255,.35);border-radius:16px;padding:18px;color:#dff6ff;font-size:14px;line-height:2;box-shadow:0 20px 60px rgba(0,0,0,.6)';
-  box.innerHTML='<b style="font-size:15px">'+title+'</b><hr style="border:0;border-top:1px solid rgba(0,240,255,.2);margin:8px 0"><div>'+html+'</div><button id="wd5-rep-ok" style="margin-top:12px;width:100%;padding:10px;border:0;border-radius:10px;background:#0f6f9f;color:#fff;font-weight:800;cursor:pointer">دریافت شد</button>';
-  ov.appendChild(box);document.body.appendChild(ov);
-  const close=()=>{try{ov.remove()}catch(e){}};
-  ov.addEventListener('click',e=>{if(e.target===ov)close()});
-  document.getElementById('wd5-rep-ok').onclick=close;
- }catch(e){console.error('wd5-report',e)}
-}
-
-/* V59 wave-2 §13: eventRoll حذف شد — «رویداد جهانی» تصادفیِ محلیِ بدون هیچ اثر واقعی در بازی بود؛
-   فقط دروغ نمایشی می‌ساخت (§29: سیستم جعلی ممنوع). اخبار واقعی از سرور می‌آیند. */
-
-function generalTrain(){
- const cost=1000+st.general.level*800;
- if(!spend({gold:cost})){toast('❌ هزینه آموزش فرمانده: '+num(cost));return}
- st.general.xp+=100;
- if(st.general.xp>=st.general.level*300){st.general.xp=0;st.general.level++;toast('🎖️ فرمانده ارتقا یافت! Lv.'+st.general.level)}
- save();render()
-}
-function diplomacy(action){
- if(action==='peace'){st.diplomacy.pacts.push({type:'peace',at:Date.now()});toast('🕊️ پیمان صلح ثبت شد')}
- if(action==='trade'){st.diplomacy.pacts.push({type:'trade',at:Date.now()});toast('🤝 پیمان تجاری ثبت شد')}
- if(action==='alliance'){
-   if(!st.alliance.name)st.alliance.name='Dominion Alliance';
-   st.alliance.members=Math.max(1,st.alliance.members+1);toast('🤝 اتحاد ایجاد شد: '+st.alliance.name)
- }
- save();render()
-}
-
-function chooseTactic(){
- /* V30: no more mid-attack interruption — auto-keep the current doctrine;
-    players who want to change it still can from the command center (☰). */
- if(window.__wd30NoTactic){st.tactic=st.tactic||'balanced';try{save()}catch(e){};return}
- const options=[
- ['blitz','⚡ حمله برق‌آسا','+15% قدرت / +20% مصرف نفت'],
- ['defense','🛡️ خط دفاعی','+20% بقا / -15% سرعت'],
- ['total','💥 حمله همه‌جانبه','+25% قدرت / +30% تلفات'],
- ['precision','🎯 حمله دقیق','+10% قدرت / آسیب کمتر به نیروها'],
- ['balanced','⚖️ متعادل','بدون تغییر']
- ];
- const cur=st.tactic;
- const h=options.map(x=>'<button class="wd5-btn '+(cur===x[0]?'cyan':'')+'" data-t="'+x[0]+'">'+x[1]+'<br><span class="wd5-small">'+x[2]+'</span></button>').join('');
- showMini('⚔️ دکترین عملیات',h,(key)=>{st.tactic=key;save();closeMini();toast('🎯 دکترین انتخاب شد')})
-}
-function showMini(title,body,handler){
- let m=$('wd5-mini');if(!m){m=document.createElement('div');m.id='wd5-mini';m.style.cssText='position:fixed;inset:0;z-index:28000;background:#0009;display:flex;align-items:center;justify-content:center;padding:18px';document.body.appendChild(m)}
- m.innerHTML='<div style="width:min(430px,100%);background:#071a2c;border:1px solid #23587c;border-radius:18px;padding:14px;color:#fff"><b>'+title+'</b><div style="margin-top:10px">'+body+'</div><button class="wd5-btn" data-x>بستن</button></div>';
- m.querySelector('[data-x]').onclick=closeMini;m.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>handler(b.dataset.t));
-}
-function closeMini(){const m=$('wd5-mini');if(m)m.remove()}
-
-function panel(){
- if($('wd5-panel')){$('wd5-panel').classList.add('open');render();return}
- const p=document.createElement('div');p.id='wd5-panel';p.innerHTML=
- '<div id="wd5-card"><div class="wd5-head"><div><div class="wd5-title">☰ مرکز فرماندهی World Dominion</div><div class="wd5-sub">تمام سیستم‌های پیشرفته بازی در یک مکان</div></div><div class="wd5-close" id="wd5-close">✕</div></div><div class="wd5-tabs" id="wd5-tabs"></div><div class="wd5-body" id="wd5-body"></div></div>';
- document.body.appendChild(p);$('wd5-close').onclick=()=>p.classList.remove('open');p.onclick=e=>{if(e.target===p)p.classList.remove('open')};
- const tabs=[['home','🏠 فرماندهی'],['army','⚔️ ارتش'],['economy','🏭 اقتصاد'],['diplomacy','🤝 دیپلماسی'],['intel','🛰️ اطلاعات'],['tech','🧪 فناوری'],['missions','🎯 ماموریت'],['world','🌍 جهان']];
- const ts=$('wd5-tabs');tabs.forEach(([k,n],i)=>{const b=document.createElement('button');b.className='wd5-tab'+(i===0?' active':'');b.dataset.k=k;b.textContent=n;b.onclick=()=>{ts.querySelectorAll('.wd5-tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');render(k)};ts.appendChild(b)})
- p.classList.add('open');render('home')
-}
-function card(k,v,s){return '<div class="wd5-card"><div class="wd5-k">'+k+'</div><div class="wd5-v">'+v+'</div><div class="wd5-small">'+(s||'')+'</div></div>'}
-function render(tab){
- const b=$('wd5-body');if(!b)return;
- const r=res(), terr=safe(()=>W.conqueredCountries?W.conqueredCountries.size:0,0);
- if(tab==='home'||!tab){
-   b.innerHTML='<div class="wd5-grid">'+card('قدرت نظامی',num(safe(()=>W.calculateTotalAttack(),0)),'بر اساس یگان‌های فعلی')+card('قلمرو',num(terr),'کشورهای تحت کنترل')+card('فرمانده',st.general.name,'Lv.'+st.general.level+' • XP '+st.general.xp)+card('اتحاد',st.alliance.name||'بدون اتحاد',(st.alliance.name?st.alliance.members+' عضو':'ایجاد اتحاد'))+'</div>'+
-   '<div class="wd5-section" style="margin-top:12px">⚡ دستورات سریع</div><div class="wd5-grid"><button class="wd5-btn cyan" data-act="tactic">🎯 انتخاب دکترین جنگ</button><button class="wd5-btn" data-act="spy">🛰️ جاسوسی هدف انتخاب‌شده</button><button class="wd5-btn green" data-act="general">🎖️ آموزش فرمانده</button><button class="wd5-btn gold" data-act="alliance">🤝 ساخت اتحاد</button></div>'+
-   /* V59 wave-2 §13: «رویداد فعلی» تصادفی محلی حذف شد — کارت صادقانه جایگزین شد */
-   '<div class="wd5-section" style="margin-top:12px">📰 وضعیت امروز</div><div class="wd5-card"><b>آماده‌ی عملیات</b><div class="wd5-small">اخبار واقعی بازی در «روزنامه» و نوار رویدادها منتشر می‌شود.</div></div>';
- }else if(tab==='army'){
-   const units=(typeof ARMY_UNITS!=='undefined'?ARMY_UNITS:{});let rows='';
-   Object.keys(units).forEach(k=>{const u=units[k];rows+='<div class="wd5-row"><div><b>'+u.icon+' '+u.name+'</b><br><span>قدرت هر واحد: '+num(u.attack)+'</span></div><strong>'+num(u.count)+'</strong></div>'});
-   b.innerHTML='<div class="wd5-section">⚔️ ارتش عملیاتی</div><div class="wd5-list">'+rows+'</div><button class="wd5-btn cyan" data-act="tactic">🎯 تغییر دکترین عملیات</button><div class="wd5-card" style="margin-top:8px">فرمانده: <b>'+st.general.name+'</b> — سطح '+st.general.level+'<div class="wd5-bar"><i style="width:'+pct(st.general.xp/(st.general.level*300)*100)+'%"></i></div><button class="wd5-btn" data-act="general">آموزش فرمانده</button></div>';
- }else if(tab==='economy'){
-   b.innerHTML='<div class="wd5-grid">'+card('💰 طلا',num(r.gold),'سرمایه اصلی')+card('🛢️ نفت',num(r.oil),'سوخت')+card('🌾 غذا',num(r.food),'لجستیک')+card('🔩 فولاد',num(r.steel||0),'منبع صنعتی')+'</div><div class="wd5-section" style="margin-top:12px">📈 بازار جهانی</div><div class="wd5-grid3"><button class="wd5-btn" data-buy="food">خرید غذا<br>1000</button><button class="wd5-btn" data-buy="oil">خرید نفت<br>1000</button><button class="wd5-btn" data-buy="steel">خرید فولاد<br>1000</button><button class="wd5-btn" data-sell="food">فروش غذا</button><button class="wd5-btn" data-sell="oil">فروش نفت</button><button class="wd5-btn" data-sell="steel">فروش فولاد</button></div><div class="wd5-small" style="margin-top:10px">قیمت‌ها با عرضه/تقاضای فصل قابل تغییرند.</div>';
- }else if(tab==='diplomacy'){
-   b.innerHTML='<div class="wd5-card"><b>🤝 '+(st.alliance.name||'بدون اتحاد')+'</b><div class="wd5-small">اعضا: '+st.alliance.members+' • پیمان‌ها: '+st.diplomacy.pacts.length+'</div><button class="wd5-btn green" data-act="alliance">ساخت/تقویت اتحاد</button></div><div class="wd5-grid"><button class="wd5-btn" data-dip="peace">🕊️ پیمان صلح</button><button class="wd5-btn" data-dip="trade">💰 پیمان تجاری</button></div><div class="wd5-section" style="margin-top:12px">📜 سوابق</div><div class="wd5-list">'+(st.diplomacy.pacts.slice(-8).reverse().map(x=>'<div class="wd5-row"><b>'+x.type+'</b><span>'+new Date(x.at).toLocaleString('fa-IR')+'</span></div>').join('')||'<div class="wd5-empty">هنوز پیمانی ثبت نشده.</div>')+'</div>';
- }else if(tab==='intel'){
-   b.innerHTML='<div class="wd5-card"><b>🛰️ مرکز اطلاعات</b><div class="wd5-small">کشور را روی نقشه انتخاب کن، سپس عملیات جاسوسی را اجرا کن.</div><button class="wd5-btn cyan" data-act="spy">اجرای عملیات جاسوسی</button></div><div class="wd5-grid">'+card('عملیات انجام‌شده',num(st.stats.spies),'هر سطح اطلاعات دقت را افزایش می‌دهد')+card('دقت اطلاعات',(75+researchLevel('intelligence')*5)+'%','با فناوری اطلاعات قابل ارتقا')+'</div>';
- }else if(tab==='tech'){
-   b.innerHTML='<div class="wd5-section">🧪 درخت فناوری</div><div class="wd5-list">'+Object.entries(RESEARCH).map(([k,x])=>{const lv=researchLevel(k),max=x.max;return '<div class="wd5-row"><div><b>'+x.n+'</b><br><span>'+x.d+'</span><div class="wd5-bar"><i style="width:'+pct(lv/max*100)+'%"></i></div></div><button class="wd5-btn" style="width:110px;margin:0" data-tech="'+k+'">'+(lv>=max?'کامل':'ارتقا '+num(x.cost*(lv+1)))+'</button></div>'}).join('')+'</div>';
- }else if(tab==='missions'){
-   b.innerHTML='<div class="wd5-section">🎯 اهداف امروز</div><div class="wd5-list">'+MISSIONS.map(m=>{const v=missionProgress(m),done=v>=m.goal;return '<div class="wd5-row"><div><b>'+m.n+'</b><br><span>'+m.d+' • '+v+'/'+m.goal+'</span></div><span class="wd5-pill">'+(done?'کامل شد':'+'+num(m.r)+' طلا')+'</span></div>'}).join('')+'</div>';
- }else if(tab==='world'){
-   const fa=safe(()=>(typeof myCountryName!=='undefined'&&myCountryName)||'کشور انتخاب نشده','کشور انتخاب نشده');
-   /* V59 wave-2 §13: «رویداد جهانی» تصادفی محلی حذف شد — جایگزین: آمار واقعی سرور + شمارنده‌ی سقف قلمرو */
-   const tc=wdTerrCount?wdTerrCount():0,mx=(typeof WD_MAX_COUNTRIES!=='undefined')?WD_MAX_COUNTRIES:15;
-   b.innerHTML='<div class="wd5-grid">'+card('🌍 کشور فعلی',fa,'مرکز فرماندهی')+card('⚔️ نبردها',num(st.stats.battles),'کل عملیات')+card('🏆 پیروزی',num(st.stats.wins),'فتح کامل')+card('🏛️ قلمروها',tc+' / '+mx,'سقف کشورها')+'</div><div class="wd5-card" id="wd5-srv-stat" style="margin-top:10px"><b>🌐 سرور '+(typeof SRV!=='undefined'?SRV:'۱')+'</b><p class="wd5-small">در حال دریافت آمار زنده…</p></div>';
-   try{if(typeof sb!=='undefined'&&sb&&sb.from){sb.from('server_stats').select('taken,players').eq('server',(typeof SRV!=='undefined'?SRV:1)).maybeSingle().then(function(r){
-     const el=D.getElementById('wd5-srv-stat');if(!el)return;
-     if(r&&r.error||!r||!r.data){el.innerHTML='<b>🌐 سرور '+(typeof SRV!=='undefined'?SRV:'۱')+'</b><p class="wd5-small">آمار سرور در دسترس نیست.</p>';return}
-     el.innerHTML='<b>🌐 سرور '+(typeof SRV!=='undefined'?SRV:'۱')+'</b><p class="wd5-small">کشورهای تصرف‌شده: '+num(r.data.taken||0)+' • بازیکنان فعال: '+num(r.data.players||0)+'</p>';
-   }).catch(function(){});}}catch(e){console.error('wd5-srv',e)}
- }
- b.querySelectorAll('[data-act]').forEach(x=>x.onclick=()=>{const a=x.dataset.act;if(a==='tactic')chooseTactic();if(a==='spy')spy();if(a==='general')generalTrain();if(a==='alliance')diplomacy('alliance')})
- b.querySelectorAll('[data-dip]').forEach(x=>x.onclick=()=>diplomacy(x.dataset.dip));
- /* V71: بایندهای data-buy/data-sell/data-tech حذف شدند — توابع‌شان حذف شده‌اند */
-}
-function launch(){
- if($('wd5-launcher'))return;
- const q=document.createElement('button');q.id='wd5-launcher';q.title='مرکز فرماندهی';q.textContent='☰';q.onclick=panel;document.body.appendChild(q);
- const n=document.createElement('div');n.id='wd5-notify';document.body.appendChild(n);
-}
-setTimeout(launch,1200);
-
-// Hook battle: require an operational doctrine and enrich existing battle with mission tracking.
-setTimeout(()=>{
-/* V59: به‌جای wrapper — دکترین/مأموریت به‌صورت هوک (st/save/completeMission در همین بلاک در دسترس‌اند) */
-setTimeout(()=>{
- if(!window.WD_ATTACK_HOOKS)return;
- WD_ATTACK_HOOKS.doctrinePre=async function(){
-   try{
-     chooseTactic();
-     const started=Date.now();
-     while(Date.now()-started<15000 && $('wd5-mini')) await new Promise(r=>setTimeout(r,100));
-     st.stats.battles++;save();completeMission('war');
-   }catch(e53){console.error('wd-doctrine-pre',e53)}
- };
- WD_ATTACK_HOOKS.doctrinePost=function(n){
-   try{if(typeof conqueredCountries!=='undefined'&&conqueredCountries.has(n)){st.stats.wins++;save();completeMission('wins');toast('🏆 پیروزی ثبت شد')}}catch(e53){console.error('wd-doctrine-post',e53)}
- };
-},2500);
-},2500);
-
-// Visual battle atmosphere: adds lightweight projectiles/explosions to the existing battle modal.
-setInterval(()=>{
- const m=$('m-battle');if(!m||!m.classList.contains('active'))return;
- let v=$('wd5-battle-visual');if(!v){v=document.createElement('div');v.id='wd5-battle-visual';const c=m.querySelector('.modal-card');if(c){c.style.position='relative';c.appendChild(v)}}
- const e=document.createElement('span');e.className=Math.random()<.65?'wd5-projectile':'wd5-explosion';e.textContent=Math.random()<.5?'🚀':'💥';e.style.left=(10+Math.random()*65)+'%';e.style.top=(35+Math.random()*40)+'%';v.appendChild(e);setTimeout(()=>e.remove(),1400)
-},900);
-
-/* V68 §26/§29: تایمر زامبی WD5 حذف شد — پنل WD5 مخفی است ولی این تایمر همچنان از localStorage
-   قدیمی «صنعت» طلای واقعی ضرب می‌کرد و کل save را هم ماندگار می‌کرد (شیرِ کلاینت-محور) */
-
-})();
-   </script>
    <style id="wd6-css">
     #wd6-hud{position:fixed;top:12px;left:12px;right:12px;z-index:9997;display:flex;gap:8px;align-items:center;justify-content:center;pointer-events:none;font-family:inherit}
 .wd6-chip{pointer-events:auto;display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(8,13,24,.82);backdrop-filter:blur(10px);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12px;color:#fff;white-space:nowrap}
@@ -4433,7 +4192,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
    </style>
    <style id="wd-v13-stability-css">
     /* V9 STABILITY: one command button, no overlapping floating controls */
-#wd5-launcher,#wd-feature-dock{display:none!important}
+#wd-feature-dock{display:none!important} /* V74: wd5-launcher از این لیست حذف شد (WD5 حذف شده) */
 #wd7-btn{right:12px!important;bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;width:58px!important;height:58px!important;z-index:100000!important;border-radius:18px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:23px!important;box-shadow:0 8px 22px rgba(0,0,0,.5),0 0 18px rgba(0,255,225,.16)!important}
 #wd7-panel{z-index:99999!important}
 #wd7-shell{max-height:88vh!important;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))!important;overscroll-behavior:contain!important}
@@ -4830,7 +4589,7 @@ html.wd-perf,html.wd-perf body{scroll-behavior:auto!important}
   /* V22: forced perf class removed — users control it from ☰ Settings; intro needs its animations. */
   try{ if(window.auraTimer) clearInterval(window.auraTimer); }catch(e){}
   // Stop any legacy visual timer that was only decorative; gameplay timers are untouched.
-  try{ var v=document.getElementById('wd5-battle-visual'); if(v) v.remove(); }catch(e){}
+  /* V74: پاکسازی wd5-battle-visual حذف شد — منبعش (WD5) دیگر وجود ندارد */
   /* V22: the 420ms splash closer is retired (V22 intro manages itself). */
   // Let Leaflet paint with Canvas even if the map was created before this patch.
   try{
@@ -5014,13 +4773,12 @@ body.wd-low-power *{scroll-behavior:auto!important}
 .bottom-nav .nav-btn span:first-child{font-size:17px!important;line-height:18px!important;height:19px!important}
 .bottom-nav .nav-btn span:last-child{font-size:8px!important;white-space:nowrap!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important}
 .bottom-nav .nav-btn:active{background:rgba(0,240,255,.12)!important;transform:none!important}
-#wd7-btn,#wd5-launcher{
+#wd7-btn{
  right:14px!important;bottom:calc(70px + var(--wd-safe-bottom))!important;
  width:50px!important;height:50px!important;z-index:100030!important;border-radius:15px!important;
  box-shadow:0 8px 20px rgba(0,0,0,.42)!important;animation:none!important;transition:none!important
 }
-#wd7-btn{font-size:20px!important}
-#wd5-launcher{display:none!important}
+#wd7-btn{font-size:20px!important} /* V74: سلکتورهای wd5-launcher حذف شدند */
 .country-drawer{
  left:10px!important;right:10px!important;bottom:calc(70px + var(--wd-safe-bottom))!important;
  width:auto!important;max-height:min(42vh,360px)!important;overflow:auto!important;
@@ -5049,8 +4807,7 @@ function cleanDock(){
  dock.querySelectorAll('.nav-btn').forEach((b,i)=>{b.setAttribute('data-wd16','1'); if(i===4)b.title='ارتش';});
  const launcher=$('wd7-btn');
  if(launcher){launcher.textContent='☰';launcher.setAttribute('aria-label','مرکز فرماندهی');launcher.title='مرکز فرماندهی';}
- const old=$('wd5-launcher');if(old)old.remove();
- const feature=$('wd-feature-dock');if(feature)feature.remove();
+ const feature=$('wd-feature-dock');if(feature)feature.remove(); /* V74: خط wd5-launcher حذف شد */
 }
 function lowPower(){
  const weak=(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4)||innerWidth<480;
@@ -5179,7 +4936,7 @@ window.addEventListener('resize',cleanDock,{passive:true});
 \n<!-- WORLD DOMINION V25 CLEAN CORE UI -->
 <style id="wd25-clean-core">
 /* One interaction layer: map + top status + bottom navigation + one command button. */
-#wd6-hud,#wd10-live-corner,#wd-feature-dock,#wd5-launcher{display:none!important}
+#wd6-hud,#wd10-live-corner,#wd-feature-dock{display:none!important}
 #wd7-btn{display:flex!important;position:fixed!important;right:12px!important;bottom:70px!important;z-index:10001!important;width:48px!important;height:48px!important;align-items:center!important;justify-content:center!important}
 #wd7-panel{z-index:10000!important}
 .top-bar{z-index:9990!important}
@@ -5205,7 +4962,7 @@ const W=window,D=document;
 W.WD25={version:'25.0-clean-core'};
 /* Remove accidental duplicate floating controls created by older feature layers. */
 function clean(){
-  ['wd6-hud','wd10-live-corner','wd-feature-dock','wd5-launcher','wd24-overlay','wd24-mainbar'].forEach(id=>{
+  ['wd6-hud','wd10-live-corner','wd-feature-dock','wd24-overlay','wd24-mainbar'].forEach(id=>{ /* V74: wd5-launcher از آرایه حذف شد */
     const e=D.getElementById(id); if(e)e.remove();
   });
 }
@@ -5871,12 +5628,11 @@ setTimeout(function(){
   try{
     var hooked=function(q){if(q){q.onclick=function(e){try{e.preventDefault&&e.preventDefault()}catch(x){}openSheet()};q.title='مرکز فرماندهی'}};
     hooked(D.getElementById('wd7-btn'));
-    hooked(D.getElementById('wd5-launcher'));
-    var n=D.getElementById('wd5-notify');if(n)n.remove();
+    /* V74: پیوندهای wd5-launcher/wd5-notify حذف شدند (منبع حذف شده) */
   }catch(e){}
 },1600);
 setTimeout(function(){
-  try{hooked22(D.getElementById('wd7-btn'));hooked22(D.getElementById('wd5-launcher'))}catch(e){}
+  try{hooked22(D.getElementById('wd7-btn'))}catch(e){} /* V74: wd5-launcher حذف */
   function hooked22(q){if(q){q.onclick=function(e){try{e.preventDefault&&e.preventDefault()}catch(x){}openSheet()};q.title='مرکز فرماندهی'}}
 },3200);
 
@@ -6266,8 +6022,7 @@ function bindMenu(){
   try{
     var b=D.getElementById('wd7-btn');
     if(b){b.onclick=function(ev){try{ev&&ev.preventDefault&&ev.preventDefault()}catch(e){}sOpen()};b.title='منوی بازی';b.setAttribute('aria-label','منوی بازی')}
-    var q=D.getElementById('wd5-launcher');
-    if(q){q.onclick=function(ev){try{ev&&ev.preventDefault&&ev.preventDefault()}catch(e){}sOpen()}}
+    /* V74: پیوند wd5-launcher حذف شد */
   }catch(e){console.log(e)}
 }
 setTimeout(bindMenu,3600);
@@ -13690,7 +13445,7 @@ function tutSpot(tg){var sp=S$('wd43-spot');if(!sp)return;try{if(!tg){sp.classLi
  sp.style.top=(r.top-6)+'px';sp.style.left=(r.left-6)+'px';sp.style.width=(r.width+12)+'px';sp.style.height=(r.height+12)+'px';sp.classList.add('on')}catch(e){}}
 /* V45: اگر هر پوشش تمام‌صفحه‌ای باز است، آموزش نباید دیده شود (روی آن نمی‌نشیند، زیرش هم گیر نمی‌کند) */
 function wd45busy(){try{if(D.querySelector('.modal.active'))return true;
- var sel=['#wd22-sheet','#wd-menu','#wd7-panel','#wd33-stage','#wd33-cer','#wd5-mini','.cos27-lucky'];
+ var sel=['#wd22-sheet','#wd-menu','#wd7-panel','#wd33-stage','#wd33-cer','.cos27-lucky']; /* V74: #wd5-mini حذف شد */
  for(var i=0;i<sel.length;i++){if(wd45vis(sel[i]))return true}
  var ps=D.querySelectorAll('.wd31-page');for(var j=0;j<ps.length;j++){if(ps[j].getBoundingClientRect().height>0)return true}
  return false}catch(e){return false}}
@@ -16878,9 +16633,11 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
             b.id='act-wdcv-enter';
             b.addEventListener('click',function(ev){
               ev.stopPropagation();
+              /* V74 — WOW MOMENT (بند ۳): فلش مرز کشور (سبک — فقط setStyle Leaflet) بعد شیرجه */
+              try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=72';
+              s.src='/game/cv-engine.js?v=74';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);

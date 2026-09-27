@@ -1550,3 +1550,25 @@ Work Log:
 Stage Summary:
 - V73-P1-resync: دو فیکس جراحی روی V72 (زامبی رهاکردن مسابقه + att_max هاب میزبان) — بدون تغییر اسکیما، بدون دست‌زدن به wd5/wd7 زنده، بدون بازگرداندن حذفیات قبلی
 - درس ماندگار: سندباکس‌ها باید پیش از هر موج، fetch+سه‌طرفه کنند؛ «برنامه‌ی جلسه‌ی قدیمی» ممکن است بالادست قبلاً اجرا شده باشد
+
+---
+Task ID: V74-CV-AAA
+Agent: Super Z (main)
+Task: دستور «Country View AAA» — ممیزی کامل، حذف WD5، ارتقای موتور CV (ورود WOW، LOD، هویت استان/شهر، تخصص اقتصادی، محیط زنده، صدا، پنل‌های v2)، اعتبارسنجی سرور و QA
+
+Work Log:
+- هم‌ترازی سه‌طرفه: local == origin/main @ V73 (477328d)؛ uncommitted ها فقط mode-change بودند
+- ممیزی موازی ۳ ایجنت: نقشه‌ی کامل click/zoom/layers/CV-loader + اقتصاد/ارتش/WD5/WD7/سیو/تایمرها + سرور (78 RPC، قواعد CV، schema)
+- حذف WD5: بلاک CSS (۳۰ خط) + بلاک script (۲۲۵ خط) + هوک‌های doctrinePre/Post در attackTarget + ۱۲ وصله‌ی مخفی‌سازی مرده (wd5-launcher/notify/battle-visual/mini)؛ برچسب‌های [wd5] به [V39] اصلاح شد
+- کشف بحرانی: سیستم زنده‌ی WD65 از ۶ کلاس CSS بلاک حذف‌شده استفاده می‌کرد → بلاک مینیمال wd65-legacy-css بازتعریف شد + باگ قدیمی .wd5-meter (بی‌تعریف) فیکس شد
+- سرور (تک‌منبع): cvGeo.cvEnrich (آمار ۹بعدی + ۲..۴ شهر تابعی per province — read-time از seed ذخیره‌شده، بدون مهاجرت DB)؛ cvCatalog: ۴ ساختمان نظامی (tank_plant/airbase/naval_base/radar) + سیستم تخصص استان (CV_FOCUS، ×1.1 هم‌گروه)؛ route.ts: cvAccrue با focus mult، cvMilBonus با focus، cvPublicState غنی‌شده (provinces/seed/focus/focusCat)، RPC جدید cv_focus، گارد cvCountryExists در cvEnsure (ضد ردیف junk)، پاسخ امن cv=null در cv_state
+- کلاینت cv-engine.js (v67→v74): ورود WOW (فلش مرز Leaflet + شیرجه‌ی دوربین 0.55→1.28 با lerp + اسلاید هدر)، LOD ۴سطحی (کشور←استان←شهر←جزئیات)، zones هویتی bake (دکل نفت/نوار مزرعه/بلوک صنعتی/لنگر)، جاده‌ی اصلی+فرعی، شهرها (نقطه+bake، برچسب+tap داینامیک)، رسم برداری ۱۸ ساختمان به‌جای دایره‌ی emoji، ۳ مرحله‌ی ساخت (فونداسیون/اسکلت/آماده) + حلقه‌ی پیشرفت، چراغ فلیکر شهر (سقف tier)، ambient pool (خودرو/کشتی/هواپیما روی مسیر، cap tier، viewport-culled)، دود کارخانه از pool ذرات، ripple لمس + پالس انتخاب، سینت WebAudio (۸ افکت، بدون فایل/شبکه، lazy unlock، toggle ذخیره)، پنل استان v2 (۹ نوار آمار + انتخاب تخصص + تب‌های دسته + لیست ساختمان + تولید زنده)، پنل شهر (zones + CTA)، پنل ساختمان v2 (desc + مرحله ساخت + نشان بونوس تخصص)، تیک ۱ثانیه‌ای داخل rAF (حذف setInterval پایانی — فقط poll 12s ماند)، back-sync با WD_BACK (#wdcv-stage در stack/popstate/wdBackSync)، close() پاکسازی کامل (AMB/RIPS/pool/panel/AC.suspend)، _qaOpen(force) فقط-QA
+- index.html: لودر CV → ?v=74 + فلش مرز پیش از open؛ wdBackSync/popstate شامل CV؛ beacon __WD_V=74 + v.txt=74
+- QA: check-html-js 84/0؛ node --check همه؛ tsc src=0 (فقط 2 خطای قدیمی skills/)؛ verify-build 9/9؛ apk-sim 28/28؛ cv-qa-v74 (جدید) 21/21 شامل frameMs=0.1ms و DOM=129 نود و پاکسازی؛ cv-e2e-v74 (جدید، prisma+RPC واقعی) 21/21 شامل ریاضی focus (28.6 در برابر 26)، need_power، terrain-reject، refund 350g، گارد کشور ناشناخته
+- اسکریپت‌های جدید: scripts/cv-qa-v74.mjs، scripts/cv-e2e-v74.mjs
+- e2e-v58/feature-v65 در سندباکس اجرا نشدند (pseudo-email.mjs در ریپو نیست — gap قدیمی، ربطی به V74 ندارد)
+
+Stage Summary:
+- V74 = CV AAA + WD5 removal؛ ۲۸۵+ خط مرده حذف، ~۵۵۰ خط جدید کلاینت، ~۹۰ خط سرور
+- معماری دست‌نخورده: تک-loop، server-authoritative، بدون سیستم موازی (شهرها presentation روی اقتصاد واقعی)
+- باقی‌مانده (شناخته‌شده): ری риска saves.state client-writable (معماری کل بازی، خارج از دامنه)، e2e-v58/feature-v65 بدون helper، unlock اولین صدا بعد از suspend

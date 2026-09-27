@@ -251,3 +251,79 @@ export function cvPointInCountry(country: string, x: number, y: number): boolean
   const ring = loadGeo().get(country)
   return ring ? pip(ring, x, y) : false
 }
+
+/* ============================================================
+   V74 — COUNTRY VIEW AAA: هویت استان‌ها و شهرها (سمت سرور، قطعی)
+   - چون layout قدیمی در DB ذخیره شده، غنی‌سازی «در زمان خواندن» و از روی
+     seed ذخیره‌شده انجام می‌شود تا ردیف‌های قدیمی هم هویت بگیرند (بدون مهاجرت).
+   - این آمار «هویت/نمایشی» است؛ اقتصاد واقعی همان ساختمان‌های فعال‌اند
+     (cvAccrue) — هیچ منبعی از این آمار کلاینت‌محور تولید نمی‌شود.
+   ============================================================ */
+export type CvCity = { name: string; kind: string; lat: number; lng: number; popK: number }
+export type CvProvStats = { pop: number; ind: number; agri: number; oil: number; en: number; infra: number; stab: number; def: number; dev: number }
+export type CvProvinceRich = CvProvince & { stats: CvProvStats; cities: CvCity[] }
+
+const CITY_KIND_FA: Record<string, string> = {
+  metro: 'شهر مرکزی', industrial: 'شهرک صنعتی', agri: 'شهر کشاورزی', port: 'بندر', oil: 'شهر نفتی', military: 'شهرک نظامی', mountain: 'شهر کوهپایه‌ای',
+}
+export function cvCityKindFa(kind: string): string { return CITY_KIND_FA[kind] || 'شهر' }
+
+/* آمار هویتی استان — قطعی از (country, seed, i, type, terrain, coastal) */
+function statsOf(country: string, seed: number, p: CvProvince): CvProvStats {
+  const h = (salt: string) => hashSeed(country + ':' + seed + ':' + p.i + ':' + salt) % 100
+  const base = { pop: 0, ind: 0, agri: 0, oil: 0, en: 0, infra: 0, stab: 0, def: 0, dev: 0 }
+  /* پایه بر اساس تایپ */
+  switch (p.type) {
+    case 'capital': base.pop = 62 + h('pp') % 30; base.ind = 46 + h('in') % 26; base.agri = 22 + h('ag') % 18; base.oil = 18 + h('oi') % 18; base.en = 55 + h('en') % 22; base.infra = 60 + h('if') % 24; base.stab = 62 + h('st') % 18; base.def = 48 + h('df') % 20; base.dev = 58 + h('dv') % 22; break
+    case 'industrial': base.pop = 44 + h('pp') % 22; base.ind = 58 + h('in') % 26; base.agri = 20 + h('ag') % 16; base.oil = 20 + h('oi') % 16; base.en = 48 + h('en') % 20; base.infra = 48 + h('if') % 22; base.stab = 50 + h('st') % 18; base.def = 40 + h('df') % 18; base.dev = 46 + h('dv') % 20; break
+    case 'agricultural': base.pop = 30 + h('pp') % 18; base.ind = 18 + h('in') % 14; base.agri = 60 + h('ag') % 26; base.oil = 12 + h('oi') % 12; base.en = 24 + h('en') % 16; base.infra = 30 + h('if') % 18; base.stab = 52 + h('st') % 18; base.def = 28 + h('df') % 14; base.dev = 30 + h('dv') % 16; break
+    case 'resource': base.pop = 26 + h('pp') % 14; base.ind = 26 + h('in') % 16; base.agri = 16 + h('ag') % 12; base.oil = 62 + h('oi') % 30; base.en = 40 + h('en') % 18; base.infra = 32 + h('if') % 18; base.stab = 46 + h('st') % 16; base.def = 34 + h('df') % 16; base.dev = 32 + h('dv') % 18; break
+    default: base.pop = 24 + h('pp') % 18; base.ind = 22 + h('in') % 18; base.agri = 26 + h('ag') % 20; base.oil = 16 + h('oi') % 14; base.en = 22 + h('en') % 14; base.infra = 26 + h('if') % 16; base.stab = 48 + h('st') % 16; base.def = 30 + h('df') % 16; base.dev = 26 + h('dv') % 16
+  }
+  /* اصلاح جغرافیایی */
+  if (p.terrain === 'mountain') { base.def += 12; base.agri = Math.max(6, base.agri - 12); base.infra = Math.max(6, base.infra - 8) }
+  if (p.terrain === 'desert') { base.agri = Math.max(4, base.agri - 16); base.oil += 8 }
+  if (p.terrain === 'tundra') { base.agri = Math.max(4, base.agri - 14); base.pop = Math.max(6, base.pop - 8) }
+  if (p.terrain === 'plains') base.agri += 8
+  if (p.coastal) { base.infra += 6; base.pop += 4 }
+  for (const k of Object.keys(base) as (keyof CvProvStats)[]) base[k] = Math.max(4, Math.min(98, Math.round(base[k])))
+  return base
+}
+
+/* شهرهای استان — ۲ تا ۴ شهر قطعی با نام تابعی (برای همه‌ی کشورها معنادار) */
+function citiesOf(country: string, seed: number, p: CvProvince, stats: CvProvStats): CvCity[] {
+  const rnd = mulberry32(hashSeed(country + ':c' + seed + ':' + p.i))
+  const n = 2 + Math.floor(rnd() * 3) /* ۲..۴ */
+  const kx = kmPerLon(p.lat)
+  const kindPool: string[] = p.type === 'industrial' ? ['metro', 'industrial', 'industrial', 'agri']
+    : p.type === 'agricultural' ? ['agri', 'agri', 'metro', 'mountain']
+    : p.type === 'resource' ? ['oil', 'oil', 'industrial', 'metro']
+    : p.coastal ? ['metro', 'port', 'industrial', 'agri']
+    : p.terrain === 'mountain' ? ['metro', 'mountain', 'military', 'agri']
+    : ['metro', 'agri', 'military', 'industrial']
+  if (p.coastal) kindPool[0] = 'port' /* استان ساحلی: شهر اول بندرِ اصلی */
+  const out: CvCity[] = []
+  for (let i = 0; i < n; i++) {
+    const ang = rnd() * Math.PI * 2
+    const dist = (8 + rnd() * 22) /* کیلومتر از مرکز استان */
+    const dLat = (dist * Math.sin(ang)) / KM_LAT
+    const dLng = (dist * Math.cos(ang)) / kx
+    const kind = i === 0 ? kindPool[0] : kindPool[1 + (i % (kindPool.length - 1))]
+    const popK = Math.max(40, Math.round((stats.pop * (i === 0 ? 9 : 3) * (0.5 + rnd())) * 10) / 10)
+    out.push({ name: cvCityKindFa(kind) + (i === 0 ? ' اصلی' : ' ' + (i + 1)), kind, lat: Math.round((p.lat + dLat) * 10000) / 10000, lng: Math.round((p.lng + dLng) * 10000) / 10000, popK })
+  }
+  return out
+}
+
+/* غنی‌سازی لیست استان‌های ذخیره‌شده (قدیمی/جدید) با هویت — بدون تغییر DB */
+export function cvEnrich(country: string, seed: number, provinces: CvProvince[]): CvProvinceRich[] {
+  return (provinces || []).map((p) => {
+    const stats = statsOf(country, seed, p)
+    return { ...p, stats, cities: citiesOf(country, seed, p, stats) }
+  })
+}
+
+/* کشور در GeoJSON رسمی هست؟ (ضد ردیف‌های بی‌معنا در cvEnsure) */
+export function cvCountryExists(country: string): boolean {
+  return loadGeo().has(country)
+}

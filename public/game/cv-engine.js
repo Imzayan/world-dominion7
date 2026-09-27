@@ -1,12 +1,14 @@
 /* ============================================================
-   WORLD DOMINION — V67 COUNTRY VIEW ENGINE (client)
+   WORLD DOMINION — V74 COUNTRY VIEW ENGINE (client) — AAA UPGRADE
    cv-engine.js — با lazy-load فقط هنگام اولین «ورود به کشور» لود می‌شود.
    معماری: Data-Driven + Performance-First
-   - تک rAF loop (Simulation و Render جدا) — هیچ setInterval مستقلی برای رندر
+   - تک rAF loop (Simulation و Render جدا) — تیک ۱ثانیه‌ای هم داخل همان loop
    - همه‌ی وضعیت گیم‌پلی از سرور (cv_state) — کلاینت فقط رندر/ورودی
    - Voronoi قطعی روی پلی‌گان واقعی کشور (از همان GeoJSON نقشه‌ی جهانی)
-   - LOD سه‌سطحی + Culling + Pooling ذرات + Quality Tier (LOW/MED/HIGH)
-   - حداکثر ~۳۰ نود DOM (پنل‌ها) — هیچ DOM-Element-per-building
+   - LOD چهار سطحی (کشور←استان←شهر←جزئیات) + Culling + Pooling + Tier
+   - هویت کشور: آمار/شهرهای سرور-تولید، zones منبع، جاده، چراغ شهر، محیط زنده
+   - صدا: سینت WebAudio سبک (بدون فایل/شبکه، بعد از اولین تعامل)
+   - حداکثر ~۴۰ نود DOM (پنل‌ها) — هیچ DOM-Element-per-building
    ============================================================ */
 (function () {
   'use strict'
@@ -23,6 +25,13 @@
     tier: 'med', cam: { x: 0, y: 0, z: 1.4, tx: 0, ty: 0, tz: 1.4, anim: false },
     ring: null, bbox: null, lastFrame: 0, frameMs: 60, paused: false,
     lastPoll: 0, pollTimer: null, builtOnce: false, dirtyStatic: true,
+    /* ---- V74 ---- */
+    seed: 0, focus: {}, focusCat: {},
+    enter: null,          /* فاز ورود WOW: {t0, done} */
+    acc: 0, hdrT: 0,      /* انباشت‌کننده‌ی تیک ۱ثانیه‌ای داخل loop (بدون setInterval) */
+    doneIds: null,        /* برای تشخیص «تکمیل ساخت» در loop → فلش+صدا */
+    sndOn: true,
+    tabCat: 'all',        /* تب فعال کاتالوگ در پنل استان */
   }
   /* ---------- دسترسی امن به bindingهای سراسری بازی (let/const — روی window نیستند) ---------- */
   function gameRef(name) {
@@ -41,7 +50,7 @@
     } } catch (e) {}
     return null
   }
-  window.WDCV = { S, open, close, rpc, version: 67, openProvPanel, selectBuilding }
+  window.WDCV = { S, open, close, rpc, version: 74, openProvPanel, selectBuilding, openCityPanel, openTech }
 
   /* ---------- Quality Tier (یک‌بار در ابتدا + افت خودکار) ---------- */
   function detectTier() {
@@ -59,9 +68,9 @@
     return t
   }
   const TIER = {
-    low: { particles: 0, deco: 0, shadows: false, maxDpr: 1 },
-    med: { particles: 8, deco: 1, shadows: false, maxDpr: 1.5 },
-    high: { particles: 18, deco: 2, shadows: true, maxDpr: 2 },
+    low:  { particles: 0,  deco: 0, shadows: false, maxDpr: 1,   ambient: 0,  lights: 0,  smoke: 0, roads: 0 },
+    med:  { particles: 8,  deco: 1, shadows: false, maxDpr: 1.5, ambient: 8,  lights: 26, smoke: 2, roads: 1 },
+    high: { particles: 18, deco: 2, shadows: true,  maxDpr: 2,   ambient: 16, lights: 56, smoke: 4, roads: 1 },
   }
   S.tier = detectTier()
   function tierCfg() { return TIER[S.tier] || TIER.med }
@@ -198,7 +207,14 @@
       let cx = 0, cy = 0
       if (cell.length >= 3) { for (const v of cell) { cx += v[0]; cy += v[1] } cx /= cell.length; cy /= cell.length }
       else { cx = seed[0]; cy = seed[1] }
-      return { prov: p, seed, poly: cell.length >= 3 ? cell : null, cx, cy }
+      /* V74: گستره‌ی سلول برای مسیرهای کشتی/هواپیما */
+      let bW = 0.4, bH = 0.4
+      if (cell.length >= 3) {
+        let x0 = 180, x1 = -180, y0 = 90, y1 = -90
+        for (const v of cell) { if (v[0] < x0) x0 = v[0]; if (v[0] > x1) x1 = v[0]; if (v[1] < y0) y0 = v[1]; if (v[1] > y1) y1 = v[1] }
+        bW = Math.max(0.15, x1 - x0); bH = Math.max(0.15, y1 - y0)
+      }
+      return { prov: p, seed, poly: cell.length >= 3 ? cell : null, cx, cy, bboxW: bW, bboxH: bH }
     })
   }
 
@@ -297,6 +313,77 @@
         }
       }
     })
+    /* ---- V74: zones هویتی منابع (LOD: از زوم متوسط، bake یک‌بار در هر bucket) ---- */
+    if (z >= 1.1) {
+      S.cells.forEach((c, ci) => {
+        if (!c.poly) return
+        const prov = c.prov
+        const px = project(c.cx, c.cy)
+        const det = Math.min(1, (z - 1.1) / 0.9) /* شفافیت تدریجی */
+        /* نفت‌خیز: دکل‌های ریز قطعی */
+        if (prov.type === 'resource' || prov.terrain === 'desert') {
+          const n = prov.type === 'resource' ? 7 : 4
+          g.fillStyle = 'rgba(30,34,40,' + (0.5 * det) + ')'
+          for (let k = 0; k < n; k++) {
+            const h = (ci * 31 + k * 17)
+            const ox = Math.cos(h) * 16 * z, oy = Math.sin(h * 1.7) * 10 * z
+            const bx = px[0] + ox, by = px[1] + oy
+            g.beginPath(); g.moveTo(bx - 2.2 * z, by + 2 * z); g.lineTo(bx, by - 2.4 * z); g.lineTo(bx + 2.2 * z, by + 2 * z); g.closePath(); g.fill()
+          }
+        }
+        /* کشاورزی: نوارهای مزرعه */
+        if (prov.type === 'agricultural' || prov.terrain === 'plains') {
+          g.strokeStyle = 'rgba(255,244,180,' + (0.22 * det) + ')'; g.lineWidth = 2.4 * z
+          for (let k = -2; k <= 2; k++) {
+            g.beginPath()
+            g.moveTo(px[0] - 22 * z + k * 4 * z, px[1] - 14 * z)
+            g.lineTo(px[0] - 10 * z + k * 4 * z, px[1] + 14 * z)
+            g.stroke()
+          }
+        }
+        /* صنعتی: بلوک‌های خاکستری */
+        if (prov.type === 'industrial') {
+          g.fillStyle = 'rgba(70,78,88,' + (0.4 * det) + ')'
+          for (let k = 0; k < 5; k++) {
+            const h = (ci * 13 + k * 29)
+            g.fillRect(px[0] + Math.cos(h) * 14 * z, px[1] + Math.sin(h * 2.3) * 9 * z, 5 * z, 3.2 * z)
+          }
+        }
+        /* ساحلی: علامت لنگرگاه روی لبه */
+        if (prov.coastal) {
+          g.fillStyle = 'rgba(180,230,255,' + (0.5 * det) + ')'
+          g.font = Math.round(9 * Math.min(1.4, z)) + 'px sans-serif'; g.textAlign = 'center'
+          g.fillText('⚓', px[0] + 20 * z, px[1] - 14 * z)
+        }
+      })
+    }
+    /* ---- V74: جاده‌ی اصلی پایتخت↔استان‌ها (bake) ---- */
+    if (tierCfg().roads && z >= 1.2 && S.cells.length > 1) {
+      const cap = S.cells[0]
+      const ca = project(cap.cx, cap.cy)
+      for (let i = 1; i < S.cells.length; i++) {
+        const pa = project(S.cells[i].cx, S.cells[i].cy)
+        strokeRoad(g, roadPts(ca, pa), Math.max(1, 1.6 * Math.min(1.5, z)), 'rgba(214,196,150,.5)')
+      }
+    }
+    /* ---- V74: شهرها (نقطه — برچسب در لایه‌ی پویا با Culling) ---- */
+    if (z >= 1.35) {
+      S.cells.forEach((c) => {
+        const cities = c.prov.cities || []
+        cities.forEach((city, k) => {
+          const p = project(city.lng, city.lat)
+          const r = Math.max(1.6, Math.min(4.2, (city.popK / 500) * 2.2 + (k === 0 ? 1.4 : 0))) * Math.min(1.5, z)
+          g.beginPath(); g.arc(p[0], p[1], r, 0, 6.3)
+          g.fillStyle = k === 0 ? '#ffe9a8' : 'rgba(240,244,248,.85)'; g.fill()
+          g.strokeStyle = 'rgba(20,26,34,.6)'; g.lineWidth = 0.8; g.stroke()
+          /* جاده‌ی فرعی شهر↔مرکز استان */
+          if (z >= 1.8 && tierCfg().roads) {
+            const pc = project(c.cx, c.cy)
+            strokeRoad(g, roadPts(pc, p), Math.max(0.7, 0.9 * z), 'rgba(214,196,150,.32)')
+          }
+        })
+      })
+    }
     /* برچسب استان‌ها (LOD: از زوم متوسط) */
     if (z >= 1.2) {
       g.textAlign = 'center'; g.textBaseline = 'middle'
@@ -347,18 +434,285 @@
       if (!p.on) continue
       p.life += dt
       if (p.life >= p.max) { p.on = false; continue }
-      p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 160 * dt
+      p.x += p.vx * dt; p.y += p.vy * dt
+      if (p.kind === 'smoke') { p.vy *= (1 - 0.4 * dt); p.vx *= (1 - 0.3 * dt) } /* دود: کند شدن */
+      else p.vy += 160 * dt
     }
   }
   function drawParticles(g) {
     for (const p of pool) {
       if (!p.on) continue
       const a = 1 - p.life / p.max
-      g.globalAlpha = a * 0.9
-      g.fillStyle = p.kind === 'gold' ? '#ffd84d' : p.kind === 'oil' ? '#9ad0ff' : '#a8e6a3'
-      g.beginPath(); g.arc(p.x, p.y, 2.4 * S.cam.z, 0, 6.3); g.fill()
+      g.globalAlpha = a * (p.kind === 'smoke' ? 0.4 : 0.9)
+      g.fillStyle = p.kind === 'gold' ? '#ffd84d' : p.kind === 'oil' ? '#9ad0ff' : p.kind === 'smoke' ? '#d5dce4' : '#a8e6a3'
+      g.beginPath(); g.arc(p.x, p.y, (p.kind === 'smoke' ? 3.2 : 2.4) * S.cam.z, 0, 6.3); g.fill()
     }
     g.globalAlpha = 1
+  }
+
+  /* ============================================================
+     V74 — AAA LAYER: صدا + محیط زنده + رسم برداری + جاده‌ها
+     همه داخل همان تک-loop مدیریت می‌شوند؛ هیچ تایمر/rAF جدیدی ساخته نمی‌شود.
+     ============================================================ */
+
+  /* ---------- صدا: سینت WebAudio سبک (lazy، بعد از تعامل، بدون فایل) ---------- */
+  let AC = null, AMaster = null
+  function audioInit() {
+    if (AC || !S.sndOn) return
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext
+      if (!Ctx) return
+      AC = new Ctx()
+      AMaster = AC.createGain(); AMaster.gain.value = 0.11; AMaster.connect(AC.destination)
+    } catch (e) { AC = null }
+  }
+  function snd(kind) {
+    if (!S.sndOn) return
+    try {
+      if (!AC) audioInit()
+      if (!AC) return
+      if (AC.state === 'suspended') { AC.resume(); return } /* اولین تلاش فقط unlock */
+      const t = AC.currentTime
+      const tone = (f0, f1, dur, type, vol, dl) => {
+        const o = AC.createOscillator(), g = AC.createGain()
+        o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t + (dl || 0))
+        if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + (dl || 0) + dur)
+        g.gain.setValueAtTime(0.0001, t + (dl || 0))
+        g.gain.exponentialRampToValueAtTime(vol || 0.5, t + (dl || 0) + 0.015)
+        g.gain.exponentialRampToValueAtTime(0.0001, t + (dl || 0) + dur)
+        o.connect(g); g.connect(AMaster); o.start(t + (dl || 0)); o.stop(t + (dl || 0) + dur + 0.02)
+      }
+      switch (kind) {
+        case 'enter': tone(220, 440, 0.22, 'sine', 0.5); tone(330, 660, 0.3, 'sine', 0.35, 0.09); break
+        case 'exit': tone(440, 220, 0.2, 'sine', 0.4); break
+        case 'tap': tone(950, 0, 0.045, 'triangle', 0.25); break
+        case 'build': tone(160, 110, 0.14, 'square', 0.22); tone(120, 90, 0.12, 'square', 0.18, 0.09); break
+        case 'complete': tone(523, 0, 0.1, 'sine', 0.4); tone(659, 0, 0.1, 'sine', 0.4, 0.09); tone(784, 0, 0.16, 'sine', 0.42, 0.18); break
+        case 'upgrade': tone(392, 784, 0.18, 'sine', 0.4); break
+        case 'focus': tone(660, 880, 0.12, 'sine', 0.3); break
+        case 'error': tone(180, 120, 0.16, 'sawtooth', 0.18); break
+      }
+    } catch (e) {}
+  }
+
+  /* ---------- محیط زنده: Pool حمل‌ونقل (خودرو/کشتی/هواپیما) ----------
+     هر شیء روی یک «مسیر» پارامتری (p0→p1) حرکت می‌کند؛ بیرون از Viewport
+     آپدیت/رندر نمی‌شود؛ سقف جمعی = TIER.ambient. ایجاد/نابودی ندارد — reuse. */
+  const AMB = []
+  function ambPathPool() {
+    /* مسیرها: جاده‌ی پایتخت↔استان‌ها (خودرو) + بندرها (کشتی) + فرودگاه‌ها (هواپیما) */
+    const paths = []
+    const cap = S.cells[0]
+    if (cap && tierCfg().roads) {
+      for (let i = 1; i < S.cells.length; i++) paths.push({ kind: 'car', a: [cap.cx, cap.cy], b: [S.cells[i].cx, S.cells[i].cy] })
+    }
+    for (const c of S.cells) {
+      const hasPort = S.buildings.some((b) => b.province === c.prov.i && b.type === 'port' && b.status === 'active')
+      const hasAir = S.buildings.some((b) => b.province === c.prov.i && b.type === 'airport' && b.status === 'active')
+      if (hasPort && c.prov.coastal) paths.push({ kind: 'ship', a: [c.cx, c.cy], b: [c.cx + (c.bboxW || 0.5) * 0.35, c.cy - (c.bboxH || 0.5) * 0.35] })
+      if (hasAir) paths.push({ kind: 'plane', a: [c.cx, c.cy], b: [c.cx + 0.55, c.cy + 0.35] })
+    }
+    return paths
+  }
+  function stepAmbient(dt) {
+    const cap = tierCfg().ambient
+    if (!cap || !S.ambPaths) return
+    /* پرکردن ظرفیت */
+    if (S.ambPaths.length && AMB.length < cap) {
+      const need = Math.min(cap - AMB.length, 2)
+      for (let i = 0; i < need; i++) {
+        const p = S.ambPaths[Math.floor(Math.random() * S.ambPaths.length)]
+        AMB.push({ kind: p.kind, path: p, t: Math.random(), sp: p.kind === 'car' ? 0.05 + Math.random() * 0.05 : p.kind === 'ship' ? 0.02 + Math.random() * 0.02 : 0.06 + Math.random() * 0.06, dir: Math.random() < 0.5 ? 1 : -1 })
+      }
+    }
+    for (let i = AMB.length - 1; i >= 0; i--) {
+      const o = AMB[i]
+      o.t += o.sp * dt * o.dir
+      if (o.t > 1 || o.t < 0) { /* پایان مسیر: بازیافت روی مسیر دیگر (بدون ایجاد/حذف DOM) */
+        if (S.ambPaths.length) o.path = S.ambPaths[Math.floor(Math.random() * S.ambPaths.length)]
+        o.t = o.dir > 0 ? 0 : 1
+      }
+    }
+  }
+  function drawAmbient(g) {
+    const z = S.cam.z
+    const W = cv.clientWidth, H = cv.clientHeight
+    for (const o of AMB) {
+      const a = o.path.a, b = o.path.b
+      const t = o.t
+      const lng = a[0] + (b[0] - a[0]) * t, lat = a[1] + (b[1] - a[1]) * t
+      const p = project(lng, lat)
+      if (p[0] < -30 || p[1] < -30 || p[0] > W + 30 || p[1] > H + 30) continue
+      const s = Math.min(1.6, z)
+      g.globalAlpha = 0.9
+      if (o.kind === 'car') {
+        g.fillStyle = '#d8dee6'
+        g.fillRect(p[0] - 2.4 * s, p[1] - 1.2 * s, 4.8 * s, 2.4 * s)
+        g.fillStyle = '#39424e'
+        g.fillRect(p[0] - 0.9 * s, p[1] - 1 * s, 1.8 * s, 2 * s)
+      } else if (o.kind === 'ship') {
+        g.fillStyle = '#e8eef4'
+        g.beginPath(); g.moveTo(p[0] - 5 * s, p[1]); g.lineTo(p[0] + 5 * s, p[1]); g.lineTo(p[0] + 3 * s, p[1] + 2.4 * s); g.lineTo(p[0] - 3 * s, p[1] + 2.4 * s); g.closePath(); g.fill()
+        g.fillStyle = '#c2483f'; g.fillRect(p[0] - 1 * s, p[1] - 4.2 * s, 2 * s, 4.2 * s)
+      } else {
+        g.strokeStyle = '#eef4fa'; g.lineWidth = 1.6 * s
+        g.beginPath(); g.moveTo(p[0] - 5 * s, p[1]); g.lineTo(p[0] + 5 * s, p[1]); g.moveTo(p[0], p[1] - 3 * s); g.lineTo(p[0], p[1] + 3 * s); g.stroke()
+      }
+      g.globalAlpha = 1
+    }
+  }
+
+  /* ---------- رد دنباله‌ی ضربه (micro-interaction) — Pool ---------- */
+  const RIPS = []
+  function spawnRipple(x, y) {
+    let r = RIPS.find((q) => !q.on)
+    if (!r) { if (RIPS.length > 8) return; r = { on: false }; RIPS.push(r) }
+    r.on = true; r.x = x; r.y = y; r.t = 0
+  }
+  function drawRipples(g, dt) {
+    for (const r of RIPS) {
+      if (!r.on) continue
+      r.t += dt
+      if (r.t > 0.32) { r.on = false; continue }
+      const k = r.t / 0.32
+      g.globalAlpha = (1 - k) * 0.55
+      g.strokeStyle = '#ffd84d'; g.lineWidth = 2
+      g.beginPath(); g.arc(r.x, r.y, 6 + k * 22 * Math.min(1.4, S.cam.z), 0, 6.3); g.stroke()
+      g.globalAlpha = 1
+    }
+  }
+
+  /* ---------- دود کارخانه‌ها — از همان Pool ذرات با kind='smoke' ---------- */
+  let smokeAcc = 0
+  function stepSmoke(dt) {
+    const cfg = tierCfg()
+    if (!cfg.smoke || S.cam.z < 2) return
+    smokeAcc += dt
+    if (smokeAcc < 0.9) return
+    smokeAcc = 0
+    let emitters = 0
+    const W = cv.clientWidth, H = cv.clientHeight
+    for (const b of S.buildings) {
+      if (emitters >= cfg.smoke) break
+      if (b.status !== 'active') continue
+      if (b.type !== 'factory' && b.type !== 'power' && b.type !== 'tank_plant') continue
+      const p = slotPos(b.province, b.slot)
+      if (p[0] < 0 || p[1] < 0 || p[0] > W || p[1] > H) continue
+      emitters++
+      let q = pool.find((x) => !x.on)
+      if (!q) { if (pool.length > 120) break; q = { on: false }; pool.push(q) }
+      q.on = true; q.x = p[0] + 3 * S.cam.z; q.y = p[1] - 5 * S.cam.z
+      q.vx = 4 + Math.random() * 6; q.vy = -14 - Math.random() * 10
+      q.life = 0; q.max = 1.6 + Math.random() * 0.8; q.kind = 'smoke'
+    }
+  }
+
+  /* ---------- رسم برداری ساختمان (LOD) — به‌جای دایره‌ی Emoji ----------
+     state: 0=سالم, 1=فونداسیون, 2=اسکلت. همه‌ی اشکال داخل شعاع ~9×z. */
+  function drawBuilding(g, x, y, type, level, z, state, tSec) {
+    const s = Math.min(1.7, z)
+    const u = 1.15 * s /* واحد پایه */
+    const glass = 'rgba(140,220,255,.85)', wall = '#cfd8e2', dark = '#2c3947', accent = '#7fe3ff'
+    g.lineWidth = 1 * s
+    const box = (w, h, dy, fill) => { g.fillStyle = fill || wall; g.fillRect(x - w * u / 2, y + dy * u - h * u, w * u, h * u); g.strokeStyle = dark; g.strokeRect(x - w * u / 2, y + dy * u - h * u, w * u, h * u) }
+    const roof = (w, dy, h) => { g.fillStyle = '#8c4a3f'; g.beginPath(); g.moveTo(x - w * u / 2, y + dy * u); g.lineTo(x, y + (dy - h) * u); g.lineTo(x + w * u / 2, y + dy * u); g.closePath(); g.fill(); g.stroke() }
+    if (state === 1) { /* فونداسیون */
+      g.setLineDash([3 * s, 3 * s]); g.strokeStyle = 'rgba(255,216,77,.8)'
+      g.strokeRect(x - 6 * u, y - 5 * u, 12 * u, 10 * u); g.setLineDash([])
+      g.fillStyle = 'rgba(120,90,50,.55)'
+      for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(x - 4 * u + i * 4 * u, y + 3 * u, 1.6 * u, 0, 6.3); g.fill() }
+      return
+    }
+    switch (type) {
+      case 'factory': case 'tank_plant':
+        box(9, 4, 2); box(4, 3, 5.6); /* سالن + بخش اداری */
+        g.fillStyle = dark; g.fillRect(x + 2.4 * u, y - 6.5 * u, 1.6 * u, 4.5 * u) /* دودکش */
+        if (state === 0 && tierCfg().smoke && S.cam.z >= 2) { g.fillStyle = 'rgba(220,228,236,.5)'; g.beginPath(); g.arc(x + 3.2 * u, y - 7.5 * u - Math.sin(tSec * 2) * 1.2 * u, 1.4 * u, 0, 6.3); g.fill() }
+        if (type === 'tank_plant') { g.fillStyle = '#5b6b52'; g.fillRect(x - 3.4 * u, y + 0.4 * u, 3.2 * u, 1.4 * u); g.fillRect(x - 2.2 * u, y - 0.4 * u, 1.6 * u, 0.9 * u) } /* تانک کوچک */
+        break
+      case 'house':
+        box(6, 3, 3); roof(7, 3, 2.4); box(2.2, 1.2, 1.2, glass)
+        break
+      case 'farm':
+        g.fillStyle = '#a5813f'; g.fillRect(x - 7 * u, y - 1 * u, 14 * u, 5 * u)
+        g.strokeStyle = 'rgba(255,244,190,.75)'
+        for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(x + i * 2.6 * u, y - 1 * u); g.lineTo(x + i * 2.6 * u, y + 4 * u); g.stroke() }
+        roof(4.5, 1.2, 1.6)
+        break
+      case 'oil_rig':
+        g.strokeStyle = dark; g.beginPath()
+        g.moveTo(x - 3.4 * u, y + 4 * u); g.lineTo(x - 1 * u, y - 6 * u); g.lineTo(x + 1 * u, y - 6 * u); g.lineTo(x + 3.4 * u, y + 4 * u)
+        g.moveTo(x - 2.2 * u, y + 0.5 * u); g.lineTo(x + 2.2 * u, y + 0.5 * u); g.stroke()
+        box(3.4, 1.6, 6.8, '#9aa7b4')
+        break
+      case 'mine':
+        g.strokeStyle = dark; g.beginPath(); g.arc(x, y + 1 * u, 3 * u, Math.PI, 0); g.stroke()
+        g.beginPath(); g.moveTo(x - 3 * u, y + 1 * u); g.lineTo(x - 3 * u, y + 4.6 * u); g.lineTo(x + 3 * u, y + 4.6 * u); g.lineTo(x + 3 * u, y + 1 * u); g.stroke()
+        break
+      case 'power':
+        g.strokeStyle = dark; g.beginPath()
+        g.moveTo(x - 2.6 * u, y + 4.6 * u); g.lineTo(x - 0.7 * u, y - 4.6 * u); g.lineTo(x + 0.7 * u, y - 4.6 * u); g.lineTo(x + 2.6 * u, y + 4.6 * u); g.stroke()
+        g.fillStyle = '#ffd84d'; g.font = Math.round(5.5 * u) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⚡', x, y - 6 * u)
+        break
+      case 'port': case 'naval_base':
+        g.fillStyle = dark; g.fillRect(x - 6 * u, y + 2.2 * u, 12 * u, 1.4 * u) /* اسکله */
+        g.strokeStyle = dark; g.beginPath(); g.moveTo(x - 3 * u, y + 2.2 * u); g.lineTo(x - 3 * u, y - 3.4 * u); g.lineTo(x + 1.6 * u, y - 1.6 * u); g.stroke() /* جرثقیل */
+        if (type === 'naval_base') { g.fillStyle = '#4f6b86'; g.beginPath(); g.moveTo(x + 2 * u, y + 0.4 * u); g.lineTo(x + 6 * u, y + 0.4 * u); g.lineTo(x + 4.6 * u, y + 1.8 * u); g.lineTo(x + 2.6 * u, y + 1.8 * u); g.closePath(); g.fill() }
+        break
+      case 'airport': case 'airbase':
+        g.fillStyle = '#55606d'; g.fillRect(x - 7 * u, y + 1.2 * u, 14 * u, 2.2 * u)
+        g.strokeStyle = '#e8eef4'; g.setLineDash([2 * u, 1.6 * u]); g.beginPath(); g.moveTo(x - 6 * u, y + 2.3 * u); g.lineTo(x + 6 * u, y + 2.3 * u); g.stroke(); g.setLineDash([])
+        box(3.6, 2, 1.2, '#9aa7b4') /* آشیانه */
+        if (type === 'airbase') { g.fillStyle = '#ffd84d'; g.font = Math.round(4.6 * u) + 'px sans-serif'; g.fillText('✈', x + 4 * u, y - 1.6 * u) }
+        break
+      case 'barracks':
+        box(7, 3, 3.4); roof(8, 3.4, 1.8)
+        g.fillStyle = '#3f7a52'; g.fillRect(x - 0.6 * u, y - 6.4 * u, 1.2 * u, 3 * u); g.fillStyle = '#7fe3ff'; g.fillRect(x + 0.6 * u, y - 6.4 * u, 2.6 * u, 1.6 * u) /* پرچم */
+        break
+      case 'defense':
+        g.fillStyle = '#8d99a6'
+        g.fillRect(x - 7 * u, y - 0.6 * u, 14 * u, 3.6 * u)
+        for (let i = -3; i <= 3; i += 2) g.fillRect(x + i * 2 * u - 1 * u, y - 2.4 * u, 2 * u, 1.8 * u) /* کنگره */
+        g.strokeStyle = dark; g.strokeRect(x - 7 * u, y - 0.6 * u, 14 * u, 3.6 * u)
+        break
+      case 'radar':
+        g.strokeStyle = dark; g.beginPath(); g.moveTo(x, y + 4 * u); g.lineTo(x, y - 1.4 * u); g.stroke()
+        g.fillStyle = glass; g.beginPath(); g.ellipse(x, y - 3 * u, 3.4 * u, 2.2 * u, -0.5 + Math.sin(tSec * 0.8) * 0.25, 0, 6.3); g.fill(); g.stroke()
+        break
+      case 'university':
+        box(8, 4, 3.6); g.fillStyle = glass; g.beginPath(); g.arc(x, y - 2.2 * u, 2.2 * u, Math.PI, 0); g.fill(); g.strokeStyle = dark; g.stroke()
+        for (let i = -2; i <= 2; i++) g.fillRect(x + i * 2.4 * u - 0.4 * u, y - 0.4 * u, 0.8 * u, 3.6 * u)
+        break
+      case 'bank': case 'gov':
+        box(9, 5, 4)
+        g.fillStyle = '#e8eef4'; for (let i = -2; i <= 2; i++) g.fillRect(x + i * 2.6 * u - 0.5 * u, y - 1 * u, 1 * u, 4.6 * u)
+        if (type === 'gov') { g.fillStyle = '#ffd84d'; g.beginPath(); g.arc(x, y - 6 * u, 1.4 * u, 0, 6.3); g.fill() }
+        break
+      case 'storage':
+        g.fillStyle = '#b8a888'; g.beginPath(); g.arc(x, y + 1.4 * u, 3.6 * u, Math.PI, 0); g.fill(); g.strokeStyle = dark; g.stroke()
+        g.fillRect(x - 3.6 * u, y + 1.4 * u, 7.2 * u, 3.4 * u); g.strokeRect(x - 3.6 * u, y + 1.4 * u, 7.2 * u, 3.4 * u)
+        break
+      default:
+        box(6, 5, 4); roof(7, 4, 2)
+    }
+    /* سطح ۵+: آنتن | سطح ۸+: هاله (فقط HIGH) */
+    if (level >= 5) { g.strokeStyle = accent; g.beginPath(); g.moveTo(x + 5.4 * u, y + 0.6 * u); g.lineTo(x + 5.4 * u, y - 4.4 * u); g.stroke(); g.fillStyle = accent; g.beginPath(); g.arc(x + 5.4 * u, y - 5 * u, 0.9 * u, 0, 6.3); g.fill() }
+    if (level >= 8 && tierCfg().shadows) { g.globalAlpha = 0.35 + 0.15 * Math.sin(tSec * 2.4); g.strokeStyle = '#ffd84d'; g.lineWidth = 1.6 * s; g.beginPath(); g.arc(x, y, 11 * u, 0, 6.3); g.stroke(); g.globalAlpha = 1 }
+  }
+
+  /* ---------- جاده‌ها ---------- */
+  function roadPts(a, b) { /* منحنی ملایم برای حس ارگانیک */
+    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2
+    const dx = b[0] - a[0], dy = b[1] - a[1]
+    const nx = -dy * 0.06, ny = dx * 0.06
+    return [a, [mx + nx, my + ny], b]
+  }
+  function strokeRoad(g, pts, w, col) {
+    g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'
+    g.beginPath(); g.moveTo(pts[0][0], pts[0][1])
+    if (pts.length === 3) g.quadraticCurveTo(pts[1][0], pts[1][1], pts[2][0], pts[2][1])
+    else for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1])
+    g.stroke()
   }
 
   /* ---------- جایگاه‌های slot هر استان (قطعی) ---------- */
@@ -381,42 +735,113 @@
     ctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight)
     ctx.drawImage(staticCv, 0, 0, cv.clientWidth, cv.clientHeight)
     const z = S.cam.z
-    const showBuildings = z >= 1.1
+    const showBuildings = z >= 1.15
     const showDetails = z >= 2
     const W = cv.clientWidth, H = cv.clientHeight
+    const tSec = S.nowMs / 1000
 
-    /* ساخت‌وسازهای در حال ساخت + ساختمان‌ها — با Culling */
-    for (const b of S.buildings) {
-      const p = slotPos(b.province, b.slot)
-      if (p[0] < -60 || p[1] < -60 || p[0] > W + 60 || p[1] > H + 60) continue
-      const def = catOf(b.type)
-      if (!def) continue
-      const active = b.status === 'active'
-      /* پایه */
-      ctx.beginPath(); ctx.arc(p[0], p[1] + 3 * z, 11 * Math.min(1.6, z), 0, 6.3)
-      ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fill()
-      ctx.beginPath(); ctx.arc(p[0], p[1], 10.5 * Math.min(1.6, z), 0, 6.3)
-      ctx.fillStyle = active ? 'rgba(16,32,48,.92)' : 'rgba(30,26,16,.92)'
-      ctx.fill()
-      ctx.lineWidth = 1.4
-      ctx.strokeStyle = active ? 'rgba(120,220,255,.7)' : 'rgba(255,200,80,.8)'
-      ctx.stroke()
-      /* گلیف */
-      ctx.font = Math.round(12 * Math.min(1.6, z)) + 'px sans-serif'
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-      ctx.fillText(def.icon, p[0], p[1] + 1)
-      /* حلقه‌ی پیشرفت ساخت */
-      if (!active && b.doneAt) {
-        const total = b.doneAt - b.startedAt
-        const prog = clamp(1 - (b.doneAt - S.nowMs) / total, 0, 1)
-        ctx.beginPath(); ctx.arc(p[0], p[1], 13 * Math.min(1.6, z), -Math.PI / 2, -Math.PI / 2 + prog * 6.283)
-        ctx.strokeStyle = '#ffd84d'; ctx.lineWidth = 2.2; ctx.stroke()
+    /* V74: لحظه‌ی ورود — تپش مرز کشور + قاب شناور (سبک: فقط stroke متحرک) */
+    if (S.enter && !S.enter.done) {
+      const k = clamp((S.nowMs - S.enter.t0) / 1400, 0, 1)
+      if (S.ring) {
+        const ring = S.ring.map((p) => project(p[0], p[1]))
+        ctx.strokeStyle = 'rgba(255,216,77,' + (0.9 * (1 - k)) + ')'
+        ctx.lineWidth = 3.5 - 2 * k
+        ctx.setLineDash([10, 7]); ctx.lineDashOffset = -S.nowMs / 24
+        pathRing(ctx, ring); ctx.stroke(); ctx.setLineDash([])
       }
-      /* پله‌های سطح */
-      const pips = Math.min(10, b.level)
-      for (let k = 0; k < pips; k++) {
-        ctx.fillStyle = k < b.level ? '#7fe3ff' : 'rgba(255,255,255,.2)'
-        ctx.fillRect(p[0] - pips * 2.2 + k * 4.4, p[1] + 12 * Math.min(1.5, z), 2.6, 2)
+      if (k >= 1) S.enter.done = true
+    }
+
+    /* V74: چراغ شهرها (فقط MED/HIGH، سقف tier، فلیکر سبک سینوسی) */
+    const lightsN = tierCfg().lights
+    if (lightsN && z >= 1.45) {
+      ctx.fillStyle = 'rgba(255,224,130,.85)'
+      let li = 0
+      for (const c of S.cells) {
+        const cities = c.prov.cities || []
+        for (const city of cities) {
+          if (li >= lightsN) break
+          const p = project(city.lng, city.lat)
+          if (p[0] < 0 || p[1] < 0 || p[0] > W || p[1] > H) continue
+          const dev = ((c.prov.stats && c.prov.stats.dev) || 40) / 100
+          const nL = Math.max(2, Math.round(2 + dev * 4))
+          for (let k = 0; k < nL && li < lightsN; k++, li++) {
+            const h = (li * 37 + 11)
+            const lx = p[0] + Math.cos(h) * (5 + (h % 9)) * Math.min(1.5, z)
+            const ly = p[1] + Math.sin(h * 1.3) * (4 + (h % 7)) * Math.min(1.5, z)
+            ctx.globalAlpha = 0.35 + 0.3 * Math.sin(tSec * 2.2 + h)
+            ctx.fillRect(lx, ly, 1.6 * Math.min(1.4, z), 1.6 * Math.min(1.4, z))
+          }
+          if (li >= lightsN) break
+        }
+      }
+      ctx.globalAlpha = 1
+    }
+
+    /* V74: برچسب شهرها (LOD z≥1.7 — با Culling) */
+    if (z >= 1.7) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      for (const c of S.cells) {
+        for (const city of (c.prov.cities || [])) {
+          const p = project(city.lng, city.lat)
+          if (p[0] < -40 || p[1] < -40 || p[0] > W + 40 || p[1] > H + 40) continue
+          const fs = Math.round(9.5 * Math.min(1.4, z))
+          ctx.font = '600 ' + fs + 'px Vazirmatn, Tahoma, sans-serif'
+          ctx.fillStyle = 'rgba(0,0,0,.5)'
+          ctx.fillText(city.name, p[0] + 1, p[1] - 8 * z + 1)
+          ctx.fillStyle = '#f4f8fc'
+          ctx.fillText(city.name, p[0], p[1] - 8 * z)
+        }
+      }
+    }
+
+    /* ساخت‌وسازهای در حال ساخت + ساختمان‌ها — رسم برداری + Culling */
+    if (showBuildings) {
+      for (const b of S.buildings) {
+        const p = slotPos(b.province, b.slot)
+        if (p[0] < -60 || p[1] < -60 || p[0] > W + 60 || p[1] > H + 60) continue
+        const def = catOf(b.type)
+        if (!def) continue
+        const active = b.status === 'active'
+        let prog = 1
+        if (!active && b.doneAt) prog = clamp(1 - (b.doneAt - S.nowMs) / Math.max(1, b.doneAt - b.startedAt), 0, 1)
+        /* سایه‌ی زمین */
+        ctx.beginPath(); ctx.ellipse(p[0], p[1] + 5 * z, 9 * Math.min(1.6, z), 3.4 * Math.min(1.6, z), 0, 0, 6.3)
+        ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill()
+        /* بدنه: سه مرحله‌ی ساخت (فونداسیون ← اسکلت ← ساختمان واقعی) */
+        const st = active ? 0 : prog < 0.33 ? 1 : 2
+        if (st === 2) { /* اسکلت: قاب + تیرهای مورب */
+          const s2 = Math.min(1.7, z), u2 = 1.15 * s2
+          ctx.strokeStyle = 'rgba(255,200,80,.9)'; ctx.lineWidth = 1.2 * s2
+          ctx.strokeRect(p[0] - 5.5 * u2, p[1] - 4.5 * u2, 11 * u2, 9 * u2)
+          ctx.beginPath()
+          ctx.moveTo(p[0] - 5.5 * u2, p[1] - 4.5 * u2); ctx.lineTo(p[0] + 5.5 * u2, p[1] + 4.5 * u2)
+          ctx.moveTo(p[0] + 5.5 * u2, p[1] - 4.5 * u2); ctx.lineTo(p[0] - 5.5 * u2, p[1] + 4.5 * u2)
+          ctx.stroke()
+          ctx.beginPath(); ctx.moveTo(p[0] + 5.5 * u2, p[1] - 4.5 * u2); ctx.lineTo(p[0] + 10 * u2, p[1] - 8.5 * u2); ctx.stroke() /* بازوی جرثقیل */
+        } else if (st === 0) {
+          drawBuilding(ctx, p[0], p[1], b.type, b.level, z, 0, tSec)
+        }
+        /* حلقه‌ی پیشرفت ساخت */
+        if (!active && b.doneAt) {
+          ctx.beginPath(); ctx.arc(p[0], p[1], 13 * Math.min(1.6, z), -Math.PI / 2, -Math.PI / 2 + prog * 6.283)
+          ctx.strokeStyle = '#ffd84d'; ctx.lineWidth = 2.2; ctx.stroke()
+        }
+        /* پله‌های سطح */
+        const pips = Math.min(10, b.level)
+        for (let k = 0; k < pips; k++) {
+          ctx.fillStyle = k < b.level ? '#7fe3ff' : 'rgba(255,255,255,.2)'
+          ctx.fillRect(p[0] - pips * 2.2 + k * 4.4, p[1] + 12 * Math.min(1.5, z), 2.6, 2)
+        }
+        /* پالس انتخاب */
+        if (S.sel.bld && S.sel.bld.id === b.id) {
+          const a = 0.45 + 0.3 * Math.sin(tSec * 5)
+          ctx.globalAlpha = a
+          ctx.strokeStyle = '#ffd84d'; ctx.lineWidth = 2
+          ctx.beginPath(); ctx.arc(p[0], p[1], 15 * Math.min(1.6, z), 0, 6.3); ctx.stroke()
+          ctx.globalAlpha = 1
+        }
       }
     }
 
@@ -444,11 +869,12 @@
       }
     }
 
-    /* ذرات */
+    /* V74: محیط زنده + ذرات + رد ضربه — همه فقط وقتی در Viewport */
+    if (z >= 1.5) drawAmbient(ctx)
     drawParticles(ctx)
-
-    /* افکت کیفیت پایین: برچسب FPS مخفی — فقط شمارنده‌ی داخلی */
+    drawRipples(ctx, dt)
     stepParticles(dt)
+    stepSmoke(dt)
   }
 
   /* ---------- حلقه‌ی اصلی (تک rAF) ---------- */
@@ -468,10 +894,34 @@
       if (Math.abs(cam.x - cam.tx) < 0.5 && Math.abs(cam.y - cam.ty) < 0.5 && Math.abs(cam.z - cam.tz) < 0.01) cam.anim = false
     }
     render(dt)
+    /* V74: تیک ۱ثانیه‌ای داخل همین loop — بدون setInterval جدا (بند ۲۰ دستور) */
+    S.acc += dt
+    if (S.acc >= 1) {
+      S.acc -= 1
+      S.nowMs = Date.now()
+      projectRes(1)
+      /* تشخیص تکمیل ساخت — فلش + صدا + فعال‌سازی محلی */
+      for (const b of S.buildings) {
+        if (b.status === 'building' && b.doneAt && b.doneAt.getTime() <= S.nowMs) {
+          b.status = 'active'
+          const def = catOf(b.type)
+          spawnParticles(...slotPos(b.province, b.slot), 'gold')
+          snd('complete')
+          toast('✅ ' + (def ? def.fa : 'ساختمان') + ' سطح ' + fa(b.level) + ' آماده شد')
+          S.ambPaths = ambPathPool() /* مسیر جدید (بندر/فرودگاه) ممکن است فعال شود */
+          const pp = S.provinces[b.province]
+          if (pp && S.sel.prov === b.province) openProvPanel(b.province) /* پنل باز را تازه کن */
+        }
+      }
+      if ((S.hdrT = (S.hdrT || 0) + 1) % 2 === 0) header()
+      /* بازسازی مسیرهای محیط هر ۵ ثانیه (سبک — فقط وقتی tier اجازه می‌دهد) */
+      if ((S._ambT = (S._ambT || 0) + 1) >= 5) { S._ambT = 0; if (tierCfg().ambient) S.ambPaths = ambPathPool() }
+    }
+    stepAmbient(dt)
     /* بودجه‌ی فریم — افت خودکار کیفیت */
     const ms = performance.now() - t0
     S.frameMs = S.frameMs * 0.95 + ms * 0.05
-    if (S.frameMs > 24 && S.tier !== 'low') { S._slow = (S._slow || 0) + 1; if (S._slow > 240) { degradeTier(); S._slow = 0 } }
+    if (S.frameMs > 24 && S.tier !== 'low') { S._slow = (S._slow || 0) + 1; if (S._slow > 240) { degradeTier(); S.ambPaths = ambPathPool(); S.dirtyStatic = true } }
     else S._slow = Math.max(0, (S._slow || 0) - 1)
   }
   function startLoop() {
@@ -559,9 +1009,11 @@
     if (e.key === 'Escape') close()
   }
 
-  /* ---------- Tap: انتخاب استان / ساختمان ---------- */
+  /* ---------- Tap: انتخاب استان / شهر / ساختمان ---------- */
   function onTap(clientX, clientY) {
     const sx = clientX - rectLeft(), sy = clientY - rectTop()
+    spawnRipple(sx, sy) /* V74: بازخورد لمس */
+    snd('tap')
     /* ساختمان نزدیک؟ */
     let hitB = null, hitD = 24 * S.cam.z
     for (const b of S.buildings) {
@@ -570,6 +1022,18 @@
       if (d < hitD) { hitD = d; hitB = b }
     }
     if (hitB) { selectBuilding(hitB); return }
+    /* V74: شهر نزدیک؟ (زوم متوسط به بالا) */
+    if (S.cam.z >= 1.35) {
+      let hitC = null, hitCP = -1, hitCD = 16 * Math.max(1, S.cam.z * 0.8)
+      for (const c of S.cells) {
+        for (const city of (c.prov.cities || [])) {
+          const p = project(city.lng, city.lat)
+          const d = Math.hypot(p[0] - sx, p[1] - sy)
+          if (d < hitCD) { hitCD = d; hitC = city; hitCP = c.prov.i }
+        }
+      }
+      if (hitC) { openCityPanel(hitC, hitCP); return }
+    }
     /* استان زیر نقطه؟ */
     const [lng, lat] = unproject(sx, sy)
     let hitP = -1
@@ -610,17 +1074,90 @@
     u.querySelector('#wdcv-hmil').innerHTML = '⚔️ +' + fa(S.mil.atkPct) + '٪ قدرت   🛡️ دفاع ' + fa(S.mil.defPct) + '   ⚓' + fa(S.counts.ports) + ' ✈️' + fa(S.counts.airports) + (S.rp > 0.5 ? '   🔬' + fa(Math.floor(S.rp)) + ' پژوهش' : '')
   }
 
+  function provTitle(prov) {
+    return (prov.type === 'capital' ? '⭐ پایتخت' : '🗺️ ' + (PROV_TYPE_FA[prov.type] || 'استان')) + ' — ' + terrainFa(prov.terrain) + (prov.coastal ? ' ساحلی' : '')
+  }
   function openProvPanel(pi) {
     const u = ui(); if (!u) return
     const p = u.querySelector('#wdcv-panel'); p.innerHTML = ''
     const prov = S.provinces[pi]
+    if (!prov) return
+    const st = prov.stats || {}
+    /* سرصفحه + چیپ‌های هویت */
     const head = el('div', 'wdcv-row')
-    head.append(el('b', '', '🗺️ ' + (PROV_TYPE_FA[prov.type] || '') + ' — ' + terrainFa(prov.terrain) + (prov.coastal ? ' ساحلی' : '')))
+    head.innerHTML = '<b>' + provTitle(prov) + '</b><span class="wdcv-chip">' + fa(prov.slots) + ' جایگاه</span>'
     p.append(head)
-    p.append(el('div', 'wdcv-sub', 'جایگاه‌ها: ' + fa(prov.slots) + ' — برای ساخت، روی ＋ خالی بزن یا از منوی زیر انتخاب کن'))
+    /* V74: آمار هویتی استان — ۹ نوار سبک (بدون canvas اضافه) */
+    const stats = [
+      ['pop', '👥 جمعیت'], ['ind', '🏭 صنعت'], ['agri', '🌾 کشاورزی'], ['oil', '🛢 نفت'],
+      ['en', '⚡ انرژی'], ['infra', '🛣 زیرساخت'], ['stab', '📈 ثبات'], ['def', '🛡 دفاع'], ['dev', '🏗 توسعه'],
+    ]
+    const sw = el('div', 'wdcv-stats')
+    for (const [k, lbl] of stats) {
+      const r = el('div', 'wdcv-stat')
+      const v = Math.round(st[k] || 0)
+      r.innerHTML = '<span class="k">' + lbl + '</span><span class="bar"><i style="width:' + v + '%"></i></span><span class="v">' + fa(v) + '</span>'
+      sw.append(r)
+    }
+    p.append(sw)
+    /* V74: تخصصی‌سازی استان (اقتصاد واقعی: ±۱۰٪ سروری) */
+    const fr = el('div', 'wdcv-row wdcv-focusrow')
+    const cur = S.focus[String(pi)] || ''
+    fr.append(el('span', 'wdcv-sub', '🎯 تخصص استان:'))
+    const fb = el('div', 'wdcv-focusbtns')
+    const mkF = (key, label) => {
+      const b = el('button', 'wdcv-focusbtn' + (cur === key ? ' on' : ''), label)
+      b.addEventListener('click', () => tryFocus(pi, key))
+      return b
+    }
+    fb.append(mkF('', '—'))
+    Object.keys(S.focusCat || {}).forEach((k) => fb.append(mkF(k, (S.focusCat[k].icon || '') + (S.focusCat[k].fa || k))))
+    fr.append(fb)
+    p.append(fr)
+    /* تولید زنده‌ی استان (از ساختمان‌های فعال + focus) */
+    const pb = S.buildings.filter((b) => b.province === pi)
+    if (pb.length) {
+      const agg = { gold: 0, oil: 0, food: 0, rp: 0 }
+      for (const b of pb) {
+        if (b.status !== 'active') continue
+        const def = catOf(b.type)
+        if (!def) continue
+        const pr = prodOf(def, b.level, b.province)
+        agg.gold += pr.gold || 0; agg.oil += pr.oil || 0; agg.food += pr.food || 0; agg.rp += pr.rp || 0
+      }
+      const bits = []
+      if (agg.gold) bits.push('💰 ' + fa(agg.gold) + '/دقیقه')
+      if (agg.oil) bits.push('🛢️ ' + fa(agg.oil) + '/دقیقه')
+      if (agg.food) bits.push('🌾 ' + fa(agg.food) + '/دقیقه')
+      if (agg.rp) bits.push('🔬 ' + fa(Math.round(agg.rp * 10) / 10) + '/دقیقه')
+      if (bits.length) p.append(el('div', 'wdcv-sub', '📊 تولید این استان: ' + bits.join(' · ')))
+    }
+    /* لیست ساختمان‌های استان (سبک — ردیف متنی) */
+    if (pb.length) {
+      const bl = el('div', 'wdcv-blist')
+      for (const b of pb) {
+        const def = catOf(b.type)
+        if (!def) continue
+        const row = el('button', 'wdcv-brow')
+        row.innerHTML = '<span>' + def.icon + ' ' + def.fa + '</span><span>' + (b.status === 'active' ? 'سطح ' + fa(b.level) : '🏗 ' + fa(Math.max(0, Math.ceil((b.doneAt - S.nowMs) / 1000))) + 's') + '</span>'
+        row.addEventListener('click', () => selectBuilding(b))
+        bl.append(row)
+      }
+      p.append(bl)
+    }
+    p.append(el('div', 'wdcv-sub', 'برای ساخت، روی ＋ خالی بزن یا از منوی زیر انتخاب کن'))
+    /* تب‌های دسته + گرید ساخت */
+    const tabs = el('div', 'wdcv-tabs')
+    const catFa = { all: 'همه', government: 'حکومتی', residential: 'مسکونی', industry: 'صنعتی', agriculture: 'کشاورزی', resources: 'منابع', energy: 'انرژی', port: 'بندری', airport: 'هوایی', military: 'نظامی', research: 'پژوهش', economy: 'مالی', infrastructure: 'زیرساخت' }
+    ;['all', 'industry', 'military', 'energy', 'infrastructure'].forEach((c) => {
+      const t = el('button', 'wdcv-tab' + (S.tabCat === c ? ' on' : ''), catFa[c] || c)
+      t.addEventListener('click', () => { S.tabCat = c; openProvPanel(pi) })
+      tabs.append(t)
+    })
+    p.append(tabs)
     const grid = el('div', 'wdcv-buildgrid')
-    const allowed = S.cat.filter((d) => buildableIn(d, prov))
-    if (!allowed.length) grid.append(el('div', 'wdcv-sub', 'در این استان فعلاً ساخت‌وسازی ممکن نیست'))
+    const allowed = S.cat.filter((d) => buildableIn(d, prov) && (S.tabCat === 'all' || d.cat === S.tabCat))
+    if (!allowed.length) grid.append(el('div', 'wdcv-sub', S.tabCat === 'all' ? 'در این استان فعلاً ساخت‌وسازی ممکن نیست' : 'در این دسته ساختنی نیست — تب دیگری را انتخاب کن'))
     allowed.slice(0, 10).forEach((d) => {
       const card = el('button', 'wdcv-bcard')
       card.innerHTML = '<span class="ic">' + d.icon + '</span><span class="tx"><b>' + d.fa + '</b><small>💰' + fa(d.cost1.g) + (d.cost1.o ? ' 🛢️' + fa(d.cost1.o) : '') + (d.cost1.f ? ' 🌾' + fa(d.cost1.f) : '') + ' · ' + fa(d.time1) + 's</small></span>'
@@ -629,6 +1166,17 @@
     })
     p.append(grid)
     p.append(techBtn())
+  }
+  async function tryFocus(pi, key) {
+    try {
+      const r = await rpc('cv_focus', { p_country: S.country, p_server: S.server, p_province: pi, p_focus: key })
+      if (r && r.ok) {
+        S.focus = r.focusAll || {}
+        snd('focus')
+        toast(key ? '🎯 تخصص استان: ' + ((S.focusCat[key] || {}).fa || key) : '🎯 تخصص استان برداشته شد')
+      } else toast('❌ ثبت تخصص نشد')
+    } catch (e) { toast('❌ ارتباط برقرار نشد') }
+    openProvPanel(pi)
   }
   function terrainFa(t) { return { plains: 'دشت', hills: 'تپه‌زار', mountain: 'کوهستان', desert: 'کویر', tundra: 'تندرا' }[t] || t }
   function buildableIn(d, prov) {
@@ -639,6 +1187,29 @@
     const cntAll = S.buildings.filter((b) => b.type === d.id).length
     if (cntProv >= d.maxPerProvince || cntAll >= d.empireCap) return false
     return true
+  }
+  /* V74: پنل شهر — شهرها entity نمایشی‌اند روی همان اقتصاد واقعی استان (بدون سیستم موازی) */
+  function openCityPanel(city, pi) {
+    const u = ui(); if (!u) return
+    const p = u.querySelector('#wdcv-panel'); p.innerHTML = ''
+    S.sel.bld = null; S.sel.prov = pi; S.sel.slot = null
+    const prov = S.provinces[pi]
+    const head = el('div', 'wdcv-row')
+    head.innerHTML = '<b>🏙️ ' + city.name + '</b><span class="wdcv-chip">👥 ' + fa(city.popK) + ' هزار نفر</span>'
+    p.append(head)
+    p.append(el('div', 'wdcv-sub', 'منطقه‌های شهری (بر اساس هویت شهر):'))
+    const zones = { metro: ['🏛 فرمانداری', '🏠 مسکونی', '🏥 بیمارستان'], industrial: ['🏭 ناحیه صنعتی', '📦 انبار', '🏠 مسکونی'], agri: ['🌾 مزارع اطراف', '🏠 مسکونی', '📦 انبار غلا'], port: ['⚓ اسکله', '🏭 بسته‌بندی', '📦 انبار صادرات'], oil: ['🛢 تجهیزات استخراج', '🏭 پالایشگاه', '🏠 مسکونی'], military: ['🛡 پادگان', '📡 رادار', '🏠 مسکونی'], mountain: ['⛏ معادن', '🏠 مسکونی', '🛣 جاده کوهستانی'] }
+    const zr = el('div', 'wdcv-chips')
+    ;(zones[city.kind] || zones.metro).forEach((z) => zr.append(el('span', 'wdcv-chip', z)))
+    p.append(zr)
+    const bcount = S.buildings.filter((b) => b.province === pi).length
+    p.append(el('div', 'wdcv-sub', 'این شهر در «' + provTitle(prov) + '» است — ' + fa(bcount) + ' ساختمان فعال در استان. ساختمان‌ها اقتصاد واقعی را می‌سازند.'))
+    const row = el('div', 'wdcv-row')
+    const b1 = el('button', 'wdcv-mini', '🗺️ مدیریت استان')
+    b1.addEventListener('click', () => openProvPanel(pi))
+    row.append(b1)
+    p.append(row)
+    p.append(techBtn())
   }
   function techBtn() {
     const b = el('button', 'wdcv-mini', '🔬 فناوری')
@@ -676,10 +1247,11 @@
     const p = u.querySelector('#wdcv-panel'); p.innerHTML = ''
     const active = b.status === 'active'
     const head = el('div', 'wdcv-row')
-    head.innerHTML = '<b>' + def.icon + ' ' + def.fa + '</b> — سطح ' + fa(b.level) + (active ? '' : ' 🏗 در حال ساخت')
+    head.innerHTML = '<b>' + def.icon + ' ' + def.fa + '</b><span class="wdcv-chip">سطح ' + fa(b.level) + (active ? '' : ' · 🏧 در حال ساخت') + '</span>'
     p.append(head)
+    p.append(el('div', 'wdcv-sub', def.desc))
     if (active) {
-      const prod = prodOf(def, b.level)
+      const prod = prodOf(def, b.level, b.province)
       const bits = []
       if (prod.gold) bits.push('💰 ' + fa(prod.gold) + '/دقیقه')
       if (prod.oil) bits.push('🛢️ ' + fa(prod.oil) + '/دقیقه')
@@ -690,6 +1262,10 @@
       if (def.goldPct) bits.push('👑 +' + fa(def.goldPct * b.level) + '٪ طلا')
       if (def.oilCap) bits.push('📦 +' + fa(def.oilCap * b.level) + ' سقف نفت')
       p.append(el('div', 'wdcv-sub', bits.length ? bits.join(' · ') : 'بدون تولید مستقیم'))
+      /* V74: نشان بونوس تخصص */
+      const fk = S.focus[String(b.province)]
+      const fd = fk ? S.focusCat[fk] : null
+      if (fd && fd.ids && fd.ids.indexOf(def.id) >= 0) p.append(el('div', 'wdcv-sub', '🎯 بونوس تخصص «' + fd.fa + '» اعمال شده (×۱٫۱)'))
       if (b.level < S.maxLevel) {
         const nc = costOf(def, b.level + 1)
         const nt = timeOf(def, b.level + 1)
@@ -701,7 +1277,11 @@
       } else p.append(el('div', 'wdcv-sub', 'سطح حداکثری'))
     } else {
       const remain = Math.max(0, Math.ceil((b.doneAt - S.nowMs) / 1000))
-      p.append(el('div', 'wdcv-sub', 'زمان باقی‌مانده: ' + fa(remain) + ' ثانیه — تا پایان، تولید ندارد'))
+      const total = Math.max(1, Math.ceil((b.doneAt - b.startedAt) / 1000))
+      const prog = clamp(Math.round(100 * (1 - (b.doneAt - S.nowMs) / (total * 1000))), 0, 99)
+      const stageFa = prog < 33 ? 'فونداسیون' : prog < 70 ? 'اسکلت‌سازی' : 'تجهیز و آماده‌سازی'
+      p.append(el('div', 'wdcv-sub', '🏗 مرحله: ' + stageFa))
+      p.append(el('div', 'wdcv-sub', '⏳ زمان باقی‌مانده: ' + fa(remain) + ' ثانیه (' + fa(prog) + '٪) — تا پایان، تولید ندارد'))
     }
     if (!active) {
       const cb = el('button', 'wdcv-mini wdcv-danger', '✖ لغو (۷۰٪ بازگشت)')
@@ -710,13 +1290,17 @@
     }
     p.append(techBtn())
   }
-  function prodOf(def, lvl) {
+  function prodOf(def, lvl, provIdx) {
     const m = 1 + 0.06 * (S.tech.eco || 0)
+    /* V74: بونوس تخصص استان (۱۰٪ — هم‌فرمول سرور) */
+    const fkey = provIdx != null ? S.focus[String(provIdx)] : null
+    const fdef = fkey ? S.focusCat[fkey] : null
+    const fm = (fdef && fdef.ids && fdef.ids.indexOf(def.id) >= 0) ? 1 + 0.10 : 1
     const o = {}
-    if (def.prod1.gold) o.gold = Math.round(def.prod1.gold * lvl * m)
-    if (def.prod1.oil) o.oil = Math.round(def.prod1.oil * lvl * m)
-    if (def.prod1.food) o.food = Math.round(def.prod1.food * lvl * m)
-    if (def.prod1.rp) o.rp = Math.round(def.prod1.rp * lvl * 10) / 10
+    if (def.prod1.gold) o.gold = Math.round(def.prod1.gold * lvl * m * fm)
+    if (def.prod1.oil) o.oil = Math.round(def.prod1.oil * lvl * m * fm)
+    if (def.prod1.food) o.food = Math.round(def.prod1.food * lvl * m * fm)
+    if (def.prod1.rp) o.rp = Math.round(def.prod1.rp * lvl * fm * 10) / 10
     return o
   }
   function costOf(def, lvl) {
@@ -850,17 +1434,20 @@
     try {
       const r = await rpc('cv_state', { p_country: S.country, p_server: S.server })
       if (!r || !r.ok) throw new Error('state')
-      if (!r.owned) { if (!silent) toast('❌ این کشور در کنترل تو نیست'); return false }
       S.provinces = r.provinces || []
       S.buildings = (r.buildings || []).map((b) => ({ ...b, startedAt: b.startedAt ? new Date(b.startedAt) : new Date(), doneAt: b.doneAt ? new Date(b.doneAt) : null }))
       S.cat = r.cat || []
       S.techCat = r.techCat || {}
       S.tech = r.tech || {}
+      S.focus = r.focus || {}          /* V74 */
+      S.focusCat = r.focusCat || {}    /* V74 */
+      S.seed = r.seed || 0             /* V74 */
       S.rp = r.rp || 0
       S.rates = r.rates || S.rates
       S.mil = r.mil || S.mil
       S.counts = r.counts || S.counts
       S.res = r.res || S.res
+      if (!r.owned) { if (!silent) toast('❌ این کشور در کنترل تو نیست'); return false } /* V74: layout پر شد — فقط اقدامات با مالکیت (سرور مرجع است) */
       /* V68 — §7/§28: دلتای مثبت سرور → playerRes (تولید CV دیگر گم نمی‌شود؛ سیو ۸ثانیه‌ای ماندگارش می‌کند) */
       mergeServerRes(r.res)
       if (typeof r.oilCapAdd === 'number') window.__wdcvOilCapAdd = r.oilCapAdd
@@ -918,10 +1505,10 @@
     st.innerHTML =
       '<canvas id="wdcv-canvas"></canvas>' +
       '<div id="wdcv-ui">' +
-      '<div id="wdcv-top"><button id="wdcv-exit">🌍 بازگشت به نقشه</button><b id="wdcv-hname"></b><div id="wdcv-hres" class="wdcv-line"></div><div id="wdcv-hmil" class="wdcv-line"></div></div>' +
+      '<div id="wdcv-top"><button id="wdcv-exit">🌍 بازگشت به نقشه</button><b id="wdcv-hname"></b><div id="wdcv-hres" class="wdcv-line"></div><div id="wdcv-hmil" class="wdcv-line"></div><button id="wdcv-snd" title="صدا">🔊</button></div>' +
       '<div id="wdcv-panel"></div>' +
       '<div id="wdcv-toast"></div>' +
-      '<div id="wdcv-loading">📡 در حال دریافت وضعیت کشور…</div>' +
+      '<div id="wdcv-loading">📡 در حال ورود به کشور…</div>' +
       '</div>'
     document.body.appendChild(st)
     const css = document.createElement('style')
@@ -931,26 +1518,55 @@
       '#wdcv-stage.on{display:block}' +
       '#wdcv-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}' +
       '#wdcv-ui{position:absolute;inset:0;pointer-events:none;color:#eaf6ff}' +
-      '#wdcv-top{position:absolute;top:0;left:0;right:0;padding:10px 12px;background:linear-gradient(180deg,rgba(4,14,26,.92),rgba(4,14,26,0));pointer-events:auto}' +
-      '#wdcv-hname{font-size:17px;font-weight:800;display:block;margin-bottom:2px}' +
-      '#wdcv-line{font-size:12px;opacity:.95}' +
+      '#wdcv-top{position:absolute;top:0;left:0;right:0;padding:10px 12px;background:linear-gradient(180deg,rgba(4,14,26,.92),rgba(4,14,26,0));pointer-events:auto;transform:translateY(-8px);opacity:0;transition:transform .35s ease,opacity .35s ease}' +
+      '#wdcv-stage.on #wdcv-top{transform:translateY(0);opacity:1}' +
+      '#wdcv-hname{font-size:17px;font-weight:800;display:block;margin-bottom:2px;text-shadow:0 1px 6px rgba(0,0,0,.6)}' +
+      '#wdcv-line{font-size:12px;opacity:.95;text-shadow:0 1px 4px rgba(0,0,0,.6)}' +
       '#wdcv-exit{position:relative;float:left;background:rgba(0,240,255,.14);border:1px solid rgba(0,240,255,.5);color:#bff;border-radius:10px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer}' +
-      '#wdcv-panel{position:absolute;bottom:12px;left:10px;right:10px;background:rgba(6,22,42,.94);border:1px solid rgba(0,240,255,.35);border-radius:14px;padding:10px;pointer-events:auto;max-height:44vh;overflow-y:auto;display:none}' +
-      '#wdcv-panel:not(:empty){display:block}' +
+      '#wdcv-snd{position:relative;float:left;margin-left:6px;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.35);color:#bff;border-radius:10px;padding:7px 9px;font-size:13px;cursor:pointer}' +
+      '#wdcv-panel{position:absolute;bottom:12px;left:10px;right:10px;background:rgba(6,22,42,.94);border:1px solid rgba(0,240,255,.35);border-radius:14px;padding:10px;pointer-events:auto;max-height:46vh;overflow-y:auto;display:none;transform:translateY(10px);opacity:0;transition:transform .18s ease,opacity .18s ease}' +
+      '#wdcv-panel:not(:empty){display:block;transform:translateY(0);opacity:1}' +
       '.wdcv-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;font-size:13px}' +
       '.wdcv-sub{font-size:11.5px;opacity:.85;padding:2px 0}' +
-      '.wdcv-buildgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}' +
+      '.wdcv-chip{display:inline-block;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.3);border-radius:99px;padding:2px 8px;font-size:10.5px;white-space:nowrap}' +
+      '.wdcv-chips{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0}' +
+      '.wdcv-stats{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin:4px 0 6px}' +
+      '.wdcv-stat{display:flex;align-items:center;gap:6px;font-size:10.5px;padding:1.5px 0}' +
+      '.wdcv-stat .k{flex:0 0 auto;opacity:.85;min-width:74px}' +
+      '.wdcv-stat .bar{flex:1 1 auto;height:5px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden}' +
+      '.wdcv-stat .bar i{display:block;height:100%;background:linear-gradient(90deg,#00c8ff,#00ff88);border-radius:99px}' +
+      '.wdcv-stat .v{flex:0 0 26px;text-align:left;font-weight:700;opacity:.9}' +
+      '.wdcv-focusbtns{display:flex;flex-wrap:wrap;gap:4px}' +
+      '.wdcv-focusbtn{background:rgba(0,240,255,.08);border:1px solid rgba(0,240,255,.3);color:#cff;border-radius:99px;padding:4px 9px;font-size:11px;cursor:pointer}' +
+      '.wdcv-focusbtn.on{background:rgba(255,216,77,.2);border-color:#ffd84d;color:#ffe9a8}' +
+      '.wdcv-tabs{display:flex;gap:5px;margin:6px 0;overflow-x:auto}' +
+      '.wdcv-tab{flex:0 0 auto;background:rgba(0,240,255,.07);border:1px solid rgba(0,240,255,.25);color:#cff;border-radius:9px;padding:4px 10px;font-size:11px;cursor:pointer}' +
+      '.wdcv-tab.on{background:rgba(0,240,255,.2);border-color:rgba(0,240,255,.6)}' +
+      '.wdcv-blist{display:flex;flex-direction:column;gap:4px;margin:4px 0}' +
+      '.wdcv-brow{display:flex;align-items:center;justify-content:space-between;background:rgba(0,240,255,.05);border:1px solid rgba(0,240,255,.18);border-radius:9px;padding:6px 9px;color:#eaf6ff;font-size:12px;cursor:pointer;text-align:right}' +
       '.wdcv-bcard{display:flex;align-items:center;gap:8px;background:rgba(0,240,255,.07);border:1px solid rgba(0,240,255,.3);border-radius:10px;padding:7px;color:#eaf6ff;cursor:pointer;min-height:44px;text-align:right}' +
+      '.wdcv-bcard:active,.wdcv-mini:active,.wdcv-brow:active,.wdcv-focusbtn:active,.wdcv-tab:active{transform:scale(.97)}' +
       '.wdcv-bcard .ic{font-size:20px}.wdcv-bcard .tx{display:flex;flex-direction:column;align-items:flex-start}.wdcv-bcard small{opacity:.75;font-size:10.5px}' +
       '.wdcv-mini{background:rgba(0,240,255,.14);border:1px solid rgba(0,240,255,.45);color:#cff;border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;min-height:34px}' +
       '.wdcv-mini:disabled{opacity:.45;cursor:default}' +
       '.wdcv-danger{background:rgba(255,80,80,.12);border-color:rgba(255,90,90,.5);color:#fcc}' +
       '#wdcv-toast{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:12.5px;opacity:0;transition:opacity .2s;pointer-events:none}' +
       '#wdcv-toast.on{opacity:1}' +
-      '#wdcv-loading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,14,26,.6);font-size:14px;pointer-events:none}' +
-      '#wdcv-loading.on{display:flex}'
+      '#wdcv-loading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,14,26,.6);font-size:14px;pointer-events:none;transition:opacity .3s}' +
+      '#wdcv-loading.on{display:flex}' +
+      '@media (max-width:480px){.wdcv-stats{grid-template-columns:1fr}}'
     document.head.appendChild(css)
     st.querySelector('#wdcv-exit').addEventListener('click', () => close())
+    const sndBtn = st.querySelector('#wdcv-snd')
+    try { S.sndOn = localStorage.getItem('wdcv_snd') !== '0' } catch (e) {}
+    const paintSnd = () => { sndBtn.textContent = S.sndOn ? '🔊' : '🔇' }
+    paintSnd()
+    sndBtn.addEventListener('click', () => {
+      S.sndOn = !S.sndOn
+      try { localStorage.setItem('wdcv_snd', S.sndOn ? '1' : '0') } catch (e) {}
+      paintSnd()
+      if (S.sndOn) snd('tap')
+    })
   }
 
   let savedMapInteractions = null
@@ -985,7 +1601,7 @@
     } catch (e) {}
   }
 
-  async function open(country) {
+  async function open(country, opts) {
     if (S.active) return
     ensureDom()
     const st = document.getElementById('wdcv-stage')
@@ -1003,15 +1619,33 @@
     S.sel = { prov: -1, bld: null, slot: null }
     S.srvRes = null /* V68: مبناي دلتای منابع سرور — هر سشن از نو */
     S.mirrored = { gold: 0, oil: 0, food: 0 }
+    S.tabCat = 'all'
+    S.acc = 0; S.hdrT = 0; S._ambT = 0
+    AMB.length = 0; S.ambPaths = null
+    const force = !!(opts && opts.force) /* فقط برای QA — سرور همچنان هر اقدامی را اعتبارسنجی می‌کند */
+    /* V74 — WOW ENTRY (بند ۳): فاز ۱ = نمای کلان کشور با تپش مرز، فاز ۲ = شیرجه‌ی نرم دوربین */
+    const ldg = document.getElementById('wdcv-loading')
+    if (ldg) ldg.classList.add('on')
     if (!(await buildGeometryAsync(country))) toast('⚠️ هندسه‌ی کشور یافت نشد — از سرور ادامه می‌دهیم')
     const ok = await syncState(false)
-    if (!ok) { close(); return }
+    if (!ok && !force) { close(); return }
     setupCanvas()
     buildCells()
     const c = computeView(); view.base = { cx: c.cx, cy: c.cy }
+    /* شروع از دور: کل کشور کوچک، بعد شیرجه به پایتخت — فقط lerp دوربین (GPU-friendly) */
+    S.cam.x = 0; S.cam.y = 0; S.cam.z = 0.55; S.cam.tx = 0; S.cam.ty = 0; S.cam.tz = 1.28; S.cam.anim = true
+    S.enter = { t0: Date.now(), done: false }
+    S.doneIds = null
+    S.nowMs = Date.now()
     bindInput()
     pauseMap()
     startLoop()
+    try { if (window.WD_BACK) { if (WD_BACK.stack.indexOf('#wdcv-stage') < 0) WD_BACK.stack.push('#wdcv-stage'); if (typeof wdBackSync === 'function') wdBackSync() } } catch (e) {} /* V74: Back گوشی */
+    snd('enter')
+    /* V74 — بارگذاری تدریجی (بند ۲۸): پوسته کشور ← استان‌ها ← شهرها ← جزئیات */
+    if (ldg) ldg.textContent = '📡 هویت استان‌ها و شهرها…'
+    setTimeout(() => { if (S.active) { S.ambPaths = ambPathPool(); if (ldg) ldg.textContent = '📡 جزئیات محیط…' } }, 350)
+    setTimeout(() => { if (ldg) ldg.classList.remove('on') }, 800)
     S.lastPoll = performance.now()
     clearInterval(S.pollTimer)
     S.pollTimer = setInterval(() => { if (S.active && !document.hidden) syncState(true) }, 12000)
@@ -1026,10 +1660,19 @@
   async function close() {
     if (!S.active) return
     S.active = false
+    snd('exit')
     clearInterval(S.pollTimer); S.pollTimer = null
     document.removeEventListener('visibilitychange', onVis)
     const st = document.getElementById('wdcv-stage')
     if (st) st.classList.remove('on')
+    closePanels()
+    /* V74 — پاکسازی کامل حافظه (بند ۲۴): poolها، مسیرها، صدا، enter */
+    AMB.length = 0; S.ambPaths = null
+    for (const r of RIPS) r.on = false
+    for (const p of pool) p.on = false
+    S.enter = null; S.doneIds = null; S.acc = 0; S.hdrT = 0
+    try { if (AC && AC.state === 'running') AC.suspend() } catch (e) {}
+    try { if (window.WD_BACK) { const ix = WD_BACK.stack.indexOf('#wdcv-stage'); if (ix > -1) WD_BACK.stack.splice(ix, 1); if (typeof wdBackSync === 'function') wdBackSync() } } catch (e) {}
     resumeMap()
     /* همگام‌سازی نهایی: دلتای سرور → بازی اصلی (V68 — به‌جای جایگزینی مطلق که
        درآمد کلاینتیِ ۸ ثانیه‌ی آخر را rollback می‌کرد) */
@@ -1039,6 +1682,7 @@
     } catch (e) {}
   }
 
-  /* شمارنده‌ی زمان برای پیشرفت ساخت‌وسازها در رندر (بدون تایمر جدا — داخل loop) */
-  setInterval(() => { if (S.active) { S.nowMs = Date.now(); projectRes(1); if ((S._h = (S._h || 0) + 1) % 2 === 0) header() } }, 1000)
+  /* V74: تیک ۱ثانیه‌ای به داخل rAF loop منتقل شد (بند ۲۰ دستور — یک loop) —
+     فقط افشای QA برای تست خودکار بدون مالکیت */
+  window.WDCV._qaOpen = function (c) { return open(c, { force: true }) }
 })()

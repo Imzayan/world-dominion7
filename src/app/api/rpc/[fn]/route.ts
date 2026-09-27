@@ -9,11 +9,12 @@ import {
   skillOf, consistencyOf, potentialOf, evalAchievements, achDef, bullseyesFromTelemetry,
   type RecentScore,
 } from '@/lib/olyProfile'
-import { cvGenerateLayout } from '@/lib/cvGeo'
+import { cvGenerateLayout, cvEnrich, cvCountryExists, type CvProvince } from '@/lib/cvGeo'
 import { OL_REWARDS, SPECIAL_OPS, MENTOR_REWARDS, OL_PARTICIPATION_GEMS, OL_PODIUM_REWARDS } from '@/lib/balance' /* V72: توازن سرور متمرکز (PHASE 4) */
 import {
   cvDef, cvCost, cvTimeSec, cvProdPerMin, cvCatalogPublic, cvTechMults,
-  CV_TECH, CV_MAX_LEVEL, CV_OFFLINE_CAP_MS, type CvTechLine,
+  CV_TECH, CV_MAX_LEVEL, CV_OFFLINE_CAP_MS, CV_FOCUS, type CvTechLine, type CvFocus,
+  cvFocusMap, cvFocusMult,
 } from '@/lib/cvCatalog'
 
 export const dynamic = 'force-dynamic'
@@ -1376,6 +1377,8 @@ async function cvWithLock<T>(uid: string, fn: () => Promise<T>): Promise<T> {
 }
 
 async function cvEnsure(userId: string, server: number, country: string): Promise<{ cv: CvCountryRow; provinces: CvProv[]; owned: boolean }> {
+  /* V74: گارد کشور — فقط کشورهای موجود در GeoJSON رسمی ردیف می‌گیرند (ضد ردیف‌های بی‌معنا) */
+  if (!cvCountryExists(country)) return { cv: null as unknown as CvCountryRow, provinces: [], owned: false }
   let cv = await db.cvCountry.findUnique({ where: { userId_country: { userId, country } } }) as CvCountryRow | null
   if (!cv) {
     const { seed, provinces } = cvGenerateLayout(country)
@@ -1415,17 +1418,19 @@ async function cvAccrue(userId: string, cv: CvCountryRow, buildings: CvBuildingR
   const doneIds = new Set(finished.map((b) => b.id))
   const tech = cvJson<CvTechState>(cv.tech, {})
   const mults = cvTechMults(tech)
+  const focus = cvFocusMap(tech) /* V74: تخصصی‌سازی استان — ذخیره در همان JSON فناوری */
   const rates = { gold: 0, oil: 0, food: 0, rp: 0 }
   let goldPct = 0, atkPct = 0, defPct = 0, oilCap = 0, ports = 0, airports = 0
   for (const b of buildings) {
     if (b.status !== 'active' && !doneIds.has(b.id)) continue
     const def = cvDef(b.type)
     if (!def) continue
+    const fm = cvFocusMult(b.type, focus[String(b.province)]) /* V74: ×۱٫۱ اگر استان تخصص همان گروه باشد */
     const p = cvProdPerMin(def, b.level)
-    rates.gold += p.gold || 0; rates.oil += p.oil || 0; rates.food += p.food || 0; rates.rp += p.rp || 0
+    rates.gold += (p.gold || 0) * fm; rates.oil += (p.oil || 0) * fm; rates.food += (p.food || 0) * fm; rates.rp += (p.rp || 0) * fm
     if (def.goldPct) goldPct += def.goldPct * b.level
-    if (def.atkPct) atkPct += def.atkPct * b.level
-    if (def.defPct) defPct += def.defPct * b.level
+    if (def.atkPct) atkPct += def.atkPct * b.level * (fm > 1 ? 1.1 : 1)
+    if (def.defPct) defPct += def.defPct * b.level * (fm > 1 ? 1.1 : 1)
     if (def.oilCap) oilCap += def.oilCap * b.level
     if (b.type === 'port') ports++
     if (b.type === 'airport') airports++
@@ -1486,11 +1491,17 @@ async function cvAccrue(userId: string, cv: CvCountryRow, buildings: CvBuildingR
 
 type CvSum = Awaited<ReturnType<typeof cvAccrue>>
 function cvPublicState(owned: boolean, country: string, server: number, provinces: CvProv[], buildings: CvBuildingRow[], cv: CvCountryRow, rpLive: number, sum: CvSum, res: { gold: number; oil: number; food: number }) {
+  const techJ = cvJson<CvTechState>(cv.tech, {})
   return {
     ok: true, owned, country, server,
-    provinces, buildings: owned ? buildings : [],
+    /* V74: هویت استان‌ها (آمار + شهرها) از روی seed قطعی — بدون تغییر DB، ردیف‌های قدیمی هم هویت می‌گیرند */
+    provinces: cvEnrich(country, cv.seed, provinces),
+    seed: cv.seed,
+    focus: cvFocusMap(techJ),
+    focusCat: CV_FOCUS,
+    buildings: owned ? buildings : [],
     cat: cvCatalogPublic(), techCat: CV_TECH,
-    tech: cvJson<CvTechState>(cv.tech, {}), rp: Math.round(rpLive * 100) / 100,
+    tech: techJ, rp: Math.round(rpLive * 100) / 100,
     rates: { gold: Math.round(sum.rates.gold), oil: Math.round(sum.rates.oil), food: Math.round(sum.rates.food), rp: sum.rates.rp },
     mil: sum.mil, goldPct: sum.goldPct, oilCapAdd: sum.oilCap, counts: { ports: sum.ports, airports: sum.airports },
     res, accrued: sum.accrued, offlineCapMs: CV_OFFLINE_CAP_MS, maxLevel: CV_MAX_LEVEL, now: Date.now(),
@@ -1515,13 +1526,15 @@ async function cvMilBonus(userId: string, country?: string): Promise<{ atkPct: n
   let atk = 0, def = 0
   for (const cv of cvs) {
     const mults = cvTechMults(cvJson<CvTechState>(cv.tech, {}))
+    const focus = cvFocusMap(cvJson<CvTechState>(cv.tech, {})) /* V74: تخصص نظامی استان — بونوس ۱۰٪ */
     for (const b of blds) {
       if (b.country !== cv.country) continue
       if (b.status !== 'active' && !(b.doneAt && b.doneAt.getTime() <= now)) continue
       const d = cvDef(b.type)
       if (!d) continue
-      if (d.atkPct) atk += d.atkPct * b.level * mults.mil
-      if (d.defPct) def += d.defPct * b.level
+      const fm = cvFocusMult(b.type, focus[String(b.province)])
+      if (d.atkPct) atk += d.atkPct * b.level * mults.mil * fm
+      if (d.defPct) def += d.defPct * b.level * fm
     }
   }
   return {
@@ -3335,6 +3348,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const country = String(args.p_country || '').slice(0, 64)
         if (!country) return R({ ok: false, error: 'country' })
         const { cv, provinces, owned } = await cvEnsure(user.id, server, country)
+        /* V74: کشور ناموجود در GeoJSON (cv=null) — پاسخ امنِ not-owned بدون ساخت ردیف */
+        if (!cv) {
+          return R({ ok: true, owned: false, country, server, provinces: [], buildings: [], seed: 0, focus: {}, focusCat: CV_FOCUS,
+            cat: cvCatalogPublic(), techCat: CV_TECH, tech: {}, rp: 0,
+            rates: { gold: 0, oil: 0, food: 0, rp: 0 }, mil: { atkPct: 0, defPct: 0 }, goldPct: 0, oilCapAdd: 0, counts: { ports: 0, airports: 0 },
+            res: { gold: 0, oil: 0, food: 0 }, accrued: { gold: 0, oil: 0, food: 0 }, offlineCapMs: CV_OFFLINE_CAP_MS, maxLevel: CV_MAX_LEVEL, now: Date.now() })
+        }
         const out = await cvWithLock(user.id, async () => {
           const buildings = owned
             ? (await db.cvBuilding.findMany({ where: { userId: user.id, country }, orderBy: [{ province: 'asc' }, { slot: 'asc' }] })) as CvBuildingRow[]
@@ -3470,6 +3490,30 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             r.food = (Number(r.food) || 0) + refund.f
           })
           return { ok: true as const, refund, level: row.level === 1 ? 0 : row.level - 1, resNow: await cvReadRes(user.id) }
+        })
+        return R(out)
+      }
+
+      /* ---------------- V74 — cv_focus: تخصصی‌سازی استان (بند ۱۳ دستور) ---------------- */
+      case 'cv_focus': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const country = String(args.p_country || '').slice(0, 64)
+        const province = Number(args.p_province)
+        const focus = String(args.p_focus || '') as CvFocus
+        if (!country || !Number.isInteger(province) || province < 0 || province > 15) return R({ ok: false, error: 'args' })
+        if (focus !== '' && !(focus in CV_FOCUS)) return R({ ok: false, error: 'args' })
+        const out = await cvWithLock(user.id, async () => {
+          const { cv, owned } = await cvEnsure(user.id, server, country)
+          if (!owned) return { ok: false as const, error: 'not_owned' as const }
+          const provinces = cvJson<CvProv[]>(cv.provinces, [])
+          if (!provinces[province]) return { ok: false as const, error: 'province' as const }
+          const tech = cvJson<{ eco?: number; mil?: number; log?: number; focus?: Record<string, string> }>(cv.tech, {})
+          const fm = { ...(tech.focus || {}) }
+          if (focus === '') delete fm[String(province)]
+          else fm[String(province)] = focus
+          tech.focus = fm
+          await db.cvCountry.update({ where: { userId_country: { userId: user.id, country } }, data: { tech: JSON.stringify(tech) } })
+          return { ok: true as const, province, focus, focusAll: fm }
         })
         return R(out)
       }

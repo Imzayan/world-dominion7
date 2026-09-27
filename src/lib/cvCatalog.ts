@@ -49,6 +49,11 @@ export const CV_BUILDINGS: CvBuildingDef[] = [
   { id: 'university', fa: 'دانشگاه', icon: '🔬', cat: 'research', desc: 'تولید امتیاز پژوهش برای خطوط فناوری.', terrains: ['any'], coastal: false, capitalOnly: false, maxPerProvince: 1, empireCap: 5, baseCost: { g: 1200, o: 0, f: 400 }, baseTime: 45, baseProd: { rp: 1.2, gold: 6 } },
   { id: 'bank', fa: 'بانک مرکزی', icon: '🏦', cat: 'economy', desc: 'مالیِ امپراتوری — فقط در پایتخت؛ طلا و ٪ درآمد.', terrains: ['any'], coastal: false, capitalOnly: true, maxPerProvince: 2, empireCap: 2, baseCost: { g: 1800, o: 0, f: 500 }, baseTime: 50, baseProd: { gold: 20 }, goldPct: 0.5 },
   { id: 'storage', fa: 'انبار راهبردی', icon: '📦', cat: 'infrastructure', desc: 'ظرفیت ذخیره‌ی نفت امپراتوری را بالا می‌برد.', terrains: ['any'], coastal: false, capitalOnly: false, maxPerProvince: 1, empireCap: 5, baseCost: { g: 900, o: 0, f: 300 }, baseTime: 30, baseProd: {}, oilCap: 2500 },
+  /* ---- V74: ارتش عمیق‌تر (بند ۱۴ دستور) — همه از همان زنجیره‌ی atkPct/defPct سرور ---- */
+  { id: 'tank_plant', fa: 'کارخانه تانک', icon: '🚜', cat: 'military', desc: 'خط تولید زرهی — قدرت حمله را محسوس بالا می‌برد؛ به برق نیاز دارد.', terrains: ['plains', 'hills', 'desert'], coastal: false, capitalOnly: false, maxPerProvince: 1, empireCap: 4, baseCost: { g: 2200, o: 300, f: 500 }, baseTime: 60, baseProd: { gold: 8 }, atkPct: 2, req: 'power' },
+  { id: 'airbase', fa: 'پایگاه هوایی', icon: '🛫', cat: 'military', desc: 'پروازهای عملیاتی و پشتیبانی نزدیک — حمله و کمی دفاع.', terrains: ['plains', 'desert', 'hills'], coastal: false, capitalOnly: false, maxPerProvince: 1, empireCap: 3, baseCost: { g: 2600, o: 350, f: 500 }, baseTime: 65, baseProd: { gold: 6 }, atkPct: 1.6, defPct: 0.6 },
+  { id: 'naval_base', fa: 'پایگاه دریایی', icon: '🚢', cat: 'military', desc: 'ناوگان رزم و گشت ساحلی — فقط در استان ساحلی.', terrains: ['any'], coastal: true, capitalOnly: false, maxPerProvince: 1, empireCap: 3, baseCost: { g: 2400, o: 320, f: 480 }, baseTime: 62, baseProd: { gold: 10 }, atkPct: 1, defPct: 1.4 },
+  { id: 'radar', fa: 'ایستگاه رادار', icon: '📡', cat: 'military', desc: 'هشدار زودهنگام و پدافند — تلفات خودی را کم می‌کند.', terrains: ['mountain', 'hills', 'plains', 'desert', 'tundra'], coastal: false, capitalOnly: false, maxPerProvince: 1, empireCap: 4, baseCost: { g: 1400, o: 120, f: 300 }, baseTime: 40, baseProd: { gold: 2 }, defPct: 2.2 },
 ]
 
 const CV_BUILDING_MAP = new Map(CV_BUILDINGS.map((x) => [x.id, x]))
@@ -92,6 +97,31 @@ export function cvTechMults(tech: { eco?: number; mil?: number; log?: number }) 
 
 /* سقف ۸ ساعت تولید آفلاین — ضد جعل فاصله‌ی زمانی */
 export const CV_OFFLINE_CAP_MS = 8 * 3600_000
+
+/* ============================================================
+   V74 — تخصصی‌سازی استان (بند ۱۳ دستور): بازیکن برای هر استان یک «تمرکز»
+   انتخاب می‌کند؛ ساختمان‌های هم‌گروه در همان استان ۱۰٪ تولید بیشتر می‌دهند.
+   - تک‌منبع اثر: cvAccrue (سرور) — کلاینت فقط نمایش می‌دهد.
+   - ذخیره: داخل همان JSON فناوری cv_countries ({focus:{'0':'industry',…}}).
+   ============================================================ */
+export type CvFocus = '' | 'industry' | 'agriculture' | 'energy' | 'military' | 'research'
+export const CV_FOCUS: Record<Exclude<CvFocus, ''>, { fa: string; icon: string; desc: string; ids: string[] }> = {
+  industry: { fa: 'صنعتی', icon: '🏭', desc: 'کارخانه‌ها در این استان ۱۰٪ بیشتر تولید می‌کنند', ids: ['factory'] },
+  agriculture: { fa: 'کشاورزی', icon: '🌾', desc: 'مزارع در این استان ۱۰٪ بیشتر تولید می‌کنند', ids: ['farm'] },
+  energy: { fa: 'انرژی', icon: '⚡', desc: 'نیروگاه/چاه نفت/معدن ۱۰٪ بیشتر تولید می‌کنند', ids: ['power', 'oil_rig', 'mine'] },
+  military: { fa: 'نظامی', icon: '⚔️', desc: 'ساختمان‌های نظامی ۱۰٪ اثر بونوس بیشتر', ids: ['barracks', 'defense', 'tank_plant', 'airbase', 'naval_base', 'radar'] },
+  research: { fa: 'پژوهش', icon: '🔬', desc: 'دانشگاه‌ها ۱۰٪ امتیاز پژوهش بیشتر می‌دهند', ids: ['university'] },
+}
+export const CV_FOCUS_BONUS = 0.10 /* ۱۰٪ در هر ساختمانِ هم‌گروه */
+export function cvFocusMap(tech: { focus?: Record<string, string> } | Record<string, unknown>): Record<string, string> {
+  const f = (tech as { focus?: Record<string, string> }).focus
+  return f && typeof f === 'object' ? f : {}
+}
+export function cvFocusMult(type: string, focus: string | undefined): number {
+  if (!focus || focus === '') return 1
+  const d = CV_FOCUS[focus as Exclude<CvFocus, ''>]
+  return d && d.ids.includes(type) ? 1 + CV_FOCUS_BONUS : 1
+}
 
 /* خلاصه‌ی عمومی کاتالوگ برای کلاینت (فقط فیلدهای نمایشی) */
 export function cvCatalogPublic() {
