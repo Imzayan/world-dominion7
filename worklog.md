@@ -1826,3 +1826,21 @@ Stage Summary:
 - دکمه‌ی «ورود به کشور» بلافاصله بعد از انتخاب پایتخت ظاهر می‌شود
 - پرچم زیمبابوه/وانواتو/کوراسائو روی نقشه درست شد؛ صفر رگرسیون
 - پوش به GitHub نیازمند توکن یک‌بارمصرف جدید است
+
+---
+Task ID: PUSH-V80-TO-GITHUB + RELEASE-V80-ZIP
+Agent: Super Z (main)
+Task: جای‌گذاری توکن و پوش ۲ کامیوت باقی‌مانده V80 + ساخت Release v80 با ZIP (درخواست کاربر: «خودت برو برام جای‌گذاری کن»)
+
+Work Log:
+- توکن (برای چهارمین بار لو-رفته در چت) به شکل base64 منتقل شد؛ URL یک‌بارمصرف push با credential.helper=off — هیچ توکنی در remote/config/لاگ ذخیره نشد (REMOTE_CLEAN + CONFIG_CLEAN)
+- اسکن مخفی-اسکنر روی diff ارسالی: NO_SECRETS_IN_DIFF
+- push موفق: 3727a74..de6eba6 main -> main | بعد از fetch: HEAD == origin/main == de6eba6df4dbe09b3cb7179b8b797ddf187dbe8d، local==remote [0/0]
+- Release v80 ساخته شد (id 397679994) با یادداشت فارسی کامل (۴ فیکس + جدول QA + SHA 81874b1)
+- ZIP از git archive در HEAD ساخته شد: World-Dominion-CountryView-V80.zip — 415 فایل، 7203189 بایت، v.txt=80 تأیید شد
+- آپلود asset: state=uploaded | لینک عمومی: HEAD 200 + GET رنج 206 → دانلود عمودی سالم
+
+Stage Summary:
+- V80 حالا کامل روی گیت‌هاب است: کد + Release + ZIP قابل دانلود
+- URL دانلود: https://github.com/Imzayan/world-dominion7/releases/download/v80/World-Dominion-CountryView-V80.zip
+- توکن هنوز revoke نشده — هشدار revoke برای چهارمین بار در گزارش کاربر تکرار شد؛ پوش بعدی به توکن تازه نیاز خواهد داشت
