@@ -1739,3 +1739,18 @@ Stage Summary:
 - V2.1/V78 کامل شد: ۱۰ باگ گزارش‌شده ریشه‌ای رفع شدند (لیبل overlap، لیبل تکراری، عددِ کنار اسم، مربع سفید، پایتخت شلوغ، کشور خالی، جاده‌ی ساده، terrain مصنوعی، سلسله‌مراتب ضعیف، دیباگ‌نما)
 - بدون Feature جدید، بدون RPC جدید، بدون سیستم موازی؛ معماری پرفورمنس V74-V77 دست‌نخورده
 - کامیت لوکال آماده است؛ پوش به GitHub نیاز به توکن یک‌بارمصرف جدید دارد
+
+---
+Task ID: PUSH-V78-TO-GITHUB
+Agent: Super Z (main)
+Task: پوش V78 (V2.1) با توکن ارائه‌شده در چت
+
+Work Log:
+- اعتبارسنجی توکن با API (repo 200) — ذخیره نشد، فقط URL یک‌بارمصرف
+- اسکن راز روی diff (origin/main..HEAD): صفر تطابق (ghp_/github_pat_/ghs_/gho_)
+- Push: 5608e6b..05c8a32 main→main موفق (۲ کامیت: checkpoint سشن قبل + فینال V78)
+- Verify: fetch مجدد → main...origin/main [0/0]، .git/config پاک (بدون توکن)
+
+Stage Summary:
+- V78 روی GitHub: 05c8a32 روی Imzayan/world-dominion7 — Render auto-deploy می‌شود
+- توکن هنوز همان قبلی است (ghp_3k9y...) یعنی کاربر revoke نکرده — هشدار جدی داده شد
