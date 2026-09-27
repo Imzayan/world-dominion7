@@ -78,7 +78,7 @@
     } } catch (e) {}
     return null
   }
-  window.WDCV = { S, open, close, rpc, version: 80, openProvPanel, selectBuilding, openCityPanel, openTech }
+  window.WDCV = { S, open, close, rpc, version: 81, openProvPanel, selectBuilding, openCityPanel, openTech }
 
   /* ---------- Quality Tier (یک‌بار در ابتدا + افت خودکار) ---------- */
   function detectTier() {
@@ -188,11 +188,11 @@
   /* ---------- رنگ زمین‌شناسی ---------- */
   /* V79: پالت نقاشی‌شده — سبزهای گرم و طبیعی (به‌جای سبز نظامی تخت) */
   const TERRAIN = {
-    plains: { fill: '#6f9c50', alt: '#7da95c' },
-    hills: { fill: '#8ca54e', alt: '#98b158' },
+    plains: { fill: '#79a455', alt: '#85af60' },
+    hills: { fill: '#97ab4f', alt: '#a3b559' },
     mountain: { fill: '#8e9099', alt: '#9a9ca5' },
-    desert: { fill: '#d9b96e', alt: '#e2c37a' },
-    tundra: { fill: '#a3b5ae', alt: '#aebfba' },
+    desert: { fill: '#dcbc72', alt: '#e5c87e' },
+    tundra: { fill: '#a7b8b0', alt: '#b2c2bc' },
   }
   /* V79 STYLE — کلیدهای ظاهر نقاشی‌شده (همه bake-only یا اسپرایت؛ صفر هزینه per-frame) */
   const V79 = {
@@ -207,8 +207,8 @@
     pillEdge: 'rgba(255,255,255,.16)',
     pillText: '#f2f7fc',
     capPillBg: 'rgba(46,36,12,.86)',
-    sun: 'rgba(255,250,210,.10)',      /* نور از بالا-چپ */
-    shade: 'rgba(24,38,18,.13)',       /* سایه به پایین-راست */
+    sun: 'rgba(255,250,210,.13)',      /* نور از بالا-چپ (V81: کمی قوی‌تر — حس نقاشی) */
+    shade: 'rgba(24,38,18,.17)',       /* سایه به پایین-راست */
   }
   const PROV_TYPE_FA = { capital: 'پایتخت', industrial: 'صنعتی', agricultural: 'کشاورزی', resource: 'منبع‌خیز', generic: 'عمومی' }
   /* V79: نردبان لقب فتح (آینه‌ی RANKS بازی — فقط نمایش) */
@@ -347,20 +347,55 @@
      استاتیک هرگز از دوربین عقب نمی‌ماند (در V≤77 static با دوربینِ لحظه‌ی bake
      منجمد می‌شد و از ساختمان‌ها/لیبل‌های داینامیک جدا می‌افتاد = نقشه‌ی دیباگی).
      rebake فقط با تغییر zoom-bucket (LOD) یا dirtyStatic. */
+  /* V81 FIX ریشه‌ای «برش گوشه‌ها هنگام زوم»:
+     تا V80، bake یک «اسکرین‌شاتِ دوربین خنثی» (viewport-sized) بود و render همان تصویر را
+     با transform دوربینِ واقعی می‌کشید — اما bake فقط world-rect دیده‌شده از (0,0,bucket) را
+     داشت؛ zoomAt با لنگرِ غیرمرکزی (چرخ موس روی گوشه / وسطِ pinch) یا panِ لبه، مستطیل دیدی
+     می‌گرفت بزرگ‌تر از ناحیه‌ی bake ⇒ لبه/گوشه = پس‌زمینه‌ی خالی («نصفه/بریده»).
+     حالا بوم دقیقاً به اندازه‌ی «کشور + حاشیه» در فضای جهان bake می‌شود (مقیاس bs = min(bucket،
+     سقف حافظه‌ی tier)) و دریای عمقی per-frame زیرِ همه‌چیز کشیده می‌شود ⇒ هیچ نقطه‌ی
+     قابل‌وصولی خالی نمی‌ماند؛ هزینه‌ی اضافه‌ی هر فریم = یک fillRect گرادیانی. */
+  const BAKE_MARGIN = 160 /* px جهان — باند فیروزه‌ای ساحل + کفک + جاده‌ی ساحلی */
   function bakeStatic() {
+    if (!S.ring || !S.bbox) return
     const bz = zoomBucket()
     const camSave = S.cam
-    S.cam = { x: 0, y: 0, z: bz, tx: 0, ty: 0, tz: bz, anim: false }
+    const W = cv.clientWidth, H = cv.clientHeight
+    const kx = kmPerLon()
+    const ww = (S.bbox.maxX - S.bbox.minX) * view.scale * kx + BAKE_MARGIN * 2
+    const wh = (S.bbox.maxY - S.bbox.minY) * view.scale * 111.32 + BAKE_MARGIN * 2
+    const budget = ({ low: 2.6e6, med: 5.5e6, high: 12e6 })[S.tier] || 5.5e6
+    const need = Math.max(1, ww * dpr) * Math.max(1, wh * dpr)
+    const bsCap = clamp(Math.sqrt(budget / need), 0.5, 4)
+    const bs = Math.min(bz, bsCap) /* مقیاس bake — گیت‌های LOD با bz می‌مانند */
+    const ox = -ww / 2, oyTop = -wh / 2 /* لبه‌ی جهان کشور وسط‌چین است */
+    staticCv.width = Math.max(2, Math.round(ww * bs * dpr))
+    staticCv.height = Math.max(2, Math.round(wh * bs * dpr))
+    S._bakeS = bs; S._bakeOX = ox; S._bakeOY = oyTop; S._bakeW = ww; S._bakeH = wh
+    S._seaY0 = -(wh / 2 + 500); S._seaY1 = wh / 2 + 500 /* گرادیان دریا در فضای جهان */
+    /* دوربینِ bake طوری تنظیم می‌شود که project() مستقیم مختصات بوم بدهد —
+        همه‌ی کد رسمِ قبلی بدون تغییر کار می‌کند */
+    S.cam = { x: -ox - W / (2 * bs), y: -oyTop - H / (2 * bs), z: bs, tx: 0, ty: 0, tz: bz, anim: false }
     const g = staticCtx
     g.setTransform(dpr, 0, 0, dpr, 0, 0)
-    const W = cv.clientWidth, H = cv.clientHeight
-    g.clearRect(0, 0, W, H)
-    /* دریا: گرادیان عمقی — با حاشیه‌ی سخاوتمندانه (چون pan با transform جابجا می‌شود) */
-    const grd = g.createLinearGradient(0, -H * 0.6, 0, H * 1.6)
-    grd.addColorStop(0, '#0b2c47'); grd.addColorStop(1, '#071e33')
-    g.fillStyle = grd; g.fillRect(-W * 0.6, -H * 0.6, W * 2.2, H * 2.2)
+    g.clearRect(0, 0, ww, wh)
+    /* V81: دریای عمقی از bake حذف شد — per-frame زیرِ همه‌چیز کشیده می‌شود (render) */
+    /* V81: حلقه‌ی آفستِ بیرونی ساحل (world px) برای موج دومِ متحرک — per bake (view.scale می‌تواند عوض شود) */
+    if (S.ring.length > 8) {
+      const rw = S.ring.map((p) => [(p[0] - view.base.cx) * view.scale * kx, -(p[1] - view.base.cy) * view.scale * 111.32])
+      let cxs = 0, cys = 0
+      for (const p of rw) { cxs += p[0]; cys += p[1] } cxs /= rw.length; cys /= rw.length
+      S._ring2W = rw.map((p, i) => {
+        const o = rw[(i - 1 + rw.length) % rw.length], q = rw[(i + 1) % rw.length]
+        let dx = (q[1] - o[1]), dy = -(q[0] - o[0])
+        const nl = Math.hypot(dx, dy) || 1; dx /= nl; dy /= nl
+        const dout = ((p[0] + dx * 10 - cxs) ** 2 + (p[1] + dy * 10 - cys) ** 2) - ((p[0] - cxs) ** 2 + (p[1] - cys) ** 2)
+        if (dout < 0) { dx = -dx; dy = -dy }
+        return [p[0] + dx * 22, p[1] + dy * 22]
+      })
+    }
     const ring = S.ring.map((p) => project(p[0], p[1]))
-    /* موج ساحل — قطعی، بیرون‌سوی نرمال (فضای خالی دریا زنده می‌شود — bake) */
+    /* موج ساحل — قطعی، بیرون‌سوی نرمال (bake) */
     if (ring.length > 8) {
       let cxs = 0, cys = 0
       for (const p of ring) { cxs += p[0]; cys += p[1] } cxs /= ring.length; cys /= ring.length
@@ -392,7 +427,8 @@
     g.fillStyle = '#144258'
     pathRing(g, ring); g.fill(); g.stroke()
     /* سلول‌های استان + ترِین + tint هویت */
-    const z = S.cam.z
+    const z = S.cam.z /* = bs — برای اندازه‌ها */
+    const zb = bz /* V81: گیت‌های LOD با bucket واقعی — نه مقیاس کاهش‌یافته‌ی bake */
     const zc = Math.min(1.6, z)
     const TYPE_TINT = { industrial: 'rgba(96,104,114,.10)', resource: 'rgba(70,56,30,.10)', agricultural: 'rgba(130,170,70,.08)', capital: 'rgba(255,210,90,.06)' }
     /* V79 FIX: برش با شکل واقعی کشور (غیر-محدب — ctx.clip درست می‌بُرد)؛
@@ -416,15 +452,20 @@
       const lgr = g.createLinearGradient(lnx, lny, lxx, lxy)
       lgr.addColorStop(0, V79.sun); lgr.addColorStop(0.55, 'rgba(0,0,0,0)'); lgr.addColorStop(1, V79.shade)
       pathRing(g, poly); g.fillStyle = lgr; g.fill()
-      g.strokeStyle = 'rgba(24,34,18,.44)'; g.lineWidth = 1.1; g.stroke()
-      /* لبه‌ی داخلی روشن — حس عمق بدون سایه‌ی سنگین */
-      g.strokeStyle = 'rgba(255,255,255,.05)'; g.lineWidth = 0.8; g.stroke()
-      if (tierCfg().deco > 0 && z >= 1.05) drawCellTexture(g, c, poly, zc)
+      /* V81: تنوع طبیعی — شست‌وی سبز/زیتونی/خاکی با هش استان (bake-only، صفر هزینه فریم) */
+      const jw = hash01(c.prov.i * 7.31)
+      g.fillStyle = jw < 0.34 ? 'rgba(64,116,44,.08)' : jw < 0.67 ? 'rgba(148,158,58,.07)' : 'rgba(128,96,44,.07)'
+      pathRing(g, poly); g.fill()
+      /* V81: مرز نرم — هاله‌ی پهن کم‌رنگ + خط ظریف داخلی (به‌جای خط تیز مصنوعی) */
+      g.strokeStyle = 'rgba(24,34,18,.15)'; g.lineWidth = 2.8; g.stroke()
+      g.strokeStyle = 'rgba(24,34,18,.30)'; g.lineWidth = 1; g.stroke()
+      g.strokeStyle = 'rgba(255,252,235,.06)'; g.lineWidth = 0.8; g.stroke()
+      if (tierCfg().deco > 0 && zb >= 1.05) drawCellTexture(g, c, poly, zc)
     })
     g.restore()
     /* V78 §15: جاده‌ی اصلی — شبکه‌ی درختی: پایتخت↔۴ قطب اصلی + Prim برای بقیه.
        (قبلاً از پایتخت به «همه‌ی» استان‌ها خط می‌رفت = شعاعی/دیباگ‌نما — بند ۱۵ ممنوع) */
-    if (tierCfg().roads && z >= 1.05 && S.cells.length > 1) {
+    if (tierCfg().roads && zb >= 1.05 && S.cells.length > 1) {
       const rn = roadNetwork()
       for (const [na, nb] of rn.mains) {
         const pts = roadPath([S.cells[na].cx, S.cells[na].cy], [S.cells[nb].cx, S.cells[nb].cy], na * 31 + nb * 7).map((q) => project(q[0], q[1]))
@@ -433,7 +474,7 @@
         strokePath(g, pts, 2.2 * Math.min(1.3, z), V79.roadFill)
       }
       /* V78 §16: فرعی — فقط tier ≥۲ و نمای بالا؛ Low هیچ‌وقت فرعی ندارد */
-      if (tierCfg().roads >= 2 && z >= 1.8) {
+      if (tierCfg().roads >= 2 && zb >= 1.8) {
         for (const [na, nb] of rn.spurs) {
           const pts = roadPath([S.cells[na].cx, S.cells[na].cy], [S.cells[nb].cx, S.cells[nb].cy], na * 17 + nb * 11).map((q) => project(q[0], q[1]))
           strokePath(g, pts, Math.max(0.9, 1 * z), V79.roadFillSub)
@@ -443,7 +484,7 @@
     /* V77 §15: ریل فقط-ویژوال — پایتخت ↔ صنعتی‌ترین استان فعال (داده‌محور:
        بدون کارخانه/پالایشگاه فعال، ریل هم نیست. Low tier خاموش.) */
     S._rail = null
-    if (tierCfg().ambient > 0 && z >= 1.05 && S.cells.length > 1) {
+    if (tierCfg().ambient > 0 && zb >= 1.05 && S.cells.length > 1) {
       let bi = -1, bn = 0
       for (let i = 1; i < S.cells.length; i++) {
         const ci = S.cells[i].prov.i
@@ -463,14 +504,14 @@
       }
     }
     /* شهرها — خوشه از زوم ۱٫۲ + جاده‌ی فرعی شهر←مرکز استان (فقط tier≥۲، نمای بالا) */
-    if (z >= 1.2) {
+    if (zb >= 1.2) {
       S.cells.forEach((c) => {
         const cities = c.prov.cities || []
         cities.forEach((city, k) => {
           const p = project(city.lng, city.lat)
           drawCityCluster(g, p[0], p[1], city, k === 0 && c.prov.i === 0, zc)
           if (city._provI == null) city._provI = c.prov.i /* V79: برای رشد خوشه از ساختمان‌های واقعی استان */
-          if (z >= 1.9 && tierCfg().roads >= 2) {
+          if (zb >= 1.9 && tierCfg().roads >= 2) {
             const pc = project(c.cx, c.cy)
             strokePath(g, roadPath([c.cx, c.cy], [city.lng, city.lat], 100 + c.prov.i * 7 + k).map((q) => project(q[0], q[1])), Math.max(0.8, 0.9 * z), 'rgba(216,198,152,.2)')
           }
@@ -479,7 +520,7 @@
     }
     /* نشان هویت استان — گلیف برداری کوچک؛ فقط برای نوع‌های معنادار (V78: گلیف مربعی
        generic حذف شد — بند ۲۱: مربع کوچک = نشانه‌ی دیباگ) */
-    if (z >= 1.3) {
+    if (zb >= 1.3) {
       S.cells.forEach((c) => {
         if (!c.poly) return
         const p = project(c.cx, c.cy)
@@ -648,7 +689,7 @@
     const lv = cityLevel(city)
     let bN0 = 0
     try { for (const b of S.buildings) if (b.province === city._provI && b.status === 'active') bN0++ } catch (e) {}
-    const grow = 1 + Math.min(0.35, (lv - 1) * 0.045 + bN0 * 0.02)
+    const grow = 1 + Math.min(0.6, (lv - 1) * 0.06 + bN0 * 0.025) /* V81: رشد محسوس‌تر با سطح واقعی */
     /* V79: پایه‌ی شهری — میدان روشن پایتخت + لکه‌ی مات زیر بلوک‌ها (وحدت خوشه) */
     if (isCapital) {
       g.fillStyle = 'rgba(228,214,168,.30)'
@@ -658,13 +699,13 @@
     g.beginPath(); g.ellipse(x, y, R * 0.95, R * 0.62, 0, 0, 6.3); g.fill()
     /* بلوک‌ها — پالت مات + آستانه‌ی ۲px (§10) + رشد با سطح */
     const lod = z >= 2.4 ? 2 : z >= 1.7 ? 1 : 0
-    const nB = Math.round(((lod === 0 ? 4 : lod === 1 ? 7 : 10) + big * 2) * grow)
+    const nB = Math.round(((lod === 0 ? 4 : lod === 1 ? 7 : 10) + big * 2) * grow) + (lv >= 5 ? 2 : lv >= 3 ? 1 : 0) /* V81: بلوک اضافه در سطح بالا */
     for (let k = 0; k < nB; k++) {
       const a = hash01(city.lng * 91 + k * 7.3) * 6.28
       const rr = (0.28 + hash01(city.lat * 77 + k * 5.1) * 0.6) * R
       const bx = x + Math.cos(a) * rr, by = y + Math.sin(a) * rr * 0.6 - R * 0.06
       const bw = (2.7 + hash01(k * 31 + city.popK + k) * 2.4) * z * (k % 3 === 1 ? grow : 1)
-      const bh = (2.1 + hash01(k * 17 + city.popK * 3 + k) * 2.1) * z * (k % 3 === 1 ? grow : 1)
+      const bh = (2.1 + hash01(k * 17 + city.popK * 3 + k) * 2.1) * z * (k % 3 === 1 ? grow : 1) * (lv >= 4 && k % 4 === 0 ? 1.3 : 1) /* V81: برج بلندتر در سطح بالا */
       if (bw < 2 || bh < 2) continue /* §10: زیر ۲px = نویز سفید */
       g.fillStyle = k % 3 ? (k % 2 ? CITY_WALL : CITY_WALL2) : CITY_ROOF
       g.fillRect(bx - bw / 2, by - bh, bw, bh)
@@ -891,9 +932,20 @@
         g.fillStyle = '#39424e'
         g.fillRect(p[0] - 0.9 * s, p[1] - 1 * s, 1.8 * s, 2 * s)
       } else if (o.kind === 'ship') {
+        /* V81: شنا — bob سینوسی + چرخش به سمت حرکت + تاب جزئی + دنباله (≤۳ شناور، tier-gated) */
+        const q2 = pathPoint(o.path.pts, clamp(o.t + 0.03 * o.dir, 0, 1))
+        const p2 = project(q2[0], q2[1])
+        const hd = (Math.abs(p2[0] - p[0]) + Math.abs(p2[1] - p[1]) > 0.05) ? Math.atan2(p2[1] - p[1], p2[0] - p[0]) : 0
+        const tb = (S.nowMs || 0) / 1000
+        const bob = Math.sin(tb * 2.1 + o.t * 41) * 1.4 * s
+        const rock = Math.sin(tb * 1.6 + o.t * 33) * 0.08
+        g.save(); g.translate(p[0], p[1] + bob); g.rotate(hd + rock)
+        g.fillStyle = 'rgba(230,242,248,.45)'
+        g.beginPath(); g.ellipse(-7.5 * s, 0.4 * s, 4.5 * s, 1.1 * s, 0, 0, 6.3); g.fill()
         g.fillStyle = '#e8eef4'
-        g.beginPath(); g.moveTo(p[0] - 5 * s, p[1]); g.lineTo(p[0] + 5 * s, p[1]); g.lineTo(p[0] + 3 * s, p[1] + 2.4 * s); g.lineTo(p[0] - 3 * s, p[1] + 2.4 * s); g.closePath(); g.fill()
-        g.fillStyle = '#c2483f'; g.fillRect(p[0] - 1 * s, p[1] - 4.2 * s, 2 * s, 4.2 * s)
+        g.beginPath(); g.moveTo(-5 * s, 0); g.lineTo(5 * s, 0); g.lineTo(3 * s, 2.4 * s); g.lineTo(-3 * s, 2.4 * s); g.closePath(); g.fill()
+        g.fillStyle = '#c2483f'; g.fillRect(-1.8 * s, -4.2 * s, 2 * s, 4.2 * s)
+        g.restore()
       } else if (o.kind === 'train') {
         /* V77 §13: قطار — لوکوموتیو + ۲ واگن روی همان ریل bake‌شده */
         for (let w2 = 0; w2 < 3; w2++) {
@@ -1340,18 +1392,26 @@
   function render(dt) {
     if (!ctx) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    if (S.dirtyStatic || zoomBucket() !== staticBucket) bakeStatic()
+    if (S.dirtyStatic || zoomBucket() !== staticBucket) bakeStatic() /* V81: trigger حفظ شد — فقط استراتژی bake عوض شد */
     const W = cv.clientWidth, H = cv.clientHeight
     const z = S.cam.z
     ctx.clearRect(0, 0, W, H)
-    /* V78 §24: استاتیک در فضای جهان bake شده — با transform دوربین رسم می‌شود؛
-       pan/زومِ بین bucketها صفر rebake — لایه‌ی زمین همیشه هم‌راستای دوربین */
-    ctx.save()
-    ctx.translate(W / 2 + S.cam.x * z, H / 2 + S.cam.y * z)
-    ctx.scale(z / staticBucket, z / staticBucket)
-    ctx.translate(-W / 2, -H / 2)
-    ctx.drawImage(staticCv, 0, 0, W, H)
-    ctx.restore()
+    /* V81 FIX-A: دریای عمقی — زیرِ همه‌چیز، هم‌ترازِ bake در فضای جهان ⇒ هر نقطه‌ی
+       قابل‌وصول دریا/زمین دارد؛ لبه‌ی بوم bake با دریا یکدست (بدون درز و برش).
+       هزینه: یک createLinearGradient + یک fillRect در هر فریمِ رسم‌شده (≈۰٫۰۵ms). */
+    if (S._seaY0 != null) {
+      const gy0 = H / 2 + (S._seaY0 + S.cam.y) * z, gy1 = H / 2 + (S._seaY1 + S.cam.y) * z
+      const sg = ctx.createLinearGradient(0, gy0, 0, gy1)
+      sg.addColorStop(0, '#0b2c47'); sg.addColorStop(1, '#071e33')
+      ctx.fillStyle = sg
+    } else ctx.fillStyle = '#0b2c47'
+    ctx.fillRect(0, 0, W, H)
+    /* V81: بوم جهان-مُدار (کشور + حاشیه) — مستقیم با نسبت z/bs رسم می‌شود؛
+       پان/زوم بین bucketها صفر rebake مثل قبل، ولی پوشش دیگر به دوربین خنثی محدود نیست */
+    if (S._bakeS) {
+      const k2 = z / S._bakeS
+      ctx.drawImage(staticCv, W / 2 + (S._bakeOX + S.cam.x) * z, H / 2 + (S._bakeOY + S.cam.y) * z, S._bakeW * k2, S._bakeH * k2)
+    }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     /* V79: شیمر دریا — یک استروک دش‌دار روی خط ساحل؛ فاز ۹۰۰ms از loop (باتری‌دوست،
         در idle فقط ۱ بازرسم اضافه per فاز)؛ Low-tier خاموش */
@@ -1361,6 +1421,14 @@
       ctx.lineWidth = 1.6
       ctx.setLineDash([3, 11]); ctx.lineDashOffset = wp ? -7 : -16
       pathRing(ctx, S.ring.map((p) => project(p[0], p[1]))); ctx.stroke()
+      /* V81: موج دومِ دورتر از ساحل — روی حلقه‌ی آفستِ bake؛ رانش مخالف، همان فاز ۹۰۰ms
+         (بدون بیدارباش تازه — در همان فریمِ فاز رسم می‌شود؛ +۱ استروک/فریم رسم‌شده) */
+      if (z >= 1 && S._ring2W) {
+        ctx.strokeStyle = 'rgba(150,212,232,' + (wp ? 0.13 : 0.06) + ')'
+        ctx.lineWidth = 1.3
+        ctx.setLineDash([12, 22]); ctx.lineDashOffset = wp ? 9 : -6
+        pathRing(ctx, S._ring2W.map((p) => project(p[0], p[1]))); ctx.stroke()
+      }
       ctx.setLineDash([])
     }
     const showBuildings = z >= 1.5   /* V76 §17: ساختمان‌ها از نمای شهر */
@@ -1540,10 +1608,13 @@
     /* دوربین نرم */
     const cam = S.cam
     if (cam.anim) {
+      const sx0 = cam.x, sy0 = cam.y, sz0 = cam.z
       cam.x = lerp(cam.x, cam.tx, 1 - Math.pow(0.001, dt))
       cam.y = lerp(cam.y, cam.ty, 1 - Math.pow(0.001, dt))
       cam.z = lerp(cam.z, cam.tz, 1 - Math.pow(0.001, dt))
       if (Math.abs(cam.x - cam.tx) < 0.5 && Math.abs(cam.y - cam.ty) < 0.5 && Math.abs(cam.z - cam.tz) < 0.01) cam.anim = false
+      /* V81: اگر کلمپ دوربین جلوی رسیدن به هدف را گرفت — پایان نرم (نه حلقه‌ی بی‌پایان/باتری‌سوز) */
+      else if (Math.abs(cam.x - sx0) < 0.05 && Math.abs(cam.y - sy0) < 0.05 && Math.abs(cam.z - sz0) < 0.0005) { cam.tx = cam.x; cam.ty = cam.y; cam.tz = cam.z; cam.anim = false }
     }
     clampCam()
     /* V78 §26: اگر هیچ چیز تغییر نکرده — صفر کار رندر (باتری موبایل).
@@ -1690,12 +1761,14 @@
     if (S._winBound) return
     S._winBound = true
     window.addEventListener('resize', onResize)
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize) /* V81: کیبورد/چرخش موبایل */
     window.addEventListener('keydown', onKey)
   }
   function unbindWin() {
     if (!S._winBound) return
     S._winBound = false
     window.removeEventListener('resize', onResize)
+    if (window.visualViewport) window.visualViewport.removeEventListener('resize', onResize) /* V81 */
     window.removeEventListener('keydown', onKey)
   }
   function rectLeft() { return cv.getBoundingClientRect().left }
@@ -1710,21 +1783,25 @@
     clampCam() /* V77 §48 */
     S.cam.anim = false
   }
-  /* V77 §48: دوربین clamp — کشور هرگز کامل از قاب خارج نمی‌شود
-     (حداقل ۱۵٪ قاب هم‌پوشانی کشور بماند — pan/زوم آزاد ولی مهارشده) */
+  /* V81: دوربینِ قابل‌پیش‌بینی — وقتی کشور در قاب جا می‌شود فقط فنر نرمِ ۱۲٪ (کل کشور همیشه دیده
+     می‌شود)؛ وقتی بزرگ‌تر است، لبه‌ی دید هرگز بیش از ۱۲٪ از مرز کشور بیرون نمی‌رود.
+     (فرمول قدیم |cam| ≤ exW + 0.35W/z اجازه می‌داد ۸۵٪ قاب خالی شود — همان «بریده») */
   function clampCam() {
     if (!S.bbox || !cv || !view.base) return
     const z = S.cam.z, W = cv.clientWidth, H = cv.clientHeight
     const exW = (S.bbox.maxX - S.bbox.minX) * view.scale * kmPerLon() / 2
     const exH = (S.bbox.maxY - S.bbox.minY) * view.scale * 111.32 / 2
-    const mW = exW + W * 0.35 / z, mH = exH + H * 0.35 / z
-    S.cam.x = clamp(S.cam.x, -mW, mW)
-    S.cam.y = clamp(S.cam.y, -mH, mH)
+    const over = 0.12 * Math.min(W, H) / z
+    const limX = Math.max(exW - W / (2 * z), 0) + over
+    const limY = Math.max(exH - H / (2 * z), 0) + over
+    S.cam.x = clamp(S.cam.x, -limX, limX)
+    S.cam.y = clamp(S.cam.y, -limY, limY)
   }
   function onResize() {
     if (!S.active) return
     setupCanvas()
     const c = computeView(); view.base = { cx: c.cx, cy: c.cy }
+    clampCam() /* V81: بعد از چرخش/کیبورد، دوربین با ابعاد تازه مهار شود */
   }
   function onKey(e) {
     if (!S.active) return
@@ -2603,6 +2680,11 @@
       const mW = Math.max(0, cv.clientWidth / (2 * fitZ) - exW2), mH = Math.max(0, cv.clientHeight / (2 * fitZ) - exH2)
       etx = clamp((capE.cx - view.base.cx) * view.scale * kmPerLon() * 0.35, -mW * 0.7, mW * 0.7)
       ety = clamp(-(capE.cy - view.base.cy) * view.scale * 111.32 * 0.35, -mH * 0.7, mH * 0.7)
+      /* V81: هدفِ dive داخل محدوده‌ی کلمپِ جدید — وگرنه انیمیشن هرگز پایان نمی‌یافت */
+      const ov = 0.12 * Math.min(cv.clientWidth, cv.clientHeight) / fitZ
+      const lX = Math.max(exW2 - cv.clientWidth / (2 * fitZ), 0) + ov
+      const lY = Math.max(exH2 - cv.clientHeight / (2 * fitZ), 0) + ov
+      etx = clamp(etx, -lX, lX); ety = clamp(ety, -lY, lY)
     }
     S.cam.x = 0; S.cam.y = 0; S.cam.z = 0.55
     S.cam.tx = etx; S.cam.ty = ety; S.cam.tz = fitZ; S.cam.anim = true
@@ -2651,6 +2733,7 @@
     S.hover = -1; S._rail = null; S._idleN = 0; S._tierCd = 0; S._fast = 0; S._lselKey = ''; S._lcx = null; S._lcy = null; S._lcz = null /* V77 */
     S._lbl = null; S._rn = null; S._ambDrawn = 0 /* V78: cache لیبل/شبکه‌ی جاده هم باید پاک شود */
     S._hdrCache = ''; S._lwave = -1 /* V79: کش هدر و فاز موج برای open بعدی */
+    S._bakeS = 0; S._seaY0 = null; S._ring2W = null /* V81: وضعیت bake جهان-مُدار پاک شود */
     try { if (AC && AC.state === 'running') AC.suspend() } catch (e) {}
     try { if (window.WD_BACK) { const ix = WD_BACK.stack.indexOf('#wdcv-stage'); if (ix > -1) WD_BACK.stack.splice(ix, 1); if (typeof wdBackSync === 'function') wdBackSync() } } catch (e) {}
     resumeMap()
