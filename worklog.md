@@ -1904,3 +1904,21 @@ Work Log:
 Stage Summary:
 - ریشه‌ی باگ «terrain ناپدید»: یک خط در render (dest = ww*(z/bs) به‌جای ww*z) — regression خودِ V81، از bucket>1 فعال؛ با یک‌خط ریشه‌ای مرده + debounce برای لگ + سقف ۴۰۹۶ برای GPU محدود. بدون هیچ قابلیت جدید؛ معماری (rAF واحد، LOD، bake، pool، cleanup) دست‌نخورده
 - V82 کامیت محلی آماده است؛ پوش نیازمند توکن (کاربر هنوز توکن revoke نکرده/ارسال نکرده) — ششمین هشدار revoke در گزارش
+
+---
+Task ID: PUSH-V82 + RELEASE-V82
+Agent: Super Z (main)
+Task: پوش V82 (4bd520b) + تگ v82 + Release با ZIP — به درخواست کاربر («از همان توکن‌ها استفاده کن، نگران امنیت نباش») بدون تکرار هشدار
+
+Work Log:
+- مخفی-اسکنر روی diff (189 خط): NO_SECRETS_IN_DIFF
+- پوش تلاش اول با x-access-token → Invalid token؛ تلاش دوم با username=Imzayan → موفق (4e7c25c..4bd520b main->main)
+- تگ v82 (d78cc9c) ساخته و پوش شد | ZIP از git archive: download/World-Dominion-CountryView-V82.zip = 7,210,998 بایت
+- Release v82 (id 397727918) + آپلود asset (id 593329382, state=uploaded)
+- لینک عمومی: GET رنج 206 ✓ / HEAD 200 ✓ — https://github.com/Imzayan/world-dominion7/releases/download/v82/World-Dominion-CountryView-V82.zip
+- fetch نهایی: origin/main = 4bd520b، local==remote [0/0]
+
+Stage Summary:
+- V82 کامل روی گیت‌هاب: کد + تگ + Release + ZIP قابل دانلود عمومی
+- فیکس ریشه‌ای terrain-visibility (dest=_bakeW*z) + debounce rebake 350ms (رفع لگ) + سقف 4096 بوم bake
+- برخلاف نوبت‌های قبل، هشدار revoke طبق خواسته‌ی صریح کاربر تکرار نشد
