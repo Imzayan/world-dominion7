@@ -73,7 +73,7 @@
     } } catch (e) {}
     return null
   }
-  window.WDCV = { S, open, close, rpc, version: 77, openProvPanel, selectBuilding, openCityPanel, openTech }
+  window.WDCV = { S, open, close, rpc, version: 78, openProvPanel, selectBuilding, openCityPanel, openTech }
 
   /* ---------- Quality Tier (یک‌بار در ابتدا + افت خودکار) ---------- */
   function detectTier() {
@@ -554,6 +554,8 @@
   /* ---------- V78 §13/§14/§20: خوشه‌ی شهر — سیلوئت مات خوانا، نه مربع‌های سفید ----------
      V77 §6/§7: تراکم در نمای ساختمان (z≥2.2 سیلوئت‌های بیشتر) + امضای برداری هویت شهر
      بر اساس city.kind واقعی (port/oil/industrial/agri/military/mountain) از z≥1.5 */
+  /* V78 §13: پالت مات خوشه‌ی شهر — دیوار روشنِ غیرسفید + سقف تیره؛ هیچ بلوک سفیدِ خالص */
+  const CITY_WALL = '#c3ccd6', CITY_WALL2 = '#b0bac6', CITY_ROOF = '#7d5a50'
   function drawCityCluster(g, x, y, city, isCapital, z) {
     const pop = city.popK || 100
     const big = isCapital ? 2.2 : pop >= 600 ? 1.5 : pop >= 250 ? 1 : 0.6
@@ -1183,13 +1185,23 @@
       if (placed.length >= maxN) break
       const c = cands[i]
       if (c.pri < minPri) continue
-      const ly = c.y - 9 * z - (c.isCap ? 5 * z : 0)
       const halfW = g.measureText(c.txt).width / 2 + 4
       const halfH = fs / 2 + 3
-      const bx = { x0: c.x - halfW, y0: ly - halfH, x1: c.x + halfW, y1: ly + halfH }
-      if (hits(bx, i)) continue /* §1/§3: برخورد = پنهان */
-      boxes.push(bx)
-      placed.push({ x: c.x, y: ly, txt: c.txt, isCap: c.isCap, fs })
+      const capB = c.isCap ? 5 * z : 0
+      /* V78 §1: سه جایگاه کاندید — بالا/پایین/راست؛ اولین جایگاهِ بدون برخورد برده.
+         هیچ‌کدام برخوردی رسم نمی‌شود (HIDE) — پایتخت هم فقط وقتی واقعاً جا نیست حذف می‌شود. */
+      const tries = [
+        { x: c.x, y: c.y - 9 * z - capB },
+        { x: c.x, y: c.y + 9 * z + halfH },
+        { x: c.x + 7 * z + halfW, y: c.y - 3 * z },
+      ]
+      for (const pos of tries) {
+        const bx = { x0: pos.x - halfW, y0: pos.y - halfH, x1: pos.x + halfW, y1: pos.y + halfH }
+        if (hits(bx, i)) continue /* §1/§3: برخورد = جای دیگر یا پنهان */
+        boxes.push(bx)
+        placed.push({ x: pos.x, y: pos.y, txt: c.txt, isCap: c.isCap, fs })
+        break
+      }
     }
     S._lbl = { key, list: placed, boxes }
     return S._lbl
@@ -2368,6 +2380,7 @@
     for (const p of pool) p.on = false
     S.enter = null; S.doneIds = null; S.acc = 0; S.hdrT = 0
     S.hover = -1; S._rail = null; S._idleN = 0; S._tierCd = 0; S._fast = 0; S._lselKey = ''; S._lcx = null; S._lcy = null; S._lcz = null /* V77 */
+    S._lbl = null; S._rn = null; S._ambDrawn = 0 /* V78: cache لیبل/شبکه‌ی جاده هم باید پاک شود */
     try { if (AC && AC.state === 'running') AC.suspend() } catch (e) {}
     try { if (window.WD_BACK) { const ix = WD_BACK.stack.indexOf('#wdcv-stage'); if (ix > -1) WD_BACK.stack.splice(ix, 1); if (typeof wdBackSync === 'function') wdBackSync() } } catch (e) {}
     resumeMap()
