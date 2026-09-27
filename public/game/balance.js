@@ -84,8 +84,13 @@
         carrier:   { attack: 600, costGold: 2500, costOil: 600, air: false }
       },
       /* تخفیف کارخانه‌ی تسلیحات روی استخدام */
-      armsDiscountPerLevel: 0.05, armsDiscountCap: 0.35
-      /* نگهداری per-unit و سقف ارتش → فاز P4 (master spec PHASE 5) */
+      armsDiscountPerLevel: 0.05, armsDiscountCap: 0.35,
+      /* V75 — P4: نگهداری per-unit (ضد گلوله‌برفی) — ارتشِ بزرگ ماهانه پول‌سوز است.
+         freeAttack: تا این مقدار قدرت ارتش، نگهداری صفر (بازیکنان کوچک بی‌تأثیر).
+         goldPerAttackMin: به‌ازای هر واحد قدرتِ مازاد بر free، هر دقیقه این‌قدر طلا.
+         25,000 حذف رایگان؛ ارتشِ 200,000 قدرت = 1750 طلا/دقیقه — ارتشِ یک‌میلیونی
+         9,750/دقیقه: بدون اقتصاد سالم فرو می‌پاشد. (سرور هم پول جعلی را clamp می‌کند) */
+      upkeep: { freeAttack: 25000, goldPerAttackMin: 0.01 }
     },
 
     /* ============ buildings — هزینه/تولید/اثر (جداول محتوایی از این تغذیه می‌شوند) ============ */
@@ -133,7 +138,9 @@
         airportPer: 0.03, airportCap: 0.3,               // قدرت هوایی
         basePer: 0.02, baseCap: 0.2,                     // کل قدرت ارتش
         airInfraPerLevel: 0.1                            // airBonus: 1 + infra.air*0.1
-      }
+      },
+      /* V75 — P4: هزینه‌ی حمله‌ی PvP (قرینه‌ی سرور src/lib/balance.ts:PVP_ATTACK — همیشه هم‌عدد) */
+      pvpAttack: { costGold: 400, costOil: 40, cooldownSec: 10 }
     },
 
     /* ============ missions — هدف و پاداش (پرداخت واقعی = داور سرور) ============ */

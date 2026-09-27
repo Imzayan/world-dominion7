@@ -141,6 +141,89 @@ function serialize(row: Record<string, unknown>, spec: TableSpec, select?: strin
 const ARMY_ATK: Record<string, number> = { infantry: 4, tank: 40, bomber: 300, fighter: 120, heli: 65, missile: 250, drone: 35, transport: 15, destroyer: 180, carrier: 600 }
 const AIR_UNITS = new Set(['bomber', 'fighter', 'heli', 'drone'])
 
+/* ============================================================
+   V75 — P3: اعتبارسنجی سرورِ بلاب سیو (اقتصاد نقشه client-advances
+   می‌ماند، اما دیگر «هرچه کلاینت گفت» ذخیره نمی‌شود.)
+   ------------------------------------------------------------
+   تا امروز saves.state بلابی کاملاً کلاینت‌نویس بود: res.gold=1e9
+   یا units.carrier=9999 مستقیم در DB می‌نشست و از همان‌جا به
+   computeMetrics (رتبه‌بندی) و cvSpend (خرید CV سرور) و pvp_attack
+   (قدرت مهاجم) تزریق می‌شد. حالا سقف‌های واقعی بازی — همان فرمول‌های
+   BALANCE — روی نوشتن و خواندن اعمال می‌شوند:
+   - نفت ≤ 6000 + 1200×قلمرو + 6000×سطح انبار لابی + 2500×انبار CV
+   - غذا ≤ 9000 + 2500×قلمرو
+   - طلا ≤ 20M + 2M×قلمرو (چند ماه گنج دلخواه بازیکن حرفه‌ای؛ هیچ
+     بازیکن واقعی به آن نمی‌خورد — فقط جعل را بی‌اثر می‌کند)
+   - هر یگان سقف مشخص + سقف کل قدرت ارتش ۱M (باز هم ده برابرِ
+     حاکم واقعی رنکینگ) — از blob-write جعلی جلوگیری می‌کند
+   - kills ≤ power×3+1e6 ، occ ∈ [0,100] ، conq ≤ ۱۵ (MAX_COUNTRIES)
+   شمارنده‌ی قلمرو/انبار CV با کش ۳۰ثانیه‌ای — سیو ۸ثانیه‌ای بدون
+   فشار اضافه‌ی DB.
+   ============================================================ */
+const UNIT_CAPS: Record<string, number> = { infantry: 50000, tank: 2500, bomber: 1200, fighter: 1800, heli: 1800, missile: 1000, drone: 2500, transport: 1200, destroyer: 1000, carrier: 500 }
+const MAX_UNIT_ATK = 1_000_000
+const GOLD_CAP_BASE = 20_000_000
+const GOLD_CAP_PER_TERR = 2_000_000
+const MAX_COUNTRIES_DB = 15 /* قرینه‌ی MAX_COUNTRIES در rpc route — تک‌منبع نیست چون آن‌جا مقدار ثابت لابی است */
+const OIL_CAP_BASE = 6000, OIL_CAP_PER_TERR = 1200, OIL_CAP_PER_STORAGE = 6000, OIL_CAP_PER_CVSTORAGE = 2500
+const FOOD_CAP_BASE = 9000, FOOD_CAP_PER_TERR = 2500
+
+const ST_CAPS_CACHE = new Map<string, { terr: number; cvSt: number; at: number }>()
+async function stateCapsFor(userId: string): Promise<{ terr: number; cvSt: number }> {
+  const hit = ST_CAPS_CACHE.get(userId)
+  if (hit && Date.now() - hit.at < 30_000) return { terr: hit.terr, cvSt: hit.cvSt }
+  let terr = 0, cvSt = 0
+  try {
+    terr = await db.territory.count({ where: { userId } })
+    const cvStRows = await db.cvBuilding.findMany({ where: { userId, type: 'storage' }, select: { level: true } })
+    for (const b of cvStRows) cvSt += b.level
+  } catch (e) { console.log('stcaps', e) }
+  if (ST_CAPS_CACHE.size > 5000) ST_CAPS_CACHE.clear()
+  ST_CAPS_CACHE.set(userId, { terr, cvSt, at: Date.now() })
+  return { terr, cvSt }
+}
+
+const sNum = (v: unknown, cap: number): number => { const n = Number(v); return Number.isFinite(n) ? Math.max(0, Math.min(cap, Math.round(n))) : 0 }
+
+async function clampSaveState(stateStr: string, userId: string): Promise<string> {
+  let st: Record<string, unknown> = {}
+  try { st = JSON.parse(stateStr || '{}') || {} } catch { return '{}' }
+  const { terr, cvSt } = await stateCapsFor(userId)
+  /* --- منابع --- */
+  const res = (st.res && typeof st.res === 'object' ? st.res : {}) as Record<string, unknown>
+  const capOil = OIL_CAP_BASE + OIL_CAP_PER_TERR * terr + OIL_CAP_PER_STORAGE * Math.max(0, Math.round(Number((st.infra as Record<string, unknown>)?.storage) || 0)) + OIL_CAP_PER_CVSTORAGE * cvSt
+  res.gold = sNum(res.gold, GOLD_CAP_BASE + GOLD_CAP_PER_TERR * terr)
+  res.oil = sNum(res.oil, capOil)
+  res.food = sNum(res.food, FOOD_CAP_BASE + FOOD_CAP_PER_TERR * terr)
+  res.steel = sNum(res.steel, 100_000) /* منبع پاداش قهرمانی — بی‌دشمن جعل نشود */
+  st.res = res
+  /* --- یگان‌ها: سقف تکی + سقف کل قدرت --- */
+  if (st.units && typeof st.units === 'object') {
+    const units = st.units as Record<string, unknown>
+    let atkSum = 0
+    for (const k of Object.keys(units)) {
+      const cap = UNIT_CAPS[k]
+      const n = cap != null ? sNum(units[k], cap) : 0 /* نوع ناشناخته = صفر (یگان خیالی) */
+      units[k] = n
+      const room = Math.max(0, MAX_UNIT_ATK - atkSum)
+      const atk = n * (ARMY_ATK[k] || 0)
+      if (atk > room) { units[k] = Math.floor(room / (ARMY_ATK[k] || 1)); atkSum += (units[k] as number) * (ARMY_ATK[k] || 0) }
+      else atkSum += atk
+    }
+    st.units = units
+  }
+  /* --- سایر فیلدهای امتیازآور --- */
+  if (Array.isArray(st.conq)) st.conq = (st.conq as unknown[]).slice(0, MAX_COUNTRIES_DB).map((x) => String(x))
+  st.kills = sNum(st.kills, 1_000_000 + MAX_UNIT_ATK * 3)
+  st.occ = sNum(st.occ, 100)
+  if (st.infra && typeof st.infra === 'object') {
+    const infra = st.infra as Record<string, unknown>
+    for (const k of Object.keys(infra)) infra[k] = sNum(infra[k], 99)
+    st.infra = infra
+  }
+  return JSON.stringify(st)
+}
+
 function computeMetrics(stateJson: string) {
   let st: Record<string, unknown> = {}
   try { st = JSON.parse(stateJson) || {} } catch {}
@@ -226,12 +309,16 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ table: stri
   const where = buildWhere(q.filters, spec, table === 'saves' || table === 'world_chat' ? user?.id || 'none' : null)
   const model = db as unknown as Record<string, { findMany: (a: object) => Promise<Record<string, unknown>[]> }>
   try {
-    const rows = await model[spec.model].findMany({
+    let rows = await model[spec.model].findMany({
       where,
       ...(q.order ? { orderBy: { [spec.cols[q.order.col] || 'id']: q.order.asc ? 'asc' : 'desc' } } : {}),
       /* V60sec: سقف پیش‌فرض — کوئری بی‌limit روی جدول‌های رشدکننده (scores) اسکن باز بود */
       take: Math.min(q.limit || 1000, 1000),
     })
+    /* V75 — P3: خواندن سیو هم clamp می‌شود — بلاب آلوده‌ی قدیمی در اولین ورود خودش را ترمیم می‌کند */
+    if (table === 'saves' && rows.length) {
+      rows = await Promise.all(rows.map(async (r) => ({ ...r, state: await clampSaveState(String(r.state || '{}'), String(r.userId || user?.id || '')) })))
+    }
     let data: (Record<string, unknown> | null)[] = rows.map((r) => serialize(r, spec, q.select))
     if (q.maybeSingle) data = data.length ? [data[0]] : [null]
     if (q.single) {
@@ -370,6 +457,8 @@ async function preparePayload(table: string, spec: TableSpec, raw: Record<string
     if (typeof data.state !== 'string' || !data.state) data.state = '{}'
     /* V60sec: سقف حجم سیو — JSON چندمگابایتی مسیر باد کردن جدول saves بود */
     if ((data.state as string).length > 524288) throw new Error('save state too large')
+    /* V75 — P3: سقف‌های واقعی اقتصاد/ارتش روی بلاب (نوشتن) — همان فرمول‌های BALANCE */
+    data.state = await clampSaveState(data.state as string, user.id)
   }
   if (table === 'scores') {
     /* V60sec: متریک‌های رتبه‌بندی (score/conquered/kills/economy/recruits) فقط از

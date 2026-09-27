@@ -10,7 +10,7 @@ import {
   type RecentScore,
 } from '@/lib/olyProfile'
 import { cvGenerateLayout, cvEnrich, cvCountryExists, type CvProvince } from '@/lib/cvGeo'
-import { OL_REWARDS, SPECIAL_OPS, MENTOR_REWARDS, OL_PARTICIPATION_GEMS, OL_PODIUM_REWARDS } from '@/lib/balance' /* V72: توازن سرور متمرکز (PHASE 4) */
+import { OL_REWARDS, SPECIAL_OPS, MENTOR_REWARDS, OL_PARTICIPATION_GEMS, OL_PODIUM_REWARDS, PVP_ATTACK } from '@/lib/balance' /* V72: توازن سرور متمرکز (PHASE 4) — V75: + PVP_ATTACK */
 import {
   cvDef, cvCost, cvTimeSec, cvProdPerMin, cvCatalogPublic, cvTechMults,
   CV_TECH, CV_MAX_LEVEL, CV_OFFLINE_CAP_MS, CV_FOCUS, type CvTechLine, type CvFocus,
@@ -666,6 +666,8 @@ async function passAddXp(userId: string, mission: string) {
 
 /* ---------- capture transfer shared by pvp_attack success & pvp_capture_territory ---------- */
 const lastCapture = new Map<string, number>()
+/* V75 — P4: کول‌داون حمله‌ی PvP سمت سرور (کلید: userId — پاک‌سازی وقتی بزرگ شد) */
+const lastPvpAtk = new Map<string, number>()
 let lastReleaseRun = 0
 
 async function transferTerritory(server: number, country: string, uid: string, nick: string): Promise<{ ok: boolean; error?: string; prevOwner?: string }> {
@@ -1692,6 +1694,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         let g = 0, o = 0, f = 0
         for (const gr of grants) { g += gr.gold; o += gr.oil; f += gr.food }
         await db.adminGrant.updateMany({ where: { id: { in: grants.map((x) => x.id) } }, data: { claimed: true } })
+        /* V75 — P3: پاداش حالا سرور خودش به خزانه‌ی واقعی واریز می‌کند (tradeApply تک‌نویسنده).
+           قبلاً «سرور محاسبه، کلاینت اعمال» بود — کلاینت عدد را به بلاب می‌افزود؛ همان شکار اعتماد.
+           پاسخ برای «نمایش» کلاینت دست‌نخورده ماند؛ کلاینت دیگر منبع را محلی جمع نمی‌زند. */
+        if (g || o || f) await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) + g; r.oil = resNum(r.oil) + o; r.food = resNum(r.food) + f }).catch(() => {})
         return R([{ o_gold: g, o_oil: o, o_food: f }])
       }
 
@@ -1717,6 +1723,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           })
           if (already) continue
           await db.weeklyClaim.create({ data: { userId: user.id, weekKey: wk, category: cat, rank, rewardGold: reward } })
+          /* V75 — P3: واریز سمت سرور (تک‌نویسنده) — کلاینت فقط اعلان نشان می‌دهد */
+          await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) + reward }).catch(() => {})
           out.push({ rank, reward_gold: reward, category: cat })
         }
         return R(out)
@@ -1768,6 +1776,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           },
         })
         if (gamesPhase().phase === 'live' && (await evOn('olympic')) && !duel) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک — با خاموشی المپیک توسط ادمین لغو می‌شود */
+        /* ---------------- V75 — P4: هزینه‌ی واقعی حمله + کول‌داون سرور ----------------
+           تا V74 حمله برای مهاجم رایگان بود؛ حالا:
+           ۱) کول‌داون ۱۰ثانیه‌ای per-user (ضد اسپم حمله)
+           ۲) کسر طلا/نفت از خزانه‌ی واقعی با tradeApply (تک‌نویسنده — پول جعلی بلاب هم جواب نمی‌دهد)
+           هزینه فقط وقتی کسر می‌شود که حمله واقعاً به مرحله‌ی داوری برسد. */
+        {
+          const now75 = Date.now()
+          const last75 = lastPvpAtk.get(user.id) || 0
+          if (now75 - last75 < PVP_ATTACK.cooldownSec * 1000) return R({ ok: false, error: 'cd', cd_ms: PVP_ATTACK.cooldownSec * 1000 - (now75 - last75) })
+          const paid75 = await tradeApply(user.id, (r) => {
+            r.gold = resNum(r.gold) - PVP_ATTACK.costGold
+            r.oil = resNum(r.oil) - PVP_ATTACK.costOil
+          })
+          if (!paid75) return R({ ok: false, error: 'res' })
+          if (lastPvpAtk.size > 5000) lastPvpAtk.clear()
+          lastPvpAtk.set(user.id, now75)
+        }
         const defScore = await db.score.findUnique({ where: { userId: t.userId } })
         const myScore = await db.score.findUnique({ where: { userId: user.id } })
         let a = Math.max(1, myScore?.score || 100)

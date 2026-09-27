@@ -471,7 +471,17 @@
     try {
       if (!AC) audioInit()
       if (!AC) return
-      if (AC.state === 'suspended') { AC.resume(); return } /* اولین تلاش فقط unlock */
+      if (AC.state === 'suspended') {
+        /* V75: بعد از suspend در close()، اولین صدای ورود گم می‌شد (resume ناهمگام بود —
+           «اولین تلاش فقط unlock»). حالا بعد از resume همان صدا پخش می‌شود. */
+        AC.resume().then(() => { try { sndPlay(kind) } catch (e) {} }).catch(() => {})
+        return
+      }
+      sndPlay(kind)
+    } catch (e) {}
+  }
+  function sndPlay(kind) {
+    try {
       const t = AC.currentTime
       const tone = (f0, f1, dur, type, vol, dl) => {
         const o = AC.createOscillator(), g = AC.createGain()
@@ -1604,6 +1614,8 @@
   async function open(country, opts) {
     if (S.active) return
     ensureDom()
+    /* V75: اگر کانتکست صدا از خروج قبلی suspend مانده، همین اول زنده شود */
+    try { if (AC && AC.state === 'suspended') AC.resume() } catch (e) {}
     const st = document.getElementById('wdcv-stage')
     st.classList.add('on')
     S.active = true

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=74;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=72"></script>
+  <script>window.__WD_V=75;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=75"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1248,7 +1248,15 @@ function uiText(id, num, pop) {
 function renderUnits() {
   const container = document.getElementById("units-container");
   const discount = armsDiscount();
-  let html = "";
+  /* V75 — P4: نشان نگهداری — ارتشِ مازاد بر سهمیه‌ی رایگان، هر دقیقه طلا می‌سوزاند */
+  const _upk = (typeof armyUpkeep==='function')?Math.round(armyUpkeep()):0;
+  const upkHtml = _upk > 0
+    ? `<div class="unit-card" style="border-color:#8a6d3b;background:linear-gradient(135deg,rgba(138,109,59,.16),rgba(138,109,59,.05))">
+        <div class="unit-head"><span class="unit-title">🧾 هزینه‌ی نگهداری ارتش</span></div>
+        <div class="unit-stats"><span>💰 ${_upk.toLocaleString()} طلا / دقیقه</span><span>(سهمیه‌ی رایگان: ${Math.round(BALANCE.army.upkeep.freeAttack).toLocaleString()} قدرت)</span></div>
+      </div>`
+    : "";
+  let html = upkHtml;
   Object.keys(ARMY_UNITS).forEach(key => {
     const u = ARMY_UNITS[key];
     const realCostGold = Math.round(u.costGold * (1 - discount));
@@ -1844,6 +1852,13 @@ function snd(k){if(muted)return;try{AC=AC||new(window.AudioContext||window.webki
   else if(k==='coin'){tone(880,0,.08,'triangle',.08);tone(1320,.08,.12,'triangle',.08)}
   else if(k==='alert'){tone(300,0,.15,'sawtooth',.06);tone(220,.15,.2,'sawtooth',.06)}
   else if(k==='win')[523,659,784,1046].forEach((f,i)=>tone(f,i*.1,.18,'triangle',.08));
+  /* V75 — P5: ۴ کلید صوتی المپیک که oly3 از روز اول صدا می‌زد ولی هرگز ساخته نشده بود */
+  else if(k==='stamp'){const n=Math.floor(AC.sampleRate*.12),b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2);
+    const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();f.type='highpass';f.frequency.value=900;g.gain.value=.4;s.buffer=b;s.connect(f);f.connect(g);g.connect(AC.destination);s.start()}
+  else if(k==='thump'){const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(170,AC.currentTime);o.frequency.exponentialRampToValueAtTime(55,AC.currentTime+.16);g.gain.setValueAtTime(.5,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+.17);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+.18)}
+  else if(k==='crowd'){const n=Math.floor(AC.sampleRate*.7),b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.sin(Math.PI*i/n);
+    const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();f.type='bandpass';f.frequency.value=850;f.Q.value=.6;g.gain.value=.16;s.buffer=b;s.connect(f);f.connect(g);g.connect(AC.destination);s.start()}
+  else if(k==='cheer'){[392,523,659,784].forEach((f,i)=>tone(f,i*.09,.16,'square',.05));snd('crowd')}
   else if(k==='boom'){const n=Math.floor(AC.sampleRate*.55),b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,3);
     const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();f.type='lowpass';f.frequency.value=420;g.gain.value=.55;s.buffer=b;s.connect(f);f.connect(g);g.connect(AC.destination);s.start()}}catch(e){}}
 /* V59 wave-2: wrapper حذف شد — صدای توست به‌صورت post-hook ثبت می‌شود (win→coin، lose→alert) */
@@ -2143,6 +2158,14 @@ function baseBonus(){const C=BALANCE.conquest.combat;return Math.min(C.baseCap,C
 (function(){const ab=airBonus,cta=calculateTotalAttack;
   airBonus=function(){return ab()+airportBonus()};
   calculateTotalAttack=function(){return Math.round(cta()*(1+baseBonus()))}})();
+/* V75 — P4: هزینه‌ی نگهداری هر تیک (۴ثانیه) از BALANCE.army.upkeep — نگهداری per-unit واقعی.
+   مبنای محاسبه همان قدرت ارتش است که سرور هم برای امتیاز/حمله می‌بیند (ARMY_ATK یکسان). */
+function armyUpkeep(){
+  const UK=BALANCE.army.upkeep||{freeAttack:25000,goldPerAttackMin:0.01};
+  let atk=0;Object.keys(ARMY_UNITS).forEach(k=>{atk+=(ARMY_UNITS[k].count||0)*(BALANCE.army.units[k]&&BALANCE.army.units[k].attack||0)});
+  return Math.max(0,atk-UK.freeAttack)*UK.goldPerAttackMin;
+}
+function armyUpkeepTick(){return armyUpkeep()*BALANCE.economy.tickMs/60000}
 setInterval(()=>{if(typeof myCountryName==='undefined'||!myCountryName)return;
   /* V40: تولید پایه + تولید نفت به‌ازای هر قلمرو (که UI سال‌ها وعده داده بود ولی هرگز پرداخت نمی‌شد!) */
   /* V72: تک‌حلقه‌ی درآمد (PHASE 4) — قبلاً دو setInterval موازی ۴ثانیه‌ای؛ اعداد از BALANCE */
@@ -2152,6 +2175,9 @@ setInterval(()=>{if(typeof myCountryName==='undefined'||!myCountryName)return;
   playerRes.gold+=p.gold+Math.round(popIncomeTick()*bm);
   playerRes.oil+=p.oil+baseOil;
   playerRes.food+=p.food+baseFood+Math.round(EB.foodPerTerrBoosted*_terr*bm);
+  /* V75 — P4: نگهداری ارتش (ضد گلوله‌برفی) — قدرتِ مازاد بر سهمیه‌ی رایگان، هر دقیقه طلا می‌سوزاند.
+     کوچک‌ترین ارتش‌ها صفر می‌پردازند؛ ابرارتش بدون اقتصاد سالم خودش را نگه نمی‌دارد. */
+  if(typeof armyUpkeepTick==='function'){const _up=armyUpkeepTick();if(_up>0)playerRes.gold=Math.max(0,playerRes.gold-_up)}
   if(typeof unrest!=='undefined'){const UB=BALANCE.maintenance.unrest;const cnt={};allSites().forEach(s=>{if(ST[s.t].calm&&isBuilt(s)&&owned(s.c)&&s.c!==myCountryName)cnt[s.c]=(cnt[s.c]||0)+1});
     Object.keys(cnt).forEach(c=>{unrest[c]=Math.max(0,(unrest[c]==null?UB.start:unrest[c])-UB.calmPerBuildingTick*cnt[c])})}
   if(p.gold||p.oil||p.food||baseOil||baseFood)updateUI()},BALANCE.economy.tickMs);
@@ -2759,10 +2785,14 @@ async function renderAdmin(){const b=S$('admin-body');if(!b||!sb)return;b.textCo
 
 /* every player: receive grants sent by the admin */
 async function claimGrants(){if(typeof sb==='undefined'||!sb||!ACC.uid||!ACC.ready)return;
-  try{const r=await sb.rpc('claim_admin_grants');if(r.error||!r.data)return;const x=Array.isArray(r.data)?r.data[0]:r.data;if(!x)return;
+  try{try{if(typeof saveNow==='function')await saveNow()}catch(e0){} /* V75: سیو تازه قبل از درخواست — ضد ریس سیو در راهِ قبلی */
+    const r=await sb.rpc('claim_admin_grants');if(r.error||!r.data)return;const x=Array.isArray(r.data)?r.data[0]:r.data;if(!x)return;
     const g=Number(x.o_gold)||0,o=Number(x.o_oil)||0,f=Number(x.o_food)||0;if(!g&&!o&&!f)return;
-    playerRes.gold=Math.max(0,playerRes.gold+g);playerRes.oil=Math.max(0,playerRes.oil+o);playerRes.food=Math.max(0,playerRes.food+f);updateUI();
-    showToast('🎁 هدیه‌ی مدیر: '+[g&&('💰 '+g),o&&('🛢️ '+o),f&&('🌾 '+f)].filter(Boolean).join('  '),'win');if(typeof saveNow==='function')saveNow()}catch(e){console.log(e)}}
+    /* V75 — P3: پاداش را خودِ سرور به خزانه واریز می‌کند (tradeApply تک‌نویسنده).
+       کلاینت فقط اعلان می‌دهد و سیو می‌گیرد — افزودنِ محلیِ قبلی پرداختِ دولبه می‌ساخت. */
+    showToast('🎁 هدیه‌ی مدیر: '+[g&&('💰 '+g),o&&('🛢️ '+o),f&&('🌾 '+f)].filter(Boolean).join('  '),'win');
+    try{const c=await sb.rpc('wd_get_state');if(c&&!c.error&&c.data){const st=typeof c.data.state==='string'?JSON.parse(c.data.state):(c.data.state||{});if(st.res){playerRes.gold=Math.max(0,Math.round(Number(st.res.gold)||0));playerRes.oil=Math.max(0,Math.round(Number(st.res.oil)||0));playerRes.food=Math.max(0,Math.round(Number(st.res.food)||0));updateUI()}}}catch(e2){}
+    if(typeof saveNow==='function')saveNow()}catch(e){console.log(e)}}
 setInterval(()=>{if(!document.hidden)claimGrants()},30000);
 (function(){const eo=enterOnline;enterOnline=async function(u,nick){await eo(u,nick);setTimeout(claimGrants,3000)}})();
 
@@ -3021,13 +3051,16 @@ function getDeviceId(){
 async function checkWeeklyRewards(){
   if(typeof sb==='undefined'||!sb||!ACC.uid)return;
   try{
+    try{if(typeof saveNow==='function')await saveNow()}catch(e0){} /* V75: سیو تازه قبل از درخواست — ضد ریس */
     const r=await sb.rpc('claim_weekly_rewards');   /* server marks them claimed BEFORE we give the gold, so no double reward */
     if(r.error||!Array.isArray(r.data)||!r.data.length)return;
     for(const row of r.data){
-      const g=Number(row.reward_gold)||0;playerRes.gold+=g;
+      const g=Number(row.reward_gold)||0;
       showToast('🏆 جایزه‌ی هفتگی سرور! رتبه '+row.rank+' در '+catFa(row.category)+': +'+g+' طلا','win');
     }
-    updateUI();saveNow();
+    /* V75 — P3: واریز سمت سرور انجام شد — کلاینت فقط از سرور همگام می‌گیرد، محلی جمع نمی‌زند */
+    try{const c=await sb.rpc('wd_get_state');if(c&&!c.error&&c.data){const st=typeof c.data.state==='string'?JSON.parse(c.data.state):(c.data.state||{});if(st.res){playerRes.gold=Math.max(0,Math.round(Number(st.res.gold)||0));playerRes.oil=Math.max(0,Math.round(Number(st.res.oil)||0));playerRes.food=Math.max(0,Math.round(Number(st.res.food)||0));updateUI()}}}catch(e2){}
+    if(typeof saveNow==='function')saveNow();
   }catch(e){console.log(e)}
 }
 /*WEEKLY-END*/
@@ -3798,6 +3831,9 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     const sup=250+Math.round(myAttack*.06);
     const supOK=playerRes.food>=sup&&playerRes.oil>=sup;
     const armyOK=myAttack>0;
+    /* V75 — P4: هزینه‌ی خزانه‌ی حمله (قرینه‌ی سرور) — پول و نفت واقعی کم می‌شود */
+    const PB=BALANCE.conquest.pvpAttack;
+    const payOK=playerRes.gold>=PB.costGold&&playerRes.oil>=PB.costOil;
     const truceOn=(typeof gPhase33==='function')&&gPhase33().phase==='live'&&window.WD33_EV&&window.WD33_EV.olympic!==false;
     const revActive=(typeof S!=='undefined'&&S&&Array.isArray(S.revenge))?S.revenge.find(r=>r.target===o.nick):null;
 
@@ -3825,9 +3861,11 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
              :'<div class="wd39-chk bad">⛔ قدرت حمله‌ات صفر است — بدون یگان نظامی نمی‌توان جنگید. از بخش «ارتش» نیرو بساز.</div>')+
       (armyOK?(supOK?'<div class="wd39-chk good">⛽ لجستیک آماده — هزینه‌ی نبرد: <b>'+fmt(sup)+'</b> غذا + <b>'+fmt(sup)+'</b> نفت</div>'
                      :'<div class="wd39-chk bad">⛽ لجستیک ناکافی — این نبرد <b>'+fmt(sup)+'</b> غذا و <b>'+fmt(sup)+'</b> نفت می‌خواهد (داری: '+fmt(playerRes.food)+' غذا، '+fmt(playerRes.oil)+' نفت)</div>'):'')+
+      (armyOK?(payOK?'<div class="wd39-chk good">💰 خزانه آماده — هزینه‌ی حمله: <b>'+fmt(PB.costGold)+'</b> طلا + <b>'+fmt(PB.costOil)+'</b> نفت (فاصله‌ی حمله‌ها: '+PB.cooldownSec+' ثانیه)</div>'
+                     :'<div class="wd39-chk bad">💰 خزانه ناکافی — هر حمله <b>'+fmt(PB.costGold)+'</b> طلا + <b>'+fmt(PB.costOil)+'</b> نفت هزینه دارد (داری: '+fmt(playerRes.gold)+' طلا، '+fmt(playerRes.oil)+' نفت)</div>'):'')+
       (truceOn?'<div class="wd39-chk bad">🕊️ آتش‌بس المپیک برقرار است — حمله‌ی آزاد تا پایان بازی‌ها بسته است؛ دوئر رسمی استثناست (از مرکز اجتماعی دعوت کن)</div>':'')+
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px">'+
-        '<button class="wdp-btn attack" id="wd39-go" '+(armyOK&&supOK&&!truceOn?'':'disabled style="opacity:.45"')+'">⚔️ آغاز عملیات</button>'+
+        '<button class="wdp-btn attack" id="wd39-go" '+(armyOK&&supOK&&payOK&&!truceOn?'':'disabled style="opacity:.45"')+'">⚔️ آغاز عملیات</button>'+
         '<button class="wdp-btn retreat" id="wd39-cancel">↩️ انصراف</button>'+
       '</div>';
     openModal('wd39-brief');
@@ -3838,6 +3876,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
         try{const ab=document.getElementById('btn-m-army');if(ab)ab.click();else openModal('m-army')}catch(e){}
         return}
       if(!supOK){showToast('⛽ اول لجستیک را تأمین کن — '+fmt(sup)+' غذا و نفت لازم است','lose');return}
+      if(!payOK){showToast('💰 خزانه کافی نیست — '+fmt(PB.costGold)+' طلا + '+fmt(PB.costOil)+' نفت برای هر حمله لازم است','lose');return}
       if(truceOn){showToast('🕊️ آتش‌بس المپیک — حمله آزاد مسدود است','lose');return}
       closeModal('wd39-brief');
       await wd39War(country,o,target);
@@ -3945,6 +3984,21 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
         if(pvpLine){pvpLine.remove();pvpLine=null}
         hpBox.style.display='none';
         log.innerHTML='<span class="wd39-round">🕊️ آتش‌بس</span><div class="wd39-narr">در طول بازی‌های المپیک جنگ ممنوع است — اما دوئر رسمی استثناست: از مرکز اجتماعی یا کشوی کشور، حریف را به دوئر دعوت کن.</div>';
+        document.getElementById("battle-close-btn").textContent="باشه";
+        document.getElementById("battle-close-btn").style.display="block";
+        window.__wd39inflight=false;
+        document.getElementById("battle-close-btn").onclick=()=>{battleBusy=false;closeModal("m-battle")};
+        return;
+      }
+      /* V75 — P4: خطاهای هزینه/کول‌داون حمله (سرور واقعی پول و فاصله‌ی حمله را می‌سنجد) */
+      if(x.error==='res'||x.error==='cd'){
+        battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();
+        if(pvpLine){pvpLine.remove();pvpLine=null}
+        hpBox.style.display='none';
+        const _msg75=x.error==='res'
+          ?'خزانه برای هزینه‌ی حمله کافی نیست — هر حمله '+faN(BALANCE.conquest.pvpAttack.costGold)+' طلا + '+faN(BALANCE.conquest.pvpAttack.costOil)+' نفت می‌برد.'
+          :'فرمانده! بین دو حمله چند ثانیه مکث لازم است — ستاد فرماندهی دارد تجدید سازمان می‌کند.';
+        log.innerHTML='<span class="wd39-round">'+(x.error==='res'?'💰 خزانه':'⏳ فرماندهی')+'</span><div class="wd39-narr">'+_msg75+'</div>';
         document.getElementById("battle-close-btn").textContent="باشه";
         document.getElementById("battle-close-btn").style.display="block";
         window.__wd39inflight=false;
@@ -16637,7 +16691,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=74';
+              s.src='/game/cv-engine.js?v=75';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -16648,6 +16702,6 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=72"></script>
+<script src="/game/oly3.js?v=75"></script>
 </body>
 </html>
