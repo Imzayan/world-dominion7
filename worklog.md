@@ -1922,3 +1922,80 @@ Stage Summary:
 - V82 کامل روی گیت‌هاب: کد + تگ + Release + ZIP قابل دانلود عمومی
 - فیکس ریشه‌ای terrain-visibility (dest=_bakeW*z) + debounce rebake 350ms (رفع لگ) + سقف 4096 بوم bake
 - برخلاف نوبت‌های قبل، هشدار revoke طبق خواسته‌ی صریح کاربر تکرار نشد
+
+---
+Task ID: AUDIT-C
+Agent: general-purpose subagent
+Task: backend audit (api routes + lib + prisma)
+Work Log:
+- خواندن کامل همه‌ی فایل‌های بک‌اند: ۹ route در src/app/api (شامل rpc/[fn] با ۳۵۷۹ خط سر تا سر)، lib/{auth,db,ratelimit,realtime,cvGeo,cvCatalog,balance,olyProfile,olyScore,utils}، schema.prisma (۶۸۳ خط)، next.config.ts — بدون هیچ تغییر فایل (research-only)
+- فهرست کامل ۷۹ تابع RPC استخراج شد (+ alias spend_gems→shop_buy) به‌همراه وضعیت auth/ratelimit/validation هر مسیر در جدول attack-surface
+- یک جریان auth کامل ردیابی شد: signup (hash scrypt + wallet 40 + score + session 30d) → کوکی wd_session httpOnly/Lax → getSessionUser (پاک‌سازی منقضی‌ها) → dispatcher RPC که برای «همه‌ی» توابع session الزام می‌کند
+- سبک‌ها: صفر $queryRaw/$executeRaw، صفر secret هاردکد در src/ (فقط DATABASE_URL در .env)؛ secret-fallback المپیک (OLY_HMAC_SECRET → دنباله‌ی DATABASE_URL) و nick ادمین هاردکد 'alireza' در login به‌عنوان یافته ثبت شد (بدون چاپ مقدار)
+- اقتصادیات: الگوی اتمی خرید (updateMany gte+decrement + idempotency requestId) سالم؛ اما oly_host_bid زنجیره‌ی refund→charge غیرتراکنشی = ضرب جم در رِیس + decrement بدون گارد (منفی‌شدن کیف پول) — P1
+- CSRF: GET الیاسِ POST است (rpc:3576) و کوکی Lax در ناوبری GET ارسال می‌شود → با یک لینک: territory_sync بدون args همه‌ی قلمروهای قربانی را آزاد می‌کند، alliance_leave، pass_claim، season_reset ادمین — P1
+- Race ها: streakTick گارد شرطی ندارد (دوباره‌claim روزانه)، transferTerritory آپدیت بی‌قید (دو مهاجم همزمان هر دو «برد»)، use_special کول‌داون read-then-write، alliance_join سقف ۱۰ رقیق — P2
+- ساختاری: تمام قفل/رِیت‌لیمیت/کول‌داون in-memory است (CV_LOCKS، lastPvpAtk، chatLast، sseConc، buckets) → روی ≥۲ instance دو-خرج cvSpend و فرسایش رِیت‌لیمیت — P2
+- Data integrity: clamp دوبل سیو (نوشتن+خواندن) با فرمول سقف واقعی، سقف ۵۱۲KB، rpcOnly territories، PK (server,country) ضد رقابت claim — نقاط قوت؛ اما kills هنوز client-authored تا ۴M و nick بدون سanitize (XSS مشکوک — بخش suspicions)
+- Performance: صفحه‌بندی واقعی olympic_rank، سقف take≤1000 در shim، کش‌های ۱۰-۳۰s؛ اما alliance_list بدون take روی scores، حذف sweep در GET rt، نبود ایندکس (server,score) روی Score — P3
+- گزارش کامل (جدول attack surface + P0..P3 با file:line و نقل‌قول + suspicions + ۸ قوت + ۶ ضعف ساختاری) در scripts/audit-C.md نوشته شد
+Stage Summary:
+- 3 فایل خوانده‌شده‌ی کلیدی + ۷۹ RPC فهرست‌شده | یافته‌ها: P0=0, P1=3, P2=9, P3=13 (+۴ suspicion)
+- Top-3: (۱) CSRF از مسیر GET-alias در /api/rpc — آزادسازی همه‌ی قلمروها با یک لینک/وایپ نقشه توسط ادمین، (۲) رِیس ضرب جم در oly_host_bid + decrement بدون گارد، (۳) ادمین nick-محور با هاردکد 'alireza' در login که از ADMIN_NICKS عبور می‌کند
+- هر سه P1 فیکس تک‌خطی تا چندخطی دارند (حذف alias GET، تراکنش+گارد decrement، حذف literal) — آماده برای فاز فیکس
+
+---
+Task ID: AUDIT-A
+Agent: general-purpose subagent
+Task: deep audit of public/game/index.html + balance.js
+Work Log:
+- خواندن worklog (تاریخچه V79→V82) برای فهم معماری و رگرسیون‌های قبلی؛ بدون تغییر هیچ فایل بازی (research-only)
+- ساخت نقشه‌ی ساختاری index.html با Grep (بخش‌ها، اسکریپت‌های id-dar، توابع save/sync/loop، مارکرهای V-number)
+- خوانش کامل مسیرهای بحرانی: saveLocal/saveOnline/saveNow (2519–2607)، syncTerr/territory_sync/initServer (2658–2681)، claim/attackTarget (1353–1370، 1745–1814)، پیچ production/econ/gameTick (1845–1925، 2171–2185)، صف آموزش + کچ‌آپ آفلاین (3121–3194)، چت V28 (6860–7022)، بازار/مالیات (7285–7751)، ارتش V28 (7752–7994)، سیکس lifecycle المپیک (10150–10250)، فروشگاه V2 (16047–16712)، self-heal SW (3232–3248) و balance.js کامل
+- راستی‌آزمایی هر یافته با متن ±۴۰ خط: سینک XSS عبارت است از innerHTML در otherLabel/wdOwnInfoRefresh؛ گارد hidden-tab فقط روی gameTick و نه روی حلقه درآمد؛ saveOnline بدون keepalive/sendBeacon؛ applyBattleLosses فقط در مسیر PvP صدا زده می‌شود؛ capStore خرید بازار را بعد از کسر طلا نابود می‌کند؛ رشد بی‌کران st28.seenRiot/exemp
+- تحلیل رقابتی دابل‌کلیک حمله: نتیجه — گارد __wd51nat/battleBusy در همان بلاک سینکرون ست می‌شوند و ریس بسته است (به Strengths اضافه شد)
+- نوشتن گزارش کامل در scripts/audit-A.md (ساختار خواسته‌شده: P0..P3 + Strengths + Weaknesses با شماره خط دقیق)
+Stage Summary:
+- ۲۲ یافته‌ی راستی‌آزمایی‌شده: P0=1، P1=4، P2=7، P3=10 (+10 Strengths، +7 Weaknesses ساختاری)
+- مهم‌ترین یافته‌ها: (1) XSS ذخیره‌شده از طریق نیک‌نیم بازیکنان دیگر روی لیبل مالکیت نقشه (innerHTML در خط 2636/2320 — نیک با updateUser قابل دورزدن است)؛ (2) عدم‌تقارن اقتصاد در تب مخفی: درآمد ادامه می‌یابد ولی نگهداری/شورش/تحریم متوقف (exploit پارک‌کردن تب)؛ (3) سیو نهایی pagehide با fetch معمولی بدون keepalive — تا ۸ ثانیه پیشرفت در بستن تب از دست می‌رود؛ (4) بونوس‌های «دفاعی» پول‌سوز (استحکامات/stance) در مسیر اصلی نبرد PvE هرگز اعمال نمی‌شوند؛ (5) خرید نفت/غذای بازار هنگام انبار پر ظرف ۳ ثانیه نابود می‌شود ولی طلا کسر شده
+
+---
+Task ID: AUDIT-B
+Agent: general-purpose subagent
+Task: deep audit cv-engine.js + oly3.js
+Work Log:
+- RESEARCH-ONLY؛ هیچ فایل بازی تغییر نکرد. خروجی کامل: scripts/audit-B.md
+- cv-engine.js (V82 زنده) کامل خوانده شد: bakeStatic/render/loop/bindInput/zoomAt/clampCam/syncState/open/close/economy/panels + مقایسه با سرور (route.ts: cv_state/cv_build/cv_upgrade/cvSpend) برای اثبات سمانتیک resNow
+- P0 (اقتصادی، اثبات‌شده دوطرفه): در tryBuild/tryUpgrade مسیر موفق، S.srvRes با resNow پس‌ازکسر جایگزین می‌شود ولی S.mirrored ریست نمی‌شود ← پول بعدی dg = prod + cost ← کسرِ هر ساخت/ارتقا حداکثر تا ۱۲ثانیه بعد به playerRes برمی‌گردد و با سیو ۸ثانیه‌ای ماندگار می‌شود (دوبرابرشدن منابع = اکسپلویت). tryCancel درست است (refund بعد از جایگزینی baseline) — همین ناسازگاری را لو می‌دهد
+- P1-1: مسیر نبودِ هندسه در open(): خطای buildGeometryAsync فقط toast می‌شود و ادامه؛ computeView بدون گارد bbox → بار اول TypeError در async open بدون catch (صفحه‌ی لودینگ مرده بدون کارت خطا)؛ دفعات بعد ring/bbox کشور قبلی (close هرگز ring/bbox/cells را پاک نمی‌کند) به‌سکوت برای کشور جدید استفاده می‌شود = نقشه‌ی کایمرا
+- P1-2: پاسخ به سؤال عمل‌کردی task: حلقه‌ی retry بی‌پایان از early-return خط ۳۶۰ «در عمل» ممکن نیست (قبل از آن computeView می‌میرد/ring وسط سشن null نمی‌شود)؛ خطر واقعی: شاخه‌ی dirtyStatic در render(۱۴۲۳-۱۴۲۸) از debounce ۳۵۰ms عبور می‌کند + سواپ دوربین در bakeStatic بدون try/finally (۳۶۲/۳۸۱/۵۵۵) ← یک exception وسط bake = rebake کامل هر فریم + دوربین گیرکرده در bake-cam
+- P2×۴: (۱) race مارج نهایی close() با open بعدی (بدون گارد session → پرش منابع بین‌کشوری)، (۲) S.nowMs دومین ساعت سرور/کلاینت (toastهای دوباره/پرش شمارنده)، (۳) staticCv تا ~۴۸MB بعد از close نگه داشته می‌شود، (۴) فهرست کامل S.* که open ریست نمی‌کند + کدام‌ها سمی‌اند (cells/rates/mil/res در مسیر force/fail)
+- P3×۹: idle-skip روی med/high عملاً بی‌اثر (۳ کشتی تزئینی همیشه AMB را پر می‌کنند ← ۶۰fps دائم در z≥1.4؛ فقط Low واقعاً idle است)، آلودگی frameMs با فریم‌های idle → restoreTier کاذب، کلید کش لیبل بدون W/H (چرخش گوشی)، churn تخصیص بوم، innerHTML بدون esc (فعلاً داده‌ی مطمئن)، فیلدهای مرده (paused/builtOnce/lastPoll/resAt/doneIds)
+- oly3.js: موتور ۱۱ رشته‌ی المپیک نسل-۳ (آینه‌ی قطعی داور سرور از seed؛ کلاینت فقط نمایش)؛ در index.html:16710 با ?v=82 لود می‌شود (بعد از تعریف WD33_API:10341 ✓)؛ بدون XSS/لیک جدی؛ فقط setTimeout های خام خارج از CL (race باریک submit بعد از بستن صحنه) + رشد CL.raf حین سشن + انیم‌های fixed-step
+- وریفایک file یتیم: cv-engine-v83-uploaded.js «هیچ‌جا» رفرنس ندارد (grep کل repo صفر)؛ fork واگرای قدیمی با برچسب 83 که فیکس‌های V79-V82 را ندارد (bake viewport-سایز=باگ گوشه‌ی V81، بدون debounce=باگ لگ V82، بدون سقف ۴۰۹۶)؛ guard آن یعنی اگر جای engine اصلی سرویو شود رگرسیون کامل است → حذف/انتقال از public توصیه شد
+Stage Summary:
+- ۱۶ یافته‌ی وریفایک‌شده: P0=1 | P1=2 | P2=4 | P3=9 (+۵ سوظن unverified، ۱۰ نقطه‌قوت، ۶ ضعف ساختاری)
+- Top-3: (۱) P0 دوبرابرشدن منابع در هر build/upgrade (mirrored/S.srvRes desync — فیکس یک‌خطی ریست mirrored)، (۲) P1 کرش/سمی‌شدن هندسه در مسیر fallback + عدم پاکسازی ring/bbox بین سشن‌ها، (۳) P1 دور زدن debounce توسط dirtyStatic + نبود try/finally دور سواپ دوربین bake
+- cv-engine-v83-uploaded.js: یتیم قطعی — لود نمی‌شود، نباید لود شود
+
+---
+Task ID: FULL-GAME-AUDIT
+Agent: Super Z (main) + 3 parallel audit subagents
+Task: «بازیو کامل چک کن... کجا باگ داره... نقاط قوت ضعف» — ممیزی جامع V82 و گزارش فارسی docx
+
+Work Log:
+- دامنه: index.html (16,712 خط) + cv-engine.js (2,796) + oly3.js (1,333) + balance.js (187) + ۹ مسیر API (RPC dispatcher 3,579 خط، ۷۹ فن) + prisma schema + ۱۰ فایل lib
+- سه ممیزی موازی: AUDIT-A (کلاینت اصلی) → 22 یافته؛ AUDIT-B (نمای کشور+oly3) → 16 یافته؛ AUDIT-C (بک‌اند) → 25 یافته؛ گزارش‌ها: scripts/audit-A.md, audit-B.md, audit-C.md
+- جمع یافته‌ها: 63 تأییدشده = 2 P0 (XSS نیک‌بازیکن via innerHTML index:2632؛ تکثیر منابع S.mirrored cv-engine:2336) + 9 P1 (CSRF GET-alias rpc:3576؛ oly_host_bid race؛ ادمین نیک‌محور؛ اقتصاد تب مخفی؛ save بدون keepalive؛ پاداش دفاعی بی‌اثر؛ بازار بدون کلمپ؛ مسیر هندسه‌ی گم‌شده CV؛ dirtyStatic بی‌debounce) + 20 P2 + 32 P3
+- ۱۱ سوئیت QA اجرا شد: همه سبز جز cv-qa-v82 = 18/22 (۴ شکست = آرتیفکت پروب ورونوی برای کشور باریک ویتنام — اسکرین‌شات v82-fit.png سلامت رندر را اثبات کرد؛ NOT a game bug)
+- رفع ابهام diag-reenter: اسکریپت تشخیصی ابتدا beacon Debug فعال نداشت (خطای خود ابزار)؛ نسخه اصلاح‌شده ورود/ورودمجدد الجزایر را سالم نشان داد (landPct=25 پایدار)
+- cv-qa-v79/v80/apk-sim نیاز به WD_BASE=3000 داشتند (پورت پیش‌فرض قدیمی 3210) — یافته زیرساخت تست
+- فایل یتیم cv-engine-v83-uploaded.js رسماً مرده اعلام شد (فورک قدیمی بدون فیکس‌های V79-V82، بارگذاری تصادفی = بازگشت دو باگ)
+- گزارش فارسی RTL: docx با docx 9.7.1 (bidirectional/rightToLeft/visuallyRightToLeft)، کاور R1-RTL با پالت DM-1، ۱۲ فصل، ۴ جدول RTL، ۱ شکل، TOC فیلدی + postcheck 8/9 (صفر خطا)
+- تحویل: download/World-Dominion-ممیزی-جامع-V82.docx (15 صفحه، ~490KB)
+- اسکریپت‌های گزارش: scripts/report-helpers.js, report-data-a.js, report-data-b.js, generate-audit-report.js, postprocess-report.js, diag-reenter.mjs
+
+Stage Summary:
+- 63 یافته با خط و مدرک؛ 2 فیکس تک‌خطی فوری (GET alias حذف، S.mirrored reset) + XSS escape
+- نقشه راه ۴ فاز (صفر<۱ ساعت / یک ۱-۳ روز / دو ۱-۲ هفته / سه ۲-۴ هفته) — پیش‌نیاز منطقی فاز Premium Visual Upgrade
+- توصیه: Release v83 بعد از بسته فاز صفر
