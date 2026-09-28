@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=89;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=89"></script>
+  <script>window.__WD_V=90;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=90"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -9725,15 +9725,27 @@ function wg89Notify(){
   s.textContent='\n.wg89-tabs{display:flex;gap:5px;overflow-x:auto;padding:4px 2px 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}\n.wg89-tabs::-webkit-scrollbar{display:none}\n.wg89-tab{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:56px;padding:7px 8px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:#9fb6d4;font-size:10px;cursor:pointer}\n.wg89-tab span{font-size:16px;line-height:1}\n.wg89-tab i{font-style:normal;font-size:8.5px}\n.wg89-tab.on{background:linear-gradient(135deg,rgba(255,215,94,.22),rgba(255,157,60,.14));border-color:rgba(255,215,94,.5);color:#ffe08a;box-shadow:0 0 12px rgba(255,204,0,.15)}\n.wg89-family{margin-top:10px}\n.wg89-family .fh{font-size:12px;font-weight:900;color:#ffe08a;margin:2px 0 6px;padding-bottom:4px;border-bottom:1px dashed rgba(255,215,94,.25)}\n.wg89-attrs{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:6px}\n.wg89-attr{display:flex;align-items:center;gap:6px;font-size:10.5px;color:#dbe7f5}\n.wg89-attr .bar{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}\n.wg89-attr .bar i{display:block;height:100%;border-radius:3px}\n.wg89-attr b{min-width:22px;text-align:left;color:#ffe08a;font-size:10px}\n.wg89-toprow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:4px}\n.wg89-spec{font-size:10.5px;font-weight:900;color:#7dff9e;background:rgba(125,255,158,.12);border:1px solid rgba(125,255,158,.35);border-radius:999px;padding:3px 10px}\n.wg89-token{font-size:11px;font-weight:900;color:#ffd75e;background:rgba(255,215,94,.1);border:1px solid rgba(255,215,94,.3);border-radius:999px;padding:3px 10px}\n.wg89-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}\n.wg89-stat{display:flex;flex-direction:column;align-items:center;padding:7px 4px;border-radius:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)}\n.wg89-stat span{font-size:9.5px;color:#9fb6d4}\n.wg89-stat b{font-size:13px;color:#ffe08a}\n.wg89-shop{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}\n.wg89-shopitem{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);text-align:center}\n.wg89-shopitem .ic{font-size:22px}\n.wg89-shopitem .nm{font-size:10.5px;font-weight:800;color:#fff}\n.wg89-shopitem .dy{font-size:8.5px;color:#8fb8dd;min-height:22px}\n.wg89-shopitem.owned{opacity:.75;border-color:rgba(125,255,158,.35)}\n.wd89-finalnight{border-color:rgba(125,255,158,.45)!important;background:linear-gradient(135deg,rgba(125,255,158,.06),rgba(62,232,208,.04))}\n.wd89-finalbadge{font-size:11px;color:#7dff9e;background:rgba(125,255,158,.1);border:1px dashed rgba(125,255,158,.4);border-radius:10px;padding:6px 10px}\n@media (prefers-reduced-motion: reduce){.wg89-tab{transition:none}}\n';
   document.head.appendChild(s);
 }catch(e){}})();
+/* V90 §34-36: استایل پله‌های مهارتی + جفت‌یاب — یک‌بار تزریق، صفر انیمیشن per-frame */
+(function(){try{
+  if(document.getElementById('v90-css'))return;
+  const s=document.createElement('style');s.id='v90-css';
+  s.textContent='\n.wg90-tier{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:800;border:1px solid;border-radius:999px;padding:2px 9px;white-space:nowrap}\n.wg90-mytier{display:flex;align-items:center;gap:8px;margin:6px 0 2px;flex-wrap:wrap}\n.wg90-mytier b{font-size:15px;color:#ffe08a}\n.wg90-prog{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin:5px 0 2px}\n.wg90-prog i{display:block;height:100%;background:linear-gradient(90deg,#ffd75e,#ff9d3c);border-radius:3px}\n.wg90-chips{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0}\n.wg90-chip{font-size:10px;padding:5px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#dbe7f5;cursor:pointer;font-family:inherit}\n.wg90-chip.on{border-color:rgba(255,215,94,.55);color:#ffe08a;background:rgba(255,215,94,.12)}\n.wg90-sugg{margin-top:4px}\n';
+  document.head.appendChild(s);
+}catch(e){}})();
 function attrBars89(attrs){try{const ks=Object.keys(ATTR_FA89);return '<div class="wg89-attrs">'+ks.map(k=>{const v=Math.max(0,Math.min(100,Number((attrs||{})[k])||0));
   return '<div class="wg89-attr"><span>'+ATTR_FA89[k]+'</span><div class="bar"><i style="width:'+v+'%;background:'+(v>=70?'linear-gradient(90deg,#7dff9e,#3ee86e)':v>=40?'linear-gradient(90deg,#ffd75e,#ff9d3c)':'rgba(255,255,255,.25)')+'"></i></div><b>'+faN(v)+'</b></div>'}).join('')+'</div>'}catch(e){return ''}}
 function athleteCard89(a){
   if(!a)return '<div class="wd31-mini">ورزشکار هنوز شناخته نشده — اولین مسابقه‌ی رسمی، شناسنامه‌ات را می‌سازد 🌱</div>';
   const md=a.medals||{g:0,s:0,b:0,total:0};
+  const rt=a.rating||null;const rtT=rt?(TIER90[rt.tier]||TIER90.newcomer):null;const rtN=(rt&&rt.next_tier)?TIER90[rt.next_tier]:null;
+  const rtProg=(rt&&rtT&&rtN)?Math.max(4,Math.min(100,Math.round((rt.overall-(rtT[3]||0))/Math.max(1,rtN[3]-(rtT[3]||0))*100))):100;
+  const rtTop=(rt&&rt.top||[]).map(x=>'<span class="wg90-chip">'+((GD33[x.discipline]||{}).ic||'🏅')+' '+faN(x.rating)+'</span>').join('');
   return '<div class="wd31-card wd89-athlete">'+secTitle('👤','شناسنامه‌ی ورزشکار — '+esc(a.nick||''))+
     '<div class="wg89-toprow"><div class="lv"><b>سطح '+faN(a.level||1)+'</b><span>'+faN(a.xp||0)+' XP</span></div>'+
     (a.spec&&SPEC_FA89[a.spec]?'<span class="wg89-spec">'+SPEC_FA89[a.spec]+'</span>':'<span class="wd31-mini">تخصص هنوز ثبت نشده — با مهارت ≥۵۵ ثبت می‌شود</span>')+
     '<span class="wg89-token">🪙 '+faN(a.token||0)+' سکه‌ی المپیک</span></div>'+
+    (rt?'<div class="wg90-mytier"><span class="wg90-tier" style="color:'+rtT[2]+';border-color:'+rtT[2]+'55;background:'+rtT[2]+'14">'+rtT[0]+' '+rtT[1]+'</span><b>'+faN(rt.overall)+'</b><span class="wd31-mini">رده‌ی المپیکی • اوج '+faN(rt.peak||rt.overall)+' • '+faN(rt.games||0)+' رویداد رسمی</span>'+(rtTop?'<span class="wg90-chips" style="margin:0">'+rtTop+'</span>':'')+'</div>'+
+      '<div class="wg90-prog"><i style="width:'+rtProg+'%"></i></div><div class="wd31-mini" style="margin-top:2px">'+(rtN?'تا پله‌ی '+rtN[0]+' '+rtN[1]+' — '+faN(Math.max(0,rtN[3]-rt.overall))+' امتیاز (فقط از مسابقه‌ی رسمی — خریدنی نیست)':'بالاترین پله — قهرمان المپیکی 👑')+'</div>':'')+
     '<div class="wd31-mini" style="margin:6px 0">ویژگی‌ها فقط از مسابقه‌ی رسمی ساخته می‌شوند — خریدنی نیستند (ضد P2W)</div>'+
     attrBars89(a.attrs)+
     '<div class="wg89-stats">'+[['🥇',md.g],['🥈',md.s],['🥉',md.b],['🏟️ فینال',a.finals],['👑 قهرمانی',a.championships],['⚔️ برد',a.wins],['📉 باخت',a.losses],['🗓️ فصل',a.seasons]].map(x=>'<div class="wg89-stat"><span>'+x[0]+'</span><b>'+faN(x[1]||0)+'</b></div>').join('')+'</div></div>';
@@ -9967,12 +9979,46 @@ function renderHub(){
   if(T==='hof')wgLoadHof89();
 }
 /* ——— V89: رقیب‌ها + چالش ——— */
+/* ——— V90 §34-36: پله‌های مهارتی + جفت‌یاب المپیکی — هم‌رده با رده‌ی واقعی، بدون هیچ پرداختی ——— */
+const TIER90={newcomer:['🌱','تازه‌کار','#9fb6d4',0],rising:['🚀','رو به رشد','#7dff9e',1150],competitive:['⚔️','رقابتی','#5ec8ff',1350],elite:['💎','نخبه','#c99bff',1550],champion:['👑','قهرمان','#ffd75e',1750]};
+function tierChip90(k){const t=TIER90[k]||TIER90.newcomer;return '<span class="wg90-tier" style="color:'+t[2]+';border-color:'+t[2]+'55;background:'+t[2]+'14">'+t[0]+' '+t[1]+'</span>'}
+let WG90_MM={disc:''};
+async function wgLoadMatch90(){
+  const box=D.getElementById('wg90-mmbox');if(!box)return;
+  const r=await rpc33('olympic_match',{p_discipline:WG90_MM.disc||''});
+  if(!r.ok||!r.d||!r.d.ok||!r.d.match){box.innerHTML='<div class="wd31-mini">جفت‌یاب الان در دسترس نیست.</div>';return}
+  const m=r.d.match;const t=TIER90[m.my_tier]||TIER90.newcomer;const nt=m.next_tier?TIER90[m.next_tier]:null;
+  const lo=t[3]||0;const pct=nt?Math.max(4,Math.min(100,Math.round((m.overall-lo)/Math.max(1,nt[3]-lo)*100))):100;
+  let h='<div class="wg90-mytier"><span class="wg90-tier" style="color:'+t[2]+';border-color:'+t[2]+'55;background:'+t[2]+'14">'+t[0]+' '+t[1]+'</span><b>'+faN(m.overall)+'</b><span class="wd31-mini">رده‌ی کلی • '+faN(m.overall_games||0)+' رویداد رسمی</span></div>'+
+    '<div class="wg90-prog"><i style="width:'+pct+'%"></i></div><div class="wd31-mini" style="margin-top:2px">'+(nt?'تا پله‌ی '+nt[0]+' '+nt[1]+' — '+faN(Math.max(0,nt[3]-m.overall))+' امتیاز':'بالاترین پله — قهرمان المپیکی 👑')+'</div>'+
+    '<div class="wg90-chips">'+(m.my_discs||[]).map(x=>'<button class="wg90-chip'+(x.discipline===m.discipline?' on':'')+'" data-mmd="'+x.discipline+'">'+((GD33[x.discipline]||{}).ic||'🏅')+' '+faN(x.rating)+'</button>').join('')+'</div>';
+  const sg=m.suggestions||[];
+  h+=(sg.length?('<div class="wg90-sugg">'+sg.map((s,i)=>'<div class="wd31-row"><span class="wd31-rk" style="font-size:12px;min-width:20px;height:20px">'+faN(i+1)+'</span>'+
+    '<span class="who"><b>'+esc(s.nick)+'</b> '+tierChip90(s.tier)+'<br><span class="wd31-mini">رده '+faN(s.rating)+(s.gap?' ('+(s.gap>0?'+':'')+faN(s.gap)+')':'')+' • '+faN(s.games)+' بازی • '+faN(s.wins)+' برد</span></span>'+
+    '<button class="wg33-play" style="width:auto;padding:7px 12px;font-size:10px" data-mmfight="'+esc(s.nick)+'">چالش</button></div>').join('')+'</div>')
+    :'<div class="wd31-mini" style="margin:6px 0">هنوز حریفی در این رده نیست — با مسابقه‌ی رسمی رده‌ات را بساز؛ جفت‌یاب خودش پنجره را باز می‌کند.</div>');
+  h+='<button class="wg33-play" id="wg90-mmauto" style="width:100%;margin-top:8px">🎲 حریف هم‌رده پیدا کن (خودکار)</button>';
+  box.innerHTML=h;
+  box.querySelectorAll('[data-mmd]').forEach(b=>b.addEventListener('click',()=>{WG90_MM.disc=b.getAttribute('data-mmd');sndK('click');wgLoadMatch90()}));
+  box.querySelectorAll('[data-mmfight]').forEach(b=>b.addEventListener('click',async()=>{
+    const nick=b.getAttribute('data-mmfight');b.disabled=true;
+    const rr=await rpc33('olympic_challenge',{p_action:'create',p_discipline:m.discipline,p_nick:nick});
+    if(rr.ok&&rr.d&&rr.d.ok){showToast33('⚔️ چالش برای '+rr.d.challenge.to+' فرستاده شد — با همان seed می‌جنگید!','win');sndK('cheer');wgLoadRivals89()}
+    else{const rs=(rr.d&&rr.d.reason)||'خطا';showToast33(rs==='nick'?'این بازیکن پیدا نشد':rs==='limit'?'۳ چالش باز داری':rs==='dup'?'چالش تکراری':rs==='window'?'فقط در زمان بازی‌ها':'ارسال ناموفق','lose');b.disabled=false}}));
+  const au=box.querySelector('#wg90-mmauto');
+  if(au)au.addEventListener('click',async()=>{au.disabled=true;au.textContent='⏳ جست‌وجوی حریف…';
+    const rr=await rpc33('olympic_match',{p_action:'auto',p_discipline:m.discipline});
+    if(rr.ok&&rr.d&&rr.d.ok&&rr.d.match&&rr.d.match.auto){showToast33('🎯 حریف هم‌رده: '+rr.d.match.auto.to+' — چالش رسمی فرستاده شد!','win');sndK('cheer');wgLoadRivals89()}
+    else if(rr.ok&&rr.d&&rr.d.ok&&rr.d.match&&rr.d.match.auto_existing){showToast33('با این حریف چالش باز داری — در همین تب ببین','win');wgLoadRivals89()}
+    else{const rs=(rr.d&&rr.d.reason)||'خطا';showToast33(rs==='window'?'جفت‌یاب فقط در زمان بازی‌ها فعال است':rs==='limit'?'۳ چالش باز داری':rs==='rate'?'کمی صبر کن — چند ثانیه دیگر':'حریف هم‌رده پیدا نشد — بعداً تلاش کن','lose');au.disabled=false;au.textContent='🎲 حریف هم‌رده پیدا کن (خودکار)'}});
+}
 async function wgLoadRivals89(){
   const card=D.getElementById('wg89-rivalscard');if(!card)return;
   const r=await rpc33('olympic_rivals',{});
   if(!r.ok||!r.d||!r.d.ok){card.innerHTML='<div class="wd31-mini">دفتر رقابت الان در دسترس نیست.</div>';return}
   const rv=r.d.rivals||[];
   let h='<div class="wd31-mini">رقیب = کسی که واقعاً با او جدال کرده‌ای — pass/fall فقط از داوری سرور ثبت می‌شود. چالش: دوئل رسمی با یک seed مشترک؛ هر دو بازی می‌کنید، سرور برنده را اعلام می‌کند.</div>';
+  h+='<div class="wg89-family"><div class="fh">🎯 جفت‌یاب المپیکی — حریف هم‌رده (V90)</div><div id="wg90-mmbox"><div class="wd31-mini">در حال سنجش رده…</div></div></div>';
   if(rv.length){
     h+='<div style="margin-top:8px">'+rv.map((x,i)=>'<div class="wd31-row"><span class="wd31-rk" style="font-size:14px">'+faN(i+1)+'</span>'+
       '<span class="who"><b>'+esc(x.nick)+'</b><br><span class="wd31-mini">'+faN(x.meetings)+' دیدار • '+x.discs.map(k=>(GD33[k]||{}).ic||'🏅').join(' ')+'</span></span>'+
@@ -9994,6 +10040,7 @@ async function wgLoadRivals89(){
     '<button class="wg33-play" id="wg89-chgo" style="width:auto;padding:9px 18px">ارسال چالش</button></div>'+
     '<div class="wg33-grid3" style="grid-template-columns:repeat(5,1fr)" id="wg89-chgrid">'+GD_KEYS.map(k=>'<div class="wg33-disc" data-k="'+k+'" style="padding:7px 3px"><div class="ic" style="font-size:17px">'+GD33[k].ic+'</div><div class="nm" style="font-size:7.5px">'+esc(GD33[k].fa)+'</div></div>').join('')+'</div></div>';
   card.innerHTML=h;
+  wgLoadMatch90();
   let chDisc='';
   card.querySelectorAll('#wg89-chgrid .wg33-disc').forEach(c=>c.addEventListener('click',()=>{
     chDisc=c.getAttribute('data-k');
@@ -17263,7 +17310,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=89';
+              s.src='/game/cv-engine.js?v=90';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17274,7 +17321,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=89"></script>
+<script src="/game/oly3.js?v=90"></script>
 <style id="v85-css">
 /* ============ V85: پریمیوم شاپ جم — قاب طلایی لوکس، صفر هزینه‌ی per-frame ============ */
 .wd66-pack{position:relative;overflow:hidden;

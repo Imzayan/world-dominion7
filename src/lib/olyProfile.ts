@@ -181,3 +181,66 @@ export function bullseyesFromTelemetry(discipline: string, ev: Array<Array<strin
   }
   return c
 }
+
+/* ============================================================
+   V90 — OLYMPICS V2 §34-36: رده‌بندی المپیکی (Olympic Rating)
+   — Elo هر رشته؛ فقط از نتیجه‌ی رسمی داوری‌شده تغذیه می‌شود:
+     ۱) نوجه‌ی عملکرد: هر تلاش رسمی، امتیاز را به‌سمت «رده‌ی عملکردِ»
+        همان نتیجه (نرمال‌شده با REF همین ماژول) نرم جابه‌جا می‌کند
+     ۲) دوئل رقیب: Elo دوطرفه‌ی کلاسیک با seed مشترک و داوری سرور
+     ۳) پاداش سکو: طلا/نقره/برنز شب فینال
+   هیچ مسیر خرید/تمرین/کلاینت ندارد — §22/§34 (ضد P2W مطلق).
+   ============================================================ */
+export const RD_START = 1200
+export const RD_MIN = 400
+export const RD_MAX = 2600
+
+/* §34 — پله‌های مهارتی: فقط از امتیاز واقعی می‌آیند؛ با جم خریدنی نیستند */
+export interface OlyTier { key: string; fa: string; min: number; color: string; ic: string }
+export const OLY_TIERS: OlyTier[] = [
+  { key: 'newcomer', fa: 'تازه‌کار', min: 0, color: '#9fb6d4', ic: '🌱' },
+  { key: 'rising', fa: 'رو به رشد', min: 1150, color: '#7dff9e', ic: '🚀' },
+  { key: 'competitive', fa: 'رقابتی', min: 1350, color: '#5ec8ff', ic: '⚔️' },
+  { key: 'elite', fa: 'نخبه', min: 1550, color: '#c99bff', ic: '💎' },
+  { key: 'champion', fa: 'قهرمان', min: 1750, color: '#ffd75e', ic: '👑' },
+]
+export const tierIndex = (rating: number, games: number): number => {
+  if (!games || games < 5) return 0 /* تازه‌کار تا ۵ رویداد رسمی — شناخت کافی نداریم */
+  let idx = 0
+  for (let i = 0; i < OLY_TIERS.length; i++) if (rating >= OLY_TIERS[i].min) idx = i
+  return idx
+}
+export const tierOf = (rating: number, games: number): OlyTier => OLY_TIERS[tierIndex(rating, games)]
+
+/* رده‌ی عملکردِ یک نتیجه: همان نرمال‌سازی REFِ مهارت، باز به مقیاس Elo.
+   norm سقف ۱.۳۵ دارد → سقف عملکرد ~۲۱۱۵؛ شروع ۹۰۰ یعنی نتیجه‌ی ضعیف زیر رده‌ی شروع می‌نشیند. */
+export function perfRatingOf(key: string, score: number, model: 'tap' | 'sim'): number {
+  const n = norm(key, score, model)
+  return Math.round(900 + 900 * n)
+}
+
+/* گام ۱: نوجه‌ی عملکردی — ۹٪ فاصله تا رده‌ی عملکرد، سقف امن +۲۸/−۲۲ تا نوسان یک‌مسابقه‌ای خفه نشود */
+export function ratingPerfStep(cur: number, perf: number): number {
+  const delta = Math.max(-22, Math.min(28, Math.round((perf - cur) * 0.09)))
+  return Math.max(RD_MIN, Math.min(RD_MAX, cur + delta))
+}
+
+/* گام ۲: دوئل — Elo کلاسیک؛ K بالا برای تازه‌واردها (کشف سریع رده)، سپس ثبات */
+export const eloExp = (a: number, b: number): number => 1 / (1 + Math.pow(10, (b - a) / 400))
+export function ratingDuelStep(my: number, opp: number, actual: 0 | 0.5 | 1, games: number): { rating: number; delta: number } {
+  const K = games < 10 ? 40 : 24
+  const delta = Math.max(-80, Math.min(80, Math.round(K * (actual - eloExp(my, opp)))))
+  return { rating: Math.max(RD_MIN, Math.min(RD_MAX, my + delta)), delta }
+}
+
+/* میانگین وزنی رده‌ی کلی (§36: رده‌ی Olympic بر پایه‌ی رشته‌ها) — وزن = تجربه‌ی همان رشته */
+export function overallRatingOf(rows: { rating: number; games: number }[]): { rating: number; games: number } {
+  let sw = 0, sv = 0, tg = 0
+  for (const r of rows || []) {
+    if (!r || r.games <= 0) continue
+    const w = Math.max(1, Math.min(60, r.games))
+    sw += w; sv += r.rating * w; tg += r.games
+  }
+  if (!sw) return { rating: RD_START, games: 0 }
+  return { rating: Math.round(sv / sw), games: tg }
+}

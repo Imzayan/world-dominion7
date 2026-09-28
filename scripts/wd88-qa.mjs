@@ -50,7 +50,7 @@ async function giveSave(userId) {
 const NICK_A = 'q88a' + Math.random().toString(36).slice(2, 7)
 {
   const { ctx, page } = await boot(NICK_A)
-  check('v.txt=89 beacon', await page.evaluate(() => window.__WD_V === 89), String(await page.evaluate(() => window.__WD_V)))
+  check('v.txt=90 beacon', await page.evaluate(() => window.__WD_V === 90), String(await page.evaluate(() => window.__WD_V)))
   check('v87 dock still intact (regression)', !!(await page.$('#wd87dock')))
 
   const cat = await rpc(page, 'shop_catalog')
@@ -181,6 +181,8 @@ const NICK_B = 'q88b' + Math.random().toString(36).slice(2, 7)
   for (let i = 0; i < 3; i++) {
     await new Promise(r => setTimeout(r, 11000))
     await db.warState.upsert({ where: { userId: ub.id }, update: { data: JSON.stringify({ supply: 3, supplyAt: Date.now() }) }, create: { userId: ub.id, data: JSON.stringify({ supply: 3, supplyAt: Date.now() }) } })
+    /* harness-robustness: اگر نبرد قبلی سرزمین A را فتح کرده باشد هدف مالک مهاجم می‌شود و گیت supply اصلاً نمی‌رسد — مالکیت را برگردان */
+    await db.territory.update({ where: { server_country: { server: 1, country: land } }, data: { userId: ua.id, nick: NICK_A } }).catch(() => {})
     atk2 = await rpc(page, 'pvp_attack', { p_server: 1, p_country: land, p_attack: 30000, p_atk_type: 'air' })
     if (atk2 && atk2.error !== 'cd') break
   }

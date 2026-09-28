@@ -8,6 +8,9 @@ import { computeScore, hasRecalc, SIM_V2_ED, type Telemetry, type TelemEvent } f
 import {
   skillOf, consistencyOf, potentialOf, evalAchievements, achDef, bullseyesFromTelemetry,
   attrsFromProfiles,
+  /* V90 §34-36: رده‌بندی المپیکی */
+  OLY_TIERS, tierIndex, tierOf, perfRatingOf, ratingPerfStep, ratingDuelStep, overallRatingOf,
+  RD_START, RD_MIN, RD_MAX,
   type RecentScore,
 } from '@/lib/olyProfile'
 import { cvGenerateLayout, cvEnrich, cvCountryExists, type CvProvince } from '@/lib/cvGeo'
@@ -702,13 +705,90 @@ async function olyAthleteCard(userId: string, nick: string) {
   const losses = await db.olympicRivalry.aggregate({ where: { userId }, _sum: { falls: true } })
   const seasons = new Set(results.map((r) => r.edition)).size
   const xp = a ? a.xp : 0
+  /* V90 §36: رده‌بندی المپیکی — نمایش در شناسنامه */
+  const rating = await olyRatingBlock(userId)
   return {
     nick, attrs, spec, token: a ? a.token : 0, owned: a ? (function () { try { return JSON.parse(a.ownedJson || '[]') } catch (e) { return [] } })() : [],
     xp, level: olyLevelOf(xp),
     medals: { g, s, b, total: g + s + b }, finals: finalsCount,
     championships: champRows.length, seasons,
     wins: (wins._sum.passes || 0), losses: (losses._sum.falls || 0),
+    rating,
   }
+}
+
+/* ============================================================
+   V90 — OLYMPICS V2 §34-36: رده‌بندی المپیکی (Elo هر رشته)
+   سه مسیر تغذیه — هر سه سمت سرور و فقط از نتیجه‌ی رسمی داوری‌شده:
+     ۱) olyRatingPerf   — هر تلاش رسمی (پس از تأیید داور olyScore)
+     ۲) olyRatingDuel   — تکمیل دوئل رقیب (seed مشترک، داوری سرور)
+     ۳) olyRatingPodium — پاداش سکوی شب فینال در فریز
+   تمرین/نتیجه‌ی ردشده/کلاینت هیچ اثری ندارد (ضد P2W — §22/§34).
+   ============================================================ */
+async function olyRatingRow(userId: string, discipline: string) {
+  try {
+    let row = await db.olympicRating.findUnique({ where: { userId_discipline: { userId, discipline } } })
+    if (!row) row = await db.olympicRating.create({ data: { userId, discipline } })
+    return row
+  } catch (e) { return null }
+}
+/* ۱) نوجه‌ی عملکردی — امتیاز به‌سمت «رده‌ی عملکرد» نتیجه‌ی رسمی نرم می‌شود */
+async function olyRatingPerf(userId: string, discipline: string, score: number, model: 'tap' | 'sim') {
+  try {
+    const row = await olyRatingRow(userId, discipline)
+    if (!row) return
+    const nr = ratingPerfStep(row.rating, perfRatingOf(discipline, score, model))
+    await db.olympicRating.update({
+      where: { userId_discipline: { userId, discipline } },
+      data: { rating: nr, peak: Math.max(row.peak, nr), games: { increment: 1 } },
+    })
+  } catch (e) { console.log('olyRdPerf', e) }
+}
+/* ۲) دوئل — Elo دوطرفه؛ برنده/بازنده/تساوی از داوری سرور */
+async function olyRatingDuel(discipline: string, uidA: string, uidB: string, winnerUid: string | null) {
+  try {
+    const a = await olyRatingRow(uidA, discipline)
+    const b = await olyRatingRow(uidB, discipline)
+    if (!a || !b) return
+    const sA: 0 | 0.5 | 1 = winnerUid == null ? 0.5 : winnerUid === uidA ? 1 : 0
+    const sB: 0 | 0.5 | 1 = winnerUid == null ? 0.5 : winnerUid === uidB ? 1 : 0
+    const ra = ratingDuelStep(a.rating, b.rating, sA, a.games)
+    const rb = ratingDuelStep(b.rating, a.rating, sB, b.games)
+    await db.olympicRating.update({ where: { userId_discipline: { userId: uidA, discipline } }, data: { rating: ra.rating, peak: Math.max(a.peak, ra.rating), games: { increment: 1 }, wins: sA === 1 ? { increment: 1 } : undefined } })
+    await db.olympicRating.update({ where: { userId_discipline: { userId: uidB, discipline } }, data: { rating: rb.rating, peak: Math.max(b.peak, rb.rating), games: { increment: 1 }, wins: sB === 1 ? { increment: 1 } : undefined } })
+  } catch (e) { console.log('olyRdDuel', e) }
+}
+/* ۳) پاداش سکو — طلا +۴۰ / نقره +۲۰ / برنز +۱۰ (سقف RD_MAX محافظت می‌کند) */
+const RD_PODIUM_BONUS = [40, 20, 10]
+async function olyRatingPodium(discipline: string, ranked: { userId: string }[]) {
+  try {
+    for (let i = 0; i < ranked.length && i < 3; i++) {
+      const uid = ranked[i] && ranked[i].userId
+      if (!uid) continue
+      const row = await olyRatingRow(uid, discipline)
+      if (!row) continue
+      const nr = Math.min(RD_MAX, row.rating + RD_PODIUM_BONUS[i])
+      await db.olympicRating.update({ where: { userId_discipline: { userId: uid, discipline } }, data: { rating: nr, peak: Math.max(row.peak, nr), wins: i === 0 ? { increment: 1 } : undefined } })
+    }
+  } catch (e) { console.log('olyRdPodium', e) }
+}
+/* بلوک رده‌بندی برای شناسنامه‌ی ورزشکار + پروفایل (§36) */
+async function olyRatingBlock(userId: string) {
+  try {
+    const rows = await db.olympicRating.findMany({ where: { userId } })
+    const ov = overallRatingOf(rows)
+    const ti = tierIndex(ov.rating, ov.games)
+    const next = ti + 1 < OLY_TIERS.length ? OLY_TIERS[ti + 1] : null
+    const top = rows.filter((r) => r.games > 0).sort((x, y) => y.rating - x.rating).slice(0, 3)
+      .map((r) => ({ discipline: r.discipline, rating: r.rating, peak: r.peak, games: r.games, tier: tierOf(r.rating, r.games).key }))
+    return {
+      overall: ov.rating, games: ov.games, tier: OLY_TIERS[ti].key,
+      next_tier: next ? next.key : null,
+      next_at: next ? next.min : null,
+      peak: rows.length ? Math.max(...rows.map((r) => r.peak)) : RD_START,
+      top,
+    }
+  } catch (e) { console.log('olyRdBlock', e); return null }
 }
 /* ماموریت‌های دوره — ساخت تنبل + پیشرفت فقط از رویداد رسمی */
 async function olyMissionEnsureAll(userId: string, edition: number) {
@@ -1500,6 +1580,8 @@ async function freezeDiscipline(edition: number, key: string) {
       }
     }
     await addNews(0, 'olympic_podium', key, finals[0].nick, null)
+    /* V90 §36: پاداش رده‌بندی سکو (طلا/نقره/برنز) — یک‌بار چون فریز idempotent است */
+    await olyRatingPodium(key, finals.map((f) => ({ userId: f.userId })))
     return
   }
   const rows = await db.olympicEntry.findMany({ where: { edition, discipline: key, best: { gt: 0 } }, orderBy: [{ best: 'desc' }, { lastAt: 'asc' }], take: 3 })
@@ -1511,7 +1593,10 @@ async function freezeDiscipline(edition: number, key: string) {
       if (c !== 'P2002') console.log('freeze', e)
     }
   }
-  if (rows.length) await addNews(0, 'olympic_podium', key, rows[0].nick, null)
+  if (rows.length) {
+    await addNews(0, 'olympic_podium', key, rows[0].nick, null)
+    await olyRatingPodium(key, rows.map((r) => ({ userId: r.userId })))
+  }
 }
 
 /* closing ceremony: freeze all, medal table by country, crown champion player,
@@ -3317,6 +3402,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           })
           /* ویژگی‌ها — بازمحاسبه از مسابقه‌ی رسمی (ضد P2W) */
           olyAttrsRecompute(user.id).catch(() => {})
+          /* V90 §36: رده‌بندی المپیکی — فقط نتیجه‌ی رسمی داوری‌شده؛ تمرین/ردشده اثری ندارد.
+             تلاشِ چالش = رویداد Elo دوطرفه (olyRatingDuel) — نوجه‌ی عملکردی اجرا نمی‌شود تا یک رویداد دوبار نشمارد */
+          if (m.mode === 'official' && !(m.flags && String(m.flags).startsWith('chal:'))) olyRatingPerf(user.id, key, score, model).catch(() => {})
           /* ماموریت‌ها — فقط از داده‌ی واقعی همین نتیجه */
           await olyMissionEnsureAll(user.id, g.edition)
           const played = await db.olympicEntry.count({ where: { edition: g.edition, userId: user.id, attempts: { gt: 0 } } })
@@ -3349,6 +3437,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
                 const winnerUid = ch.fromScore > ch.toScore ? ch.fromUid : ch.toScore > ch.fromScore ? ch.toUid : null
                 await db.olympicChallenge.update({ where: { id: cid }, data: { status: 'done', winnerUid } })
                 await addNews(0, 'olympic_challenge_done', ch.discipline, user.nick, isFrom ? ch.toNick : ch.fromNick)
+                /* V90 §35: دوئل رسمی = رویداد Elo دوطرفه */
+                await olyRatingDuel(ch.discipline, ch.fromUid, ch.toUid, winnerUid)
                 challengeInfo = { id: cid, role: isFrom ? 'from' : 'to', done: true, result: winnerUid == null ? 'tie' : winnerUid === user.id ? 'win' : 'loss' }
               } else challengeInfo = { id: cid, role: isFrom ? 'from' : 'to', done: false }
             }
@@ -3534,6 +3624,74 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           return R({ ok: true, declined: id })
         }
         return R({ ok: false, reason: 'action' })
+      }
+      /* ============ V90 — olympic_match: جفت‌یاب المپیکی (§34-35) ============
+         پیشنهاد حریف بر پایه‌ی رده‌ی همان رشته — بدون هیچ پرداختی (§35: no Gems):
+         پنجره‌ی ±۸۰ → ±۱۶۰ → ±۳۲۰ → ±۶۴۰ → هرکسی؛ اولویت با هم‌پله‌ای‌ها (tier pool).
+         p_action=auto: نزدیک‌ترین حریف را انتخاب و مستقیم چالش رسمی می‌سازد
+         (همان مسیر olympic_challenge — هیچ سیستم دوئل دوم و موازی‌ای وجود ندارد). */
+      case 'olympic_match': {
+        if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
+        const gMm = gamesPhase()
+        const actMm = String(args.p_action || 'suggest')
+        const mineMm = await db.olympicRating.findMany({ where: { userId: user.id } })
+        const ovMm = overallRatingOf(mineMm)
+        const myTierI = tierIndex(ovMm.rating, ovMm.games)
+        /* رشته‌ی مبنا: صریح ← پرتکرارترین رشته‌ی من ← اسپرینت */
+        let discMm = String(args.p_discipline || '')
+        if (!discMm || GD_DAY[discMm] === undefined) {
+          discMm = (mineMm.filter((r) => r.games > 0).sort((x, y) => y.games - x.games)[0] || { discipline: 'sprint' }).discipline
+          if (GD_DAY[discMm] === undefined) discMm = 'sprint'
+        }
+        const myRow = mineMm.find((r) => r.discipline === discMm)
+        const myR = myRow ? myRow.rating : RD_START
+        const myG = myRow ? myRow.games : 0
+        const windowsMm = [80, 160, 320, 640, 4000]
+        let cands: { userId: string; rating: number; games: number; wins: number; peak: number }[] = []
+        for (const w of windowsMm) {
+          const rows = await db.olympicRating.findMany({
+            where: { discipline: discMm, userId: { not: user.id }, rating: { gte: myR - w, lte: myR + w }, games: { gt: 0 } },
+            orderBy: [{ rating: 'desc' }],
+            take: 60,
+          })
+          /* امتیاز نزدیکی: فاصله‌ی رده + جریمه‌ی پله‌ی دورتر (استخر هم‌پله §34) */
+          cands = rows
+            .map((r) => ({ ...r, d: Math.abs(r.rating - myR) + Math.abs(tierIndex(r.rating, r.games) - myTierI) * 45 }))
+            .sort((x, y) => x.d - y.d)
+            .slice(0, 8)
+          if (cands.length >= 6) break /* پنجره‌ی بازشونده: تا شش نامزد، هرچه earlier شد کافی است */
+        }
+        const uidsMm = [...new Set(cands.map((c) => c.userId))]
+        const usersMm = uidsMm.length ? await db.user.findMany({ where: { id: { in: uidsMm } }, select: { id: true, nick: true } }) : []
+        const nickOf = (uid: string) => { const u = usersMm.find((x) => x.id === uid); return u ? u.nick : '—' }
+        const suggMm = cands.map((c) => ({ uid: c.userId, nick: nickOf(c.userId), rating: c.rating, peak: c.peak, games: c.games, wins: c.wins, tier: tierOf(c.rating, c.games).key, gap: c.rating - myR }))
+        if (actMm !== 'auto') {
+          return R({
+            ok: true,
+            match: {
+              discipline: discMm, my_rating: myR, my_games: myG, my_tier: OLY_TIERS[myTierI].key,
+              overall: ovMm.rating, overall_games: ovMm.games,
+              /* V90: چیپ‌های انتخاب رشته در UI — تا ۶ رشته‌ی رده‌دار خودم */
+              my_discs: mineMm.filter((r) => r.games > 0).sort((x, y) => y.games - x.games).slice(0, 6).map((r) => ({ discipline: r.discipline, rating: r.rating, games: r.games })),
+              suggestions: suggMm, window_used: cands.length >= 6 ? 'wide-enough' : 'widest',
+            },
+          })
+        }
+        /* auto — ساخت چالش رسمی با نزدیک‌ترین نامزد (همان قوانین olympic_challenge) */
+        if (gMm.phase !== 'live') return R({ ok: false, reason: 'window' })
+        const bestMm = suggMm[0]
+        if (!bestMm) return R({ ok: false, reason: 'no_candidate' })
+        const openMineMm = await db.olympicChallenge.count({ where: { fromUid: user.id, status: 'open' } })
+        if (openMineMm >= 3) return R({ ok: false, reason: 'limit' })
+        const recentMineMm = await db.olympicChallenge.findFirst({ where: { fromUid: user.id }, orderBy: [{ createdAt: 'desc' }], select: { createdAt: true } })
+        if (recentMineMm && Date.now() - new Date(recentMineMm.createdAt).getTime() < 15000) return R({ ok: false, reason: 'rate' })
+        const dupMm = await db.olympicChallenge.findFirst({ where: { fromUid: user.id, toUid: bestMm.uid, status: 'open', discipline: discMm } })
+        if (dupMm) return R({ ok: true, match: { discipline: discMm, my_rating: myR, my_tier: OLY_TIERS[myTierI].key, suggestions: suggMm, auto_existing: dupMm.id } })
+        const targetMm = await db.user.findUnique({ where: { id: bestMm.uid }, select: { id: true, nick: true } })
+        if (!targetMm) return R({ ok: false, reason: 'no_candidate' })
+        const seedMm = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
+        const chMm = await db.olympicChallenge.create({ data: { edition: gMm.edition, discipline: discMm, seed: seedMm, fromUid: user.id, fromNick: user.nick, toUid: targetMm.id, toNick: targetMm.nick } })
+        return R({ ok: true, match: { discipline: discMm, my_rating: myR, my_tier: OLY_TIERS[myTierI].key, suggestions: suggMm, auto: { id: chMm.id, to: targetMm.nick } } })
       }
       /* ============ O1 — oly_verify: رسیدگی به صف رکوردهای مشکوک (L9) ============ */
       case 'oly_verify': {

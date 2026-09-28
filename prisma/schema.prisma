@@ -501,6 +501,23 @@ model OlympicChallenge {
   @@map("olympic_challenges")
 }
 
+/* ============ V90 — OLYMPICS V2 §34-36: رده‌بندی المپیکی ============
+   امتیاز Elo هر رشته — فقط از نتیجه‌ی رسمی داوری‌شده تغذیه می‌شود:
+   نوجه‌ی عملکرد در olympic_submit + دوئل سرور-داوری‌شده + پاداش سکو.
+   هیچ مسیر خرید/کلاینت ندارد (ضد P2W مطلق — §22/§34/§36). */
+model OlympicRating {
+  userId     String   @map("user_id")
+  discipline String
+  rating     Int      @default(1200) /* Elo جاری ۴۰۰..۲۶۰۰ */
+  peak       Int      @default(1200) /* سقف تاریخی — برای نمایش */
+  games      Int      @default(0) /* تعداد رویداد رسمی مؤثر */
+  wins       Int      @default(0) /* برد دوئل/سکو */
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  @@unique([userId, discipline])
+  @@index([discipline, rating])
+  @@map("olympic_ratings")
+}
+
 /* ============ V34 — social & competitive layer ============ */
 
 /* استریک روزانه — consecutive daily login rewards (server-authoritative) */
