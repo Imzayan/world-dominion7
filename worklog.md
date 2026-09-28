@@ -2138,3 +2138,27 @@ Work Log:
 Stage Summary:
 - هر دو بخش درخواست (Shop V3 + War Depth) کامل و ضد P2W؛ همه‌ی سوئیت‌ها سبز؛ V88 روی گیت‌هاب + ریلیز
 - شواهد: download/v88-shop-war.png، v88-shop-vault.png، v88-war-plan.png، v88-map-night.png
+
+---
+Task ID: PUSH-V89
+Agent: Super Z (main)
+Task: V89 — OLYMPICS V2 (اکوسیستم رقابتی المپیک) بر اساس سفارش «Lead Game Systems Architect» — فاز ۰: Audit کامل، سپس پیاده‌سازی کامل
+
+Work Log:
+- PHASE 0 Audit: oly3.js (۱۱ بازی نسلی)، هاب renderHub، ۱۳ RPC المپیکی، olyScore.ts (داوران v1/sim/v2/v3)، olyProfile.ts، ۱۰ مدل Prisma — گزارش ۱۲بندی فارسی قبل از کدنویسی ارائه شد
+- رشته‌ها ۱۱→۳۶ در ۷ خانواده (دوومیدانی/رزمی/دقت/آبی/رانندگی/مهارت/تیمی): ۲۵ بازی جدید روی موتور seed-محور oly3 (تک‌حلقه loop33 مشترک، سازگار LOWFX) + ثبت خودکار G3-only در dispatch
+- داوران سرور (olyScore): ۲۵ داور v3 بازپخش-از-seed (موانع/دروازه/مانع/فاز از seed سرور، رد ghost_*) + fallbackهای نسخه ۱ + جداول DUR/EV_GAP ضد اتوکلیک؛ REF نرمال‌سازی ۳۶ رشته + attrsFromProfiles (۷ ویژگی فقط از مسابقه رسمی — ضد P2W)
+- شب فینال: روز ۵ فینال ۱۶ نفر برتر هر رشته (olyFinalistsEnsure با race-safety + تکمیل دیرهنگام‌ها)؛ OlympicFinalAttempt + freeze سکو از نتایج فینال
+- ثبت‌نام ۱۲ از ۳۶ + برنامه ۸/۷/۷/۷/۷؛ شناسنامه ورزشکار (ویژگی‌ها + تخصص + سطح + کارنامه)؛ رقیب پایدار بین‌دوره‌ای + چالش دوئلی با seed مشترک (داوری سرور، خبر جهانی)
+- رکوردهای ۷گانه (olympic_records)، تالار افتخارات دائمی (olympic_hof + نوشتن خودکار در اختتامیه با روزهای دفاع رکورد)، ۱۰ ماموریت دوره با پیشرفت از رویداد واقعی + اهراز idempotent، سکه المپیک + فروشگاه ۱۰ آیتم فقط زینتی (ضد P2W مطلق)
+- هاب ۱۱ تبی سبک پخش زنده + فید پیشی‌گرفتن + اعلان‌های اولویت‌دار با dedupe دوره؛ athlete/missions از payload سنگین هاب به lazy منتقل شد (رفع عبور از گارد ۱۰s)
+- DB: ۵ مدل جدید (OlympicAthlete/Mission/FinalAttempt/Hof/Challenge) + qual_best/finalist روی OlympicEntry — با build سرور db push خودکار
+- باگ‌های حین QA: ATT_MAX خارج از اسکوپ هاب (به att_max سروری)؛ pkill با process-title ری‌نیم خودکار کار نمی‌کرد (ری‌استارت واقعی با kill PID)؛ early-return فینالیست‌ها برای ثبت‌نام دیرهنگام
+- QA: wd89-qa 40/40 صفر pageerror (شامل تله‌متری legit/تامپر، دوئل A-vs-B با seed مشترک، smoke موتور ۳۶/۳۶ در تمرین) + رگرسیون کامل: wd88 35/35، wd87 26/26، wd86 21/22 (۱ مورد مستند قدیمی)، cv78/79، apk-sim 28/28، sw-selfheal 8/8، verify-build 9/9، lowfx 6/6، map-visual 16/16، check-html-js 87/0، tsc clean
+- نسخه: v.txt=89، __WD_V=89، ?v=89×۳ — push (67a49f0) + tag v89 + ZIP: download/World-Dominion-OlympicsV2-V89.zip (7,337,082B) — تأیید ریموت: v.txt@v89=89
+- اسکرین‌شات‌ها: download/v89-hub-{main,disc,live,rivals,records,hof,missions,rewards,profile,desktop}.png + v89-game-timing.png
+
+Stage Summary:
+- المپیک حالا اکوسیستم رقابتی کامل است: ۳۶ رشته، شب فینال، هویت ورزشی، رقیب و چالش، رکوردهای ۷گانه، تالار افتخارات، ماموریت و توکن زینتی — همه server-authoritative و ضد P2W
+- نکته عملیاتی: تست‌های QA برای فاز شب فینال به OL_OFFSET نیاز دارند؛ بدون offset سری wd88/86 سبز می‌شوند (آتش‌بس مقدس PvP را می‌بندد)
+- گام بعدی پیشنهادی: تماشاچی زنده فینال روی نقشه، بازار شرط‌بندی ممنوع — ولی بین‌دوره‌ای "دعوت رقیب" از چت
