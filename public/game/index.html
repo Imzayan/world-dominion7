@@ -16345,7 +16345,7 @@ function viewGems(c){
   c.append(el('div','💎 بسته‌های جم','wd66-h'));
   var g=el('div',null,'wd66-packgrid');
   /* V85 پریمیوم: تشخیص بهترین نرخ (کمترین perGem) — نشان «بهترین نرخ» + قاب طلایی */
-  var best85=null;(CAT66.packs||[]).forEach(function(p){var n=Number(p.perGem);if(n&&(!best85||n<best85.n))best85={n:n,p:p}});
+  var best85=null;(CAT66.packs||[]).forEach(function(p){var n=Number(String(p.perGem).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}));if(n&&(!best85||n<best85.n))best85={n:n,p:p}});
   (CAT66.packs||[]).forEach(function(p){
     var isBest=best85&&best85.p===p;
     var r=el('div',null,'wd66-card wd66-pack'+(isBest?' best':''));r.style.cssText='display:block';
