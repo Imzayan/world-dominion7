@@ -114,7 +114,7 @@ async function boot(width, height, register = true) {
 
   // server page opens with content
   const srv = await page.evaluate(async () => {
-    const c = document.getElementById('hud-srv'); if (!c) return { err: 'no chip' }
+    const c = document.getElementById('hud-srv2') || document.getElementById('hud-srv'); if (!c) return { err: 'no chip' } /* V86: legacy hud-srv removed — srv2 is the live chip */
     c.click(); await new Promise(r => setTimeout(r, 2800))
     const p = document.getElementById('wd-srvpage')
     const w = p ? p.querySelector('.wd31-wrap') : null

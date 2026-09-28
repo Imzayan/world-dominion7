@@ -70,7 +70,15 @@ export async function POST(req: NextRequest) {
     })
     // welcome wallet: 40 gems
     await db.wallet.create({ data: { userId: user.id, gems: 40 } })
-    await db.score.create({ data: { userId: user.id, nick } })
+    /* V86: تازه‌واردها به نخستین سرور «غیرتستی» می‌روند — تا وقتی wd_test_srvs=[1] است یعنی سرور ۲؛
+       بعد از «حالت عرضه‌ی مایکت» (لیست خالی) همه از سرور ۱ صفر شروع می‌کنند */
+    let srv0 = 1
+    try {
+      const gs = await db.gameSetting.findUnique({ where: { key: 'wd_test_srvs' } })
+      const tst: number[] = gs ? JSON.parse(gs.value) : [1]
+      if (Array.isArray(tst)) { for (let k = 1; k <= 20; k++) { if (!tst.includes(k)) { srv0 = k; break } } }
+    } catch { /* پیش‌فرض: سرور ۱ */ }
+    await db.score.create({ data: { userId: user.id, nick, server: srv0 } })
 
     const token = newToken()
     await db.session.create({

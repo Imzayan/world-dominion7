@@ -145,6 +145,8 @@ model Wallet {
   lastDaily DateTime? @map("last_daily")
   /* V66 Shop V2 — VIP سمت سرور (تک‌منبع اعتبار VIP) */
   vipUntil  DateTime? @map("vip_until")
+  /* V86 — پاداش یک‌بارمصرف عضویت در کانال تلگرام (ادعای تکراری با updateMany اتمی رد می‌شود) */
+  tgBonus   Boolean   @default(false) @map("tg_bonus")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -496,6 +496,26 @@ async function ensureWallet(userId: string) {
   return w
 }
 
+/* V86 — پاداش یک‌بارمصرف عضویت در کانال تلگرام (مبلغ فقط همین‌جا — تک‌منبع) */
+const TG_GEMS = 20
+
+/* V86 — سرورهای تستی: درِ ورود بازیکنان تازه بسته است؛ [] یعنی حالت عرضه‌ی مایکت (همه از سرور ۱ شروع می‌کنند).
+   تک‌منبع: GameSetting('wd_test_srvs') — کلاینت فقط برای نمایش/انتخاب می‌خواند (srv_meta)، گارد واقعی این‌جاست */
+const TEST_SRV_KEY = 'wd_test_srvs'
+let TST_CACHE: { at: number; list: number[] } = { at: 0, list: [] }
+async function testSrvsGet(): Promise<number[]> {
+  if (Date.now() - TST_CACHE.at < 30_000) return TST_CACHE.list
+  let list: number[] = [1]
+  try { list = await getSetting<number[]>(TEST_SRV_KEY, [1]) } catch { /* پیش‌فرض: سرور ۱ تستی */ }
+  list = [...new Set((list || []).map(Number).filter((n) => n >= 1 && n <= 20))]
+  TST_CACHE = { at: Date.now(), list }
+  return list
+}
+async function testSrvsSet(list: number[]) {
+  await setSetting(TEST_SRV_KEY, list)
+  TST_CACHE = { at: Date.now(), list }
+}
+
 /** daily login bonus: +20 gems per calendar day (atomic — no double-claim race) */
 async function dailyBonus(userId: string) {
   await ensureWallet(userId)
@@ -676,8 +696,10 @@ async function transferTerritory(server: number, country: string, uid: string, n
   if (t.userId === uid) return { ok: false, error: 'own' }
   const prevOwner = t.userId
   /* V83sec (AUDIT-C P2): آپدیت شرطی — دو مهاجم همزمان هر دو «برد» نمی‌گیرند
-     (پیروزی مشروط به مالکیتِ همان prevOwner در لحظه‌ی نوشتن) */
-  const upd = await db.territory.updateMany({ where: { server_country: { server, country }, userId: prevOwner }, data: { userId: uid, nick, isCapital: false } })
+     (پیروزی مشروط به مالکیتِ همان prevOwner در لحظه‌ی نوشتن)
+     V86fix: server_country فقط در findUnique معتبر است؛ در updateMany فیلدها مستقیم می‌آیند
+     (قبلاً PrismaClientValidationError می‌داد و مسیر فتح PvP خراب بود) */
+  const upd = await db.territory.updateMany({ where: { server, country, userId: prevOwner }, data: { userId: uid, nick, isCapital: false } })
   if (upd.count === 0) return { ok: false, error: 'race' }
   const cnt = await db.territory.count({ where: { server, userId: prevOwner } })
   if (cnt === 0) {
@@ -1576,8 +1598,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         try { streak = await streakTick(user.id, serverW, user.nick) } catch (e) { console.log('streak', e) }
         return R({ ok: true, gems: w.gems, boost_until: w.boostUntil ? w.boostUntil.toISOString() : null, daily_granted: granted, vip_granted: vipGranted ?? 0,
           vip_until: w.vipUntil ? w.vipUntil.toISOString() : null,
+          tg_bonus: w.tgBonus,
           streak: streak ? { streak: streak.streak, best: streak.best, claimed: streak.claimed, day_in_cycle: streak.day_in_cycle, reward: streak.reward } : null })
       }
+      /* ---------------- V86 — پاداش یک‌بارمصرف عضویت تلگرام (+۲۰ جم) ----------------
+         ادعا با updateMany اتمی روی tgBonus:false — حتی درخواست‌های همزمان هم فقط یکی پاس می‌شود */
+      case 'tg_bonus': {
+        await ensureWallet(user.id)
+        const tupd = await db.wallet.updateMany({ where: { userId: user.id, tgBonus: false }, data: { tgBonus: true, gems: { increment: TG_GEMS } } })
+        const tw = await ensureWallet(user.id)
+        if (tupd.count === 0) return R({ ok: false, error: 'claimed', gems: tw.gems })
+        return R({ ok: true, gems: tw.gems, granted: TG_GEMS })
+      }
+      /* V86 — متادیتای سرورها: لیست سرورهای تستی (کلاینت درب ورود را می‌بندد؛ گارد واقعی در territory_sync/pvp_capture است) */
+      case 'srv_meta':
+        return R({ test_srvs: await testSrvsGet() })
       case 'spend_gems':
       case 'shop_buy': {
         /* V66: موتور واحد خرید — هر دو مسیر RPC همین‌جا می‌روند.
@@ -1870,6 +1905,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
         const server = Math.max(1, Number(args.p_server) || 1)
         const country = String(args.p_country || '')
+        /* V86 — قفل سرور تستی: تصرف آزاد برای ورودِ تازه (کسی که در این سرور قلمرو ندارد) روی سرور تستی رد می‌شود */
+        if ((await testSrvsGet()).includes(server) && !user.isAdmin && (await territoryCount(user.id, server)) === 0) return R({ ok: false, error: 'test' })
         /* V33.1: free capture is for NEUTRAL land only — owned territories must be
            fought for via pvp_attack (this was a free-steal of any player's land) */
         const t0 = await db.territory.findUnique({ where: { server_country: { server, country } } })
@@ -1903,6 +1940,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           ? [...new Set((args.p_held as unknown[]).map((c) => String(c || '').trim()).filter(Boolean))].slice(0, MAX_COUNTRIES + 2)
           : []
         const current = await db.territory.findMany({ where: { userId: user.id, server } })
+        /* V86 — قفل سرور تستی: ورودِ تازه (بدون هیچ قلمرو در این سرور) برای غیرادمین رد می‌شود —
+           کسی که از قبل زمین دارد (حساب‌های تست/ادمین) دست‌نخورده به کارش ادامه می‌دهد */
+        if ((await testSrvsGet()).includes(server) && !user.isAdmin && current.length === 0) {
+          return R({ ok: false, test_server: true, granted: [], denied: [], lost: [], mine: [] })
+        }
         const mine = new Set(current.map((t) => t.country))
         /* releases — زمین‌هایی که دیگر نگه نمی‌دارم (فقط ردیف‌های خودم) */
         const gone = [...mine].filter((c) => !heldRaw.includes(c))
@@ -1949,6 +1991,55 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         const mineRows = await db.territory.findMany({ where: { userId: user.id, server }, select: { country: true, isCapital: true } })
         return R({ ok: true, granted, denied, lost, gone, truce, mine: mineRows.map((r) => ({ country: r.country, is_capital: r.isCapital })) })
+      }
+
+      /* ---------------- V86 — حالت عرضه‌ی مایکت: ریست کامل جهان (فقط ادمین) ----------------
+         همه‌چیز صفر: رکوردها، قلمروها، المپیک و مدال‌ها، چت/اخبار، دوئل/انتخابات/اتحاد/پاس فصل.
+         حفظ می‌شود: حساب‌ها، جم/والت، انبار خریدهای پرداخت‌شده (ShopInventory/Purchase)، نشست‌ها.
+         در پایان wd_test_srvs=[] ⇒ همه از سرور ۱ با نقشه‌ی خالی شروع می‌کنند. */
+      case 'admin_launch_reset': {
+        if (!user.isAdmin) return R(null)
+        try { await ensureGamesClosed() } catch (e) { console.log('olclose-launch', e) }
+        await db.territory.deleteMany({})
+        await db.score.deleteMany({})
+        await db.serverStat.deleteMany({})
+        await db.worldChat.deleteMany({})
+        await db.worldNews.deleteMany({})
+        await db.duelBet.deleteMany({})
+        await db.duel.deleteMany({})
+        await db.revengeMark.deleteMany({})
+        await db.battleLog.deleteMany({})
+        await db.electionVote.deleteMany({})
+        await db.electionCandidate.deleteMany({})
+        await db.electionWinner.deleteMany({})
+        await db.mentorOffer.deleteMany({})
+        await db.mentorLink.deleteMany({})
+        await db.allianceMember.deleteMany({})
+        await db.alliance.deleteMany({})
+        await db.hofTitle.deleteMany({})
+        await db.dailyStreak.deleteMany({})
+        await db.weeklyClaim.deleteMany({})
+        await db.specialUse.deleteMany({})
+        await db.tradeOffer.deleteMany({})
+        await db.cvBuilding.deleteMany({})
+        await db.cvCountry.deleteMany({})
+        await db.olympicResult.deleteMany({})
+        await db.olympicSuspicious.deleteMany({})
+        await db.olympicMatch.deleteMany({})
+        await db.olympicEntry.deleteMany({})
+        await db.olympicAchieve.deleteMany({})
+        await db.olympicRecord.deleteMany({})
+        await db.olympicProfile.deleteMany({})
+        await db.olympicRivalry.deleteMany({})
+        await db.olympicChampion.deleteMany({})
+        await db.olympicArchive.deleteMany({})
+        await db.seasonPass.deleteMany({})
+        await db.gameSetting.deleteMany({ where: { OR: [
+          { key: { startsWith: 'wd33' } }, { key: { startsWith: 'wdol' } }, { key: { startsWith: 'oly' } },
+          { key: { startsWith: 'wd_ops_eff' } }, { key: 'doom_v43' }, { key: TEST_SRV_KEY },
+        ] } })
+        await testSrvsSet([]) /* ⇒ همه از سرور ۱ صفر شروع می‌کنند */
+        return R({ ok: true })
       }
 
       /* ---------------- V54 special ops (server-enforced limits) ----------------
@@ -3118,13 +3209,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
 
       /* ---------------- v23 server bridge ---------------- */
       case 'wd_init_player': {
-        const server = Math.max(1, Number(args.p_server) || 1)
         /* V33.1: nick is FORCED to the session user's nick — a client-chosen p_nick let
            anyone impersonate arbitrary players on leaderboards and medal tables */
+        /* V86: اگر سرورِ درخواستی تستی باشد، ورودِ تازه به نخستین سرور غیرتستی می‌رود؛
+           ضمناً server دیگر در هر بوت بازنویسی نمی‌شود (تخصیص نهایی با pickServer/territory_sync است) */
+        const tst86 = await testSrvsGet()
+        let server = Math.max(1, Number(args.p_server) || 1)
+        if (tst86.includes(server)) {
+          server = 1
+          for (let k = 1; k <= 20; k++) { if (!tst86.includes(k)) { server = k; break } }
+        }
         await db.score.upsert({
           where: { userId: user.id },
           create: { userId: user.id, nick: user.nick, server },
-          update: { nick: user.nick, server },
+          update: { nick: user.nick },
         })
         return R({ ok: true })
       }

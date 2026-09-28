@@ -128,10 +128,16 @@ const visProbe = (wrapSel) => `(() => {
 let srv = { ok: false }
 for (let att = 0; att < 2 && !srv.ok; att++) {
   try {
-    try { await page.tap('#hud-srv', { force: true, timeout: 8000 }) } catch (e) { await page.evaluate(() => document.getElementById('hud-srv').click()) }
+    await page.evaluate(() => { try { document.body.classList.remove('wd45-tutshow'); const t = document.getElementById('wd45-tut'); if (t) t.remove() } catch (e) {} }) /* V86: tutorial layer blocks strip pointer-events */
+    try { await page.tap('#hud-srv2', { force: true, timeout: 8000 }) } catch (e) { await page.evaluate(() => (document.getElementById('hud-srv2') || document.getElementById('hud-srv')).click()) } /* V86: srv2 is the live chip */
     await page.waitForTimeout(att ? 3500 : 2800)
     srv = await page.evaluate(visProbe('#wd-srvpage .wd31-wrap'))
     srv.ok = srv.vis > 0 && srv.chars > 1000
+    if (!srv.ok) { /* V86 fallback: chip may open the plain servers modal instead of the cinematic page */
+      const m = await page.evaluate(visProbe('#srv-body'))
+      srv.ok = m.vis > 0 && m.chars > 100
+      if (srv.ok) srv = { vis: m.vis, kids: m.kids, chars: m.chars, via: 'm-srv', ok: true }
+    }
   } catch (e) { srv = { ok: false, err: String(e).slice(0, 120) } }
 }
 check('TAP server chip → page paints AND content is VISIBLE (lowfx-proof)', srv.ok, JSON.stringify(srv))

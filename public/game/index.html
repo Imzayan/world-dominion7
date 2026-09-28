@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=85;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=85"></script>
+  <script>window.__WD_V=86;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=86"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2632,9 +2632,14 @@ async function startup(){
     /* ===== v4: 5 shared servers, other players visible on the map ===== */
 const SRV_COUNT=5,SRV_CAP=80,SYNC_MS=30000;
 let SRV=1,SRV_OK=false,STATS={},OTH={},DBMINE=new Set(),MP_OK=null,syncBusy=false;
+/* V86: سرورهای تستی — درِ ورود بازیکنان تازه بسته است (گارد واقعی سمت سرور در territory_sync/pvp_capture).
+   لیست از RPC srv_meta تازه می‌شود؛ روی عرضه‌ی مایکت سرور آن را به [] برمی‌گرداند ⇒ همه از سرور ۱ صفر شروع می‌کنند */
+let WD_TST=[1];
+const isTst=k=>WD_TST.indexOf(Number(k))>=0;
 const nickHue=n=>{let h=11;for(const c of String(n))h=(h*37+c.charCodeAt(0))%360;return h};
 const taken=k=>(STATS[k]&&STATS[k].taken)||0;
-const srvOpen=k=>k===1||taken(k-1)>=SRV_CAP;
+/* V86: سرور تستی همیشه قفل است؛ نخستین سرور غیرتستی، درِ ورود است (k-1 تستی ⇒ باز) */
+const srvOpen=k=>!isTst(k)&&(k===1||isTst(k-1)||taken(k-1)>=SRV_CAP);
 function pickServer(){for(let k=1;k<=SRV_COUNT;k++)if(srvOpen(k)&&taken(k)<SRV_CAP)return k;return SRV_COUNT}
 async function loadStats(){try{const r=await sb.from('server_stats').select('server,taken,players');if(r.error)throw r.error;STATS={};(r.data||[]).forEach(x=>STATS[x.server]=x);MP_OK=true}catch(e){MP_OK=false;console.log(e)}}
 async function fetchTerr(){const r=await sb.from('territories').select('country,user_id,nick,is_capital').eq('server',SRV).limit(400);if(r.error)throw r.error;
@@ -2687,6 +2692,8 @@ async function syncTerr(){if(syncBusy||!sb||!ACC.uid||!ACC.ready||MP_OK!==true)r
   syncBusy=false}
 async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
   if(MP_OK!==true){const b=A$('status-banner');if(b)b.textContent='⚠️ اتصال به سرورهای چندنفره برقرار نشد؛ تا اتصال مجدد، پیشرفت شما ذخیره می‌شود';return}
+  /* V86: تازه‌سازی لیست سرورهای تستی از سرور — بعد از «حالت عرضه‌ی مایکت» سرور ۱ خودکار باز می‌شود */
+  try{const m=await sb.rpc('srv_meta');const tl=m&&m.data&&m.data.test_srvs;if(Array.isArray(tl))WD_TST=tl.map(Number).filter(n=>n>=1)}catch(e){}
   try{const r=await sb.from('scores').select('server').eq('user_id',ACC.uid).maybeSingle();
     if(r.data&&r.data.server){SRV=r.data.server;SRV_OK=true}else{SRV=pickServer();SRV_OK=false}}catch(e){SRV=pickServer()}
   renderSrvChip();try{await sb.rpc('release_inactive_territories')}catch(e){}await syncTerr();
@@ -2712,11 +2719,11 @@ rankOnline=async function(box){box.append(mk('div','🌍 رتبه‌بندی س�
 (function(){const m=document.createElement('div');m.id='m-srv';m.className='modal';
   m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span>🖥️ سرورها</span><span class="close-modal" style="cursor:pointer;font-size:18px;">✕</span></div><div id="srv-body"></div></div>';document.body.appendChild(m)})();
 function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';
-  b.append(el('div','هر سرور یک دنیای مشترک است. وقتی ۸۰ کشور در یک سرور تصرف شود، سرور بعدی خودکار باز می‌شود و بازیکنان جدید به آن می‌روند.','sites-sub'));
-  for(let k=1;k<=SRV_COUNT;k++){const t=taken(k),p=(STATS[k]&&STATS[k].players)||0,open=srvOpen(k),full=t>=SRV_CAP;
+  b.append(el('div','هر سرور یک دنیای مشترک است. وقتی ۸۰ کشور در یک سرور تصرف شود، سرور بعدی خودکار باز می‌شود و بازیکنان جدید به آن می‌روند. سرور 🧪 تستی برای عرضه‌ی مایکت نگه داشته شده و ورود به آن بسته است.','sites-sub'));
+  for(let k=1;k<=SRV_COUNT;k++){const t=taken(k),p=(STATS[k]&&STATS[k].players)||0,open=srvOpen(k),full=t>=SRV_CAP,ts=isTst(k);
     const r=el('div','','lobby-item'+(k===SRV?' me':''));
-    r.append(el('div','سرور '+k+(k===SRV?' (تو اینجایی)':'')+' — '+t+'/'+SRV_CAP+' کشور • '+p+' بازیکن','lobby-item-text'));
-    r.append(el('span',!open?'🔒 قفل':full?'✅ پر':'🟢 باز','lobby-item-sub'));b.append(r)}
+    r.append(el('div','سرور '+faNum(k)+(k===SRV?' (تو اینجایی)':'')+(ts?' 🧪':'')+' — '+faNum(t)+'/'+faNum(SRV_CAP)+' کشور • '+faNum(p)+' بازیکن','lobby-item-text'));
+    r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':!open?'🔒 قفل':full?'✅ پر':'🟢 باز','lobby-item-sub'));b.append(r)}
   const cnt={};Object.values(OTH).forEach(o=>cnt[o.nick]=(cnt[o.nick]||0)+1);if(ACC.nick)cnt[ACC.nick]=(cnt[ACC.nick]||0)+DBMINE.size;
   b.append(el('div','👥 بازیکنان سرور '+SRV,'sites-h'));
   const ps=Object.keys(cnt).sort((a,c)=>cnt[c]-cnt[a]);if(!ps.length)b.append(el('div','هنوز کسی کشوری نگرفته.','sites-sub'));
@@ -14942,6 +14949,27 @@ function ensureAdminBox(){
   try{
     var m=D.getElementById('m-admin'),b=D.getElementById('admin-body');
     if(!m||!m.classList.contains('active')||!b){return}
+    /* V86: دکمه‌ی حالت عرضه‌ی مایکت — ریست کامل جهان (فقط ادمین؛ داوری نهایی سمت سرور) */
+    if(!D.getElementById('wd86-launch')){
+      var lb=D.createElement('div');lb.id='wd86-launch';
+      lb.style.cssText='margin-top:12px;padding:11px 12px;border:1px solid rgba(255,120,90,.45);border-radius:14px;background:linear-gradient(150deg,rgba(50,14,8,.9),rgba(28,8,6,.92))';
+      lb.innerHTML='<div class="wd53-ph" style="color:#ffb59e">🚀 حالت عرضه‌ی مایکت (V86)</div>'+
+        '<p style="font-size:10px;color:#e8c9bd;line-height:1.9;margin:5px 0 9px">همه‌چیز صفر می‌شود: رکوردها، قلمروها، المپیک و مدال‌ها، چت و اخبار و دوئل‌ها. جم‌ها و خریدهای پرداخت‌شده‌ی بازیکن‌ها حفظ می‌شود. بعد از این، همه از سرور ۱ با نقشه‌ی خالی شروع می‌کنند و سرور تستی باز می‌شود.</p>'+
+        '<button class="action-btn btn-red" id="wd86-goreset">🚀 ریست کامل برای عرضه‌ی مایکت</button>';
+      b.appendChild(lb);
+      var gr=lb.querySelector('#wd86-goreset');
+      gr.addEventListener('click',function(){
+        if(gr.disabled)return;
+        if(!window.confirm('مطمئنی؟ کل جهان صفر می‌شود (رکوردها/المپیک/مدال‌ها/قلمروها) و قابل برگشت نیست!'))return;
+        gr.disabled=true;
+        sb.rpc('admin_launch_reset').then(function(r){
+          gr.disabled=false;var x=r&&r.data;
+          if((r&&r.error)||!x||!x.ok){showToast('❌ ریست انجام نشد — حساب تو ادمین شناخته نشد یا خطای سرور','lose');return}
+          showToast('🚀 حالت عرضه‌ی مایکت فعال شد — همه از سرور ۱ شروع می‌کنند','win');
+          setTimeout(function(){try{location.reload()}catch(e){}},1700);
+        }).catch(function(){gr.disabled=false;showToast('❌ اتصال به سرور برقرار نشد','lose')});
+      });
+    }
     if(D.getElementById('wd53-olybox'))return;
     var box=D.createElement('div');box.id='wd53-olybox';
     box.innerHTML='<div class="wd53-ph">🎮 کنترل المپیک — شروع و پایان دوره در دست توست</div>'+
@@ -15047,20 +15075,12 @@ setInterval(function(){if(!D.hidden)adminCheck().then(function(okad){if(okad||is
 .wd-cine-card.c-cyan{background:linear-gradient(150deg,rgba(4,20,28,.96),rgba(8,48,64,.94) 55%,rgba(4,16,24,.96));border-color:rgba(90,220,255,.55)}
 .wd-cine-card.c-orange{background:linear-gradient(150deg,rgba(30,14,2,.96),rgba(74,34,6,.94) 55%,rgba(24,12,4,.96));border-color:rgba(255,160,80,.6)}
 .wd-cine-card.c-red{background:linear-gradient(150deg,rgba(34,4,4,.96),rgba(84,14,10,.94) 55%,rgba(24,6,6,.96));border-color:rgba(255,100,80,.65)}
-#wd54-testchip{position:fixed;bottom:82px;left:10px;z-index:150000;font-size:10px;font-weight:900;color:#ffe08a;background:rgba(40,30,4,.85);border:1px solid rgba(255,214,60,.55);border-radius:99px;padding:4px 11px;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+/* V86: نشان wd54-testchip حذف شد (درخواست کاربر) — وضعیت تستی فقط داخل پنجره‌ی سرورها دیده می‌شود */
    </style>
    <script id="v54-js">
-/* ============ V54: نشان سرور تستی — روی سرور اصلی مایکت WD_SERVER_MODE='prod' می‌شود ============ */
-(function(){
-  'use strict';
-  var D=document;
-  if(window.WD_SERVER_MODE!=='prod'){
-    window.WD_SERVER_MODE='test';
-    try{D.title+=(D.title.indexOf('سرور تستی')<0?' — 🧪 سرور تستی':'')}catch(e){}
-    function chip(){if(D.getElementById('wd54-testchip'))return;var c=D.createElement('div');c.id='wd54-testchip';c.textContent='🧪 سرور تستی — نسخه‌ی عرضه: سرور جدید مایکت';D.body.appendChild(c)}
-    if(D.body)chip();else D.addEventListener('DOMContentLoaded',chip);
-  }
-})();
+/* ============ V54 (حذف‌شده در V86) — نشان «🧪 سرور تستی» دیگر رندر نمی‌شود.
+   جایگزین V86: قفل سرور ۱ به‌عنوان سرور تستی در سیستم سرورها (WD_TST + گارد سمت سرور) */
+(function(){ 'use strict'; window.WD_SERVER_MODE=window.WD_SERVER_MODE||'test'; })();
    </script>
    <style id="v55-css">
 /* ===== V55: سینمای عملیات‌های ویژه + سبک‌سازی صفحه ===== */
@@ -16748,7 +16768,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=85';
+              s.src='/game/cv-engine.js?v=86';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -16759,7 +16779,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=85"></script>
+<script src="/game/oly3.js?v=86"></script>
 <style id="v85-css">
 /* ============ V85: پریمیوم شاپ جم — قاب طلایی لوکس، صفر هزینه‌ی per-frame ============ */
 .wd66-pack{position:relative;overflow:hidden;
@@ -16778,5 +16798,145 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
   box-shadow:0 2px 8px rgba(255,180,0,.35);z-index:2}
 @media(prefers-reduced-motion:reduce){.wd66-pack{transition:none!important}}
 </style>
+<style id="v86-css">
+/* ============ V86: مرتب‌سازی و شیک‌سازی آیکون‌های بالای نقشه + آیکون پاداش تلگرام ============ */
+/* 1) نظم نوار: یک ردیف هم‌تراز با فاصله‌ی یکنواخت — ترتیب ثابت: پاداش، جم، کشورها، سرور، ساعت، صدا، شرطی‌ها */
+#hud-strip{display:flex!important;flex-wrap:nowrap;gap:6px!important;align-items:center}
+#hud-strip .hchip{padding:4px 10px!important;font-size:10.5px!important;border-radius:13px!important;transition:transform .18s ease,box-shadow .18s ease}
+#hud-strip .hchip:active{transform:scale(.94)}
+#wd86-gift{order:0}
+#hud-gem{order:1}
+#hud-t2{order:2}
+#hud-srv2{order:3}
+#hud-date{order:4}
+#hud-snd{order:5}
+#hud-doom{order:10}#hud-crisis{order:11}#hud-anthem{order:12}
+/* 2) آیکون پاداش — طلایی، سینمایی، درخشان (انیمیشن فقط CSS؛ صفر هزینه‌ی per-frame) */
+#wd86-gift{position:relative;overflow:hidden;cursor:pointer;direction:rtl;
+  background:linear-gradient(150deg,rgba(86,54,6,.96),rgba(46,28,2,.96));
+  border:1px solid rgba(255,204,64,.68);color:#ffe9a8;font-weight:900;
+  box-shadow:0 0 14px rgba(255,190,40,.38),0 4px 14px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.22);
+  animation:wd86glow 3.2s ease-in-out infinite}
+#wd86-gift .wd86-gic{width:15px;height:15px;flex:0 0 auto;filter:drop-shadow(0 0 7px rgba(255,200,60,.95))}
+#wd86-gift::after{content:'';position:absolute;top:0;bottom:0;width:36%;left:-50%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.34),transparent);animation:wd86shine 3.4s ease-in-out infinite}
+#wd86-gift .wd86-tb{background:rgba(255,204,64,.18);border:1px solid rgba(255,204,64,.55);border-radius:99px;
+  padding:0 7px;font-size:9.5px;color:#ffd75e;line-height:16px;font-variant-numeric:tabular-nums}
+@keyframes wd86shine{0%{left:-50%}55%,100%{left:120%}}
+@keyframes wd86glow{0%,100%{box-shadow:0 0 14px rgba(255,190,40,.38),0 4px 14px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.22)}
+  50%{box-shadow:0 0 22px rgba(255,196,54,.62),0 4px 14px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.28)}}
+#wd86-gift.wd86-done{animation:none;background:linear-gradient(150deg,rgba(28,36,52,.92),rgba(16,22,36,.94));
+  border-color:rgba(140,164,196,.4);color:#9fb6d4;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+#wd86-gift.wd86-done::after{animation:none;opacity:0}
+#wd86-gift.wd86-done .wd86-tb{opacity:.55}
+/* 3) مودال تلگرام — سینمایی آبی‌طلایی */
+#wd86-tgm .wd86-tgc{max-width:430px;background:linear-gradient(168deg,rgba(10,32,56,.97),rgba(6,16,34,.98)),radial-gradient(circle at 85% -10%,rgba(70,200,255,.2),transparent 55%);
+  border:1px solid rgba(90,200,255,.45);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 24px rgba(0,190,255,.14)}
+#wd86-tgm .wd86-hero{display:flex;align-items:center;justify-content:center;gap:14px;margin:12px 0 10px}
+#wd86-tgm .wd86-tgic{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(150deg,rgba(60,180,255,.24),rgba(20,90,160,.3));border:1px solid rgba(120,210,255,.55);
+  box-shadow:0 0 22px rgba(60,180,255,.35),inset 0 1px 0 rgba(255,255,255,.2);animation:wd86glow 3.2s ease-in-out infinite}
+#wd86-tgm .wd86-gb{font-weight:950;font-size:21px;color:#ffd75e;text-shadow:0 0 16px rgba(255,190,40,.5)}
+#wd86-tgm .wd86-gb small{display:block;font-size:9.5px;font-weight:800;color:#9fd8ff;letter-spacing:.06em}
+#wd86-tgm .wd86-copy{font-size:11.5px;line-height:2;color:#d7ecff;margin:0 2px 12px;text-align:right}
+#wd86-tgm .wd86-copy b{color:#ffd75e}
+#wd86-tgm .wd86-plane{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;border:0;cursor:pointer;
+  border-radius:14px;padding:12px;font-weight:950;font-size:13px;color:#fff;
+  background:linear-gradient(135deg,#2ba3e0,#1b6fa8);box-shadow:0 8px 22px rgba(30,140,220,.4),inset 0 1px 0 rgba(255,255,255,.25);
+  transition:transform .2s ease,box-shadow .2s ease,filter .2s ease}
+#wd86-tgm .wd86-plane:active{transform:scale(.97)}
+#wd86-tgm .wd86-plane:hover{filter:brightness(1.12);box-shadow:0 10px 26px rgba(30,150,235,.55),inset 0 1px 0 rgba(255,255,255,.3)}
+#wd86-tgm .wd86-plane svg{width:19px;height:19px;filter:drop-shadow(0 0 6px rgba(255,255,255,.5))}
+#wd86-tgm .wd86-plane.wd86-ok{background:linear-gradient(135deg,#2fae62,#187a41)}
+#wd86-tgm .wd86-note{font-size:9px;color:#8fb4d8;margin-top:9px;text-align:center}
+@media(prefers-reduced-motion:reduce){#wd86-gift,#wd86-gift::after,#wd86-tgm .wd86-tgic{animation:none!important}}
+</style>
+<script id="v86-js">
+/* ============ V86: آیکون پاداش تلگرام (۲۰ جم یک‌بارمصرف) + نظم نوار بالای نقشه ============ */
+(function(){
+'use strict';
+var D=document;
+/* ⬅️ تنها جای تغییر لینک: آدرس کانال تلگرام خودت را اینجا بگذار تا دکمه‌ی عضویت به آن برود */
+var TG_URL='https://t.me/world_dominion_ir';
+var TG_GEMS=20;
+var fa=function(n){return String(n).replace(/\d/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[d]})};
+var GIFT_SVG='<svg class="wd86-gic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8.4" width="18" height="4" rx="1" fill="#ffd75e"/><rect x="5" y="12.4" width="14" height="8.6" rx="1.5" fill="#ffb52e"/><rect x="10.7" y="8.4" width="2.6" height="12.6" fill="#8a5600" opacity=".5"/><path d="M12 8.4C8.6 8.4 6.8 7.1 6.8 5.5 6.8 4 8 3 9.4 3c1.8 0 2.6 2.2 2.6 5.4Zm0 0c3.4 0 5.2-1.3 5.2-2.9 0-1.5-1.2-2.5-2.6-2.5-1.8 0-2.6 2.2-2.6 5.4Z" fill="#ffe9a8"/></svg>';
+var PLANE_SVG='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.6 3.2 2.9 10.4c-1 .4-1 1.8.1 2.1l4.6 1.4 1.7 5.3c.3.9 1.4 1.1 2 .4l2.5-2.6 4.7 3.4c.8.6 1.9.2 2.1-.8l2.6-15.1c.2-1-.8-1.7-1.6-1.3ZM9.3 13.5l8.8-5.6c.3-.2.6.2.4.4l-7.2 6.7-.3 3-1.7-4.5Z" fill="#fff"/></svg>';
+var TG_HERO='<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M21.6 3.2 2.9 10.4c-1 .4-1 1.8.1 2.1l4.6 1.4 1.7 5.3c.3.9 1.4 1.1 2 .4l2.5-2.6 4.7 3.4c.8.6 1.9.2 2.1-.8l2.6-15.1c.2-1-.8-1.7-1.6-1.3ZM9.3 13.5l8.8-5.6c.3-.2.6.2.4.4l-7.2 6.7-.3 3-1.7-4.5Z" fill="#bfe6ff"/></svg>';
+
+function doneChip(){try{var g=D.getElementById('wd86-gift');if(g)g.classList.add('wd86-done')}catch(e){}}
+function updGem(n){try{GEMS=Number(n)||GEMS;var g=D.getElementById('hud-gem');if(g){if(window.WD39_GEM)window.WD39_GEM(g,GEMS);else g.textContent='💎 '+GEMS}}catch(e){}}
+
+/* نظم نوار بالا: حذف چیپ‌های کهنه/تکراری نسخه‌های قبل + ساخت چیپ پاداش (ترتیب با CSS order) */
+function tidy(){
+  var s=D.getElementById('hud-strip');if(!s)return;
+  ['hud-terr','hud-srv'].forEach(function(id){var e=D.getElementById(id);if(e&&e.parentNode===s)e.parentNode.removeChild(e)});
+  var g=D.getElementById('wd86-gift');
+  if(!g){g=D.createElement('div');g.id='wd86-gift';g.className='hchip';g.title='پاداش کانال تلگرام — '+fa(TG_GEMS)+' جم هدیه';
+    g.innerHTML=GIFT_SVG+'<b>پاداش</b><span class="wd86-tb">+'+fa(TG_GEMS)+'</span>';
+    g.addEventListener('click',openTg);s.appendChild(g)}
+  else if(g.parentNode!==s){s.appendChild(g)}
+  if(window.WD86_TG)doneChip();
+}
+
+/* مودال تلگرام */
+function openTg(){
+  var m=D.getElementById('wd86-tgm');
+  if(!m){m=D.createElement('div');m.id='wd86-tgm';m.className='modal';
+    m.innerHTML='<div class="modal-card wd86-tgc">'+
+      '<div class="modal-title-row"><span>🎁 پاداش کانال تلگرام</span><span class="close-modal" style="cursor:pointer;font-size:18px" onclick="this.closest(\'.modal\').classList.remove(\'active\')">✕</span></div>'+
+      '<div class="wd86-hero"><span class="wd86-tgic">'+TG_HERO+'</span><div class="wd86-gb">+'+fa(TG_GEMS)+' <small>جم هدیه</small></div></div>'+
+      '<p class="wd86-copy">فرمانده! اخبار فصل، رمزهای جم، نتایج المپیک و اعلان نبردهای بزرگ اول در کانال تلگرام منتشر می‌شود؛ جایی که بازیکن‌های حرفه‌ای از ترفندها و رویدادها زودتر از همه باخبر می‌شوند. اگر عضو نباشی، همیشه یک قدم از رقبا عقب‌تری. همین حالا عضو شو و <b>'+fa(TG_GEMS)+' جم هدیه</b> بگیر تا خزانه‌ات برای نبرد بعدی آماده باشد!</p>'+
+      '<button class="wd86-plane" id="wd86-go">'+PLANE_SVG+'<span>عضویت در کانال و دریافت '+fa(TG_GEMS)+' جم</span></button>'+
+      '<div class="wd86-note">پاداش فقط یک‌بار به هر حساب واریز می‌شود • عضویت چندثانیه‌ای است • آواتار و اسمت در بازی محفوظ است</div>'+
+      '</div>';
+    D.body.appendChild(m);
+    D.getElementById('wd86-go').addEventListener('click',claim);
+  }
+  try{var b=D.getElementById('wd86-go');if(b){b.classList.toggle('wd86-ok',!!window.WD86_TG);
+    b.querySelector('span').textContent=window.WD86_TG?'✅ پاداش قبلاً واریز شده — دوباره عضو شو!':'عضویت در کانال و دریافت '+fa(TG_GEMS)+' جم'}}catch(e){}
+  try{openModal('wd86-tgm')}catch(e){m.classList.add('active')}
+}
+
+/* واریز ۲۰ جم — سمت سرور یک‌بارمصرف است (tg_bonus) */
+var claiming=false;
+function claim(){
+  if(claiming)return;claiming=true;
+  try{var w=window.open(TG_URL,'_blank');if(w)w.opener=null}catch(e){}
+  try{
+    sb.rpc('tg_bonus').then(function(r){
+      claiming=false;var x=r&&r.data;
+      if(r&&r.error){showToast('❌ خطای سرور در واریز پاداش — دوباره امتحان کن','lose');return}
+      if(x&&x.ok){window.WD86_TG=true;doneChip();updGem(x.gems);
+        try{var b=D.getElementById('wd86-go');if(b){b.classList.add('wd86-ok');b.querySelector('span').textContent='🎉 واریز شد — خوش بيايي به کانال!'}}catch(e){}
+        showToast('🎉 تبریک! '+fa(TG_GEMS)+' جم هدیه‌ی عضویت به خزانه اضافه شد','win');
+        setTimeout(function(){try{D.getElementById('wd86-tgm').classList.remove('active')}catch(e){}},1400)}
+      else if(x&&x.error==='claimed'){window.WD86_TG=true;doneChip();showToast('⭐ پاداش تلگرام را قبلاً گرفته بودی','win')}
+      else showToast('❌ واریز نشد — اتصال را چک کن و دوباره امتحان کن','lose');
+    }).catch(function(){claiming=false;showToast('❌ اتصال به سرور برقرار نشد','lose')});
+  }catch(e){claiming=false}
+}
+
+/* همگام‌سازی وضعیت یک‌بارمصرف بودن از سرور (tg_bonus در پاسخ get_wallet) */
+function wd86Sync(){
+  try{
+    if(!sb||!ACC.uid)return;
+    sb.rpc('get_wallet').then(function(r){
+      var x=r&&r.data;
+      if(x&&x.ok){window.WD86_TG=!!x.tg_bonus;if(window.WD86_TG)doneChip()}
+    }).catch(function(){});
+  }catch(e){}
+}
+try{
+  var _lw=loadWallet;
+  loadWallet=async function(){var r=await _lw.apply(this,arguments);wd86Sync();return r};
+}catch(e){}
+
+var tries=0;
+function boot(){tries++;tidy();if(tries<14&&(D.readyState!=='complete'||!D.getElementById('wd86-gift')))setTimeout(boot,420)}
+if(D.readyState==='complete')boot();else{D.addEventListener('load',boot);setTimeout(boot,1200)}
+setTimeout(wd86Sync,3000);
+})();
+</script>
 </body>
 </html>
