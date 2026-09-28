@@ -2162,3 +2162,30 @@ Stage Summary:
 - المپیک حالا اکوسیستم رقابتی کامل است: ۳۶ رشته، شب فینال، هویت ورزشی، رقیب و چالش، رکوردهای ۷گانه، تالار افتخارات، ماموریت و توکن زینتی — همه server-authoritative و ضد P2W
 - نکته عملیاتی: تست‌های QA برای فاز شب فینال به OL_OFFSET نیاز دارند؛ بدون offset سری wd88/86 سبز می‌شوند (آتش‌بس مقدس PvP را می‌بندد)
 - گام بعدی پیشنهادی: تماشاچی زنده فینال روی نقشه، بازار شرط‌بندی ممنوع — ولی بین‌دوره‌ای "دعوت رقیب" از چت
+
+---
+Task ID: PUSH-V90
+Agent: Super Z (main)
+Task: V90 — رده‌بندی المپیکی و جفت‌یاب (OLYMPICS V2 §34-36) — آخرین حلقه‌ی مفقود سفارش Lead Game Systems Architect
+
+Work Log:
+- Audit قبل از کدنویسی: کشف باگ تولیدی — ۵ مدل V89 (OlympicAthlete/Mission/FinalAttempt/Hof/Challenge) + OlympicEntry.qual_best/finalist + Wallet.tg_bonus فقط در اسکیمای SQLite بودند و در schema.postgres.prisma غایب‌اند (بیلد Render می‌شکست) — هر ۳ فیکس شد؛ اسکریپت scripts/schema-diff.mjs برای همیشه نگه‌داری شد
+- DB: مدل جدید OlympicRating (rating/peak/games/wins، unique userId+discipline، index discipline+rating) در هر دو اسکیما — db push سبز
+- موتور رده‌بندی در olyProfile.ts (توابع خالص): RD_START=1200 بازه ۴۰۰..۲۶۰۰، ۵ پله (تازه‌کار/رو به رشد/رقابتی/نخبه/قهرمان با گیت games≥5)، perfRatingOf با همان REF نرمال‌سازی مهارت، ratingPerfStep (۹٪ فاصله، سقف +28/−22)، Elo کلاسیک ratingDuelStep (K=40 تازه‌واره → 24، سقف ±80)، overallRatingOf (میانگین وزنی با تجربه)
+- سه مسیر تغذیه در route.ts — همه سمت سرور: ۱) olyRatingPerf در olympic_submit فقط برای official (تمرین/ردشده صفر اثر) ۲) olyRatingDuel دوطرفه در تکمیل چالش (برد/باخت/تساوی از داوری سرور) ۳) olyRatingPodium (+40/+20/+10) در freezeDiscipline — هر دو مسیر فریز (فینال/مقدماتی)
+- رفع دوبارشماری (کشف QA): تلاشِ چالش قبلاً هم perf و هم Elo می‌گرفت → برای chal:* فقط Elo (یک رویداد = یک شمارش)
+- RPC جدید olympic_match: suggest + auto — پنجره‌ی بازشونده ±80→±160→±320→±640→هرکسی، امتیاز نزدیکی = |Δrating| + جریمه پله‌ی دوردست×45 (استخر هم‌پله §34)، بدون جم (§35)، rate 15s + سقف ۳ چالش باز + گارد dup؛ auto از همان مسیر olympic_challenge چالش می‌سازد (هیچ سیستم دوئل موازی‌ای وجود ندارد)؛ my_discs برای چیپ‌های UI
+- olympic_athlete بلوک rating گرفت: overall/tier/next_tier/next_at/peak/top-3 رشته‌ها
+- UI هاب: کارت «جفت‌یاب المپیکی» در تب رقیب (نشان پله، نوار پیشرفت تا پله بعد، چیپ رشته‌های رده‌دار، لیست پیشنهادها با دکمه چالش، دکمه «حریف هم‌رده پیدا کن (خودکار)») + خط رده در شناسنامه ورزشکار — RPC تنبل، CSS یک‌بار تزریق (v90-css)، صفر per-frame
+- نسخه: v.txt=90، beacon=90، ?v=90 ×3
+- QA: wd90-qa 32/32 صفر pageerror — با تله‌متری واقعی اسپرینت که داور v3Sprint می‌پذیرد (۸۵۰→۱۰۳۰)، تولد رده games=1 ر=۱۲۲۱، حرکت +28 تا سقف با نتیجه بهتر، تامپر no_alternation رد و رده دست‌نخورده، تمرین بی‌اثر، پیشنهاد نزدیک‌ترین حریف با gap/tier، auto→چالش واقعی، دوئل seed مشترک B برد، Elo برنده +20/بازنده −20 و games+1، شمارنده برد، باز شدن هاب از ورود واقعی، مونتاژ کارت جفت‌یاب/چیپ‌ها/خط رده در تب پروفایل
+- رگرسیون: wd88 35/35 (مقاوم‌سازی هارنس: چک هوایی supply حالا مالکیت سرزمین را برمی‌گرداند — فتح هدف در نبرد قبلی گیت را از ریشه غیرقابل‌رسیدن می‌کرد؛ flake قدیمی مستند)، wd87 26/26، wd86 21/22 (۱ مورد مستند قدیمی strip-order)، cv78 27/27، cv79 19/19، apk-sim 28/28، sw-selfheal 8/8، map-visual 16/16، lowfx 6/6، verify-build 9/9، check-html-js 87/0، tsc تمیز (src)
+- نکته عملیاتی: کش ۳۰s تست‌سرور (TST_CACHE) بین سوئیت‌های پشت‌سرهم تداخل می‌سازد — wd86 را بعد از ری‌استارت سرور تنها اجرا کنید؛ cv79 به سرور خودش روی 3210 نیاز دارد (WD_BASE بدهید)
+- push: 4cd1618 روی main + tag v90؛ Release id=398432496 + asset World-Dominion-OlympicRating-V90.zip = 2,115,080B (state=uploaded)؛ لینک‌ها 200؛ اسکن راز پاک؛ remote==local
+- اسکریپت‌های جدید با git add -f: wd90-qa.mjs، schema-diff.mjs، v90-look.mjs
+- شواهد: download/v90-rivals-{mobile,desktop}.png، v90-profile-*.png، v90-disc-*.png
+
+Stage Summary:
+- سفارش OLYMPICS V2 اکنون کامل است: ۳۶ رشته + شب فینال + هویت ورزشکار + رقیب و چالش + رکوردها + تالار + ماموریت + توکن + حالا رده‌بندی Elo و جفت‌یاب هم‌رده — همه server-authoritative و ضد P2W مطلق
+- باگ پنهان اسکیمای پستگرس (شکننده‌ی بیلد Render) قبل از انتشار فیکس شد
+- گام بعدی پیشنهادی: جدول برترین‌های رده‌بندی کلی (Top Rated) در تب رکوردها یا پروفایل + اعلان «پله عوض شد» با اولویت — داده‌ها آماده‌اند، فقط نمایش
