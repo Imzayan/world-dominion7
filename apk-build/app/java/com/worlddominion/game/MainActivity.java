@@ -4,12 +4,9 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.pm.PackageInstaller;
-import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -20,60 +17,47 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONObject;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.BufferedReader;
-import java.io.OutputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.security.MessageDigest;
 
 public class MainActivity extends Activity {
 
-    /* V49: پارامتر نسخه → WebView هرگز HTML قدیمی کش‌شده را سرو نمی‌کند */
-    private static final int GAME_VER = 53;
+    /* V91: آپدیت فقط از طریق مایکت (Myket Intent) — بدون دانلود/نصب مستقیم APK
+       WebView هرگز HTML قدیمی کش‌شده را سرو نمی‌کند (پارامتر نسخه) */
+    private static final int GAME_VER = 90;
     private static final String GAME_URL = "https://world-dominion7.vercel.app/game/index.html?v=" + GAME_VER;
     private static final String GAME_HOST = "world-dominion7.vercel.app";
     private static final String ERROR_URL = "file:///android_asset/error.html";
 
-    /* V49: آپدیت خودکار مستقیم — versionCode دیگر هاردکد نیست، از خود پکیج خوانده می‌شود */
+    /* latest.json فقط برای «اطلاع نسخه» خوانده می‌شود؛ فیلد url آن هرگز دانلود نمی‌شود */
     private static final String UPDATE_JSON = "https://world-dominion7.vercel.app/apk/latest.json";
-    private static final String ACTION_INSTALL_STATUS = "com.worlddominion.game.INSTALL_STATUS";
     private static final long RECHECK_MS = 15 * 60 * 1000; /* هر ۱۵ دقیقه دوباره چک */
+
+    /* PHASE 4: آدرس صفحه‌ی برنامه در مایکت — پس از انتشار، مقدار واقعی جایگزین شود.
+       تا زمانی که placeholder است، مسیر پشتیبان مرورگر غیرفعال و فقط پیام راهنما نمایش داده می‌شود. */
+    private static final String MYKET_APP_URL = "REPLACE_WITH_REAL_MYKET_APP_URL";
+    /* پکیج رسمی اپلیکیشن مایکت — مطابق مستندات رسمی Myket Intents */
+    private static final String MYKET_PKG = "ir.mservices.market";
 
     private WebView web;
     private FrameLayout root;
     private boolean errored = false;
 
-    /* V49: وضعیت آپدیت‌کننده */
+    /* وضعیت چک‌کننده‌ی نسخه */
     private boolean checking = false;
-    private boolean downloading = false;
-    private boolean progressCanceled = false;
-    private File pendingApk = null;      /* فقط برای ادامه‌ی نصب بعد از گرفتن اجازه */
-    private File lastDownloadedApk = null;
-    private String lastUpdateUrl = null;
-    private int lastUpdateVc = 0;
-
-    private AlertDialog progressDlg = null;
-    private ProgressBar progressPb = null;
-    private TextView progressTv = null;
+    private boolean updateDlgShown = false;
+    private int dismissedVc = 0; /* اگر کاربر «ادامه» زد، برای همین نسخه دوباره پرسیده نمی‌شود */
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-        handleInstallStatus(getIntent());
 
         root = new FrameLayout(this);
         web = createWebView();
@@ -151,12 +135,13 @@ public class MainActivity extends Activity {
         return w;
     }
 
-    /* ============ V49: آپدیت خودکار مستقیم روی APK ============
-       ۱) latest.json چک می‌شود (versionCode از خودِ پکیج نصب‌شده خوانده می‌شود — دیگر هرگز جعلی نیست)
-       ۲) اگر نسخه‌ی جدید باشد: بدون هیچ سؤالی، APK در پس‌زمینه دانلود می‌شود (با درصد پیشرفت فارسی)
-       ۳) تمام‌شدن دانلود → نصب با PackageInstaller (فقط تایید سیستم اندروید، بدون مرورگر)
-       ۴) اگر کاربر پنجره‌ی پیشرفت را ببندد، دانلود بی‌صدا ادامه می‌یابد و آخرش پرسش کوچک نصب می‌آید
-       ۵) sha256 از latest.json اعتبارسنجی می‌شود تا APK خراب نصب نشود                       */
+    /* ============ V91: آپدیت فقط از طریق مایکت ============
+       ۱) versionCode از خود پکیج نصب‌شده خوانده می‌شود (هرگز جعلی نیست)
+       ۲) latest.json فقط برای اطلاع نسخه — هیچ APKای دانلود یا نصب نمی‌شود
+       ۳) نسخه‌ی جدید → دیالوغ غیرمسدودکننده: [به‌روزرسانی از مایکت] [ادامه]
+       ۴) دکمه‌ی مایکت → Intent رسمی myket://application?id=<package>
+       ۵) مایکت نصب نبود → مرورگر (اگر آدرس واقعی صفحه تنظیم شده باشد) یا پیام راهنما
+       ۶) هر خطا (شبکه/۴۰۴/JSON/timeout) → بی‌صدا؛ بازی هرگز قفل نمی‌شود            */
 
     private int currentVc() {
         try {
@@ -167,7 +152,7 @@ public class MainActivity extends Activity {
     }
 
     private void checkUpdate() {
-        if (errored || checking || downloading) { scheduleNext(); return; }
+        if (errored || checking) { scheduleNext(); return; }
         checking = true;
         final int curVc = currentVc();
         new Thread(new Runnable() {
@@ -179,7 +164,7 @@ public class MainActivity extends Activity {
                     c.setReadTimeout(8000);
                     c.setRequestProperty("Cache-Control", "no-cache");
                     int code = c.getResponseCode();
-                    if (code != 200) { checking = false; scheduleNext(); return; }
+                    if (code != 200) throw new Exception("http " + code);
                     BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
                     StringBuilder sb = new StringBuilder();
                     String line;
@@ -187,61 +172,17 @@ public class MainActivity extends Activity {
                     r.close();
                     JSONObject o = new JSONObject(sb.toString());
                     final int vc = o.optInt("versionCode", 0);
-                    final String url = o.optString("url", "");
-                    final String sha = o.optString("sha256", "");
-                    checking = false;
-                    if (vc <= curVc || url.length() == 0) { scheduleNext(); return; }
-
-                    lastUpdateUrl = url;
-                    lastUpdateVc = vc;
-
-                    /* اگر APK همین نسخه قبلاً دانلود شده → مستقیم برو سراغ نصب */
-                    File ready = updateFile(vc);
-                    if (ready != null && ready.exists() && ready.length() > 1024) {
-                        lastDownloadedApk = ready;
+                    /* فقط وقتی نسخه‌ی سروِ جدیدتر از نصب‌شده است دیالوغ بیاید (PHASE 16/17) */
+                    if (vc > curVc && vc != dismissedVc) {
                         runOnUiThread(new Runnable() {
                             @Override
-                            public void run() { installApk(); }
+                            public void run() { showUpdateDialog(vc); }
                         });
-                        return;
                     }
-
-                    /* آپدیت جدید → بدون سؤال، دانلود خودکار */
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                if (isFinishing()) return;
-                                progressCanceled = false;
-                                LinearLayout box = new LinearLayout(MainActivity.this);
-                                box.setOrientation(LinearLayout.VERTICAL);
-                                int p = (int) (18 * getResources().getDisplayMetrics().density);
-                                box.setPadding(p, p, p, p);
-                                progressPb = new ProgressBar(MainActivity.this, null, android.R.attr.progressBarStyleHorizontal);
-                                progressPb.setMax(100);
-                                progressTv = new TextView(MainActivity.this);
-                                progressTv.setText("در حال آماده‌سازی… " + faNum(0) + "٪");
-                                box.addView(progressPb, new LinearLayout.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-                                box.addView(progressTv);
-                                progressDlg = new AlertDialog.Builder(MainActivity.this)
-                                        .setTitle("⬆️ به‌روزرسانی خودکار")
-                                        .setMessage("نسخه‌ی جدید بازی (v" + lastUpdateVc + ") در حال دریافت است — بعد از دانلود، خودش نصب می‌شود.")
-                                        .setView(box)
-                                        .setCancelable(true)
-                                        .create();
-                                progressDlg.setOnCancelListener(new DialogInterface.OnCancelListener() {
-                                    @Override
-                                    public void onCancel(DialogInterface d) {
-                                        progressCanceled = true; /* دانلود بی‌صدا ادامه می‌یابد */
-                                    }
-                                });
-                                progressDlg.show();
-                            } catch (Exception ignored) { }
-                        }
-                    });
-                    downloadApk(url, vc, sha);
                 } catch (Exception e) {
+                    /* PHASE 13/14: آفلاین/خطا → بی‌صدا ادامه؛ هیچ‌چیز دانلود یا نصب نمی‌شود */
+                    Log.w("WD-Update", "update check skipped: " + e.getClass().getSimpleName());
+                } finally {
                     checking = false;
                     scheduleNext();
                 }
@@ -249,159 +190,59 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private void downloadApk(final String url, final int vc, final String sha) {
-        downloading = true;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                boolean ok = false;
-                try {
-                    File dir = getExternalFilesDir(null);
-                    if (dir == null) dir = getFilesDir();
-                    File[] olds = dir.listFiles();
-                    if (olds != null) {
-                        for (File f2 : olds) {
-                            if (f2.getName().startsWith("wd_update_")) f2.delete();
-                        }
-                    }
-                    final File out = new File(dir, "wd_update_" + vc + ".apk");
-                    HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-                    c.setConnectTimeout(15000);
-                    c.setReadTimeout(30000);
-                    c.setRequestProperty("Cache-Control", "no-cache");
-                    c.connect();
-                    int len = c.getContentLength();
-                    InputStream in = c.getInputStream();
-                    FileOutputStream fo = new FileOutputStream(out);
-                    byte[] b = new byte[65536];
-                    int n;
-                    long tot = 0;
-                    int lastP = -10;
-                    while ((n = in.read(b)) > 0) {
-                        fo.write(b, 0, n);
-                        tot += n;
-                        if (len > 0) {
-                            final int pct = (int) (tot * 100 / len);
-                            if (pct - lastP >= 5) {
-                                lastP = pct;
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() { uiProgress(pct); }
-                                });
-                            }
-                        }
-                    }
-                    fo.close();
-                    in.close();
-                    if (len > 0 && out.length() != len) throw new Exception("incomplete");
-                    if (sha != null && sha.length() == 64 && !sha.equalsIgnoreCase(sha256(out))) {
-                        out.delete();
-                        throw new Exception("hash mismatch");
-                    }
-                    ok = true;
-                    lastDownloadedApk = out;
-                } catch (Exception e) {
-                    ok = false;
-                }
-                downloading = false;
-                final boolean ok2 = ok;
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        dismissProgress();
-                        if (!isFinishing() && ok2) {
-                            if (progressCanceled) {
-                                /* کاربر پنجره را بسته بود → فقط یک پرسش کوچک نصب */
-                                try {
-                                    new AlertDialog.Builder(MainActivity.this)
-                                            .setTitle("⬆️ آپدیت آماده است")
-                                            .setMessage("نسخه‌ی جدید (v" + lastUpdateVc + ") دانلود شد. نصب کنم؟")
-                                            .setPositiveButton(" نصب ", new DialogInterface.OnClickListener() {
-                                                @Override
-                                                public void onClick(DialogInterface d, int w) { installApk(); }
-                                            })
-                                            .setNegativeButton("بعداً", null)
-                                            .show();
-                                } catch (Exception ignored) { }
-                            } else {
-                                installApk(); /* مستقیم — بدون سؤال */
-                            }
-                        } else if (!isFinishing() && !ok2) {
-                            toast("⚠️ دانلود آپدیت ناموفق بود — دفعه‌ی بعد دوباره تلاش می‌شود");
-                        }
-                    }
-                });
-            }
-        }).start();
-    }
-
-    private void installApk() {
-        File apk = (pendingApk != null) ? pendingApk : lastDownloadedApk;
-        if (apk == null || !apk.exists() || apk.length() < 1024) return;
-        pendingApk = null;
+    /* PHASE 6/7: دیالوغ غیرمسدودکننده — داور مایکت همیشه می‌تواند وارد بازی شود */
+    private void showUpdateDialog(final int vc) {
         try {
-            /* اندروید ۸+: اگر اجازه‌ی «نصب از منبع ناشناس» برای بازی نیست، اول همان صفحه باز می‌شود */
-            if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
-                pendingApk = apk; /* بعد از گرفتن اجازه، onResume ادامه می‌دهد */
-                try {
-                    startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                            Uri.parse("package:" + getPackageName())));
-                } catch (Exception e) {
-                    try { startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)); } catch (Exception ig) { }
-                }
-                return; /* بعد از برگشت، onResume دوباره نصب را ادامه می‌دهد */
-            }
-            PackageInstaller pi = getPackageManager().getPackageInstaller();
-            PackageInstaller.SessionParams sp =
-                    new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
-            int id = pi.createSession(sp);
-            PackageInstaller.Session ss = pi.openSession(id);
-            OutputStream os = ss.openWrite("wd_update", 0, apk.length());
-            FileInputStream fi = new FileInputStream(apk);
-            byte[] b = new byte[65536];
-            int n;
-            while ((n = fi.read(b)) > 0) os.write(b, 0, n);
-            fi.close();
-            ss.fsync(os);
-            os.close();
-            Intent it = new Intent(this, MainActivity.class);
-            it.setAction(ACTION_INSTALL_STATUS);
-            int pflags = PendingIntent_FLAG_UPDATE_MUTABLE();
-            android.app.PendingIntent ppt = android.app.PendingIntent.getActivity(this, 1001, it, pflags);
-            ss.commit(ppt.getIntentSender());
-            ss.close();
-            toast("📦 در حال نصب نسخه‌ی جدید…");
+            if (isFinishing() || updateDlgShown) return;
+            updateDlgShown = true;
+            new AlertDialog.Builder(this)
+                    .setTitle("🔄 به‌روزرسانی در دسترس است")
+                    .setMessage("نسخه‌ی جدیدی از ورلد دامین (v" + faNum(vc) + ") منتشر شده است.\nبرای به‌روزرسانی بازی، از طریق مایکت ادامه دهید.")
+                    .setCancelable(true)
+                    .setPositiveButton(" به‌روزرسانی از مایکت ", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface d, int w) { openMyket(); }
+                    })
+                    .setNegativeButton(" ادامه ", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface d, int w) { dismissedVc = vc; }
+                    })
+                    .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                        @Override
+                        public void onCancel(DialogInterface d) { dismissedVc = vc; }
+                    })
+                    .setOnDismissListener(new DialogInterface.OnDismissListener() {
+                        @Override
+                        public void onDismiss(DialogInterface d) { updateDlgShown = false; }
+                    })
+                    .show();
         } catch (Exception e) {
-            /* fallback: باز کردن لینک در مرورگر مثل قبل */
-            if (lastUpdateUrl != null) {
-                try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(lastUpdateUrl))); } catch (Exception ignored) { }
-            }
+            updateDlgShown = false;
         }
     }
 
-    private static int PendingIntent_FLAG_UPDATE_MUTABLE() {
-        int f = android.app.PendingIntent.FLAG_UPDATE_CURRENT;
-        if (Build.VERSION.SDK_INT >= 31) f |= 0x02000000; /* FLAG_MUTABLE — برای PackageInstaller لازم است */
-        return f;
-    }
-
-    private void handleInstallStatus(Intent i) {
+    /* PHASE 5/15: باز کردن صفحه‌ی برنامه در مایکت — مطابق مستندات رسمی
+       https://myket.ir/kb/topics/using-myket-intents/ */
+    private void openMyket() {
+        /* ۱) Intent رسمی مایکت: myket://application?id=<package> — فقط اپ مایکت آن را می‌گیرد */
         try {
-            if (i == null || !ACTION_INSTALL_STATUS.equals(i.getAction())) return;
-            int st = i.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
-            if (st == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-                Intent conf = (Intent) i.getParcelableExtra(Intent.EXTRA_INTENT);
-                if (conf != null) {
-                    conf.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    try { startActivity(conf); } catch (Exception ignored) { }
-                }
-            } else if (st == PackageInstaller.STATUS_SUCCESS) {
-                toast("✅ آپدیت نصب شد — بازی به‌روز است");
-                if (lastDownloadedApk != null) try { lastDownloadedApk.delete(); } catch (Exception ignored) { }
-                lastDownloadedApk = null;
-                pendingApk = null;
-            }
-        } catch (Exception ignored) { }
+            Intent it = new Intent(Intent.ACTION_VIEW);
+            it.setData(Uri.parse("myket://application?id=" + getPackageName()));
+            it.setPackage(MYKET_PKG);
+            startActivity(it);
+            return;
+        } catch (Exception e) {
+            /* مایکت نصب نیست یا Intent حل نشد */
+        }
+        /* ۲) پشتیبان امن: صفحه‌ی وب برنامه در مایکت — فقط اگر آدرس واقعی تنظیم شده باشد */
+        if (MYKET_APP_URL.startsWith("http://") || MYKET_APP_URL.startsWith("https://")) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(MYKET_APP_URL)));
+                return;
+            } catch (Exception ignored) { }
+        }
+        /* ۳) هیچ مسیری ممکن نبود → راهنما؛ کاربر هرگز گیر نمی‌افتد */
+        toast("برای بروزرسانی، صفحه‌ی World Dominion در مایکت را باز کنید.");
     }
 
     private void scheduleNext() {
@@ -415,30 +256,6 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) { }
     }
 
-    private File updateFile(int vc) {
-        try {
-            File dir = getExternalFilesDir(null);
-            if (dir == null) dir = getFilesDir();
-            return new File(dir, "wd_update_" + vc + ".apk");
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private void uiProgress(int pct) {
-        try {
-            if (progressPb != null) progressPb.setProgress(pct);
-            if (progressTv != null) progressTv.setText("در حال دانلود… " + faNum(pct) + "٪");
-        } catch (Exception ignored) { }
-    }
-
-    private void dismissProgress() {
-        try {
-            if (progressDlg != null && progressDlg.isShowing()) progressDlg.dismiss();
-        } catch (Exception ignored) { }
-        progressDlg = null;
-    }
-
     private static String faNum(int n) {
         String s = String.valueOf(n);
         StringBuilder b = new StringBuilder();
@@ -447,18 +264,6 @@ public class MainActivity extends Activity {
             else b.append(c);
         }
         return b.toString();
-    }
-
-    private static String sha256(File f) throws Exception {
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        FileInputStream in = new FileInputStream(f);
-        byte[] b = new byte[65536];
-        int n;
-        while ((n = in.read(b)) > 0) md.update(b, 0, n);
-        in.close();
-        StringBuilder sb = new StringBuilder();
-        for (byte x : md.digest()) sb.append(String.format("%02x", x));
-        return sb.toString();
     }
 
     private void toast(String msg) {
@@ -509,26 +314,6 @@ public class MainActivity extends Activity {
         super.onResume();
         web.onResume();
         immersive();
-        maybeResumeInstall();
-    }
-
-    /* اگر کاربر اجازه‌ی «نصب از منبع ناشناس» را در تنظیمات داد، نصبِ معلق را ادامه بده */
-    private void maybeResumeInstall() {
-        if (Build.VERSION.SDK_INT < 26 || pendingApk == null) return;
-        try {
-            if (getPackageManager().canRequestPackageInstalls()) {
-                final File f = pendingApk;
-                pendingApk = null;
-                web.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        pendingApk = f;
-                        installApk();
-                        pendingApk = null; /* فقط یک تلاش در هر برگشت — بدون حلقه */
-                    }
-                }, 800);
-            }
-        } catch (Exception ignored) { pendingApk = null; }
     }
 
     @Override
