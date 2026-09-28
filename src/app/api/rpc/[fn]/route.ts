@@ -1993,53 +1993,68 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({ ok: true, granted, denied, lost, gone, truce, mine: mineRows.map((r) => ({ country: r.country, is_capital: r.isCapital })) })
       }
 
-      /* ---------------- V86 — حالت عرضه‌ی مایکت: ریست کامل جهان (فقط ادمین) ----------------
-         همه‌چیز صفر: رکوردها، قلمروها، المپیک و مدال‌ها، چت/اخبار، دوئل/انتخابات/اتحاد/پاس فصل.
+      /* ---------------- V86/V87 — حالت عرضه‌ی مایکت: ریست کامل جهان (فقط ادمین) ----------------
+         همه‌چیز صفر: رکوردها، سیوها، قلمروها، المپیک و مدال‌ها، چت/اخبار، دوئل/انتخابات/اتحاد/پاس فصل.
          حفظ می‌شود: حساب‌ها، جم/والت، انبار خریدهای پرداخت‌شده (ShopInventory/Purchase)، نشست‌ها.
+         V87: جدول‌به‌جدول با گارد خطا — شکست یک جدول کل ریست را نمی‌شکند و آمار واقعی برمی‌گردد.
          در پایان wd_test_srvs=[] ⇒ همه از سرور ۱ با نقشه‌ی خالی شروع می‌کنند. */
       case 'admin_launch_reset': {
         if (!user.isAdmin) return R(null)
         try { await ensureGamesClosed() } catch (e) { console.log('olclose-launch', e) }
-        await db.territory.deleteMany({})
-        await db.score.deleteMany({})
-        await db.serverStat.deleteMany({})
-        await db.worldChat.deleteMany({})
-        await db.worldNews.deleteMany({})
-        await db.duelBet.deleteMany({})
-        await db.duel.deleteMany({})
-        await db.revengeMark.deleteMany({})
-        await db.battleLog.deleteMany({})
-        await db.electionVote.deleteMany({})
-        await db.electionCandidate.deleteMany({})
-        await db.electionWinner.deleteMany({})
-        await db.mentorOffer.deleteMany({})
-        await db.mentorLink.deleteMany({})
-        await db.allianceMember.deleteMany({})
-        await db.alliance.deleteMany({})
-        await db.hofTitle.deleteMany({})
-        await db.dailyStreak.deleteMany({})
-        await db.weeklyClaim.deleteMany({})
-        await db.specialUse.deleteMany({})
-        await db.tradeOffer.deleteMany({})
-        await db.cvBuilding.deleteMany({})
-        await db.cvCountry.deleteMany({})
-        await db.olympicResult.deleteMany({})
-        await db.olympicSuspicious.deleteMany({})
-        await db.olympicMatch.deleteMany({})
-        await db.olympicEntry.deleteMany({})
-        await db.olympicAchieve.deleteMany({})
-        await db.olympicRecord.deleteMany({})
-        await db.olympicProfile.deleteMany({})
-        await db.olympicRivalry.deleteMany({})
-        await db.olympicChampion.deleteMany({})
-        await db.olympicArchive.deleteMany({})
-        await db.seasonPass.deleteMany({})
-        await db.gameSetting.deleteMany({ where: { OR: [
-          { key: { startsWith: 'wd33' } }, { key: { startsWith: 'wdol' } }, { key: { startsWith: 'oly' } },
-          { key: { startsWith: 'wd_ops_eff' } }, { key: 'doom_v43' }, { key: TEST_SRV_KEY },
-        ] } })
-        await testSrvsSet([]) /* ⇒ همه از سرور ۱ صفر شروع می‌کنند */
-        return R({ ok: true })
+        const wipeList: Array<[string, () => Promise<unknown>]> = [
+          ['territory', () => db.territory.deleteMany({})],
+          ['score', () => db.score.deleteMany({})],
+          ['save', () => db.save.deleteMany({})], /* V87: سیوها هم صفر — شروع واقعی از اول */
+          ['serverStat', () => db.serverStat.deleteMany({})],
+          ['worldChat', () => db.worldChat.deleteMany({})],
+          ['worldNews', () => db.worldNews.deleteMany({})],
+          ['duelBet', () => db.duelBet.deleteMany({})],
+          ['duel', () => db.duel.deleteMany({})],
+          ['revengeMark', () => db.revengeMark.deleteMany({})],
+          ['battleLog', () => db.battleLog.deleteMany({})],
+          ['electionVote', () => db.electionVote.deleteMany({})],
+          ['electionCandidate', () => db.electionCandidate.deleteMany({})],
+          ['electionWinner', () => db.electionWinner.deleteMany({})],
+          ['mentorOffer', () => db.mentorOffer.deleteMany({})],
+          ['mentorLink', () => db.mentorLink.deleteMany({})],
+          ['allianceMember', () => db.allianceMember.deleteMany({})],
+          ['alliance', () => db.alliance.deleteMany({})],
+          ['hofTitle', () => db.hofTitle.deleteMany({})],
+          ['adminGrant', () => db.adminGrant.deleteMany({})], /* V87: هدیه‌های قدیمی ادمین هم پاک */
+          ['dailyStreak', () => db.dailyStreak.deleteMany({})],
+          ['weeklyClaim', () => db.weeklyClaim.deleteMany({})],
+          ['specialUse', () => db.specialUse.deleteMany({})],
+          ['tradeOffer', () => db.tradeOffer.deleteMany({})],
+          ['cvBuilding', () => db.cvBuilding.deleteMany({})],
+          ['cvCountry', () => db.cvCountry.deleteMany({})],
+          ['olympicResult', () => db.olympicResult.deleteMany({})],
+          ['olympicSuspicious', () => db.olympicSuspicious.deleteMany({})],
+          ['olympicMatch', () => db.olympicMatch.deleteMany({})],
+          ['olympicEntry', () => db.olympicEntry.deleteMany({})],
+          ['olympicAchieve', () => db.olympicAchieve.deleteMany({})],
+          ['olympicRecord', () => db.olympicRecord.deleteMany({})],
+          ['olympicProfile', () => db.olympicProfile.deleteMany({})],
+          ['olympicRivalry', () => db.olympicRivalry.deleteMany({})],
+          ['olympicChampion', () => db.olympicChampion.deleteMany({})],
+          ['olympicArchive', () => db.olympicArchive.deleteMany({})],
+          ['seasonPass', () => db.seasonPass.deleteMany({})],
+        ]
+        const wiped: Record<string, number> = {}
+        const failed: string[] = []
+        for (const [name, run] of wipeList) {
+          try {
+            const r = await run()
+            wiped[name] = (r as { count?: number })?.count ?? 0
+          } catch (e) { failed.push(name); console.log('launch-reset', name, e) }
+        }
+        try {
+          await db.gameSetting.deleteMany({ where: { OR: [
+            { key: { startsWith: 'wd33' } }, { key: { startsWith: 'wdol' } }, { key: { startsWith: 'oly' } },
+            { key: { startsWith: 'wd_ops_eff' } }, { key: 'doom_v43' }, { key: TEST_SRV_KEY },
+          ] } })
+        } catch (e) { console.log('launch-reset settings', e) }
+        try { await testSrvsSet([]) } catch (e) { console.log('launch-reset testsrv', e) } /* ⇒ همه از سرور ۱ صفر شروع می‌کنند */
+        return R({ ok: true, wiped, failed })
       }
 
       /* ---------------- V54 special ops (server-enforced limits) ----------------

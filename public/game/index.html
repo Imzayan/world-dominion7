@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=86;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=86"></script>
+  <script>window.__WD_V=87;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=87"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -14953,21 +14953,38 @@ function ensureAdminBox(){
     if(!D.getElementById('wd86-launch')){
       var lb=D.createElement('div');lb.id='wd86-launch';
       lb.style.cssText='margin-top:12px;padding:11px 12px;border:1px solid rgba(255,120,90,.45);border-radius:14px;background:linear-gradient(150deg,rgba(50,14,8,.9),rgba(28,8,6,.92))';
-      lb.innerHTML='<div class="wd53-ph" style="color:#ffb59e">🚀 حالت عرضه‌ی مایکت (V86)</div>'+
-        '<p style="font-size:10px;color:#e8c9bd;line-height:1.9;margin:5px 0 9px">همه‌چیز صفر می‌شود: رکوردها، قلمروها، المپیک و مدال‌ها، چت و اخبار و دوئل‌ها. جم‌ها و خریدهای پرداخت‌شده‌ی بازیکن‌ها حفظ می‌شود. بعد از این، همه از سرور ۱ با نقشه‌ی خالی شروع می‌کنند و سرور تستی باز می‌شود.</p>'+
+      lb.innerHTML='<div class="wd53-ph" style="color:#ffb59e">🚀 حالت عرضه‌ی مایکت (V87)</div>'+
+        '<p style="font-size:10px;color:#e8c9bd;line-height:1.9;margin:5px 0 9px">همه‌چیز صفر می‌شود: رکوردها، سیوها، قلمروها، المپیک و مدال‌ها، چت و اخبار و دوئل‌ها. حساب‌ها، جم‌ها و خریدهای پرداخت‌شده‌ی بازیکن‌ها حفظ می‌شود. بعد از این، همه از سرور ۱ با نقشه‌ی خالی شروع می‌کنند و سرور تستی باز می‌شود.</p>'+
         '<button class="action-btn btn-red" id="wd86-goreset">🚀 ریست کامل برای عرضه‌ی مایکت</button>';
       b.appendChild(lb);
       var gr=lb.querySelector('#wd86-goreset');
+      /* V87: تأیید دومرحله‌ای درون‌بازی — window.confirm در وب‌ویو/آی‌فریم بی‌صدا رد می‌شود و
+         دکمه «کار نمی‌کند» به نظر می‌رسید؛ حالا با دو ضربه و بدون دیالوگ سیستمی اجرا می‌شود */
+      var armed=false,armT=null;
+      var disarm=function(){armed=false;gr.classList.remove('wd87-armed');
+        if(armT){clearTimeout(armT);armT=null}
+        gr.textContent='🚀 ریست کامل برای عرضه‌ی مایکت'};
       gr.addEventListener('click',function(){
         if(gr.disabled)return;
-        if(!window.confirm('مطمئنی؟ کل جهان صفر می‌شود (رکوردها/المپیک/مدال‌ها/قلمروها) و قابل برگشت نیست!'))return;
+        if(!armed){armed=true;gr.classList.add('wd87-armed');
+          gr.textContent='⚠️ کل جهان صفر می‌شود — برای اجرای نهایی دوباره بزن';
+          if(armT)clearTimeout(armT);
+          armT=setTimeout(disarm,4600);return}
+        if(armT){clearTimeout(armT);armT=null}
+        armed=false;gr.classList.remove('wd87-armed');
         gr.disabled=true;
+        gr.textContent='⏳ در حال صفر کردن جهان… چند لحظه صبر کن';
         sb.rpc('admin_launch_reset').then(function(r){
-          gr.disabled=false;var x=r&&r.data;
+          gr.disabled=false;disarm();
+          var x=r&&r.data;
           if((r&&r.error)||!x||!x.ok){showToast('❌ ریست انجام نشد — حساب تو ادمین شناخته نشد یا خطای سرور','lose');return}
-          showToast('🚀 حالت عرضه‌ی مایکت فعال شد — همه از سرور ۱ شروع می‌کنند','win');
-          setTimeout(function(){try{location.reload()}catch(e){}},1700);
-        }).catch(function(){gr.disabled=false;showToast('❌ اتصال به سرور برقرار نشد','lose')});
+          var w=x.wiped||{},sum=[];
+          if(w.territory!=null)sum.push(faN(w.territory)+' قلمرو');
+          if(w.score!=null)sum.push(faN(w.score)+' رکورد');
+          if(w.save!=null)sum.push(faN(w.save)+' سیو');
+          showToast('🚀 ریست کامل شد'+(sum.length?' ('+sum.join('، ')+' صفر شد)':'')+' — حالا همه از سرور ۱ با نقشه‌ی خالی شروع می‌کنند','win');
+          setTimeout(function(){try{location.reload()}catch(e){}},2100);
+        }).catch(function(){gr.disabled=false;disarm();showToast('❌ اتصال به سرور برقرار نشد','lose')});
       });
     }
     if(D.getElementById('wd53-olybox'))return;
@@ -16768,7 +16785,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=86';
+              s.src='/game/cv-engine.js?v=87';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -16779,7 +16796,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=86"></script>
+<script src="/game/oly3.js?v=87"></script>
 <style id="v85-css">
 /* ============ V85: پریمیوم شاپ جم — قاب طلایی لوکس، صفر هزینه‌ی per-frame ============ */
 .wd66-pack{position:relative;overflow:hidden;
@@ -16856,8 +16873,8 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
 (function(){
 'use strict';
 var D=document;
-/* ⬅️ تنها جای تغییر لینک: آدرس کانال تلگرام خودت را اینجا بگذار تا دکمه‌ی عضویت به آن برود */
-var TG_URL='https://t.me/world_dominion_ir';
+/* ⬅️ لینک رسمی کانال تلگرام (V87 — آدرس واقعی کانال) */
+var TG_URL='https://t.me/worlddaminion';
 var TG_GEMS=20;
 var fa=function(n){return String(n).replace(/\d/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[d]})};
 var GIFT_SVG='<svg class="wd86-gic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8.4" width="18" height="4" rx="1" fill="#ffd75e"/><rect x="5" y="12.4" width="14" height="8.6" rx="1.5" fill="#ffb52e"/><rect x="10.7" y="8.4" width="2.6" height="12.6" fill="#8a5600" opacity=".5"/><path d="M12 8.4C8.6 8.4 6.8 7.1 6.8 5.5 6.8 4 8 3 9.4 3c1.8 0 2.6 2.2 2.6 5.4Zm0 0c3.4 0 5.2-1.3 5.2-2.9 0-1.5-1.2-2.5-2.6-2.5-1.8 0-2.6 2.2-2.6 5.4Z" fill="#ffe9a8"/></svg>';
@@ -16936,6 +16953,192 @@ var tries=0;
 function boot(){tries++;tidy();if(tries<14&&(D.readyState!=='complete'||!D.getElementById('wd86-gift')))setTimeout(boot,420)}
 if(D.readyState==='complete')boot();else{D.addEventListener('load',boot);setTimeout(boot,1200)}
 setTimeout(wd86Sync,3000);
+})();
+</script>
+<style id="v87-css">
+/* ============ V87: داک آیکون‌های بالای نقشه — شیشه‌ای، ناز، درخشان (همه CSS؛ صفر هزینه‌ی per-frame) ============ */
+/* چیپ‌های متنی کهنه‌ی نسخه‌های قبل مخفی می‌شوند — داک جدید جای همه را می‌گیرد */
+#hud-strip>.hchip,#hud-strip>#hud-srv2{display:none!important}
+#hud-strip{top:78px!important;right:10px!important;left:auto!important;gap:0!important;max-width:none!important;overflow:visible!important}
+#wd87dock{display:flex;gap:8px;align-items:center;direction:ltr;padding:6px 8px;border-radius:99px;
+  background:linear-gradient(160deg,rgba(10,26,48,.72),rgba(4,10,22,.8));
+  border:1px solid rgba(120,190,255,.22);
+  box-shadow:0 8px 26px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.09);
+  backdrop-filter:blur(9px) saturate(1.3);-webkit-backdrop-filter:blur(9px) saturate(1.3);
+  opacity:0;transform:translateY(-10px) scale(.96);
+  transition:opacity .55s ease,transform .55s cubic-bezier(.22,1,.36,1)}
+#wd87dock.wd87-in{opacity:1;transform:none}
+/* دکمه‌های دایره‌ای — هر کدام رنگ و هاله‌ی خودش */
+.wd87-ic{position:relative;width:40px;height:40px;margin:0;border-radius:50%;flex:0 0 auto;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent;
+  border:1px solid var(--a3,rgba(124,199,255,.55));
+  background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.14),transparent 55%),linear-gradient(165deg,var(--g1,rgba(22,46,80,.95)),var(--g2,rgba(6,14,30,.97)));
+  box-shadow:0 4px 12px rgba(0,0,0,.45),0 0 11px var(--glow,rgba(90,180,255,.3)),inset 0 1px 0 rgba(255,255,255,.16);
+  transition:transform .2s cubic-bezier(.22,1,.36,1),box-shadow .25s ease,filter .25s ease}
+.wd87-ic svg{width:20px;height:20px;pointer-events:none;filter:drop-shadow(0 0 6px var(--icg,rgba(130,205,255,.8)))}
+.wd87-ic:hover{filter:brightness(1.16)}
+.wd87-ic:active{transform:scale(.86)}
+/* نفس‌کشیدن درخشش + پاپ ورودی پلکانی (ناز!) */
+#wd87dock .wd87-ic{animation:wd87pop .55s cubic-bezier(.3,1.6,.5,1) backwards,wd87brth 3.8s ease-in-out .9s infinite}
+#wd87dock .wd87-ic:nth-child(2){animation-delay:.07s,1.05s}
+#wd87dock .wd87-ic:nth-child(3){animation-delay:.14s,1.2s}
+#wd87dock .wd87-ic:nth-child(4){animation-delay:.21s,1.35s}
+#wd87dock .wd87-ic:nth-child(5){animation-delay:.28s,1.5s}
+#wd87dock .wd87-ic:nth-child(6){animation-delay:.35s,1.65s}
+#wd87dock .wd87-ic:nth-child(7){animation-delay:.42s,1.8s}
+#wd87dock .wd87-ic:nth-child(8){animation-delay:.49s,1.95s}
+@keyframes wd87pop{from{opacity:0;transform:scale(.3) translateY(-9px)}to{opacity:1;transform:none}}
+@keyframes wd87brth{0%,100%{box-shadow:0 4px 12px rgba(0,0,0,.45),0 0 10px var(--glow,rgba(90,180,255,.3)),inset 0 1px 0 rgba(255,255,255,.16)}
+  50%{box-shadow:0 4px 13px rgba(0,0,0,.45),0 0 21px var(--glow2,var(--glow,rgba(90,180,255,.45))),inset 0 1px 0 rgba(255,255,255,.24)}}
+/* پاداش — طلایی سینمایی با موج جلا */
+#wd87-b-gift{--a3:rgba(255,204,64,.85);--glow:rgba(255,190,40,.5);--glow2:rgba(255,200,60,.85);--icg:rgba(255,214,110,1);
+  overflow:hidden;background:radial-gradient(circle at 30% 22%,rgba(255,224,130,.28),transparent 58%),linear-gradient(160deg,#63410a,#2c1c02)}
+#wd87-b-gift::after{content:'';position:absolute;top:0;bottom:0;width:42%;left:-60%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.42),transparent);animation:wd87shine 3.6s ease-in-out .8s infinite}
+@keyframes wd87shine{0%{left:-60%}55%,100%{left:130%}}
+#wd87-b-gift.wd87-done{--glow:rgba(120,150,190,.16);--glow2:rgba(120,150,190,.2);--icg:rgba(150,175,205,.6);filter:saturate(.25) brightness(.85)}
+#wd87-b-gift.wd87-done::after{display:none}
+/* جم و کشورها — نشان شمارنده‌ی گرد */
+#wd87-b-gem{--a3:rgba(190,140,255,.6);--glow:rgba(150,95,255,.35);--glow2:rgba(170,115,255,.6);--icg:rgba(205,160,255,.95)}
+#wd87-b-terr{--a3:rgba(75,235,195,.55);--glow:rgba(45,220,170,.32);--glow2:rgba(60,235,185,.58);--icg:rgba(105,245,205,.95)}
+.wd87-b{position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);min-width:25px;height:14px;line-height:13px;
+  padding:0 5px;border-radius:99px;font-size:9px;font-weight:950;font-style:normal;direction:rtl;text-align:center;
+  color:#eaf7ff;background:linear-gradient(180deg,#14335c,#0a1e38);border:1px solid rgba(140,205,255,.55);
+  box-shadow:0 2px 8px rgba(0,0,0,.55),0 0 8px rgba(80,170,255,.28);font-variant-numeric:tabular-nums;pointer-events:none}
+#wd87-b-gem .wd87-b{color:#f3e9ff;border-color:rgba(195,145,255,.6);box-shadow:0 2px 8px rgba(0,0,0,.55),0 0 9px rgba(160,100,255,.34)}
+#wd87-b-terr .wd87-b{color:#e8fff7;border-color:rgba(80,235,195,.55);box-shadow:0 2px 8px rgba(0,0,0,.55),0 0 9px rgba(45,220,170,.3)}
+/* سرور — نقطه‌ی وضعیت زنده */
+#wd87-b-srv{--a3:rgba(95,200,255,.6);--glow:rgba(60,170,255,.32);--glow2:rgba(80,190,255,.6);--icg:rgba(155,232,255,.95)}
+.wd87-dot{position:absolute;top:0;right:0;width:10px;height:10px;border-radius:50%;
+  background:#ff5d6c;border:2px solid rgba(6,14,28,.92);box-shadow:0 0 8px rgba(255,90,110,.85);transition:background .4s,box-shadow .4s}
+#wd87-b-srv.wd87-on .wd87-dot{background:#37e884;box-shadow:0 0 9px rgba(60,230,130,.95)}
+/* صدا */
+#wd87-b-snd{--a3:rgba(159,182,212,.5);--glow:rgba(120,160,210,.22);--glow2:rgba(140,180,230,.4);--icg:rgba(207,230,255,.9)}
+#wd87-b-snd .wd87-x{display:none}
+#wd87-b-snd.wd87-muted{filter:saturate(.4) brightness(.8)}
+#wd87-b-snd.wd87-muted .wd87-w{display:none}
+#wd87-b-snd.wd87-muted .wd87-x{display:block}
+/* شرطی‌ها: ساعت آخرالزمان / بحران / سرود */
+#wd87-b-doom{--a3:rgba(255,170,90,.55);--glow:rgba(255,140,60,.3);--glow2:rgba(255,160,80,.55);--icg:rgba(255,205,120,.95)}
+.wd87-dbar{position:absolute;bottom:4px;left:8px;right:8px;height:3px;border-radius:3px;background:rgba(0,0,0,.55);overflow:hidden}
+.wd87-dbar i{display:block;height:100%;width:100%;border-radius:3px;background:#3ee86e;transition:width 1s,background 1s}
+#wd87-b-doom.wd87-mid .wd87-dbar i{background:#ffd84d}
+#wd87-b-doom.wd87-low .wd87-dbar i{background:#ff4d6d;animation:w43doom 1s ease-in-out infinite}
+#wd87-b-crisis{--a3:rgba(255,120,71,.6);--glow:rgba(255,100,60,.4);--glow2:rgba(255,130,80,.7);--icg:rgba(255,185,163,1);
+  background:radial-gradient(circle at 30% 22%,rgba(255,150,90,.2),transparent 58%),linear-gradient(165deg,#52180b,#260a05)}
+#wd87-b-anthem{--a3:rgba(255,130,190,.55);--glow:rgba(255,105,175,.32);--glow2:rgba(255,140,195,.6);--icg:rgba(255,195,225,.95)}
+#wd87-b-anthem.wd87-play svg{animation:wd87note .7s ease-in-out infinite}
+@keyframes wd87note{0%,100%{transform:rotate(-6deg) scale(1.02)}50%{transform:rotate(7deg) scale(1.1)}}
+/* ساعت/تاریخ بالا-چپ — هم‌زبان بصری با داک */
+#hud-info{top:78px!important;left:10px!important}
+#hud-info .hchip{background:linear-gradient(160deg,rgba(10,26,48,.78),rgba(4,10,22,.85))!important;
+  border:1px solid rgba(120,190,255,.25)!important;border-radius:99px!important;padding:5px 11px!important;font-size:10px!important;
+  box-shadow:0 6px 18px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.09)!important;
+  backdrop-filter:blur(9px) saturate(1.3);-webkit-backdrop-filter:blur(9px) saturate(1.3)}
+/* دکمه‌ی ریست مایکت — حالت مسلح (تأیید دومرحله‌ای، بدون window.confirm تا در وب‌ویو هم کار کند) */
+#wd86-goreset.wd87-armed{background:linear-gradient(135deg,#ff8a3c,#c2341a)!important;box-shadow:0 0 18px rgba(255,120,50,.5)!important}
+/* موبایل */
+@media(max-width:560px){
+  #hud-strip{top:74px!important;right:6px!important}
+  #hud-info{top:74px!important;left:6px!important}
+  #wd87dock{gap:6px;padding:5px 6px}
+  .wd87-ic{width:35px;height:35px}
+  .wd87-ic svg{width:17px;height:17px}
+  .wd87-b{min-width:22px;height:13px;line-height:12px;font-size:8.5px;bottom:-4px}
+  #hud-info .hchip{font-size:9px!important;padding:4px 9px!important}
+}
+/* صفحه‌های خیلی باریک: تاریخ زیر داک می‌رود تا هیچ‌وقت روی هم نیفتند (۳۹۰ به بالا کنار هم جا می‌شوند) */
+@media(max-width:380px){
+  #hud-info{top:128px!important}
+  #wd87dock{gap:4px;padding:4px 5px}
+  .wd87-ic{width:30px;height:30px}
+  .wd87-ic svg{width:15px;height:15px}
+  .wd87-b{min-width:20px;height:12px;line-height:11px;font-size:8px}
+  .wd87-dbar{bottom:3px;left:6px;right:6px;height:2.5px}
+}
+@media(pointer:coarse){#wd87dock{backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}}
+@media(prefers-reduced-motion:reduce){
+  #wd87dock,.wd87-ic,#wd87-b-gift::after,#wd87-b-doom.wd87-low .wd87-dbar i,#wd87-b-anthem.wd87-play svg{animation:none!important;transition:none!important}
+  #wd87dock{opacity:1;transform:none}
+}
+</style>
+<script id="v87-js">
+/* ============ V87: داک آیکون‌های شیشه‌ای درخشان — جایگزین چیپ‌های کهنه (وضعیت‌ها آینه می‌شوند) ============ */
+(function(){
+'use strict';
+var D=document;
+function S(id){return D.getElementById(id)}
+var fa=function(n){return String(Math.max(0,Number(n)||0)).replace(/\d/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[d]})};
+var SV={
+gift:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8.4" width="18" height="4" rx="1" fill="#ffd75e"/><rect x="5" y="12.4" width="14" height="8.6" rx="1.5" fill="#ffb52e"/><rect x="10.7" y="8.4" width="2.6" height="12.6" fill="#8a5600" opacity=".5"/><path d="M12 8.4C8.6 8.4 6.8 7.1 6.8 5.5 6.8 4 8 3 9.4 3c1.8 0 2.6 2.2 2.6 5.4Zm0 0c3.4 0 5.2-1.3 5.2-2.9 0-1.5-1.2-2.5-2.6-2.5-1.8 0-2.6 2.2-2.6 5.4Z" fill="#ffe9a8"/></svg>',
+gem:'<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="w87g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e7d4ff"/><stop offset=".5" stop-color="#b284ff"/><stop offset="1" stop-color="#6a3fd0"/></linearGradient><linearGradient id="w87g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#c9a4ff" stop-opacity=".25"/></linearGradient></defs><path d="M6 3h12l4 6-10 12L2 9z" fill="url(#w87g1)" stroke="rgba(255,255,255,.65)" stroke-width=".8"/><path d="M6 3l6 6 6-6" fill="none" stroke="rgba(255,255,255,.55)" stroke-width=".8"/><path d="M2 9h20" stroke="rgba(255,255,255,.4)" stroke-width=".7"/><path d="M12 9l0 12" stroke="rgba(255,255,255,.28)" stroke-width=".7"/><path d="M8 4.4l2.6 3.4L8 9.6 6.4 6.4z" fill="url(#w87g2)" opacity=".9"/></svg>',
+flag:'<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="w87f1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#57f2c8"/><stop offset="1" stop-color="#12a981"/></linearGradient></defs><path d="M5.5 3v18" stroke="#9be8ff" stroke-width="1.8" stroke-linecap="round" fill="none"/><path d="M5.5 4.2c3-1.6 5.5 1.4 9 .2 2.2-.8 3.4-.4 4.5.2v8.4c-1.1-.6-2.3-1-4.5-.2-3.5 1.2-6-1.8-9-.2z" fill="url(#w87f1)" stroke="rgba(255,255,255,.35)" stroke-width=".5"/></svg>',
+srv:'<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="w87s1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9be8ff"/><stop offset="1" stop-color="#1e9ad6"/></linearGradient></defs><rect x="3" y="3.5" width="18" height="7" rx="2.4" fill="url(#w87s1)"/><rect x="3" y="13.5" width="18" height="7" rx="2.4" fill="url(#w87s1)" opacity=".72"/><circle cx="7" cy="7" r="1.5" fill="#04222b"/><circle cx="7" cy="17" r="1.5" fill="#04222b"/><rect x="11" y="6" width="7" height="2" rx="1" fill="#04222b" opacity=".55"/><rect x="11" y="16" width="7" height="2" rx="1" fill="#04222b" opacity=".55"/></svg>',
+snd:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5v5h3.4L12 18.6V5.4L7.4 9.5z" fill="#cfe6ff"/><path class="wd87-w" d="M15 9c1 .8 1 5.2 0 6" stroke="#9fd8ff" stroke-width="1.7" fill="none" stroke-linecap="round"/><path class="wd87-w" d="M17.6 7c2 1.8 2 8.2 0 10" stroke="#9fd8ff" stroke-width="1.7" fill="none" stroke-linecap="round"/><path class="wd87-x" d="M15.4 9.6l4.8 4.8M20.2 9.6l-4.8 4.8" stroke="#ff8ba0" stroke-width="1.9" fill="none" stroke-linecap="round"/></svg>',
+doom:'<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="w87d1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd75e"/><stop offset="1" stop-color="#ff8a3c"/></linearGradient></defs><path d="M6 3h12M6 21h12M8 3v2.6c0 3 4 4.2 4 6.4 0 2.2-4 3.4-4 6.4V21M16 3v2.6c0 3-4 4.2-4 6.4 0 2.2 4 3.4 4 6.4V21" fill="none" stroke="url(#w87d1)" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="14.8" r="1.2" fill="#ffcf5e"/><circle cx="12" cy="17.6" r=".9" fill="#ffb52e"/></svg>',
+crisis:'<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="w87c1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffcf5e"/><stop offset="1" stop-color="#ff6a3c"/></linearGradient></defs><path d="M12 3.6 22 20H2z" fill="url(#w87c1)" stroke="rgba(255,220,150,.5)" stroke-width=".8"/><path d="M12 9.5v5" stroke="#3a1400" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.15" fill="#3a1400"/></svg>',
+note:'<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="w87a1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffc4e1"/><stop offset="1" stop-color="#ff6fb0"/></linearGradient></defs><path d="M9 18.5V6.2l9-2.2v11.5" fill="none" stroke="#ffb3d9" stroke-width="1.7" stroke-linejoin="round"/><ellipse cx="6.7" cy="18.6" rx="2.4" ry="1.9" fill="url(#w87a1)"/><ellipse cx="15.7" cy="15.4" rx="2.4" ry="1.9" fill="url(#w87a1)"/></svg>'
+};
+var dock=null,bGift=null,bGem=null,bTerr=null,bSrv=null,bSnd=null,bDoom=null,bCrisis=null,bAnthem=null;
+function mkBtn(id,icon,title){var b=D.createElement('button');b.type='button';b.id=id;b.className='wd87-ic';
+  b.title=title;b.setAttribute('aria-label',title);b.innerHTML=icon;return b}
+function clickOf(ids){return function(){for(var i=0;i<ids.length;i++){var e=S(ids[i]);if(e){try{e.click()}catch(x){}return}}}}
+function build(){
+  var s=S('hud-strip');if(!s)return false;
+  if(S('wd87dock')){dock=S('wd87dock');
+    bGift=S('wd87-b-gift');bGem=S('wd87-b-gem');bTerr=S('wd87-b-terr');bSrv=S('wd87-b-srv');bSnd=S('wd87-b-snd');
+    bDoom=S('wd87-b-doom');bCrisis=S('wd87-b-crisis');bAnthem=S('wd87-b-anthem');return true}
+  dock=D.createElement('div');dock.id='wd87dock';dock.setAttribute('role','toolbar');dock.setAttribute('aria-label','نوار ابزار فرماندهی');
+  bGift=mkBtn('wd87-b-gift',SV.gift,'پاداش کانال تلگرام — ۲۰ جم هدیه');
+  bGem=mkBtn('wd87-b-gem',SV.gem+'<b class="wd87-b">۰</b>','خزانه جم — فروشگاه');
+  bTerr=mkBtn('wd87-b-terr',SV.flag+'<b class="wd87-b">۰</b>','امپراتوری تو — رتبه‌بندی جهانی');
+  bSrv=mkBtn('wd87-b-srv',SV.srv+'<i class="wd87-dot"></i>','سرورها و بازیکنان');
+  bSnd=mkBtn('wd87-b-snd',SV.snd,'صدا — روشن/خاموش');
+  bGift.addEventListener('click',clickOf(['wd86-gift']));
+  bGem.addEventListener('click',clickOf(['hud-gem']));
+  bTerr.addEventListener('click',clickOf(['btn-m-rank']));
+  bSrv.addEventListener('click',clickOf(['hud-srv2','hud-srv']));
+  bSnd.addEventListener('click',clickOf(['hud-snd']));
+  dock.appendChild(bGift);dock.appendChild(bGem);dock.appendChild(bTerr);dock.appendChild(bSrv);dock.appendChild(bSnd);
+  s.appendChild(dock);
+  setTimeout(function(){try{if(dock)dock.classList.add('wd87-in')}catch(e){}},60);
+  return true;
+}
+/* آینه‌ی وضعیت — هر ۱.۲ ثانیه، فقط با تغییر واقعی DOM (بدون هزینه‌ی رندر اضافه) */
+function setB(el,txt){try{var b=el.querySelector('.wd87-b');if(b&&b.textContent!==txt)b.textContent=txt}catch(e){}}
+function poll(){
+  if(D.hidden)return;
+  try{if(bGem&&typeof GEMS!=='undefined')setB(bGem,fa(GEMS))}catch(e){}
+  try{if(bTerr&&typeof conqueredCountries!=='undefined')setB(bTerr,fa(conqueredCountries.size))}catch(e){}
+  try{if(bSrv)bSrv.classList.toggle('wd87-on',(typeof MP_OK!=='undefined')&&MP_OK===true)}catch(e){}
+  try{if(bSnd){var lc=S('hud-snd');bSnd.classList.toggle('wd87-muted',!!lc&&String(lc.textContent).indexOf('🔇')>-1)}}catch(e){}
+  try{if(bGift){var g=S('wd86-gift');bGift.classList.toggle('wd87-done',window.WD86_TG===true||!!(g&&g.classList.contains('wd86-done')))}}catch(e){}
+  try{
+    var hd=S('hud-doom');
+    if(hd&&!bDoom){bDoom=mkBtn('wd87-b-doom',SV.doom+'<span class="wd87-dbar"><i></i></span>','ساعت آخرالزمان مشترک');
+      bDoom.addEventListener('click',clickOf(['hud-doom']));dock.appendChild(bDoom)}
+    if(bDoom&&hd){
+      var src=hd.querySelector('.w43-dbar i'),dst=bDoom.querySelector('.wd87-dbar i');
+      if(src&&dst&&src.style.width!==dst.style.width)dst.style.width=src.style.width;
+      bDoom.classList.toggle('wd87-mid',hd.classList.contains('mid'));
+      bDoom.classList.toggle('wd87-low',hd.classList.contains('low'));
+    }
+    var hc=S('hud-crisis');
+    if(hc&&!bCrisis){bCrisis=mkBtn('wd87-b-crisis',SV.crisis,'بحران فصلی — جزئیات');
+      bCrisis.addEventListener('click',clickOf(['hud-crisis']));dock.appendChild(bCrisis)}
+    if(bCrisis&&hc)bCrisis.style.display=(hc.style.display==='none')?'none':'';
+    var ha=S('hud-anthem');
+    if(ha&&!bAnthem){bAnthem=mkBtn('wd87-b-anthem',SV.note,'سرود امپراتوری');
+      bAnthem.addEventListener('click',clickOf(['hud-anthem']));dock.appendChild(bAnthem)}
+    if(bAnthem&&ha){bAnthem.style.display=(ha.style.display==='none')?'none':'';bAnthem.classList.toggle('wd87-play',ha.classList.contains('play'))}
+  }catch(e){}
+}
+var tries=0;
+function boot(){tries++;if(build())poll();if(tries<16&&!S('wd87dock'))setTimeout(boot,400)}
+if(D.readyState==='complete'||D.readyState==='interactive')boot();
+else D.addEventListener('DOMContentLoaded',boot);
+setTimeout(function(){if(!S('wd87dock')){build();poll()}},1600);
+setInterval(poll,1200);
 })();
 </script>
 </body>
