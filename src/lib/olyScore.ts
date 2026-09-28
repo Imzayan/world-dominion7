@@ -20,11 +20,25 @@ const DUR: Record<string, [number, number]> = {
   sprint: [3500, 60000], archery: [400, 480000], swim: [5000, 60000], gym: [1500, 480000],
   weight: [400, 480000], cycling: [6000, 60000], chess: [400, 480000], volley: [400, 480000],
   football: [1000, 480000], wrestle: [1500, 480000], lj: [1500, 480000],
+  /* V89 — Olympics V2: ۲۵ رشته‌ی جدید */
+  hurdles: [4000, 60000], highjump: [2000, 480000], javelin: [3000, 480000], discus: [3000, 480000],
+  shotput: [2000, 480000], boxing: [3000, 480000], fencing: [2000, 480000], judo: [2000, 480000],
+  reaction: [2000, 60000], shooting: [3000, 480000], movingtarget: [3000, 480000], sniper: [2000, 480000],
+  rapidtarget: [3000, 480000], swim50: [2000, 60000], diving: [3000, 480000], rowing: [4000, 480000],
+  kayak: [4000, 480000], moto: [5000, 120000], rally: [5000, 120000], formula: [5000, 120000],
+  boat: [4000, 120000], balance: [3000, 120000], timing: [3000, 480000], memory: [3000, 480000], run400: [4000, 120000],
 }
 /* حداقل فاصله‌ی بین رویدادهای هم‌نوع (ms) — ضد اتوکلیک/اسکریپت (L4) */
 const EV_GAP: Record<string, Record<string, number>> = {
   sprint: { p: 55 }, swim: { p: 55 }, archery: { shot: 250 }, gym: { mv: 60 },
   weight: { lift: 220 }, cycling: { pedal: 90 }, volley: { hit: 180 }, wrestle: {}, chess: {}, football: { shot: 250 }, lj: { jump: 700 },
+  /* V89 — Olympics V2 */
+  hurdles: { p: 55, jump: 300 }, run400: { p: 60 }, highjump: { jump: 1200 }, javelin: { throw: 1200 },
+  discus: { throw: 1200 }, shotput: { throw: 1000 }, boxing: { ex: 400 }, fencing: { touch: 350 },
+  judo: { throw: 1000 }, reaction: { go: 250 }, shooting: { shot: 350 }, movingtarget: { hit: 140 },
+  sniper: { shot: 700 }, rapidtarget: { hit: 85 }, swim50: { p: 80 }, diving: { dive: 1100 },
+  rowing: { stroke: 210 }, kayak: { gate: 110 }, moto: { ob: 55 }, rally: { corner: 380 },
+  formula: { turn: 280 }, boat: { stroke: 190 }, balance: { round: 700 }, timing: { stop: 240 }, memory: { seq: 280 },
 }
 
 /* ——— بازمحاسبه‌ی هر رشته (آینه‌ی GAMES.* در index.html — بدون سقف ۱۰۰۰) ——— */
@@ -158,9 +172,348 @@ function rLJ(ev: TelemEvent[]): ScoreResult {
   return { ok: true, score: pts }
 }
 
+/* ============================================================
+   V89 — Olympics V2: بازمحاسبه‌ی پایه (fallback نسل ۱) برای ۲۵ رشته‌ی جدید.
+   مسیر زنده = داوران SKILL3 با seed سرور (پایین)؛ این‌ها فقط برای
+   hasRecalc() و دوره‌های خیلی قدیمی‌اند — همان سطح اعتماد نسل ۱:
+   بازه‌ی سخت + شمارش + پایان‌های رویداد.
+   ============================================================ */
+function best3(vals: number[], mul: number): number {
+  vals.sort((a, b) => b - a)
+  let s = 0
+  for (let i = 0; i < Math.min(3, vals.length); i++) s += vals[i]
+  return Math.round(s * mul)
+}
+function rHurdles(ev: TelemEvent[]): ScoreResult {
+  let taps = 0, clean = 0
+  for (const e of ev) {
+    if (e[0] === 'p') taps++
+    else if (e[0] === 'jump') { const ok = Number(e[2]) ? 1 : 0; clean += ok; if (clean + (taps - clean) > 400) return { ok: false, score: 0, reason: 'overrun' } }
+  }
+  if (taps > 220 || clean > 8) return { ok: false, score: 0, reason: 'overrun' }
+  return { ok: true, score: taps * 8 + clean * 240 }
+}
+function rRun400(ev: TelemEvent[]): ScoreResult {
+  let n = 0, sum = 0
+  for (const e of ev) {
+    if (e[0] !== 'p') continue
+    const q = Number(e[2])
+    if (!(q >= 0 && q <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+    sum += q; n++
+    if (n > 320) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  return { ok: true, score: Math.round(sum * 14) }
+}
+function rHighjump(ev: TelemEvent[]): ScoreResult {
+  const hs: number[] = []
+  for (const e of ev) {
+    if (e[0] !== 'jump') continue
+    const h = Math.round(Number(e[2]) || 0)
+    if (!(h >= 100 && h <= 250)) return { ok: false, score: 0, reason: 'bad_height' }
+    hs.push(h)
+    if (hs.length > 3) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!hs.length) return { ok: false, score: 0, reason: 'no_jump' }
+  return { ok: true, score: Math.max(...hs) * 6 + hs.filter((h) => h >= 180).length * 60 }
+}
+function rJavelin(ev: TelemEvent[]): ScoreResult {
+  const ds: number[] = []
+  for (const e of ev) {
+    if (e[0] !== 'throw') continue
+    const d = Number(e[2]) || 0
+    if (!(d >= 30 && d <= 100)) return { ok: false, score: 0, reason: 'bad_dist' }
+    ds.push(d)
+    if (ds.length > 5) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!ds.length) return { ok: false, score: 0, reason: 'no_throw' }
+  return { ok: true, score: best3(ds, 12) }
+}
+function rDiscus(ev: TelemEvent[]): ScoreResult {
+  const ds: number[] = []
+  for (const e of ev) {
+    if (e[0] !== 'throw') continue
+    const d = Number(e[2]) || 0
+    if (!(d >= 20 && d <= 75)) return { ok: false, score: 0, reason: 'bad_dist' }
+    ds.push(d)
+    if (ds.length > 5) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!ds.length) return { ok: false, score: 0, reason: 'no_throw' }
+  return { ok: true, score: best3(ds, 14) }
+}
+function rShotput(ev: TelemEvent[]): ScoreResult {
+  const ds: number[] = []
+  for (const e of ev) {
+    if (e[0] !== 'throw') continue
+    const d = Number(e[2]) || 0
+    if (!(d >= 6 && d <= 25)) return { ok: false, score: 0, reason: 'bad_dist' }
+    ds.push(d)
+    if (ds.length > 5) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!ds.length) return { ok: false, score: 0, reason: 'no_throw' }
+  return { ok: true, score: best3(ds, 40) }
+}
+function rBoxing(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'ex') continue
+    const win = Number(e[3]) ? 1 : 0, rt = Number(e[4]) || 0
+    if (!(rt >= 0 && rt <= 3000)) return { ok: false, score: 0, reason: 'bad_rt' }
+    if (win) pts += 110 + Math.max(0, Math.round((900 - rt) / 10))
+    n++
+    if (n > 9) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_exchange' }
+  return { ok: true, score: pts }
+}
+function rFencing(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'touch') continue
+    const win = Number(e[3]) ? 1 : 0, rt = Number(e[4]) || 0
+    if (!(rt >= 0 && rt <= 3000)) return { ok: false, score: 0, reason: 'bad_rt' }
+    if (win) pts += 130 + Math.max(0, Math.round((700 - rt) / 8))
+    n++
+    if (n > 8) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_touch' }
+  return { ok: true, score: pts }
+}
+function rJudo(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'throw') continue
+    const q = Number(e[2])
+    if (!(q >= 0 && q <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+    pts += Math.round(300 * q); n++
+    if (n > 3) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_throw' }
+  return { ok: true, score: pts }
+}
+function rReaction(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'go') continue
+    const rt = Number(e[2]) || 0
+    if (!(rt >= 0 && rt <= 5000)) return { ok: false, score: 0, reason: 'bad_rt' }
+    if (rt >= 100) pts += Math.max(20, Math.round((550 - rt) * 1.6))
+    n++
+    if (n > 5) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_round' }
+  return { ok: true, score: pts }
+}
+function rShooting(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'shot') continue
+    const q = Number(e[2]) || 0
+    if (!(q >= 0 && q <= 100)) return { ok: false, score: 0, reason: 'bad_q' }
+    pts += Math.round(q * 2.2); n++
+    if (n > 5) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_shot' }
+  return { ok: true, score: pts }
+}
+function rMovingTarget(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'hit') continue
+    const q = Number(e[2]) || 0
+    if (!(q >= 0 && q <= 100)) return { ok: false, score: 0, reason: 'bad_q' }
+    pts += Math.round(q * 1.5); n++
+    if (n > 10) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_hit' }
+  return { ok: true, score: pts }
+}
+function rSniper(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'shot') continue
+    const q = Number(e[2]) || 0
+    if (!(q >= 0 && q <= 100)) return { ok: false, score: 0, reason: 'bad_q' }
+    pts += Math.round(q * 3.4); n++
+    if (n > 3) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_shot' }
+  return { ok: true, score: pts }
+}
+function rRapidTarget(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  const seen = new Set<number>()
+  for (const e of ev) {
+    if (e[0] !== 'hit') continue
+    const idx = Math.round(Number(e[2]) || 0), rt = Number(e[3]) || 0
+    if (!(idx >= 0 && idx <= 14)) return { ok: false, score: 0, reason: 'bad_idx' }
+    if (seen.has(idx)) return { ok: false, score: 0, reason: 'dup_target' }
+    if (!(rt >= 60 && rt <= 4000)) return { ok: false, score: 0, reason: 'bad_rt' }
+    seen.add(idx)
+    pts += Math.max(10, Math.round((900 - rt) / 3)); n++
+    if (n > 15) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_hit' }
+  return { ok: true, score: pts }
+}
+function rSwim50(ev: TelemEvent[]): ScoreResult {
+  let n = 0, sum = 0, lastT = -1
+  for (const e of ev) {
+    if (e[0] !== 'p') continue
+    const t = Number(e[1]) || 0
+    if (lastT >= 0) { const g = t - lastT; if (g < 80 || g > 1500) return { ok: false, score: 0, reason: 'bad_gap' }; sum += Math.max(0, 20 - (g - 110) / 22) }
+    lastT = t; n++
+    if (n > 40) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (n < 5) return { ok: false, score: 0, reason: 'no_swim' }
+  return { ok: true, score: Math.round(sum) }
+}
+function rDiving(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'dive') continue
+    const ok = Math.round(Number(e[2]) || 0), entry = Number(e[3])
+    const len = Math.round(Number(e[4]) || 0)
+    if (!(ok >= 0 && ok <= 6) || len < 4 || len > 6 || !(entry >= 0 && entry <= 1)) return { ok: false, score: 0, reason: 'bad_dive' }
+    if (ok > len) return { ok: false, score: 0, reason: 'bad_dive' }
+    pts += ok * 90 + Math.round(entry * 160); n++
+    if (n > 3) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_dive' }
+  return { ok: true, score: pts }
+}
+function rRowing(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0, lastSide = -1
+  for (const e of ev) {
+    if (e[0] !== 'stroke') continue
+    const side = Math.round(Number(e[2]) || 0), q = Number(e[3])
+    if (side !== 0 && side !== 1) return { ok: false, score: 0, reason: 'bad_side' }
+    if (side === lastSide) return { ok: false, score: 0, reason: 'no_alternation' }
+    if (!(q >= 0 && q <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+    lastSide = side; pts += Math.round(q * 16); n++
+    if (n > 26) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (n < 6) return { ok: false, score: 0, reason: 'no_row' }
+  return { ok: true, score: pts }
+}
+function rKayak(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0, strokes = 0
+  const seen = new Set<number>()
+  for (const e of ev) {
+    if (e[0] === 'p') { strokes++; if (strokes > 300) return { ok: false, score: 0, reason: 'overrun' } }
+    else if (e[0] === 'gate') {
+      const idx = Math.round(Number(e[2]) || 0), ok = Number(e[3]) ? 1 : 0
+      if (idx !== n) return { ok: false, score: 0, reason: 'bad_gate' }
+      if (seen.has(idx)) return { ok: false, score: 0, reason: 'dup_gate' }
+      seen.add(idx); if (ok) pts += 110
+      n++
+      if (n > 10) return { ok: false, score: 0, reason: 'overrun' }
+    }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_gate' }
+  return { ok: true, score: pts + Math.min(120, strokes * 6) }
+}
+function rMoto(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'ob') continue
+    const pass = Number(e[2]) ? 1 : 0, near = Number(e[3]) ? 1 : 0
+    pts += pass * 70 + (pass && near ? 30 : 0); n++
+    if (n > 60) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_obstacle' }
+  return { ok: true, score: pts }
+}
+function rRally(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  const seen = new Set<number>()
+  for (const e of ev) {
+    if (e[0] !== 'corner') continue
+    const idx = Math.round(Number(e[2]) || 0), q = Number(e[3])
+    if (!(idx >= 0 && idx <= 5)) return { ok: false, score: 0, reason: 'bad_idx' }
+    if (seen.has(idx)) return { ok: false, score: 0, reason: 'dup_corner' }
+    if (!(q >= 0 && q <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+    seen.add(idx); pts += Math.round(q * 130); n++
+    if (n > 6) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_corner' }
+  return { ok: true, score: pts }
+}
+function rFormula(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  const seen = new Set<number>()
+  for (const e of ev) {
+    if (e[0] !== 'turn') continue
+    const idx = Math.round(Number(e[2]) || 0), q = Number(e[3])
+    if (!(idx >= 0 && idx <= 7)) return { ok: false, score: 0, reason: 'bad_idx' }
+    if (seen.has(idx)) return { ok: false, score: 0, reason: 'dup_turn' }
+    if (!(q >= 0 && q <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+    seen.add(idx); pts += Math.round(q * 140); n++
+    if (n > 8) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_turn' }
+  return { ok: true, score: pts }
+}
+function rBoat(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'stroke') continue
+    const q = Number(e[2])
+    if (!(q >= 0 && q <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+    pts += Math.round(q * 15); n++
+    if (n > 22) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (n < 6) return { ok: false, score: 0, reason: 'no_row' }
+  return { ok: true, score: pts }
+}
+function rBalance(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'round') continue
+    const ms = Number(e[2]) || 0, q = Number(e[3])
+    if (!(ms >= 0 && ms <= 30000) || !(q >= 0 && q <= 1)) return { ok: false, score: 0, reason: 'bad_round' }
+    pts += Math.round(ms / 40) + Math.round(q * 50); n++
+    if (n > 3) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_round' }
+  return { ok: true, score: pts }
+}
+function rTiming(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  const seen = new Set<number>()
+  for (const e of ev) {
+    if (e[0] !== 'stop') continue
+    const idx = Math.round(Number(e[2]) || 0), q = Number(e[3]) || 0
+    if (idx !== n) return { ok: false, score: 0, reason: 'bad_round' }
+    if (!(q >= 0 && q <= 100)) return { ok: false, score: 0, reason: 'bad_q' }
+    seen.add(idx); pts += Math.round(q * 10) + (q >= 95 ? 40 : 0); n++
+    if (n > 8) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_stop' }
+  return { ok: true, score: pts }
+}
+function rMemory(ev: TelemEvent[]): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'seq') continue
+    const len = Math.round(Number(e[2]) || 0), ok = Math.round(Number(e[3]) || 0)
+    if (!(len >= 3 && len <= 10) || !(ok >= 0 && ok <= len)) return { ok: false, score: 0, reason: 'bad_seq' }
+    pts += ok * 40; n++
+    if (n > 8) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_seq' }
+  return { ok: true, score: pts }
+}
+
 const RECALC: Record<string, (ev: TelemEvent[]) => ScoreResult> = {
   sprint: rSprint, swim: rSwim, archery: rArchery, gym: rGym, weight: rWeight,
   cycling: rCycling, chess: rChess, volley: rVolley, football: rFootball, wrestle: rWrestle, lj: rLJ,
+  /* V89 — Olympics V2 */
+  hurdles: rHurdles, run400: rRun400, highjump: rHighjump, javelin: rJavelin, discus: rDiscus, shotput: rShotput,
+  boxing: rBoxing, fencing: rFencing, judo: rJudo, reaction: rReaction,
+  shooting: rShooting, movingtarget: rMovingTarget, sniper: rSniper, rapidtarget: rRapidTarget,
+  swim50: rSwim50, diving: rDiving, rowing: rRowing, kayak: rKayak,
+  moto: rMoto, rally: rRally, formula: rFormula, boat: rBoat,
+  balance: rBalance, timing: rTiming, memory: rMemory,
 }
 
 export function hasRecalc(key: string): boolean { return !!RECALC[key] }
@@ -928,9 +1281,450 @@ function v3Wrestle(ev: TelemEvent[], seed: string): ScoreResult {
   return { ok: true, score: pts }
 }
 
+/* ============================================================
+   V89 — Olympics V2: داوران نسل ۳ برای ۲۵ رشته‌ی جدید.
+   هندسه/تقویم هر بازی از seed سرور بازسازی می‌شود (آینه‌ی oly3.js)؛
+   امتیاز فقط از توالی ورودی + زمان‌بندی راستی‌آزمایی‌شده.
+   ============================================================ */
+const angDist = (a: number, b: number): number => { const d = Math.abs(((a - b) % 360 + 360) % 360); return d > 180 ? 360 - d : d }
+function phaseAt(seed: string, salt: string, i: number, t: number, f0: number, f1: number): number {
+  const r = rngOf3(seed, salt + ':' + i)
+  const f = f0 + r() * (f1 - f0), p = r() * 6.28318
+  return Math.sin((t / f) * 6.28318 + p)
+}
+function v3Hurdles(ev: TelemEvent[], seed: string): ScoreResult {
+  const r = rngOf3(seed, 'hurd')
+  const B: number[] = []
+  for (let i = 0; i < 8; i++) B.push(9 + i * 7 + Math.floor(r() * 3) - 1)
+  let goT = -1, strides = 0, lastSide = -1, lastT = -1, clean = 0, jumps = 0, crashed = false
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'go') { if (goT >= 0) return { ok: false, score: 0, reason: 'dup_go' }; goT = t }
+    else if (e[0] === 'p') {
+      if (goT < 0) return { ok: false, score: 0, reason: 'no_go' }
+      const side = Math.round(Number(e[2]) || 0)
+      if (side !== 0 && side !== 1) return { ok: false, score: 0, reason: 'bad_side' }
+      if (side === lastSide) return { ok: false, score: 0, reason: 'no_alternation' }
+      if (lastT >= 0 && t - lastT < 55) return { ok: false, score: 0, reason: 'impossible_rate' }
+      lastT = t; lastSide = side; strides++
+      if (strides > 220) return { ok: false, score: 0, reason: 'overrun' }
+    } else if (e[0] === 'jump') {
+      if (goT < 0) return { ok: false, score: 0, reason: 'no_go' }
+      const okC = Number(e[2]) ? 1 : 0
+      if (jumps >= 8) return { ok: false, score: 0, reason: 'overrun' }
+      const okS = strides >= B[jumps] - 2 && strides <= B[jumps] + 2 ? 1 : 0
+      if (okC !== okS) return { ok: false, score: 0, reason: 'ghost_jump' }
+      if (okC) clean++
+      jumps++
+    } else if (e[0] === 'crash') { crashed = true }
+  }
+  if (goT < 0 || strides < 8) return { ok: false, score: 0, reason: 'no_run' }
+  return { ok: true, score: strides * (crashed ? 4 : 8) + clean * 240 }
+}
+function v3Run400(ev: TelemEvent[], seed: string): ScoreResult {
+  const r = rngOf3(seed, 'r400')
+  const tgt = [430 + r() * 40, 380 + r() * 40, 470 + r() * 40]
+  let strides = 0, lastSide = -1, lastT = -1, sum = 0, laps = 0
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'p') {
+      const side = Math.round(Number(e[2]) || 0)
+      if (side !== 0 && side !== 1) return { ok: false, score: 0, reason: 'bad_side' }
+      if (side === lastSide) return { ok: false, score: 0, reason: 'no_alternation' }
+      if (lastT >= 0) {
+        const g = t - lastT
+        if (g < 60) return { ok: false, score: 0, reason: 'impossible_rate' }
+        const target = tgt[Math.min(2, Math.floor(strides / 60))]
+        sum += Math.max(0, 1 - Math.abs(g - target) / 220)
+      }
+      lastT = t; lastSide = side; strides++
+      if (strides > 320) return { ok: false, score: 0, reason: 'overrun' }
+    } else if (e[0] === 'lap') {
+      const idx = Math.round(Number(e[2]) || 0)
+      if (idx !== laps) return { ok: false, score: 0, reason: 'bad_lap' }
+      if (Math.abs(strides - (idx + 1) * 60) > 3) return { ok: false, score: 0, reason: 'bad_lap_pos' }
+      laps++
+      if (laps > 3) return { ok: false, score: 0, reason: 'overrun' }
+    }
+  }
+  if (strides < 20) return { ok: false, score: 0, reason: 'no_run' }
+  return { ok: true, score: Math.round(sum * 14) + laps * 40 }
+}
+function v3Highjump(ev: TelemEvent[], seed: string): ScoreResult {
+  const hs: number[] = []
+  for (const e of ev) {
+    if (e[0] !== 'jump') continue
+    const t = Number(e[1]) || 0, hC = Math.round(Number(e[2]) || 0), risk = Math.round(Number(e[3]) || 0)
+    if (!(risk >= 0 && risk <= 1)) return { ok: false, score: 0, reason: 'bad_risk' }
+    const i = hs.length
+    if (i >= 3) return { ok: false, score: 0, reason: 'overrun' }
+    const ph = phaseAt(seed, 'hj', i, t, 900, 1500)
+    const hS = Math.round(150 + 42 * ph + risk * 22 + i * 8)
+    if (Math.abs(hC - hS) > 3) return { ok: false, score: 0, reason: 'ghost_height' }
+    if (!(hC >= 100 && hC <= 250)) return { ok: false, score: 0, reason: 'bad_height' }
+    hs.push(hC)
+  }
+  if (!hs.length) return { ok: false, score: 0, reason: 'no_jump' }
+  return { ok: true, score: Math.max(...hs) * 6 + hs.filter((h) => h >= 180).length * 60 }
+}
+function v3ThrowGeom(ev: TelemEvent[], seed: string, salt: string, maxThrows: number, distOf: (q: number, wind: number, i: number) => number, tol: number, lo: number, hi: number): ScoreResult {
+  const ds: number[] = [], taps: number[] = [0]
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'p') { taps[taps.length - 1]++; if (taps[taps.length - 1] > 40) return { ok: false, score: 0, reason: 'overrun' } }
+    else if (e[0] === 'throw') {
+      const i = ds.length
+      if (i >= maxThrows) return { ok: false, score: 0, reason: 'overrun' }
+      const dC = Number(e[2]) || 0
+      const r = rngOf3(seed, salt + ':' + i)
+      const wind = r() * 2 - 1
+      const ph = phaseAt(seed, salt + 'ph', i, t, 700, 1400)
+      const angleQ = Math.max(0, 1 - Math.abs(ph))
+      const powerQ = Math.min(1, taps[i] / 8)
+      taps.push(0)
+      const q = 0.6 * angleQ + 0.4 * powerQ
+      const dS = distOf(q, wind, i)
+      if (Math.abs(dC - dS) > tol) return { ok: false, score: 0, reason: 'ghost_dist' }
+      if (!(dC >= lo && dC <= hi)) return { ok: false, score: 0, reason: 'bad_dist' }
+      ds.push(dC)
+    }
+  }
+  if (!ds.length) return { ok: false, score: 0, reason: 'no_throw' }
+  const s = ds.slice().sort((a, b) => b - a)
+  let pts = 0
+  for (let i = 0; i < Math.min(3, s.length); i++) pts += s[i]
+  return { ok: true, score: Math.round(pts * (salt === 'jav' ? 12 : salt === 'dis' ? 14 : 40)) }
+}
+const v3Javelin = (ev: TelemEvent[], seed: string): ScoreResult => v3ThrowGeom(ev, seed, 'jav', 5, (q, w) => 35 + 50 * q + w * 5, 2.5, 30, 100)
+const v3Discus = (ev: TelemEvent[], seed: string): ScoreResult => v3ThrowGeom(ev, seed, 'dis', 5, (q, w) => 22 + 40 * q + w * 4, 2.2, 20, 75)
+const v3Shotput = (ev: TelemEvent[], seed: string): ScoreResult => v3ThrowGeom(ev, seed, 'sht', 5, (q) => 7 + 13 * q, 0.9, 6, 25)
+function v3CombatGeo(ev: TelemEvent[], seed: string, salt: string, evtName: string, maxEx: number, winPts: (rt: number) => number, winOf: (act: number, rt: number, tel: number, i: number) => boolean): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== evtName) continue
+    const t = Number(e[1]) || 0
+    const i = n
+    if (i >= maxEx) return { ok: false, score: 0, reason: 'overrun' }
+    const act = Math.round(Number(e[2]) || 0), winC = Number(e[3]) ? 1 : 0, rt = Number(e[4]) || 0
+    const r = rngOf3(seed, salt + ':' + i)
+    const tel = Math.floor(r() * 2)
+    if (!(act >= 0 && act <= 2)) return { ok: false, score: 0, reason: 'bad_act' }
+    if (!(rt >= 0 && rt <= 3000)) return { ok: false, score: 0, reason: 'bad_rt' }
+    const winS = winOf(act, rt, tel, i) ? 1 : 0
+    if (winC !== winS) return { ok: false, score: 0, reason: 'ghost_win' }
+    if (winS) pts += winPts(rt)
+    n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_round' }
+  return { ok: true, score: pts }
+}
+const v3Boxing = (ev: TelemEvent[], seed: string): ScoreResult => v3CombatGeo(ev, seed, 'box', 'ex', 9, (rt) => 110 + Math.max(0, Math.round((900 - rt) / 10)), (act, rt, tel) => (act === 2 ? rt <= 650 : act === tel && rt <= 900))
+const v3Fencing = (ev: TelemEvent[], seed: string): ScoreResult => v3CombatGeo(ev, seed, 'fen', 'touch', 8, (rt) => 130 + Math.max(0, Math.round((700 - rt) / 8)), (act, rt, tel, i) => { const r = rngOf3(seed, 'fend:' + i); return act === 1 ? (rt >= 120 + r() * 200 && rt <= 620) : act === tel && rt <= 380 })
+function v3Judo(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'throw') continue
+    const t = Number(e[1]) || 0, qC = Number(e[2])
+    const i = n
+    if (i >= 3) return { ok: false, score: 0, reason: 'overrun' }
+    if (!(qC >= 0 && qC <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+    const ph = phaseAt(seed, 'judo', i, t, 1100, 1900)
+    const qS = Math.max(0, 1 - Math.abs(ph))
+    if (Math.abs(qC - qS) > 0.09) return { ok: false, score: 0, reason: 'ghost_q' }
+    pts += Math.round(300 * qS); n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_throw' }
+  return { ok: true, score: pts }
+}
+function v3Reaction(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0, waitT = -1
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'wait') {
+      if (n >= 5) return { ok: false, score: 0, reason: 'overrun' }
+      waitT = t
+    } else if (e[0] === 'go') {
+      if (waitT < 0) return { ok: false, score: 0, reason: 'no_wait' }
+      const rtC = Number(e[2]) || 0
+      const r = rngOf3(seed, 'react:' + n)
+      const dS = 1200 + r() * 2300
+      const rtS = t - waitT - dS
+      if (Math.abs(rtC - rtS) > 90) return { ok: false, score: 0, reason: 'ghost_rt' }
+      if (!(rtC >= 0 && rtC <= 5000)) return { ok: false, score: 0, reason: 'bad_rt' }
+      if (rtC >= 100) pts += Math.max(20, Math.round((550 - rtC) * 1.6))
+      waitT = -1; n++
+    }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_round' }
+  return { ok: true, score: pts }
+}
+function v3Shooting(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'shot') continue
+    const t = Number(e[1]) || 0, qC = Number(e[2]) || 0, hold = Number(e[3]) || 0
+    const i = n
+    if (i >= 5) return { ok: false, score: 0, reason: 'overrun' }
+    if (!(hold >= 300 && hold <= 6000)) return { ok: false, score: 0, reason: 'bad_hold' }
+    if (!(qC >= 0 && qC <= 100)) return { ok: false, score: 0, reason: 'bad_q' }
+    const r = rngOf3(seed, 'shoot:' + i)
+    const amp = Math.min(0.85, 0.3 + hold / 8000 + r() * 0.1)
+    const sway = Math.abs(phaseAt(seed, 'shootsw', i, t, 800, 1600))
+    const qS = Math.round(100 * Math.max(0, 1 - sway * amp - 0.05))
+    if (Math.abs(qC - qS) > 8) return { ok: false, score: 0, reason: 'ghost_q' }
+    pts += Math.round(qS * 2.2); n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_shot' }
+  return { ok: true, score: pts }
+}
+function v3MovingTarget(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'hit') continue
+    const t = Number(e[1]) || 0, q = Number(e[2]) || 0
+    const i = n
+    if (i >= 10) return { ok: false, score: 0, reason: 'overrun' }
+    if (!(q >= 0 && q <= 100)) return { ok: false, score: 0, reason: 'bad_q' }
+    const r = rngOf3(seed, 'mt:' + i)
+    const aS = 500 + i * (900 + r() * 500)
+    if (t < aS - 100 || t > aS + 2800) return { ok: false, score: 0, reason: 'ghost_timing' }
+    pts += Math.round(q * 1.5); n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_hit' }
+  return { ok: true, score: pts }
+}
+function v3Sniper(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'shot') continue
+    const t = Number(e[1]) || 0, qC = Number(e[2]) || 0
+    const i = n
+    if (i >= 3) return { ok: false, score: 0, reason: 'overrun' }
+    if (!(qC >= 0 && qC <= 100)) return { ok: false, score: 0, reason: 'bad_q' }
+    const r = rngOf3(seed, 'snip:' + i)
+    const wind = Math.abs(r() * 2 - 1)
+    const breath = Math.abs(phaseAt(seed, 'snipb', i, t, 2600, 3800))
+    const qS = Math.round(100 * Math.max(0, 1 - breath * 1.3 - wind * 0.25))
+    if (Math.abs(qC - qS) > 7) return { ok: false, score: 0, reason: 'ghost_q' }
+    pts += Math.round(qS * 3.4); n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_shot' }
+  return { ok: true, score: pts }
+}
+function v3RapidTarget(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'hit') continue
+    const t = Number(e[1]) || 0, rtC = Number(e[3]) || 0
+    const i = n
+    if (i >= 15) return { ok: false, score: 0, reason: 'overrun' }
+    const r = rngOf3(seed, 'rt:' + i)
+    const aS = 600 + i * (820 + r() * 300)
+    const life = 900 + r() * 400
+    if (t < aS - 80 || t > aS + life + 120) return { ok: false, score: 0, reason: 'ghost_timing' }
+    const rtS = t - aS
+    if (Math.abs(rtC - rtS) > 110) return { ok: false, score: 0, reason: 'ghost_rt' }
+    if (!(rtC >= 60 && rtC <= 4000)) return { ok: false, score: 0, reason: 'bad_rt' }
+    pts += Math.max(10, Math.round((900 - rtC) / 3)); n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_hit' }
+  return { ok: true, score: pts }
+}
+function v3Swim50(ev: TelemEvent[], _seed: string): ScoreResult {
+  let n = 0, sum = 0, lastT = -1
+  for (const e of ev) {
+    if (e[0] !== 'p') continue
+    const t = Number(e[1]) || 0
+    if (lastT >= 0) { const g = t - lastT; if (g < 80 || g > 1500) return { ok: false, score: 0, reason: 'bad_gap' }; sum += Math.max(0, 20 - (g - 110) / 22) }
+    lastT = t; n++
+    if (n > 40) return { ok: false, score: 0, reason: 'overrun' }
+  }
+  if (n < 5) return { ok: false, score: 0, reason: 'no_swim' }
+  return { ok: true, score: Math.round(sum) + (n >= 26 ? 120 : 0) }
+}
+function v3Diving(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'dive') continue
+    const ok = Math.round(Number(e[2]) || 0), entry = Number(e[3]) || 0, lenC = Math.round(Number(e[4]) || 0)
+    const i = n
+    if (i >= 3) return { ok: false, score: 0, reason: 'overrun' }
+    const r = rngOf3(seed, 'dive:' + i)
+    const lenS = 4 + Math.floor(r() * 3)
+    if (lenC !== lenS) return { ok: false, score: 0, reason: 'ghost_len' }
+    if (!(ok >= 0 && ok <= lenS) || !(entry >= 0 && entry <= 1)) return { ok: false, score: 0, reason: 'bad_dive' }
+    pts += ok * 90 + Math.round(entry * 160); n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_dive' }
+  return { ok: true, score: pts }
+}
+function v3Rowing(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0, lastSide = -1
+  for (const e of ev) {
+    if (e[0] !== 'stroke') continue
+    const t = Number(e[1]) || 0, side = Math.round(Number(e[2]) || 0), qC = Number(e[3])
+    if (side !== 0 && side !== 1) return { ok: false, score: 0, reason: 'bad_side' }
+    if (side === lastSide) return { ok: false, score: 0, reason: 'no_alternation' }
+    if (!(qC >= 0 && qC <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+    const i = n
+    if (i >= 26) return { ok: false, score: 0, reason: 'overrun' }
+    const drift = phaseAt(seed, 'row', Math.floor(i / 6), t, 1500, 2400)
+    const qS = Math.max(0, 1 - Math.abs(drift) / 0.5)
+    if (Math.abs(qC - qS) > 0.14) return { ok: false, score: 0, reason: 'ghost_q' }
+    lastSide = side; pts += Math.round(qS * 16); n++
+  }
+  if (n < 6) return { ok: false, score: 0, reason: 'no_row' }
+  return { ok: true, score: pts }
+}
+function v3Kayak(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0, strokes = 0
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'p') { strokes++; if (strokes > 300) return { ok: false, score: 0, reason: 'overrun' } }
+    else if (e[0] === 'gate') {
+      const okC = Number(e[3]) ? 1 : 0
+      const i = n
+      if (i >= 10) return { ok: false, score: 0, reason: 'overrun' }
+      const r = rngOf3(seed, 'kay:' + i)
+      const gS = 12 + i * 10 + Math.floor(r() * 5) - 2
+      const okS = strokes >= gS - 2 && strokes <= gS + 2 ? 1 : 0
+      if (okC !== okS) return { ok: false, score: 0, reason: 'ghost_gate' }
+      if (okC) pts += 110
+      n++
+    }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_gate' }
+  return { ok: true, score: pts + Math.min(120, strokes * 6) }
+}
+function v3Moto(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0, taps = 0
+  for (const e of ev) {
+    const t = Number(e[1]) || 0
+    if (e[0] === 'p') { taps++; if (taps > 400) return { ok: false, score: 0, reason: 'overrun' } }
+    else if (e[0] === 'ob') {
+      const passC = Number(e[2]) ? 1 : 0, nearC = Number(e[3]) ? 1 : 0
+      const i = n
+      if (i >= 60) return { ok: false, score: 0, reason: 'overrun' }
+      const r = rngOf3(seed, 'moto:' + i)
+      const oS = 10 + i * 8 + Math.floor(r() * 5) - 2
+      const diff = taps - oS
+      const passS = Math.abs(diff) <= 1 ? 1 : 0
+      const nearS = passS && Math.abs(diff) === 1 ? 1 : 0
+      if (passC !== passS || nearC !== nearS) return { ok: false, score: 0, reason: 'ghost_pass' }
+      pts += passS * 70 + nearS * 30; n++
+    }
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_obstacle' }
+  return { ok: true, score: pts }
+}
+function v3Rally(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'corner') continue
+    const t = Number(e[1]) || 0, qC = Number(e[3])
+    const i = n
+    if (i >= 6) return { ok: false, score: 0, reason: 'overrun' }
+    if (!(qC >= 0 && qC <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+    const r = rngOf3(seed, 'ral:' + i)
+    const aS = 800 + i * (1500 + r() * 700)
+    if (t < aS - 350 || t > aS + 900) return { ok: false, score: 0, reason: 'ghost_timing' }
+    pts += Math.round(qC * 130); n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_corner' }
+  return { ok: true, score: pts }
+}
+function v3Formula(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'turn') continue
+    const t = Number(e[1]) || 0, qC = Number(e[3])
+    const i = n
+    if (i >= 8) return { ok: false, score: 0, reason: 'overrun' }
+    if (!(qC >= 0 && qC <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+    const r = rngOf3(seed, 'frm:' + i)
+    const aS = 700 + i * (1200 + r() * 500)
+    if (qC > 0.8 && (t < aS - 250 || t > aS + 550)) return { ok: false, score: 0, reason: 'ghost_apex' }
+    pts += Math.round(qC * 140); n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_turn' }
+  return { ok: true, score: pts }
+}
+function v3Boat(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'stroke') continue
+    const t = Number(e[1]) || 0, qC = Number(e[2])
+    const i = n
+    if (i >= 22) return { ok: false, score: 0, reason: 'overrun' }
+    if (!(qC >= 0 && qC <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
+    const wv = Math.abs(phaseAt(seed, 'boat', Math.floor(i / 5), t, 1100, 1700))
+    const qS = Math.max(0, 1 - wv)
+    if (Math.abs(qC - qS) > 0.14) return { ok: false, score: 0, reason: 'ghost_q' }
+    pts += Math.round(qS * 15); n++
+  }
+  if (n < 6) return { ok: false, score: 0, reason: 'no_row' }
+  return { ok: true, score: pts }
+}
+function v3Balance(ev: TelemEvent[], _seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'round') continue
+    const ms = Number(e[2]) || 0, qC = Number(e[3])
+    if (n >= 3) return { ok: false, score: 0, reason: 'overrun' }
+    if (!(ms >= 0 && ms <= 30000) || !(qC >= 0 && qC <= 1)) return { ok: false, score: 0, reason: 'bad_round' }
+    const qS = Math.min(1, ms / 8000)
+    if (Math.abs(qC - qS) > 0.16) return { ok: false, score: 0, reason: 'ghost_q' }
+    pts += Math.round(ms / 40) + Math.round(qS * 50); n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_round' }
+  return { ok: true, score: pts }
+}
+function v3Timing(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'stop') continue
+    const t = Number(e[1]) || 0, qC = Number(e[3]) || 0
+    const i = n
+    if (i >= 8) return { ok: false, score: 0, reason: 'overrun' }
+    if (!(qC >= 0 && qC <= 100)) return { ok: false, score: 0, reason: 'bad_q' }
+    const r = rngOf3(seed, 'tim:' + i)
+    const w = 0.8 + r() * 1.4
+    const a0 = r() * 360
+    const ac = 40 + r() * 280
+    const theta = (a0 + w * (t / 1000) * 360) % 360
+    const qS = Math.round(100 * Math.max(0, 1 - angDist(theta, ac) / 60))
+    if (Math.abs(qC - qS) > 6) return { ok: false, score: 0, reason: 'ghost_q' }
+    pts += Math.round(qS * 10) + (qS >= 95 ? 40 : 0); n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_stop' }
+  return { ok: true, score: pts }
+}
+function v3Memory(ev: TelemEvent[], seed: string): ScoreResult {
+  let pts = 0, n = 0
+  for (const e of ev) {
+    if (e[0] !== 'seq') continue
+    const ok = Math.round(Number(e[2]) || 0), lenC = Math.round(Number(e[3]) || 0)
+    const i = n
+    if (i >= 8) return { ok: false, score: 0, reason: 'overrun' }
+    const lenS = 3 + i
+    if (lenC !== lenS) return { ok: false, score: 0, reason: 'ghost_len' }
+    if (!(ok >= 0 && ok <= lenS)) return { ok: false, score: 0, reason: 'bad_seq' }
+    pts += ok * 40; n++
+  }
+  if (!n) return { ok: false, score: 0, reason: 'no_seq' }
+  return { ok: true, score: pts }
+}
+
 const SKILL3: Record<string, (ev: TelemEvent[], seed: string) => ScoreResult> = {
   sprint: v3Sprint, archery: v3Archery, swim: v3Swim, gym: v3Gym, weight: v3Weight,
   cycling: v3Cycling, chess: v3Chess, volley: v3Volley, football: v3Football, wrestle: v3Wrestle, lj: v3LJ,
+  /* V89 — Olympics V2 */
+  hurdles: v3Hurdles, run400: v3Run400, highjump: v3Highjump, javelin: v3Javelin, discus: v3Discus, shotput: v3Shotput,
+  boxing: v3Boxing, fencing: v3Fencing, judo: v3Judo, reaction: v3Reaction,
+  shooting: v3Shooting, movingtarget: v3MovingTarget, sniper: v3Sniper, rapidtarget: v3RapidTarget,
+  swim50: v3Swim50, diving: v3Diving, rowing: v3Rowing, kayak: v3Kayak,
+  moto: v3Moto, rally: v3Rally, formula: v3Formula, boat: v3Boat,
+  balance: v3Balance, timing: v3Timing, memory: v3Memory,
 }
 
 /* ——— ممیزی اصلی: تله‌متری → امتیازِ سروری ———

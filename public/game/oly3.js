@@ -1312,6 +1312,1081 @@
      نصب: دیسپچ GAMES — هر رشته: اگر gate نسلی فعال بود → نسل ۳،
      وگرنه gameplay قبلی (V41) بدون هیچ دست‌خوردگی (fallback امن)
      ============================================================ */
+  /* ============================================================
+     V89 — OLYMPICS V2: ۲۵ رشته‌ی جدید — ۸ خانواده‌ی gameplay متمایز.
+     هر بازی هندسه‌اش از seed سرور بازسازی می‌شود (آینه‌ی داور v3 در
+     olyScore.ts) — امتیاز فقط از تله‌متری راستی‌آزمایی می‌شود.
+     helpers مشترک:
+     ============================================================ */
+  function ph3(seed, salt, i, t, f0, f1) {
+    var r = rngOf3(seed, salt + ':' + i);
+    var f = f0 + r() * (f1 - f0), p = r() * 6.28318;
+    return Math.sin((t / f) * 6.28318 + p);
+  }
+  function angD3(a, b) { var d = Math.abs(((a - b) % 360 + 360) % 360); return d > 180 ? 360 - d : d }
+
+  /* ——— ۱۲) ۱۱۰ متر بارییر: دویدن + پرش زمان‌دار روی موانع — داور: v3Hurdles ——— */
+  G3.hurdles = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    var r = rngOf3(seed, 'hurd'); var B = [];
+    for (var i = 0; i < 8; i++) B.push(9 + i * 7 + Math.floor(r() * 3) - 1);
+    return game('hurdles', {
+      el: el, done: done, col: '#ff6b4d', hint: 'یک‌درمیان بدو؛ وقتی به بارییر رسیدی بپر — تصادف = پایان دو!',
+      build: function (st) { st.goT = -1; st.goAt = 800 + rngOf3(seed, 'hg')() * 900; st.strides = 0; st.lastSide = -1; st.lastT = -1; st.jumps = 0; st.clean = 0; st.phase = 'set'; st.crashed = false; st.jumpAnim = -1 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W(), H = st.S.H();
+            if (st.phase === 'set') { if (t < st.goAt) { st.phase = 'over'; TE('go', t); TE('crash', t); st.finish(0) } else { st.phase = 'run'; TE('go', t); st.goT = t; st.S.msg.textContent = 'بدو!' } return }
+            if (st.phase !== 'run') return;
+            var side = x < W / 2 ? 0 : 1;
+            if (side === st.lastSide) return;
+            if (st.lastT >= 0 && t - st.lastT < 55) return;
+            st.lastT = t; st.lastSide = side; st.strides++;
+            TE('p', t, side);
+            if (y > H * 0.55 && st.jumps < 8) {
+              var ok = Math.abs(st.strides - B[st.jumps]) <= 2 ? 1 : 0;
+              TE('jump', t, ok); st.jumps++; if (ok) st.clean++;
+              st.jumpAnim = t; snd(ok ? 'cheer' : 'alert');
+              if (!ok) { FX.shake() }
+            }
+            if (st.strides > B[7] + 3 && !st.crashed) { st.crashed = false; TE('end', t); st.finish(st.strides * 8 + st.clean * 240) }
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        if (st.phase === 'set') { txt(c, t < st.goAt - 250 ? 'آماده…' : 'حالا!', W / 2, H * 0.4, 22, t < st.goAt - 250 ? '#ffd75e' : '#7dff9e'); return }
+        /* مسیر + بارییرها بر اساس گام */
+        c.fillStyle = 'rgba(255,107,77,.14)'; rr(c, 0, H * 0.55, W, H * 0.2, 10); c.fill();
+        for (var i = 0; i < 8; i++) {
+          var rel = B[i] - st.strides;
+          if (rel < -1 || rel > 9) continue;
+          var bx = W * (1 - rel / 10);
+          c.fillStyle = 'rgba(255,255,255,' + (0.25 + (rel === 1 ? 0.5 : 0)) + ')';
+          rr(c, bx - 4, H * 0.42, 8, H * 0.33, 3); c.fill();
+          c.fillStyle = rel <= 2 ? '#ffd75e' : '#ff6b4d'; rr(c, bx - 10, H * 0.42, 20, 5, 2); c.fill();
+        }
+        txt(c, 'گام: ' + faN(st.strides) + '  •  پرش تمیز: ' + faN(st.clean) + '/۸', W / 2, H * 0.88, 12, '#9fb6d4');
+        txt(c, 'پایین صفحه بزن = پرش', W / 2, H - 24, 10, '#7d92ad');
+      }
+    });
+  };
+
+  /* ——— ۱۳) ۴۰۰ متر استقامت: ریتم سه فاز — داور: v3Run400 ——— */
+  G3.run400 = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    var r = rngOf3(seed, 'r400');
+    var tgt = [430 + r() * 40, 380 + r() * 40, 470 + r() * 40];
+    return game('run400', {
+      el: el, done: done, col: '#ffa64d', hint: 'به ریتم نوار هدف گوش بده — هر فاز ریتم خودش را می‌خواهد؛ یک‌درمیان بزن',
+      build: function (st) { st.strides = 0; st.lastSide = -1; st.lastT = -1; st.laps = 0; st.sum = 0; st.phase = 'go' },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W();
+            var side = x < W / 2 ? 0 : 1;
+            if (side === st.lastSide) return;
+            if (st.lastT >= 0) {
+              var g = t - st.lastT;
+              if (g < 60) return;
+              var target = tgt[Math.min(2, Math.floor(st.strides / 60))];
+              var q = Math.max(0, 1 - Math.abs(g - target) / 220);
+              st.sum += q;
+              if (q > 0.75) snd('click'); else snd('alert');
+            }
+            st.lastT = t; st.lastSide = side; st.strides++;
+            TE('p', t, side);
+            if ((st.strides === 60 || st.strides === 120 || st.strides === 180) && st.laps < 3) { TE('lap', t, st.laps); st.laps++ }
+            if (st.strides >= 180) { st.finish(Math.round(st.sum * 14) + st.laps * 40) }
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        var ph = Math.min(2, Math.floor(st.strides / 60)), target = tgt[ph];
+        var lastG = st.lastT >= 0 ? t - st.lastT : 0;
+        /* نوار ریتم: نشانگر فاصله‌ی گام فعلی نسبت به هدف */
+        c.fillStyle = 'rgba(255,255,255,.1)'; rr(c, 20, H * 0.35, W - 40, 26, 13); c.fill();
+        var zoneW = (W - 40) * 0.28;
+        c.fillStyle = 'rgba(125,255,158,.35)'; rr(c, (W - zoneW) / 2, H * 0.35, zoneW, 26, 13); c.fill();
+        var mpos = Math.max(0, Math.min(1, (lastG - (target - 220)) / 440));
+        c.fillStyle = '#ffd75e'; rr(c, 20 + (W - 44) * mpos, H * 0.35 - 4, 8, 34, 4); c.fill();
+        txt(c, 'فاز ' + faN(ph + 1) + '/۳ — ریتم هدف: ' + faN(Math.round(target)) + 'ms', W / 2, H * 0.28, 13, '#ffe08a');
+        /* پیست */
+        c.fillStyle = 'rgba(255,166,77,.12)'; rr(c, 0, H * 0.55, W, 40, 8); c.fill();
+        var prog = st.strides / 180;
+        c.fillStyle = '#ffa64d'; rr(c, W * prog - 12, H * 0.55 + 12, 24, 16, 6); c.fill();
+        txt(c, 'دور ' + faN(st.laps) + '/۳  •  امتیاز لحظه‌ای: ' + faN(Math.round(st.sum * 14)), W / 2, H * 0.75, 12, '#9fb6d4');
+        txt(c, 'چپ/راست یک‌درمیان — داخل نوار سبز بزن', W / 2, H - 22, 10, '#7d92ad');
+      }
+    });
+  };
+
+  /* ——— ۱۴) پرش ارتفاع: سنجه‌ی نوسانی + ریسک — داور: v3Highjump ——— */
+  G3.highjump = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('highjump', {
+      el: el, done: done, col: '#4de3a0', hint: 'وقتی سنجه بالاست بپر؛ دکمه‌ی ریسک ارتفاع بیشتر ولی رکورد شکننده‌تر',
+      build: function (st) { st.att = 0; st.best = 0; st.clears = 0; st.risk = 0; st.phase = 'aim' },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W();
+            if (st.phase !== 'aim') return;
+            if (x < W * 0.28) { st.risk = st.risk ? 0 : 1; snd('click'); return }
+            var i = st.att, ph = ph3(seed, 'hj', i, t, 900, 1500);
+            var h = Math.round(150 + 42 * ph + st.risk * 22 + i * 8);
+            TE('jump', t, h, st.risk);
+            st.best = Math.max(st.best, h); if (h >= 180) st.clears++;
+            st.S.score(st.best * 6 + st.clears * 60);
+            FX.text(W / 2, st.S.H() * 0.4, faN(h) + ' سانت', h >= 180 ? '#7dff9e' : '#ffe08a', 18);
+            snd(h >= 180 ? 'cheer' : 'stamp');
+            st.att++; st.phase = 'wait';
+            setTimeout(function () { if (!st.over) { st.phase = 'aim'; if (st.att >= 3) st.finish(st.best * 6 + st.clears * 60) } }, 800);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        if (st.phase !== 'aim') { txt(c, '…', W / 2, H / 2, 20, '#9fb6d4'); return }
+        var ph = ph3(seed, 'hj', st.att, t, 900, 1500);
+        var hNow = 150 + 42 * ph + st.risk * 22 + st.att * 8;
+        /* میله + ورزشکار */
+        c.strokeStyle = 'rgba(255,255,255,.5)'; c.lineWidth = 4;
+        c.beginPath(); c.moveTo(W * 0.2, H * 0.45); c.lineTo(W * 0.8, H * 0.45); c.stroke();
+        var jy = H * 0.62 - (H * 0.3) * Math.max(0, (hNow - 140) / 110);
+        c.font = '28px serif'; c.textAlign = 'center'; c.fillText('🏃', W / 2, jy);
+        txt(c, 'ارتفاع: ' + faN(Math.round(hNow)) + ' سانت', W / 2, H * 0.18, 16, '#ffe08a');
+        txt(c, 'تلاش ' + faN(st.att + 1) + '/۳ • بهترین: ' + faN(st.best), W / 2, H * 0.78, 12, '#9fb6d4');
+        var rb = st.risk ? 'ریسک: روشن (بالاتر، سخت‌تر)' : 'ریسک: خاموش — دکمه‌ی چپ';
+        txt(c, rb, W * 0.6, H - 22, 10, st.risk ? '#ff8ba0' : '#7d92ad');
+      }
+    });
+  };
+
+  /* ——— ۱۵/۱۶/۱۷) پرتاب‌ها: دویدن نرم + سنجه‌ی زاویه + باد — داور: v3ThrowGeom ——— */
+  function throwGame(key, col, cfg) {
+    return function (el, done) {
+      var seed = seedOf(); if (!seed) return false;
+      return game(key, {
+        el: el, done: done, col: col, hint: cfg.hint,
+        build: function (st) { st.att = 0; st.taps = 0; st.dists = []; st.phase = 'run' },
+        input: function (st) {
+          return {
+            down: function (x, y) {
+              var t = st.T(); var W = st.S.W();
+              if (st.phase === 'run') { st.taps++; TE('p', t); snd('click'); if (st.taps >= 6) st.phase = 'aim'; return }
+              if (st.phase !== 'aim') return;
+              var i = st.att;
+              var r = rngOf3(seed, cfg.salt + ':' + i);
+              var wind = r() * 2 - 1;
+              var ph = ph3(seed, cfg.salt + 'ph', i, t, 700, 1400);
+              var angleQ = Math.max(0, 1 - Math.abs(ph));
+              var powerQ = Math.min(1, st.taps / 8);
+              var q = 0.6 * angleQ + 0.4 * powerQ;
+              var d = cfg.dist(q, wind);
+              TE('throw', t, Math.round(d * 10) / 10);
+              st.dists.push(d);
+              st.S.score(Math.round((function () { var s = st.dists.slice().sort(function (a, b) { return b - a }); var p = 0; for (var j = 0; j < Math.min(3, s.length); j++) p += s[j]; return p * cfg.mul })()));
+              FX.text(W / 2, st.S.H() * 0.35, faN(Math.round(d)) + ' متر', d >= cfg.hi * 0.85 ? '#7dff9e' : '#ffe08a', 17);
+              snd('stamp');
+              st.att++; st.taps = 0; st.phase = 'run';
+              if (st.att >= 5) setTimeout(function () { if (!st.over) { var s = st.dists.slice().sort(function (a, b) { return b - a }); var p = 0; for (var j = 0; j < Math.min(3, s.length); j++) p += s[j]; st.finish(Math.round(p * cfg.mul)) } }, 700);
+            }
+          };
+        },
+        frame: function (st, t) {
+          var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+          c.clearRect(0, 0, W, H);
+          c.fillStyle = 'rgba(255,255,255,.06)'; rr(c, 0, H * 0.62, W, H * 0.16, 8); c.fill();
+          if (st.phase === 'run') { txt(c, 'سریع بزن — شتاب ' + faN(st.taps) + '/۶', W / 2, H * 0.3, 15, '#ffe08a') }
+          else {
+            var ph = ph3(seed, cfg.salt + 'ph', st.att, t, 700, 1400);
+            var w = (rngOf3(seed, cfg.salt + ':' + st.att)() * 2 - 1);
+            var mx = W / 2 + ph * (W * 0.34);
+            c.fillStyle = 'rgba(125,255,158,.3)'; rr(c, W / 2 - W * 0.06, H * 0.42, W * 0.12, 26, 13); c.fill();
+            c.fillStyle = '#ffd75e'; rr(c, mx - 5, H * 0.42 - 6, 10, 38, 5); c.fill();
+            txt(c, 'باد: ' + (w > 0.3 ? '→→' : w > 0.1 ? '→' : w < -0.3 ? '←←' : w < -0.1 ? '←' : 'آرام'), W / 2, H * 0.3, 12, '#8fb8dd');
+            txt(c, 'در نوار سبز رها کن — پرتاب ' + faN(st.att + 1) + '/۵', W / 2, H * 0.8, 12, '#9fb6d4');
+          }
+          txt(c, 'بهترین‌ها: ' + (st.dists.length ? st.dists.slice().sort(function (a, b) { return b - a }).slice(0, 3).map(function (d) { return faN(Math.round(d)) }).join(' • ') : '—'), W / 2, H - 22, 10, '#7d92ad');
+        }
+      });
+    };
+  }
+  G3.javelin = throwGame('javelin', '#5ec8ff', { salt: 'jav', mul: 12, hi: 90, hint: 'شتاب بگیر، بعد زاویه‌ی بهینه را در نوار سبز رها کن — باد حریف توست', dist: function (q, w) { return 35 + 50 * q + w * 5 } });
+  G3.discus = throwGame('discus', '#c08bff', { salt: 'dis', mul: 14, hi: 66, hint: 'چرخش بگیر و دیسک را در زاویه‌ی طلایی رها کن', dist: function (q, w) { return 22 + 40 * q + w * 4 } });
+  G3.shotput = throwGame('shotput', '#ff8b6b', { salt: 'sht', mul: 40, hi: 21, hint: 'قدرت جمع کن و در لحظه‌ی درست پرتاب کن', dist: function (q) { return 7 + 13 * q } });
+
+  /* ——— ۱۸) بوکس: تلگراف بالا/پایین + کانتر — داور: v3Boxing ——— */
+  G3.boxing = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('boxing', {
+      el: el, done: done, col: '#ff4d6d', hint: 'حمله‌ی بالا/پایین را بلاک کن یا کانتر بزن — کانتر سریع‌ترین امتیاز را دارد',
+      build: function (st) { st.n = 0; st.pts = 0; st.phase = 'idle'; st.telT = -1; st.tel = 0 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W();
+            if (st.phase === 'idle') {
+              var i = st.n; if (i >= 9) return;
+              st.tel = Math.floor(rngOf3(seed, 'box:' + i)() * 2);
+              st.telT = t; st.phase = 'tel';
+              setTimeout(function () { if (!st.over && st.phase === 'tel') { st.phase = 'idle'; snd('alert'); FX.shake() } }, 1600);
+              return;
+            }
+            if (st.phase !== 'tel') return;
+            var act = x < W / 3 ? 0 : x < (W * 2) / 3 ? 2 : 1; /* چپ=بلاک بالا، وسط=کانتر، راست=بلاک پایین */
+            var rt = t - st.telT;
+            var win = act === 2 ? rt <= 650 : (act === st.tel && rt <= 900) ? 1 : 0;
+            TE('ex', t, act, win, Math.round(rt));
+            if (win) { st.pts += 110 + Math.max(0, Math.round((900 - rt) / 10)); snd('punch'); FX.flash('#7dff9e', .2) }
+            else { snd('alert'); FX.shake() }
+            st.S.score(st.pts); st.n++; st.phase = 'idle';
+            if (st.n >= 9) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 600);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        c.font = '34px serif'; c.textAlign = 'center'; c.fillText('🥊', W / 2, H * 0.45);
+        if (st.phase === 'tel') {
+          var rt = t - st.telT;
+          var show = rt > 350 + rngOf3(seed, 'boxd:' + st.n)() * 300;
+          if (show) txt(c, st.tel === 0 ? '⬆️ حمله‌ی بالا!' : '⬇️ حمله‌ی پایین!', W / 2, H * 0.3, 18, '#ff8ba0');
+        }
+        txt(c, 'راند ' + faN(Math.floor(st.n / 3) + 1) + '/۳  •  رد و بدل ' + faN(st.n % 3 + 1) + '/۳', W / 2, H * 0.66, 12, '#9fb6d4');
+        txt(c, 'چپ: بلاک بالا • وسط: کانتر • راست: بلاک پایین', W / 2, H - 22, 10, '#7d92ad');
+      }
+    });
+  };
+
+  /* ——— ۱۹) شمشیربازی: فینت + لانگ/ریپوست — داور: v3Fencing ——— */
+  G3.fencing = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('fencing', {
+      el: el, done: done, col: '#8fd0ff', hint: 'فینت حریف را بخوان — لانگ سریع به سمت باز، یا ریپوست با زمان‌بندی',
+      build: function (st) { st.n = 0; st.pts = 0; st.phase = 'idle'; st.telT = -1; st.tel = 0 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W();
+            if (st.phase === 'idle') {
+              var i = st.n; if (i >= 8) return;
+              st.tel = Math.floor(rngOf3(seed, 'fen:' + i)() * 2);
+              st.telT = t; st.phase = 'tel';
+              setTimeout(function () { if (!st.over && st.phase === 'tel') { st.phase = 'idle'; snd('alert') } }, 1500);
+              return;
+            }
+            if (st.phase !== 'tel') return;
+            var act = x < W / 2 ? 0 : 1;
+            var rt = t - st.telT;
+            var r2 = rngOf3(seed, 'fend:' + st.n);
+            var lo = 120 + r2() * 200;
+            var win = act === 1 ? (rt >= lo && rt <= 620) : (act === st.tel && rt <= 380) ? 1 : 0;
+            TE('touch', t, act, win, Math.round(rt));
+            if (win) { st.pts += 130 + Math.max(0, Math.round((700 - rt) / 8)); snd('cheer'); FX.text(W / 2, st.S.H() * 0.35, 'تاچ!', '#7dff9e', 16) }
+            else { snd('alert'); FX.shake() }
+            st.S.score(st.pts); st.n++; st.phase = 'idle';
+            if (st.n >= 8) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 600);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        c.font = '30px serif'; c.textAlign = 'center'; c.fillText('🤺', W / 2, H * 0.45);
+        if (st.phase === 'tel') {
+          var rt = t - st.telT;
+          var show = rt > 300;
+          if (show) txt(c, st.tel === 0 ? '🤺 سمت چپ باز است!' : '🤺 سمت راست باز است!', W / 2, H * 0.3, 16, '#8fd0ff');
+        }
+        txt(c, 'تاچ ' + faN(st.n + 1) + '/۸  •  امتیاز: ' + faN(st.pts), W / 2, H * 0.66, 12, '#9fb6d4');
+        txt(c, 'چپ: لانگ سریع • راست: ریپوست زمان‌دار', W / 2, H - 22, 10, '#7d92ad');
+      }
+    });
+  };
+
+  /* ——— ۲۰) جودو: نقطه‌ی گیر — داور: v3Judo ——— */
+  G3.judo = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('judo', {
+      el: el, done: done, col: '#e05299', hint: 'وقتی گیر کامل است (نوار وسط) ضربه بزن — سه پرتاب',
+      build: function (st) { st.n = 0; st.pts = 0; st.phase = 'aim' },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T();
+            if (st.phase !== 'aim' || st.n >= 3) return;
+            var ph = ph3(seed, 'judo', st.n, t, 1100, 1900);
+            var q = Math.max(0, 1 - Math.abs(ph));
+            TE('throw', t, Math.round(q * 100) / 100);
+            st.pts += Math.round(300 * q);
+            st.S.score(st.pts);
+            FX.text(st.S.W() / 2, st.S.H() * 0.35, q > 0.8 ? 'ایپون!' : q > 0.5 ? 'وازاری' : 'ضعیف', q > 0.8 ? '#7dff9e' : '#ffe08a', 18);
+            snd(q > 0.8 ? 'cheer' : 'stamp');
+            st.n++; st.phase = 'wait';
+            setTimeout(function () { if (!st.over) { st.phase = 'aim'; if (st.n >= 3) st.finish(st.pts) } }, 800);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        if (st.phase !== 'aim') { txt(c, '…', W / 2, H / 2, 20, '#9fb6d4'); return }
+        var ph = ph3(seed, 'judo', st.n, t, 1100, 1900);
+        c.font = '30px serif'; c.textAlign = 'center'; c.fillText('🥋', W / 2 + ph * 30, H * 0.42);
+        c.fillStyle = 'rgba(255,255,255,.1)'; rr(c, 20, H * 0.55, W - 40, 24, 12); c.fill();
+        var zw = (W - 40) * 0.22;
+        c.fillStyle = 'rgba(125,255,158,.35)'; rr(c, (W - zw) / 2, H * 0.55, zw, 24, 12); c.fill();
+        c.fillStyle = '#ffd75e'; rr(c, 20 + (W - 44) * ((ph + 1) / 2), H * 0.55 - 4, 8, 32, 4); c.fill();
+        txt(c, 'گیر: ' + faN(Math.round((1 - Math.abs(ph)) * 100)) + '٪ — پرتاب ' + faN(st.n + 1) + '/۳', W / 2, H * 0.78, 12, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۲۱) دوئل واکنش: ۵ ایستگاه خالص — داور: v3Reaction ——— */
+  G3.reaction = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('reaction', {
+      el: el, done: done, col: '#ffd84d', hint: 'صبر کن سبز شود — ضربه‌ی زودتر = خطا؛ ۵ ایستگاه',
+      build: function (st) { st.n = 0; st.pts = 0; st.phase = 'wait'; st.waitT = st.T(); st.waitEmit = false; st.delay = 2300 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T();
+            if (st.phase === 'wait') { st.phase = 'go'; snd('stamp'); FX.flash('#7dff9e', .25); return }
+            if (st.phase !== 'go') return;
+            var rt = t - st.waitT - st.delay;
+            if (rt < 0) { /* خطا: تکرار ایستگاه */
+              snd('alert'); FX.shake(); st.phase = 'wait'; st.waitEmit = false; return;
+            }
+            TE('go', t, Math.round(rt));
+            if (rt >= 100) { var p = Math.max(20, Math.round((550 - rt) * 1.6)); st.pts += p; st.S.score(st.pts); FX.text(st.S.W() / 2, st.S.H() * 0.35, faN(rt) + 'ms', rt < 250 ? '#7dff9e' : '#ffe08a', 18) }
+            snd('click');
+            st.n++; st.phase = 'idle';
+            setTimeout(function () { if (!st.over) { if (st.n >= 5) { st.finish(st.pts) } else { st.phase = 'wait'; st.waitEmit = false } } }, 700);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        if (st.phase === 'wait') {
+          if (!st.waitEmit) {
+            var rr2 = rngOf3(seed, 'react:' + st.n);
+            st.delay = 1200 + rr2() * 2300;
+            st.waitT = st.T();
+            TE('wait', st.waitT, st.n);
+            st.waitEmit = true;
+          }
+          c.fillStyle = 'rgba(255,77,109,.25)'; rr(c, 0, 0, W, H, 0); c.fill();
+          txt(c, 'مکث…', W / 2, H * 0.45, 22, '#ff8ba0');
+        } else if (st.phase === 'go') {
+          c.fillStyle = 'rgba(125,255,158,.28)'; rr(c, 0, 0, W, H, 0); c.fill();
+          txt(c, 'بزن!', W / 2, H * 0.45, 30, '#7dff9e');
+        }
+        txt(c, 'ایستگاه ' + faN(st.n + 1) + '/۵ • امتیاز: ' + faN(st.pts), W / 2, H - 26, 12, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۲۲) تیراندازی: ثبات مچ + نگه‌داشتن — داور: v3Shooting ——— */
+  G3.shooting = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('shooting', {
+      el: el, done: done, col: '#9fe8ff', hint: 'نگه دار تا هدف ثابت شود، بعد شلیک — ۵ گلوله',
+      build: function (st) { st.n = 0; st.pts = 0; st.hold0 = -1; st.phase = 'aim' },
+      input: function (st) {
+        return {
+          down: function (x, y) { var t = st.T(); if (st.phase === 'aim' && st.n < 5) { st.hold0 = t; st.phase = 'hold'; snd('click') } },
+          up: function (x, y) {
+            var t = st.T();
+            if (st.phase !== 'hold') return;
+            var hold = t - st.hold0;
+            if (hold < 300) { st.phase = 'aim'; return }
+            var i = st.n;
+            var amp = Math.min(0.85, 0.3 + hold / 8000 + rngOf3(seed, 'shoot:' + i)() * 0.1);
+            var sway = Math.abs(ph3(seed, 'shootsw', i, t, 800, 1600));
+            var q = Math.round(100 * Math.max(0, 1 - sway * amp - 0.05));
+            TE('shot', t, q, Math.round(hold));
+            st.pts += Math.round(q * 2.2); st.S.score(st.pts);
+            FX.text(st.S.W() / 2, st.S.H() * 0.3, faN(q), q >= 85 ? '#7dff9e' : '#ffe08a', 18);
+            snd(q >= 85 ? 'cheer' : 'stamp');
+            st.n++; st.phase = 'aim';
+            if (st.n >= 5) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 600);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        /* هدف */
+        c.fillStyle = 'rgba(159,232,255,.12)'; c.beginPath(); c.arc(W / 2, H * 0.4, W * 0.22, 0, 6.28318); c.fill();
+        c.strokeStyle = 'rgba(255,255,255,.4)'; c.beginPath(); c.arc(W / 2, H * 0.4, W * 0.12, 0, 6.28318); c.stroke();
+        if (st.phase === 'hold') {
+          var sway = ph3(seed, 'shootsw', st.n, t, 800, 1600);
+          var cx = W / 2 + sway * W * 0.14, cy = H * 0.4 + sway * H * 0.05;
+          c.strokeStyle = '#ffd75e'; c.lineWidth = 2;
+          c.beginPath(); c.arc(cx, cy, 12, 0, 6.28318); c.stroke();
+          c.beginPath(); c.moveTo(cx - 18, cy); c.lineTo(cx + 18, cy); c.moveTo(cx, cy - 18); c.lineTo(cx, cy + 18); c.stroke();
+          txt(c, 'رها کن!', W / 2, H * 0.72, 12, '#7dff9e');
+        } else txt(c, 'نگه دار…', W / 2, H * 0.72, 12, '#9fb6d4');
+        txt(c, 'گلوله ' + faN(st.n + (st.phase === 'hold' ? 1 : 0)) + '/۵ • امتیاز: ' + faN(st.pts), W / 2, H - 24, 12, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۲۳) هدف متحرک: رهگیری — داور: v3MovingTarget ——— */
+  G3.movingtarget = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    var apps = [];
+    for (var i = 0; i < 10; i++) apps.push(500 + i * (900 + rngOf3(seed, 'mt:' + i)() * 500));
+    return game('movingtarget', {
+      el: el, done: done, col: '#7dffb0', hint: 'اهداف رد می‌شوند — هرچه مرکزی‌تر بزنی امتیاز بیشتر (۱۰ هدف)',
+      build: function (st) { st.n = 0; st.pts = 0 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W();
+            if (st.n >= 10) return;
+            var aS = apps[st.n];
+            if (t < aS - 100 || t > aS + 2800) return;
+            var prog = Math.max(0, Math.min(1, (t - aS) / 2600));
+            var tx = W * (0.08 + prog * 0.84);
+            var dist = Math.abs(x - tx) / (W * 0.12);
+            var q = Math.max(0, Math.round(100 * (1 - Math.min(1, dist))));
+            TE('hit', t, q);
+            st.pts += Math.round(q * 1.5); st.S.score(st.pts);
+            FX.text(tx, st.S.H() * 0.4, faN(q), q >= 80 ? '#7dff9e' : '#ffe08a', 15);
+            snd(q >= 80 ? 'cheer' : 'click');
+            st.n++;
+            if (st.n >= 10) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 600);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        if (st.n < 10) {
+          var aS = apps[st.n];
+          if (t >= aS - 100) {
+            var prog = Math.max(0, Math.min(1.15, (t - aS) / 2600));
+            var tx = W * (0.08 + Math.min(1, prog) * 0.84);
+            c.font = '26px serif'; c.textAlign = 'center'; c.fillText('🎯', tx, H * 0.4);
+            c.strokeStyle = 'rgba(125,255,176,.5)'; c.beginPath(); c.arc(tx, H * 0.4 - 8, W * 0.12, 0, 6.28318); c.stroke();
+          }
+        }
+        txt(c, 'هدف ' + faN(st.n + 1) + '/۱۰ • امتیاز: ' + faN(st.pts), W / 2, H - 24, 12, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۲۴) تک‌تیرانداز: نفس + باد — داور: v3Sniper ——— */
+  G3.sniper = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('sniper', {
+      el: el, done: done, col: '#6b8bff', hint: 'چرخه‌ی نفس را دنبال کن — در آرامش شلیک کن؛ ۳ گلوله',
+      build: function (st) { st.n = 0; st.pts = 0; st.phase = 'aim' },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T();
+            if (st.phase !== 'aim' || st.n >= 3) return;
+            var wind = Math.abs(rngOf3(seed, 'snip:' + st.n)() * 2 - 1);
+            var breath = Math.abs(ph3(seed, 'snipb', st.n, t, 2600, 3800));
+            var q = Math.round(100 * Math.max(0, 1 - breath * 1.3 - wind * 0.25));
+            TE('shot', t, q);
+            st.pts += Math.round(q * 3.4); st.S.score(st.pts);
+            FX.text(st.S.W() / 2, st.S.H() * 0.32, faN(q), q >= 80 ? '#7dff9e' : '#ffe08a', 18);
+            snd(q >= 80 ? 'cheer' : 'stamp');
+            st.n++;
+            if (st.n >= 3) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 600);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        c.fillStyle = 'rgba(107,139,255,.1)'; rr(c, 0, 0, W, H, 0); c.fill();
+        var breath = ph3(seed, 'snipb', st.n < 3 ? st.n : 2, t, 2600, 3800);
+        var s = 1 + breath * 0.18;
+        c.strokeStyle = 'rgba(255,255,255,.5)'; c.lineWidth = 2;
+        c.beginPath(); c.arc(W / 2, H * 0.42, W * 0.13 * s, 0, 6.28318); c.stroke();
+        c.beginPath(); c.arc(W / 2, H * 0.42, 3, 0, 6.28318); c.stroke();
+        /* نوار نفس */
+        c.fillStyle = 'rgba(255,255,255,.1)'; rr(c, 20, H * 0.66, W - 40, 12, 6); c.fill();
+        c.fillStyle = Math.abs(breath) < 0.3 ? '#7dff9e' : '#ff8ba0'; rr(c, 20, H * 0.66, (W - 40) * (1 - Math.abs(breath)), 12, 6); c.fill();
+        txt(c, Math.abs(breath) < 0.3 ? 'آرام — شلیک کن!' : 'نفس…', W / 2, H * 0.76, 13, Math.abs(breath) < 0.3 ? '#7dff9e' : '#ff8ba0');
+        txt(c, 'گلوله ' + faN(st.n + 1) + '/۳ • امتیاز: ' + faN(st.pts), W / 2, H - 24, 12, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۲۵) تیر سریع: ۱۵ هدف لحظه‌ای — داور: v3RapidTarget ——— */
+  G3.rapidtarget = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    var apps = [], lifes = [];
+    for (var i = 0; i < 15; i++) { var r = rngOf3(seed, 'rt:' + i); apps.push(600 + i * (820 + r() * 300)); lifes.push(900 + r() * 400) }
+    return game('rapidtarget', {
+      el: el, done: done, col: '#ffe06b', hint: 'اهداف لحظه‌ای ظاهر می‌شوند — هرچه سریع‌تر، امتیاز بیشتر',
+      build: function (st) { st.n = 0; st.pts = 0 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T();
+            if (st.n >= 15) return;
+            var aS = apps[st.n];
+            if (t < aS - 80) return;
+            var rt = t - aS;
+            TE('hit', t, 0, Math.round(rt));
+            var p = Math.max(10, Math.round((900 - rt) / 3));
+            st.pts += Math.max(0, p); st.S.score(st.pts);
+            FX.text(st.S.W() / 2, st.S.H() * 0.4, (rt < 350 ? '⚡ ' : '') + faN(Math.max(0, p)), rt < 350 ? '#7dff9e' : '#ffe08a', 16);
+            snd(rt < 350 ? 'cheer' : 'click');
+            st.n++;
+            if (st.n >= 15) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 600);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        if (st.n < 15 && t >= apps[st.n] - 80 && t <= apps[st.n] + lifes[st.n] + 120) {
+          var x = W * (0.2 + ((st.n * 37) % 60) / 100), y = H * (0.3 + ((st.n * 53) % 40) / 100);
+          c.font = '30px serif'; c.textAlign = 'center'; c.fillText('🎈', x, y);
+        }
+        txt(c, 'هدف ' + faN(st.n + 1) + '/۱۵ • امتیاز: ' + faN(st.pts), W / 2, H - 24, 12, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۲۶) شنای ۵۰ متر انفجاری — داور: v3Swim50 ——— */
+  G3.swim50 = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('swim50', {
+      el: el, done: done, col: '#2bb8ff', hint: 'انفجاری و سریع — یک‌درمیان! ۲۶ ضربه = پایان کامل',
+      build: function (st) { st.n = 0; st.sum = 0; st.lastT = -1; st.lastSide = -1 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W();
+            var side = x < W / 2 ? 0 : 1;
+            if (side === st.lastSide) return;
+            if (st.lastT >= 0) {
+              var g = t - st.lastT;
+              if (g < 80 || g > 1500) return;
+              st.sum += Math.max(0, 20 - (g - 110) / 22);
+            }
+            st.lastT = t; st.lastSide = side; st.n++;
+            TE('p', t, side);
+            if (st.n % 4 === 0) snd('click');
+            if (st.n >= 26) st.finish(Math.round(st.sum) + 120);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        c.fillStyle = 'rgba(43,184,255,.14)'; rr(c, 0, 0, W, H, 0); c.fill();
+        var prog = Math.min(1, st.n / 26);
+        c.font = '30px serif'; c.textAlign = 'center'; c.fillText('🏊', W * prog * 0.9 + W * 0.05, H * 0.45 + Math.sin(t / 160) * 8);
+        txt(c, 'ضربه ' + faN(st.n) + '/۲۶ • سرعت: ' + faN(Math.round(Math.min(99, st.sum / Math.max(1, st.n) * 6))) , W / 2, H * 0.7, 13, '#ffe08a');
+        txt(c, 'چپ/راست سریع — انفجار!', W / 2, H - 24, 11, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۲۷) شیرجه: توالی حرکات + ورود — داور: v3Diving ——— */
+  G3.diving = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('diving', {
+      el: el, done: done, col: '#4dd2ff', hint: 'توالی حرکات را به‌ترتیب و به‌موقع بزن؛ آخرین ورود را وسط بگیر',
+      build: function (st) { st.n = 0; st.pts = 0; st.phase = 'idle' },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W();
+            if (st.phase === 'idle') {
+              if (st.n >= 3) return;
+              var r = rngOf3(seed, 'dive:' + st.n);
+              st.len = 4 + Math.floor(r() * 3);
+              st.codes = [];
+              for (var j = 0; j < st.len + 2; j++) st.codes.push(Math.floor(r() * 4)); /* سمبل‌ها محلی‌اند — داور فقط len/ok را می‌سنجد */
+              st.i = 0; st.ok = 0; st.i0 = t; st.phase = 'seq';
+              return;
+            }
+            if (st.phase === 'entry') {
+              /* ورود: هرچه نزدیک سنکرون بزنی بهتر */
+              var entry = Math.max(0, Math.min(1, 1 - Math.abs(Math.sin((t - st.entryT) / 420 * 6.28318))));
+              entry = Math.round(entry * 20) / 20;
+              TE('dive', t, st.ok, entry, st.len);
+              st.pts += st.ok * 90 + Math.round(entry * 160); st.S.score(st.pts);
+              FX.text(st.S.W() / 2, st.S.H() * 0.5, entry >= 0.8 ? 'ورود تمیز!' : faN(Math.round(entry * 100)) + '٪', entry >= 0.8 ? '#7dff9e' : '#ffe08a', 15);
+              snd(entry >= 0.8 ? 'cheer' : 'stamp');
+              st.n++; st.phase = 'idle2';
+              setTimeout(function () { if (!st.over) { if (st.n >= 3) st.finish(st.pts); else st.phase = 'idle' } }, 700);
+              return;
+            }
+            if (st.phase !== 'seq') return;
+            var W2 = st.S.W();
+            var dir = x < W2 / 4 ? 0 : x < W2 / 2 ? 1 : x < (W2 * 3) / 4 ? 2 : 3;
+            var el0 = t - st.i0;
+            var win = 700 + st.i * 130;
+            if (el0 > win + 900) { /* انقضا */ st.phase = 'entry'; st.entryT = t; return }
+            if (dir === st.codes[st.i] && Math.abs(el0 - win) < 520) { st.ok++; snd('click'); FX.text(W2 / 2, st.S.H() * 0.3, '✓', '#7dff9e', 14) }
+            else { snd('alert') }
+            st.i++;
+            if (st.i >= st.len) { st.phase = 'entry'; st.entryT = t }
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        c.fillStyle = 'rgba(77,210,255,.1)'; rr(c, 0, H * 0.6, W, H * 0.4, 0); c.fill();
+        if (st.phase === 'seq') {
+          var ar = ['←', '↑', '→', '↓'];
+          for (var j = 0; j < st.len; j++) {
+            c.font = '24px serif'; c.textAlign = 'center';
+            c.fillStyle = j < st.i ? 'rgba(125,255,158,.9)' : j === st.i ? '#ffd75e' : 'rgba(255,255,255,.25)';
+            c.fillText(ar[st.codes[j]], W / 2 + (j - (st.len - 1) / 2) * 34, H * 0.35);
+          }
+        } else if (st.phase === 'entry') {
+          var ph = Math.sin((t - st.entryT) / 420 * 6.28318);
+          c.font = '26px serif'; c.fillText('🤿', W / 2 + ph * W * 0.12, H * 0.5);
+          txt(c, 'ورود را وسط بزن!', W / 2, H * 0.72, 12, '#ffe08a');
+        } else txt(c, 'شیرجه ' + faN(st.n + 1) + '/۳ — بزن تا شروع شود', W / 2, H * 0.35, 13, '#ffe08a');
+        if (st.phase === 'entry') {
+          /* ورود با هر ضربه بسته می‌شود — در down هندل نمی‌شود چون seq فعال است؛ اینجا از تایمر */
+          if (t - st.entryT > 1500) {
+            var entry = Math.max(0, 1 - Math.abs(Math.sin((t - st.entryT) / 420 * 6.28318)));
+            TE('dive', t, st.ok, Math.round(entry * 20) / 20, st.len);
+            st.pts += st.ok * 90 + Math.round(entry * 160); st.S.score(st.pts);
+            snd('stamp'); st.n++; st.phase = 'idle2';
+            setTimeout(function () { if (!st.over) { if (st.n >= 3) st.finish(st.pts); else st.phase = 'idle' } }, 700);
+          }
+        }
+        txt(c, 'شیرجه ' + faN(st.n + 1) + '/۳ • امتیاز: ' + faN(st.pts), W / 2, H - 22, 11, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۲۸) روئینگ: سنکرون پارو — داور: v3Rowing ——— */
+  G3.rowing = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('rowing', {
+      el: el, done: done, col: '#7dffc4', hint: 'پارو چپ/راست وقتی سنکرون وسط است — ۲۶ پارو',
+      build: function (st) { st.n = 0; st.pts = 0; st.lastSide = -1 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W();
+            var side = x < W / 2 ? 0 : 1;
+            if (side === st.lastSide) return;
+            if (st.n >= 26) return;
+            var drift = ph3(seed, 'row', Math.floor(st.n / 6), t, 1500, 2400);
+            var qS = Math.max(0, 1 - Math.abs(drift) / 0.5);
+            TE('stroke', t, side, Math.round(qS * 100) / 100);
+            st.pts += Math.round(qS * 16); st.S.score(st.pts);
+            if (qS > 0.8) snd('click'); else snd('alert');
+            st.lastSide = side; st.n++;
+            if (st.n >= 26) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 500);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        c.fillStyle = 'rgba(125,255,196,.09)'; rr(c, 0, H * 0.5, W, H * 0.3, 0); c.fill();
+        var drift = ph3(seed, 'row', Math.floor(st.n / 6), t, 1500, 2400);
+        c.font = '30px serif'; c.textAlign = 'center'; c.fillText('🚣', W / 2 + drift * W * 0.1, H * 0.45);
+        c.fillStyle = 'rgba(255,255,255,.1)'; rr(c, 20, H * 0.68, W - 40, 18, 9); c.fill();
+        var zw = (W - 40) * 0.3;
+        c.fillStyle = 'rgba(125,255,158,.3)'; rr(c, (W - zw) / 2, H * 0.68, zw, 18, 9); c.fill();
+        c.fillStyle = '#ffd75e'; rr(c, 20 + (W - 44) * ((drift + 1) / 2), H * 0.68 - 4, 8, 26, 4); c.fill();
+        txt(c, 'پارو ' + faN(st.n) + '/۲۶ • امتیاز: ' + faN(st.pts), W / 2, H * 0.82, 12, '#9fb6d4');
+        txt(c, 'یک‌درمیان چپ/راست — داخل نوار سبز', W / 2, H - 22, 10, '#7d92ad');
+      }
+    });
+  };
+
+  /* ——— ۲۹) کایاک اسلالوم: دروازه‌ها — داور: v3Kayak ——— */
+  G3.kayak = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    var gates = [];
+    for (var i = 0; i < 10; i++) gates.push(12 + i * 10 + Math.floor(rngOf3(seed, 'kay:' + i)() * 5) - 2);
+    return game('kayak', {
+      el: el, done: done, col: '#3ee8d0', hint: 'پارو بزن؛ وقتی از دروازه رد شدی (پنجره‌ی سبز) دکمه‌ی دروازه را بزن',
+      build: function (st) { st.strokes = 0; st.g = 0; st.pts = 0; st.lastSide = -1 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W(), H = st.S.H();
+            if (st.g < 10 && x > W * 0.72 && y < H * 0.3) {
+              /* دکمه‌ی دروازه */
+              var gS = gates[st.g];
+              var ok = (st.strokes >= gS - 2 && st.strokes <= gS + 2) ? 1 : 0;
+              TE('gate', t, st.g, ok);
+              if (ok) { st.pts += 110; snd('cheer'); FX.text(W * 0.5, H * 0.4, '✓ دروازه', '#7dff9e', 15) }
+              else { snd('alert'); FX.text(W * 0.5, H * 0.4, '✗ از دست رفت', '#ff8ba0', 14) }
+              st.S.score(st.pts); st.g++;
+              return;
+            }
+            var side = x < W / 2 ? 0 : 1;
+            if (side === st.lastSide) return;
+            st.lastSide = side; st.strokes++;
+            TE('p', t, side);
+            snd('click');
+            if (st.g >= 10 && st.strokes > gates[9] + 4) st.finish(st.pts + Math.min(120, st.strokes * 6));
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        c.fillStyle = 'rgba(62,232,208,.08)'; rr(c, 0, 0, W, H, 0); c.fill();
+        if (st.g < 10) {
+          var gS = gates[st.g];
+          var near = Math.abs(st.strokes - gS) <= 2;
+          c.fillStyle = near ? 'rgba(125,255,158,.45)' : 'rgba(255,255,255,.14)';
+          rr(c, W * 0.3, H * 0.35, W * 0.4, H * 0.2, 10); c.fill();
+          txt(c, 'دروازه ' + faN(st.g + 1) + '/۱۰' + (near ? ' — الان!' : ' — پارو ادامه بده'), W / 2, H * 0.46, 13, near ? '#7dff9e' : '#9fb6d4');
+        } else txt(c, 'پایان مسیر — ادامه بده', W / 2, H * 0.4, 13, '#ffe08a');
+        c.font = '26px serif'; c.textAlign = 'center'; c.fillText('🛶', W / 2 + Math.sin(st.strokes / 2) * 12, H * 0.62);
+        txt(c, 'پارو: ' + faN(st.strokes) + ' • امتیاز: ' + faN(st.pts) + ' • دکمه‌ی دروازه: بالا-راست', W / 2, H - 22, 10, '#7d92ad');
+      }
+    });
+  };
+
+  /* ——— ۳۰) موتور‌کراس: سرعت + خیز بیدوقع — داور: v3Moto ——— */
+  G3.moto = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    var obs = [];
+    for (var i = 0; i < 60; i++) obs.push(10 + i * 8 + Math.floor(rngOf3(seed, 'moto:' + i)() * 5) - 2);
+    return game('moto', {
+      el: el, done: done, col: '#ff9d3c', hint: 'گاز بده؛ وقت‌ی مانع روبه‌رو شد «خیز» بزن — خیز وسط = نزدیک و امتیاز بیشتر',
+      build: function (st) { st.taps = 0; st.i = 0; st.pts = 0; st.lastSide = -1; st.done = false },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W(), H = st.S.H();
+            if (st.i < 60 && y < H * 0.3 && x > W * 0.7) {
+              /* دکمه‌ی خیز */
+              var oS = obs[st.i];
+              var diff = st.taps - oS;
+              var pass = Math.abs(diff) <= 1 ? 1 : 0, near = (pass && Math.abs(diff) === 1) ? 1 : 0;
+              TE('ob', t, pass, near);
+              st.pts += pass * 70 + near * 30; st.S.score(st.pts);
+              if (pass) { snd('cheer'); FX.text(W * 0.5, H * 0.42, near ? 'نزدیک! +' + faN(100) : '✓ +' + faN(70), '#7dff9e', 14) }
+              else { snd('alert'); FX.shake(); FX.text(W * 0.5, H * 0.42, 'برخورد!', '#ff8ba0', 15) }
+              st.i++;
+              if (st.i >= 60 && !st.done) { st.done = true; setTimeout(function () { if (!st.over) st.finish(st.pts) }, 600) }
+              return;
+            }
+            var side = x < W / 2 ? 0 : 1;
+            if (side === st.lastSide) return;
+            st.lastSide = side; st.taps++;
+            TE('p', t, side);
+            if (st.taps % 3 === 0) snd('click');
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        c.fillStyle = 'rgba(255,157,60,.1)'; rr(c, 0, H * 0.45, W, H * 0.3, 0); c.fill();
+        if (st.i < 60) {
+          var rel = obs[st.i] - st.taps;
+          if (rel <= 6 && rel >= -1) {
+            var ox = W * (1 - Math.max(0, rel) / 7);
+            c.font = '26px serif'; c.textAlign = 'center'; c.fillText('🛢️', ox, H * 0.52);
+            if (rel <= 1) txt(c, 'خیز! (بالا-راست)', W / 2, H * 0.32, 12, '#ffe08a');
+          }
+        }
+        c.font = '28px serif'; c.fillText('🏍️', W * 0.16 + (st.taps % 4) * 3, H * 0.55);
+        txt(c, 'مانع ' + faN(st.i) + '/۶۰ • گاز: ' + faN(st.taps) + ' • امتیاز: ' + faN(st.pts), W / 2, H * 0.8, 12, '#9fb6d4');
+        txt(c, 'چپ/راست = گاز • بالا-راست = خیز', W / 2, H - 22, 10, '#7d92ad');
+      }
+    });
+  };
+
+  /* ——— ۳۱) رالی: ۶ پیچ — داور: v3Rally ——— */
+  G3.rally = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    var corners = [];
+    for (var i = 0; i < 6; i++) corners.push(800 + i * (1500 + rngOf3(seed, 'ral:' + i)() * 700));
+    return game('rally', {
+      el: el, done: done, col: '#c9a06b', hint: 'وقتی پیچ نزدیک شد درست فرمان بده — دقت فرمان = امتیاز',
+      build: function (st) { st.i = 0; st.pts = 0; st.phase = 'ready' },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W();
+            if (st.phase !== 'corner' || st.i >= 6) return;
+            var aS = corners[st.i];
+            if (t < aS - 350) return;
+            var ideal = W / 2 + Math.sin((st.i + 1) * 2.1) * W * 0.2;
+            var q = Math.max(0, Math.min(1, 1 - Math.abs(x - ideal) / (W * 0.3)));
+            q = Math.round(q * 20) / 20;
+            TE('corner', t, 0, q);
+            st.pts += Math.round(q * 130); st.S.score(st.pts);
+            FX.text(W / 2, st.S.H() * 0.4, faN(Math.round(q * 100)) + '٪', q >= 0.8 ? '#7dff9e' : '#ffe08a', 16);
+            snd(q >= 0.8 ? 'cheer' : 'click');
+            st.i++; st.phase = 'ready';
+            if (st.i >= 6) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 600);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        c.fillStyle = 'rgba(201,160,107,.1)'; rr(c, 0, H * 0.5, W, H * 0.35, 0); c.fill();
+        if (st.i < 6) {
+          var aS = corners[st.i];
+          var rel = aS - t;
+          if (rel < 900 && rel > -350) {
+            st.phase = 'corner';
+            var bend = Math.sin((st.i + 1) * 2.1);
+            c.strokeStyle = 'rgba(255,215,94,.7)'; c.lineWidth = 5;
+            c.beginPath(); c.moveTo(W / 2, H * 0.85); c.quadraticCurveTo(W / 2 + bend * W * 0.4, H * 0.6, W / 2 + bend * W * 0.45, H * 0.45); c.stroke();
+            txt(c, 'پیچ ' + faN(st.i + 1) + '/۶ — فرمان بزن!', W / 2, H * 0.3, 14, '#ffe08a');
+          } else st.phase = 'ready';
+        }
+        c.font = '26px serif'; c.textAlign = 'center'; c.fillText('🚙', W / 2, H * 0.78);
+        txt(c, 'پیچ ' + faN(Math.min(6, st.i + 1)) + '/۶ • امتیاز: ' + faN(st.pts), W / 2, H - 22, 11, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۳۲) فرمول یک: خط رانندگی + اوج — داور: v3Formula ——— */
+  G3.formula = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    var turns = [];
+    for (var i = 0; i < 8; i++) turns.push(700 + i * (1200 + rngOf3(seed, 'frm:' + i)() * 500));
+    return game('formula', {
+      el: el, done: done, col: '#ff4d88', hint: 'اپکس هر پیچ را بگیر — دقت بالا فقط در پنجره‌ی اپکس معتبر است',
+      build: function (st) { st.i = 0; st.pts = 0; st.phase = 'ready' },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W();
+            if (st.phase !== 'turn' || st.i >= 8) return;
+            var aS = turns[st.i];
+            if (t < aS - 250) return;
+            var ideal = W / 2 + Math.sin((st.i + 1) * 1.7) * W * 0.24;
+            var q = Math.max(0, Math.min(1, 1 - Math.abs(x - ideal) / (W * 0.28)));
+            q = Math.round(q * 20) / 20;
+            TE('turn', t, 0, q);
+            st.pts += Math.round(q * 140); st.S.score(st.pts);
+            FX.text(W / 2, st.S.H() * 0.38, q >= 0.85 ? 'اپکس! +' + faN(Math.round(q * 140)) : faN(Math.round(q * 100)) + '٪', q >= 0.85 ? '#7dff9e' : '#ffe08a', 16);
+            snd(q >= 0.85 ? 'cheer' : 'click');
+            st.i++; st.phase = 'ready';
+            if (st.i >= 8) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 600);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        if (st.i < 8) {
+          var rel = turns[st.i] - t;
+          if (rel < 800 && rel > -250) {
+            st.phase = 'turn';
+            var bend = Math.sin((st.i + 1) * 1.7);
+            c.strokeStyle = 'rgba(255,77,136,.6)'; c.lineWidth = 6;
+            c.beginPath(); c.moveTo(W / 2, H * 0.9); c.quadraticCurveTo(W / 2 + bend * W * 0.42, H * 0.55, W / 2 + bend * W * 0.3, H * 0.35); c.stroke();
+            c.fillStyle = 'rgba(125,255,158,.25)'; c.beginPath(); c.arc(W / 2 + bend * W * 0.3, H * 0.38, W * 0.09, 0, 6.28318); c.fill();
+            txt(c, 'اپکس ' + faN(st.i + 1) + '/۸', W / 2, H * 0.24, 14, '#ffe08a');
+          } else st.phase = 'ready';
+        }
+        c.font = '26px serif'; c.textAlign = 'center'; c.fillText('🏎️', W / 2, H * 0.82);
+        txt(c, 'پیچ ' + faN(Math.min(8, st.i + 1)) + '/۸ • امتیاز: ' + faN(st.pts), W / 2, H - 22, 11, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۳۳) قایق‌سواری: موج — داور: v3Boat ——— */
+  G3.boat = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('boat', {
+      el: el, done: done, col: '#3bb8e8', hint: 'پارو در آرامش موج — ۲۲ پارو',
+      build: function (st) { st.n = 0; st.pts = 0 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T();
+            if (st.n >= 22) return;
+            var wv = Math.abs(ph3(seed, 'boat', Math.floor(st.n / 5), t, 1100, 1700));
+            var qS = Math.max(0, 1 - wv);
+            TE('stroke', t, Math.round(qS * 100) / 100);
+            st.pts += Math.round(qS * 15); st.S.score(st.pts);
+            if (qS > 0.75) snd('click'); else snd('alert');
+            st.n++;
+            if (st.n >= 22) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 500);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        var wv = ph3(seed, 'boat', Math.floor(st.n / 5), t, 1100, 1700);
+        c.fillStyle = 'rgba(59,184,232,.12)'; rr(c, 0, H * 0.5 + wv * 10, W, H * 0.5, 0); c.fill();
+        c.font = '30px serif'; c.textAlign = 'center'; c.fillText('⛵', W / 2 + wv * 20, H * 0.42 + wv * 12);
+        txt(c, 'موج: ' + (Math.abs(wv) < 0.35 ? 'آرام — پارو بزن!' : 'طوفانی…'), W / 2, H * 0.68, 13, Math.abs(wv) < 0.35 ? '#7dff9e' : '#ff8ba0');
+        txt(c, 'پارو ' + faN(st.n) + '/۲۲ • امتیاز: ' + faN(st.pts), W / 2, H * 0.8, 12, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۳۴) تعادل: روی خط بمان — داور: v3Balance ——— */
+  G3.balance = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('balance', {
+      el: el, done: done, col: '#b06bff', hint: 'روی طناب بمان — چپ/راست بزن تا از خط نیفتی؛ ۳ دور',
+      build: function (st) { st.n = 0; st.pos = 0; st.v = 0; st.ms = 0; st.pts = 0; st.phase = 'run'; st.falls = 0 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var W = st.S.W();
+            st.v += (x < W / 2 ? -0.42 : 0.42);
+            snd('click');
+          }
+        };
+      },
+      frame: function (st, t, dt) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        if (st.phase === 'run') {
+          st.v += Math.sin(t / 700 + st.n) * 0.012 * (dt / 16);
+          st.v *= 0.985;
+          st.pos += st.v * (dt / 16);
+          st.ms += dt;
+          if (Math.abs(st.pos) > 1) {
+            var q = Math.min(1, st.ms / 8000);
+            TE('round', st.T(), Math.round(st.ms), Math.round(q * 20) / 20);
+            st.pts += Math.round(st.ms / 40) + Math.round(q * 50); st.S.score(st.pts);
+            st.n++; st.pos = 0; st.v = 0; st.ms = 0;
+            snd('alert');
+            if (st.n >= 3) { st.phase = 'done'; setTimeout(function () { if (!st.over) st.finish(st.pts) }, 500) }
+          }
+        }
+        /* طناب + بازیکن */
+        c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 3;
+        c.beginPath(); c.moveTo(0, H * 0.5); c.bezierCurveTo(W * 0.3, H * 0.44, W * 0.7, H * 0.56, W, H * 0.5); c.stroke();
+        var px = W / 2 + st.pos * W * 0.42;
+        c.font = '28px serif'; c.textAlign = 'center'; c.fillText('🤸', px, H * 0.5 - 12);
+        c.fillStyle = Math.abs(st.pos) > 0.75 ? '#ff8ba0' : '#7dff9e';
+        rr(c, 20, H * 0.75, (W - 40) * Math.min(1, st.ms / 8000), 10, 5); c.fill();
+        txt(c, 'دور ' + faN(st.n + 1) + '/۳ • دوام: ' + faN(Math.round(st.ms / 100) / 10) + 's • امتیاز: ' + faN(st.pts), W / 2, H * 0.85, 12, '#9fb6d4');
+        txt(c, 'چپ/راست بزن تا نیفتی', W / 2, H - 20, 10, '#7d92ad');
+      }
+    });
+  };
+
+  /* ——— ۳۵) تایمینگ: ساعت متوقف — داور: v3Timing ——— */
+  G3.timing = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('timing', {
+      el: el, done: done, col: '#ffd75e', hint: 'عقربه را داخل قوس هدف متوقف کن — ۸ دور',
+      build: function (st) { st.n = 0; st.pts = 0 },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T();
+            if (st.n >= 8) return;
+            var r = rngOf3(seed, 'tim:' + st.n);
+            var w = 0.8 + r() * 1.4, a0 = r() * 360, ac = 40 + r() * 280;
+            var theta = (a0 + w * (t / 1000) * 360) % 360;
+            var qS = Math.round(100 * Math.max(0, 1 - angD3(theta, ac) / 60));
+            TE('stop', t, 0, qS);
+            st.pts += Math.round(qS * 10) + (qS >= 95 ? 40 : 0); st.S.score(st.pts);
+            FX.text(st.S.W() / 2, st.S.H() * 0.3, qS >= 95 ? 'کامل! +' + faN(Math.round(qS * 10) + 40) : faN(qS), qS >= 95 ? '#7dff9e' : '#ffe08a', 16);
+            snd(qS >= 95 ? 'cheer' : 'stamp');
+            st.n++;
+            if (st.n >= 8) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 600);
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        var cx = W / 2, cy = H * 0.45, rad = Math.min(W, H) * 0.3;
+        var r = rngOf3(seed, 'tim:' + (st.n < 8 ? st.n : 7));
+        var w = 0.8 + r() * 1.4, a0 = r() * 360, ac = 40 + r() * 280;
+        c.strokeStyle = 'rgba(255,255,255,.15)'; c.lineWidth = 10;
+        c.beginPath(); c.arc(cx, cy, rad, 0, 6.28318); c.stroke();
+        /* قوس هدف */
+        c.strokeStyle = 'rgba(125,255,158,.75)';
+        c.beginPath(); c.arc(cx, cy, rad, (ac - 24) * 6.28318 / 360 - 1.5708, (ac + 24) * 6.28318 / 360 - 1.5708); c.stroke();
+        var theta = (a0 + w * (t / 1000) * 360) % 360;
+        var ha = theta * 6.28318 / 360 - 1.5708;
+        c.strokeStyle = '#ffd75e'; c.lineWidth = 5;
+        c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(ha) * rad, cy + Math.sin(ha) * rad); c.stroke();
+        txt(c, 'دور ' + faN(st.n + 1) + '/۸ • امتیاز: ' + faN(st.pts), cx, H * 0.82, 12, '#9fb6d4');
+      }
+    });
+  };
+
+  /* ——— ۳۶) رمز حافظه: دنباله‌ی بلندشونده — داور: v3Memory ——— */
+  G3.memory = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    return game('memory', {
+      el: el, done: done, col: '#8f7dff', hint: 'دنباله را به‌خاطر بسپار و تکرار کن — ۸ مرحله',
+      build: function (st) { st.n = 0; st.pts = 0; st.phase = 'idle' },
+      input: function (st) {
+        return {
+          down: function (x, y) {
+            var t = st.T(); var W = st.S.W();
+            if (st.phase === 'idle') {
+              if (st.n >= 8) return;
+              st.len = 3 + st.n;
+              var r = rngOf3(seed, 'mem:' + st.n);
+              st.codes = [];
+              for (var j = 0; j < st.len + 2; j++) st.codes.push(Math.floor(r() * 4));
+              st.i = 0; st.ok = 0; st.showT = t; st.phase = 'show';
+              setTimeout(function () { if (!st.over && st.phase === 'show') st.phase = 'input' }, 650 + st.len * 380);
+              return;
+            }
+            if (st.phase !== 'input') return;
+            var dir = x < W / 4 ? 0 : x < W / 2 ? 1 : x < (W * 3) / 4 ? 2 : 3;
+            if (dir === st.codes[st.i]) { st.ok++; snd('click') } else { snd('alert') }
+            st.i++;
+            if (st.i >= st.len) {
+              TE('seq', t, st.ok, st.len);
+              st.pts += st.ok * 40; st.S.score(st.pts);
+              FX.text(W / 2, st.S.H() * 0.3, faN(st.ok) + '/' + faN(st.len), st.ok === st.len ? '#7dff9e' : '#ffe08a', 17);
+              st.n++; st.phase = 'idle';
+              if (st.n >= 8) setTimeout(function () { if (!st.over) st.finish(st.pts) }, 600);
+            }
+          }
+        };
+      },
+      frame: function (st, t) {
+        var c = st.S.ctx, W = st.S.W(), H = st.S.H();
+        c.clearRect(0, 0, W, H);
+        var ar = ['←', '↑', '→', '↓'];
+        if (st.phase === 'show') {
+          var lit = Math.floor((t - st.showT) / 380);
+          for (var j = 0; j < st.len; j++) {
+            c.font = '26px serif'; c.textAlign = 'center';
+            c.fillStyle = j === lit ? '#ffd75e' : 'rgba(255,255,255,.2)';
+            c.fillText(ar[st.codes[j]], W / 2 + (j - (st.len - 1) / 2) * 32, H * 0.38);
+          }
+        } else if (st.phase === 'input') {
+          txt(c, 'تکرار کن: ' + faN(st.i) + '/' + faN(st.len), W / 2, H * 0.36, 14, '#ffe08a');
+          txt(c, '← ↑ → ↓', W / 2, H * 0.44, 18, 'rgba(255,255,255,.35)');
+        } else txt(c, st.n < 8 ? 'مرحله ' + faN(st.n + 1) + '/۸ — بزن تا نشان بدهد' : 'پایان', W / 2, H * 0.38, 13, '#ffe08a');
+        txt(c, 'امتیاز: ' + faN(st.pts), W / 2, H * 0.8, 12, '#9fb6d4');
+      }
+    });
+  };
+
   (function install() {
     var G = A.GAMES, prev = {}, keys = [];
     for (var k in G) { if (Object.prototype.hasOwnProperty.call(G, k)) { prev[k] = G[k]; keys.push(k) } }
@@ -1328,6 +2403,17 @@
         };
       })(keys[i]);
     }
-    try { console.log('[WD_OLY3] engine ready — disciplines:', keys.length) } catch (e) {}
+    /* V89: رشته‌های فقط-نسل۳ — بدون fallback قدیمی؛ seed نبود = امتیاز صفر امن */
+    for (var k3 in G3) {
+      if (!Object.prototype.hasOwnProperty.call(G3, k3) || Object.prototype.hasOwnProperty.call(G, k3)) continue;
+      (function (key3) {
+        G[key3] = function (el, done) {
+          var r3 = false;
+          try { r3 = G3[key3](el, done) } catch (e3) { console.log('wg33g3', e3) }
+          if (r3 === false) { try { done(0) } catch (e4) {} }
+        };
+      })(k3);
+    }
+    try { console.log('[WD_OLY3] engine ready — disciplines:', keys.length + '+', Object.keys(G3).length) } catch (e) {}
   })();
 })();

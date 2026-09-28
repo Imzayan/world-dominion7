@@ -7,6 +7,7 @@ import { rateLimit, clientIp } from '@/lib/ratelimit'
 import { computeScore, hasRecalc, SIM_V2_ED, type Telemetry, type TelemEvent } from '@/lib/olyScore'
 import {
   skillOf, consistencyOf, potentialOf, evalAchievements, achDef, bullseyesFromTelemetry,
+  attrsFromProfiles,
   type RecentScore,
 } from '@/lib/olyProfile'
 import { cvGenerateLayout, cvEnrich, cvCountryExists, type CvProvince } from '@/lib/cvGeo'
@@ -618,6 +619,218 @@ async function olyAchieveUnlock(userId: string, edition: number, keys: string[])
   }
   return fresh.map((k) => achDef(k)).filter(Boolean)
 }
+
+/* ============================================================
+   V89 — OLYMPICS V2: اکوسیستم رقابتی
+   ویژگی‌های ورزشکار فقط از مسابقه‌ی رسمی (OlympicProfile) بازمحاسبه
+   می‌شوند؛ سکه‌ی المپیک فقط زینتی خرج می‌شود (ضد P2W مطلق).
+   ============================================================ */
+const OLY_REG_CAP = 12 /* V89: ثبت‌نام ۱۲ رشته از ۳۶ — انتخاب استراتژیک */
+const OLY_FINAL_TOP = 16 /* شب فینال: ۱۶ نفر برتر هر رشته */
+const OLY_MISSIONS: { key: string; fa: string; goal: number; token: number; xp: number }[] = [
+  { key: 'play3', fa: 'در ۳ رشته‌ی رسمی مسابقه بده', goal: 3, token: 6, xp: 40 },
+  { key: 'play5', fa: 'در ۵ رشته‌ی رسمی مسابقه بده', goal: 5, token: 10, xp: 60 },
+  { key: 'play9', fa: 'در ۹ رشته‌ی رسمی مسابقه بده', goal: 9, token: 16, xp: 100 },
+  { key: 'pb1', fa: 'یک رکورد شخصی بشکن', goal: 1, token: 5, xp: 30 },
+  { key: 'pb3', fa: '۳ بار رکورد شخصی بشکن', goal: 3, token: 12, xp: 70 },
+  { key: 'rival1', fa: 'از رقیب شخصی‌ات پیشی بگیر', goal: 1, token: 8, xp: 45 },
+  { key: 'top100', fa: 'به Top 100 جهانی یک رشته برس', goal: 1, token: 8, xp: 50 },
+  { key: 'top10', fa: 'به Top 10 جهانی یک رشته برس', goal: 1, token: 12, xp: 70 },
+  { key: 'final1', fa: 'به فینال یک رشته صعود کن', goal: 1, token: 12, xp: 70 },
+  { key: 'medal1', fa: 'یک مدال المپیک بگیر', goal: 1, token: 14, xp: 80 },
+]
+const OLY_TOKEN_SHOP: { k: string; fa: string; ic: string; price: number; d: string }[] = [
+  { k: 'o_badge_flame', fa: 'نشان مشعل', ic: '🔥', price: 25, d: 'نشان المپیکی کنار نام در چت' },
+  { k: 'o_emblem_speed', fa: 'نشان سرعت', ic: '⚡', price: 20, d: 'نشان تخصص سرعت روی کارنامه' },
+  { k: 'o_emblem_precision', fa: 'نشان دقت', ic: '🎯', price: 20, d: 'نشان تخصص دقت روی کارنامه' },
+  { k: 'o_emblem_power', fa: 'نشان قدرت', ic: '💪', price: 20, d: 'نشان تخصص قدرت روی کارنامه' },
+  { k: 'o_emblem_tactical', fa: 'نشان تاکتیک', ic: '🧠', price: 20, d: 'نشان تخصص تاکتیک روی کارنامه' },
+  { k: 'o_frame_laurel', fa: 'قاب برگ زیتون', ic: '🌿', price: 40, d: 'قاب زینتی پروفایل المپیکی' },
+  { k: 'o_banner_ring', fa: 'پرچم حلقه‌ها', ic: '🚩', price: 30, d: 'بنر المپیکی روی کارنامه' },
+  { k: 'o_stadium_theme', fa: 'تم استادیوم', ic: '🏟️', price: 60, d: 'تم ویژه‌ی صحنه‌ی مسابقه (زینتی)' },
+  { k: 'o_ring_champ', fa: 'انگشتر قهرمانی', ic: '💍', price: 80, d: 'یادگار قهرمانی — کاملاً زینتی' },
+  { k: 'o_statue_gold', fa: 'شبه‌طلای مجسمه', ic: '🗿', price: 120, d: 'جلوه‌ی طلایی مجسمه‌ی کارنامه' },
+]
+const olyLevelOf = (xp: number) => Math.floor(Math.sqrt(Math.max(0, xp) / 40)) + 1
+
+async function olyAthleteEnsure(userId: string) {
+  try {
+    let a = await db.olympicAthlete.findUnique({ where: { userId } })
+    if (!a) a = await db.olympicAthlete.create({ data: { userId } })
+    return a
+  } catch (e) { console.log('olyAthEnsure', e); return null }
+}
+/* ویژگی‌ها از OlympicProfile (فقط مسابقه‌ی رسمی) — بدون هیچ مسیر خرید */
+async function olyAttrsRecompute(userId: string) {
+  try {
+    const profs = await db.olympicProfile.findMany({ where: { userId } })
+    const rows = profs.map((p) => {
+      let ring: RecentScore[] = []
+      try { ring = JSON.parse(p.recent || '[]') } catch (e) { ring = [] }
+      if (!Array.isArray(ring)) ring = []
+      return { discipline: p.discipline, n: p.n, recent: ring }
+    })
+    const { attrs, spec } = attrsFromProfiles(rows)
+    await db.olympicAthlete.upsert({
+      where: { userId },
+      create: { userId, attrsJson: JSON.stringify(attrs), spec },
+      update: { attrsJson: JSON.stringify(attrs), spec },
+    })
+    return { attrs, spec }
+  } catch (e) { console.log('olyAttrs', e); return null }
+}
+async function olyAthleteCard(userId: string, nick: string) {
+  const a = await olyAthleteEnsure(userId)
+  let attrs: Record<string, number> = {}
+  let spec = ''
+  if (a && a.attrsJson && a.attrsJson !== '{}') {
+    try { attrs = JSON.parse(a.attrsJson) || {} } catch (e) { attrs = {} }
+    spec = a.spec || ''
+  } else {
+    const rc = await olyAttrsRecompute(userId)
+    if (rc) { attrs = rc.attrs; spec = rc.spec }
+  }
+  const results = await db.olympicResult.findMany({ where: { userId }, orderBy: [{ edition: 'asc' }] })
+  const g = results.filter((r) => r.rank === 1).length
+  const s = results.filter((r) => r.rank === 2).length
+  const b = results.filter((r) => r.rank === 3).length
+  /* فینالیست‌ها: شمارش از FinalAttempt (شب فینال V89) */
+  const finals = await db.olympicFinalAttempt.groupBy({ by: ['discipline', 'edition'], where: { userId }, _count: { _all: true } })
+  const finalsCount = new Set(finals.map((f) => f.edition + ':' + f.discipline)).size
+  const champRows = await db.olympicChampion.findMany({ where: { userId } })
+  const wins = await db.olympicRivalry.aggregate({ where: { userId }, _sum: { passes: true } })
+  const losses = await db.olympicRivalry.aggregate({ where: { userId }, _sum: { falls: true } })
+  const seasons = new Set(results.map((r) => r.edition)).size
+  const xp = a ? a.xp : 0
+  return {
+    nick, attrs, spec, token: a ? a.token : 0, owned: a ? (function () { try { return JSON.parse(a.ownedJson || '[]') } catch (e) { return [] } })() : [],
+    xp, level: olyLevelOf(xp),
+    medals: { g, s, b, total: g + s + b }, finals: finalsCount,
+    championships: champRows.length, seasons,
+    wins: (wins._sum.passes || 0), losses: (losses._sum.falls || 0),
+  }
+}
+/* ماموریت‌های دوره — ساخت تنبل + پیشرفت فقط از رویداد رسمی */
+async function olyMissionEnsureAll(userId: string, edition: number) {
+  try {
+    const have = await db.olympicMission.findMany({ where: { userId, edition } })
+    const haveSet = new Set(have.map((h) => h.key))
+    for (const def of OLY_MISSIONS) {
+      if (haveSet.has(def.key)) continue
+      await db.olympicMission.create({ data: { edition, userId, key: def.key, goal: def.goal, rewardJson: JSON.stringify({ token: def.token, xp: def.xp }) } }).catch(() => {})
+    }
+    return await db.olympicMission.findMany({ where: { userId, edition } })
+  } catch (e) { console.log('olyMisEns', e); return [] }
+}
+async function olyMissionBump(userId: string, edition: number, key: string, inc = 1) {
+  try {
+    const m = await db.olympicMission.findUnique({ where: { edition_userId_key: { edition, userId, key } } })
+    if (!m || m.done) return null
+    const prog = Math.min(m.goal, m.prog + inc)
+    const done = prog >= m.goal
+    await db.olympicMission.update({ where: { id: m.id }, data: { prog, done } })
+    return { key, done, fresh: done && !m.done }
+  } catch (e) { return null }
+}
+/* صعود به فینال: روز ۴ (آخر) — ۱۶ نفر برتر مقدماتی هر رشته + ثبت qualBest.
+   مسیر lazy و race-safe: فقط زمانی اجرا می‌شود که هنوز کسی final نشده باشد.
+   V89.1: اگر قبلاً اعلا شده، خودِ صدا زننده هم (ثبت‌نام دیرهنگام با رکورد در سهمیه‌ی ۱۶)
+   تک‌نفره تکمیل می‌شود — هیچ‌کس به‌خاطر تاریخچه‌ی دیگران از فینال جا نمی‌ماند. */
+async function olyFinalistsEnsure(edition: number, key: string, userId?: string): Promise<boolean> {
+  try {
+    const marked = await db.olympicEntry.count({ where: { edition, discipline: key, finalist: true } })
+    if (marked > 0) {
+      if (userId) {
+        const me = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition, userId, discipline: key } } })
+        if (me && me.best > 0 && !me.finalist) {
+          const better = await db.olympicEntry.count({ where: { edition, discipline: key, best: { gt: me.best } } })
+          if (better < OLY_FINAL_TOP) {
+            await db.olympicEntry.update({ where: { id: me.id }, data: { finalist: true, qualBest: me.best } }).catch(() => {})
+            await olyMissionBump(userId, edition, 'final1', 1)
+          }
+        }
+      }
+      return true
+    }
+    const top = await db.olympicEntry.findMany({
+      where: { edition, discipline: key, best: { gt: 0 } },
+      orderBy: [{ best: 'desc' }, { lastAt: 'asc' }], take: OLY_FINAL_TOP,
+    })
+    if (!top.length) return false
+    for (const t of top) {
+      await db.olympicEntry.update({ where: { id: t.id }, data: { finalist: true, qualBest: t.best } }).catch(() => {})
+      await olyMissionBump(t.userId, edition, 'final1', 1)
+    }
+    await addNews(0, 'olympic_finals', key, null, null)
+    return true
+  } catch (e) { console.log('olyFinalists', e); return false }
+}
+/* اختتامیه V89: تالار افتخارات + سکه‌ی مدال + ماموریت مدال */
+async function olyV89Close(edition: number, results: { rank: number; userId: string; nick: string; country: string | null; countryFa: string | null; discipline: string; score: number }[]) {
+  try {
+    const byP: Record<string, { nick: string; userId: string; g: number; s: number; b: number; total: number; discs: Set<string> }> = {}
+    for (const r of results) {
+      const p = byP[r.userId] || (byP[r.userId] = { nick: r.nick, userId: r.userId, g: 0, s: 0, b: 0, total: 0, discs: new Set<string>() })
+      if (r.rank === 1) p.g++; else if (r.rank === 2) p.s++; else if (r.rank === 3) p.b++
+      p.total++; p.discs.add(r.discipline)
+    }
+    for (const p of Object.values(byP)) {
+      /* سکه‌ی مدال‌ها — فقط زینتی */
+      const tok = p.g * 25 + p.s * 15 + p.b * 10
+      await db.olympicAthlete.upsert({
+        where: { userId: p.userId },
+        create: { userId: p.userId, token: tok, xp: p.total * 20 },
+        update: { token: { increment: tok }, xp: { increment: p.total * 20 } },
+      }).catch(() => {})
+      for (let i = 0; i < p.g + p.s + p.b; i++) await olyMissionBump(p.userId, edition, 'medal1', 1)
+      /* تالار افتخارات — upsert بر پایه‌ی value حداکثری */
+      const hofPut = async (key: string, value: number, detail: string) => {
+        try {
+          const ex = await db.olympicHof.findUnique({ where: { key_userId: { key, userId: p.userId } } })
+          if (ex && ex.value >= value) return
+          await db.olympicHof.upsert({
+            where: { key_userId: { key, userId: p.userId } },
+            create: { key, userId: p.userId, nick: p.nick, value, detail, edition },
+            update: { value, detail, edition },
+          })
+        } catch (e) {}
+      }
+      if (p.g > 0) await hofPut('golds', p.g, 'طلای دوره‌ی ' + edition)
+      if (p.total > 0) await hofPut('medals', p.total, 'مدال دوره‌ی ' + edition)
+      if (p.discs.size >= 3 && p.total >= 3) await hofPut('multisport', p.discs.size, 'مدال در ' + p.discs.size + ' رشته')
+      const finalsP = await db.olympicFinalAttempt.groupBy({ by: ['discipline'], where: { userId: p.userId, edition }, _count: { _all: true } }).catch(() => [] as { discipline: string; _count: { _all: number } }[])
+      if (finalsP.length) await hofPut('finals', finalsP.length, 'فینال دوره‌ی ' + edition)
+    }
+    /* رکوردداران — دفاع از رکورد (روزهای نگهداری) */
+    const recs = await db.olympicRecord.findMany()
+    for (const r of recs) {
+      if (!r.nick) continue
+      const u = await db.user.findFirst({ where: { nickLower: r.nick.toLowerCase() } })
+      if (!u) continue
+      const days = Math.max(0, Math.floor((Date.now() - new Date(r.updatedAt).getTime()) / 86400000))
+      try {
+        await db.olympicHof.upsert({
+          where: { key_userId: { key: 'record', userId: u.id } },
+          create: { key: 'record', userId: u.id, nick: r.nick, value: r.score, detail: 'رکورددار ' + r.discipline, edition: r.edition },
+          update: { value: r.score, detail: 'رکورددار ' + r.discipline + ' • ' + days + ' روز دفاع', edition: r.edition },
+        })
+      } catch (e) {}
+    }
+    /* رقابت تاریخی — بیشترین دیدار */
+    const rivs = await db.olympicRivalry.findMany({ where: { edition }, orderBy: [{ passes: 'desc' }], take: 5 })
+    for (const rv of rivs) {
+      const meetings = rv.passes + rv.falls
+      if (meetings < 3) continue
+      try {
+        await db.olympicHof.upsert({
+          where: { key_userId: { key: 'rivalry', userId: rv.userId } },
+          create: { key: 'rivalry', userId: rv.userId, nick: rv.rivalNick, value: meetings, detail: 'دیدار با ' + rv.rivalNick, edition },
+          update: { value: Math.max(meetings, 0), detail: 'دیدار با ' + rv.rivalNick, edition },
+        })
+      } catch (e) {}
+    }
+  } catch (e) { console.log('olyV89Close', e) }
+}
 /* کش ۳۰ ثانیه‌ای تله‌متری شبح جهانی هر رشته (PHASE 9) */
 const OL_GHOST_CC: Record<string, { at: number; v: unknown }> = {}
 async function olyGhostGlobal(discipline: string) {
@@ -1175,7 +1388,14 @@ const ED_LEN = 30 * 86400000
 const ED_REG = 15 * 86400000
 const ED_OPEN = 24 * 86400000
 const ED_CLOSE = 29 * 86400000
-const GD_DAY: Record<string, number> = { sprint: 0, archery: 0, swim: 1, gym: 1, weight: 2, cycling: 2, chess: 3, volley: 3, lj: 4, wrestle: 4, football: 4 }
+/* V89 — Olympics V2: ۳۶ رشته در ۵ روز (۸+۷+۷+۷+۷) — توزیع خانواده‌ها بین روزها */
+const GD_DAY: Record<string, number> = {
+  sprint: 0, archery: 0, hurdles: 0, highjump: 0, javelin: 0, discus: 0, shotput: 0, reaction: 0,
+  swim: 1, gym: 1, swim50: 1, diving: 1, rowing: 1, kayak: 1, boxing: 1,
+  weight: 2, cycling: 2, moto: 2, rally: 2, formula: 2, boat: 2, fencing: 2,
+  chess: 3, volley: 3, shooting: 3, movingtarget: 3, sniper: 3, rapidtarget: 3, judo: 3,
+  lj: 4, wrestle: 4, football: 4, balance: 4, timing: 4, memory: 4, run400: 4,
+}
 /* O1: GD_MAX حذف شد — سقف ۱۰۰۰ دیگر وجود ندارد؛ مرز امتیاز = خروجی بازمحاسبه‌ی
    تله‌متری در src/lib/olyScore.ts (PHASE 2/3: حذف سقف سخت، امتیاز skill-based) */
 const HOSTS: { c: string; n: string; f: string }[] = [
@@ -1268,6 +1488,20 @@ async function evOn(key: 'olympic' | 'elections' | 'duels'): Promise<boolean> {
 async function freezeDiscipline(edition: number, key: string) {
   const done = await db.olympicResult.findFirst({ where: { edition, discipline: key } })
   if (done) return
+  /* V89: اگر شب فینال برگزار شده، سکو از تلاش‌های فینال می‌آید — نه مقدماتی */
+  const finals = await db.olympicFinalAttempt.findMany({ where: { edition, discipline: key }, orderBy: [{ score: 'desc' }], take: 3 })
+  if (finals.length >= 2) {
+    for (let i = 0; i < finals.length; i++) {
+      try {
+        await db.olympicResult.create({ data: { edition, discipline: key, rank: i + 1, userId: finals[i].userId, nick: finals[i].nick, country: null, countryFa: finals[i].countryFa, score: finals[i].score } })
+      } catch (e) {
+        const c = (e as { code?: string })?.code
+        if (c !== 'P2002') console.log('freeze', e)
+      }
+    }
+    await addNews(0, 'olympic_podium', key, finals[0].nick, null)
+    return
+  }
   const rows = await db.olympicEntry.findMany({ where: { edition, discipline: key, best: { gt: 0 } }, orderBy: [{ best: 'desc' }, { lastAt: 'asc' }], take: 3 })
   for (let i = 0; i < rows.length; i++) {
     try {
@@ -1360,6 +1594,8 @@ async function closeGamesEdition(edition: number) {
   }
   /* participation reward: +3 gems for everyone who actually played (atomic increment)
      V58: اگر ردیف کیف پول هنوز ساخته نشده بود، اول ساخته شود — جم شرکت‌کنندگان هیچ‌وقت گم نشود */
+  /* V89: اکوسیستم رقابتی — تالار افتخارات + سکه‌ی مدال + ماموریت‌ها */
+  try { await olyV89Close(edition, results) } catch (e) { console.log('olyv89close', e) }
   for (const uid of uids) {
     try {
       const inc = await db.wallet.updateMany({ where: { userId: uid }, data: { gems: { increment: OL_PARTICIPATION_GEMS } } })
@@ -2790,8 +3026,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* O1: کش ۱۰s برای بخش مشترک سنگین (جدول مدال/رکورد/کارنامه/فید زنده/آرشیو) */
         const sh = await olyShared(edition, g.phase === 'live')
         const myReg = myEntries.map((e) => e.discipline)
-        const myE: Record<string, { best: number; attempts: number }> = {}
-        for (const e of myEntries) myE[e.discipline] = { best: e.best, attempts: e.attempts }
+        const myE: Record<string, { best: number; attempts: number; finalist: boolean; qual_best: number }> = {}
+        for (const e of myEntries) myE[e.discipline] = { best: e.best, attempts: e.attempts, finalist: e.finalist, qual_best: e.qualBest }
         const champRow = await latestChampion(Math.max(1, Number(args.p_server || 1)))
         /* O4-final / PHASE 34: انگیزه‌های واقعی امروز — فقط در فاز زنده (قبل/بعد معنا ندارد) */
         const _hO4 = await olyHostGet(edition)
@@ -2806,12 +3042,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           reg_at: new Date(g.regAt).toISOString(), open_at: new Date(g.openAt).toISOString(),
           close_at: new Date(g.closeAt).toISOString(), next_reg: new Date(g.nextReg).toISOString(),
           truce: g.phase === 'live',
+          reg_cap: OLY_REG_CAP, final_top: OLY_FINAL_TOP, missions_def: OLY_MISSIONS, token_shop: OLY_TOKEN_SHOP,
           my: { reg: myReg, entries: myE, /* P1-V73: سقف تلاش رسمی (میزبان ۶ / بقیه ۵) — هاب دیگر حدس نمی‌زند */ att_max: hostMaxO4, country: (myEntries[0] && myEntries[0].countryFa) || null,
             /* O2 / PHASE 28: رشته‌هایی که الان رکورددار جهانی‌شان خودت هستی — کلاینت با
                مقایسه با آخرین وضعیت ذخیره‌شده، بنر RECORD BROKEN + [پس بگیر] می‌سازد */
             my_records: (sh.records || []).filter((r) => r.nick === user.nick).map((r) => r.discipline),
             /* O4-final / PHASE 34: انگیزه‌های امروز از داده‌ی واقعی */
             motive },
+          /* V89: شناسنامه‌ی ورزشکار + ماموریت‌ها — lazy در تب‌های پروفایل/ماموریت/جوایز
+             (کاهش بار RPC هاب؛ قبلاً inline بود و روی داده‌ی سنگین از گارد ۱۰s عبور می‌کرد) */
+          athlete: null, missions: null,
           table: sh.table, records: sh.records, career: sh.career, rivals: sh.rivals, live_feed: sh.live_feed,
           torch: sh.torch,
           archive: sh.archives.map((a) => ({
@@ -2850,10 +3090,28 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             await db.olympicMatch.update({ where: { id: o.id }, data: { status: 'expired', finishedAt: new Date() } }).catch(() => {})
           }
         }
-        const seed = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
-        const m = await db.olympicMatch.create({ data: { edition: g.edition, userId: user.id, discipline: key, mode, serverSeed: seed, status: 'open' } })
+        /* V89: چالش رقیب — نشست با seed مشترک چالش؛ داوری دوطرفه سمت سرور */
+        let chalFlag: string | null = null, chalSeed: string | null = null
+        const chalId = String(args.p_challenge_id || '')
+        if (chalId && mode === 'official') {
+          try {
+            const ch = await db.olympicChallenge.findUnique({ where: { id: chalId } })
+            if (ch && ch.status === 'open' && ch.edition === g.edition && ch.discipline === key && (ch.fromUid === user.id || ch.toUid === user.id)) {
+              chalFlag = 'chal:' + ch.id
+              chalSeed = ch.seed
+            }
+          } catch (e) {}
+        }
+        const seed = chalSeed || (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
+        const m = await db.olympicMatch.create({ data: { edition: g.edition, userId: user.id, discipline: key, mode, serverSeed: seed, status: 'open', flags: chalFlag } })
         /* OLY3 PHASE 3: آخرین تلاش رسمی = فینال — بدون تغییر اسکیما */
-        const isFinal = mode === 'official' && !!ent0 && ent0.attempts === hostMax - 1
+        /* V89: شب فینال (روز ۵) — آخرین تلاشِ فینالیست‌ها = تلاش فینال رسمی */
+        let isFinal = mode === 'official' && !!ent0 && ent0.attempts === hostMax - 1
+        if (mode === 'official' && g.phase === 'live' && g.gameDay === 4 && ent0) {
+          await olyFinalistsEnsure(g.edition, key, user.id)
+          const entF = await db.olympicEntry.findUnique({ where: { edition_userId_discipline: { edition: g.edition, userId: user.id, discipline: key } } })
+          if (entF && entF.finalist) isFinal = true
+        }
         return R({ ok: true, match_id: m.id, seed, token: olyToken(m.id, seed), server_ms: Date.now(), mode, att_max: mode === 'official' ? hostMax : 0, edition: g.edition, is_final: isFinal })
       }
 
@@ -2866,7 +3124,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (g.phase !== 'reg' && g.phase !== 'live') return R({ ok: false, reason: 'window' })
         const list = Array.isArray(args.p_disciplines) ? args.p_disciplines.map((x) => String(x)) : []
         const keys = [...new Set(list)].filter((k) => GD_DAY[k] !== undefined)
-        if (!keys.length || keys.length > 6) return R({ ok: false, reason: 'quota' }) /* V40: هر ۶ رشته */
+        if (!keys.length || keys.length > OLY_REG_CAP) return R({ ok: false, reason: 'quota' }) /* V89: هر ۱۲ رشته از ۳۶ */
         const cap = (await db.territory.findFirst({ where: { userId: user.id, isCapital: true } }))
           || (await db.territory.findFirst({ where: { userId: user.id } }))
         if (!cap) return R({ ok: false, reason: 'capital' })
@@ -3003,6 +3261,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
            fall  = رقیبِ ذخیره‌شده دوباره از من جلو زده (وقتی او بهتر شد و بالا برگشت)
            همه‌ی اعداد از مسابقه‌ی رسمی داور می‌آیند — کلاینت نقشی ندارد. */
         let rival: { nick: string; best: number; ahead: boolean; passes: number; falls: number; gap: number } | null = null
+        let rivalPassEvent = false /* V89: برای ماموریت rival1 */
         {
           const above = await db.olympicEntry.findFirst({
             where: { edition: g.edition, discipline: key, best: { gt: best } },
@@ -3021,6 +3280,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
              fall  = جلویش بودم (ahead=true) و حالا همان نفر دوباره بالای سرم برگشته */
           if (ex && !ex.ahead && best > ex.rivalBest && (!above || above.userId !== ex.rivalUserId)) {
             passes++
+            rivalPassEvent = true
             hist.push({ t: Date.now(), ev: 'pass', vs: ex.rivalNick, my: best, rv: ex.rivalBest })
           } else if (ex && ex.ahead && above && above.userId === ex.rivalUserId) {
             falls++
@@ -3045,8 +3305,58 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           }
         }
         passAddXp(user.id, 'olympic').catch(() => {}) /* V43: مسیر فصلی — XP المپیک */
+        /* ============ V89 — Olympics V2: ورزشکار + ماموریت + فینال + چالش ============ */
+        let isFinalRow = false
+        let challengeInfo: { id: string; role: string; done: boolean; result?: string } | null = null
+        try {
+          /* سکه‌ی المپیک: شرکت رسمی +۱ (سقف طبیعی = سقف تلاش) • رکورد جهانی +۵۰ */
+          await db.olympicAthlete.upsert({
+            where: { userId: user.id },
+            create: { userId: user.id, token: recordBroken ? 51 : 1, xp: 12 },
+            update: { token: { increment: recordBroken ? 51 : 1 }, xp: { increment: 12 } },
+          })
+          /* ویژگی‌ها — بازمحاسبه از مسابقه‌ی رسمی (ضد P2W) */
+          olyAttrsRecompute(user.id).catch(() => {})
+          /* ماموریت‌ها — فقط از داده‌ی واقعی همین نتیجه */
+          await olyMissionEnsureAll(user.id, g.edition)
+          const played = await db.olympicEntry.count({ where: { edition: g.edition, userId: user.id, attempts: { gt: 0 } } })
+          for (const mk of ['play3', 'play5', 'play9']) {
+            const def = OLY_MISSIONS.find((x) => x.key === mk)
+            if (def) await db.olympicMission.updateMany({ where: { edition: g.edition, userId: user.id, key: mk, done: false }, data: { prog: Math.min(def.goal, played), done: played >= def.goal } })
+          }
+          if (isPr) { await olyMissionBump(user.id, g.edition, 'pb1'); await olyMissionBump(user.id, g.edition, 'pb3') }
+          if (rivalPassEvent) await olyMissionBump(user.id, g.edition, 'rival1')
+          if (myRank <= 100) await olyMissionBump(user.id, g.edition, 'top100')
+          if (myRank <= 10) await olyMissionBump(user.id, g.edition, 'top10')
+        } catch (e) { console.log('olyv89sub', e) }
+        /* شب فینال (روز ۵): تلاش فینالیست‌ها ثبت می‌شود — رتبه‌ی مدال از همین جدول */
+        if (g.phase === 'live' && g.gameDay === 4 && ent.finalist) {
+          try {
+            await db.olympicFinalAttempt.create({ data: { edition: g.edition, discipline: key, userId: user.id, nick: user.nick, countryFa: cfa, score, matchId: m.id } })
+            isFinalRow = true
+          } catch (e) {}
+        }
+        /* چالش رقیب: نشستِ برچسب‌خورده → امتیاز این طرف ثبت، تکمیل دوئل با هر دو امتیاز */
+        if (m.flags && String(m.flags).startsWith('chal:')) {
+          const cid = String(m.flags).slice(5)
+          try {
+            const ch0 = await db.olympicChallenge.findUnique({ where: { id: cid } })
+            if (ch0 && ch0.status === 'open') {
+              const isFrom = ch0.fromUid === user.id
+              await db.olympicChallenge.update({ where: { id: cid }, data: isFrom ? { fromScore: score } : { toScore: score } })
+              const ch = await db.olympicChallenge.findUnique({ where: { id: cid } })
+              if (ch && ch.fromScore > 0 && ch.toScore > 0) {
+                const winnerUid = ch.fromScore > ch.toScore ? ch.fromUid : ch.toScore > ch.fromScore ? ch.toUid : null
+                await db.olympicChallenge.update({ where: { id: cid }, data: { status: 'done', winnerUid } })
+                await addNews(0, 'olympic_challenge_done', ch.discipline, user.nick, isFrom ? ch.toNick : ch.fromNick)
+                challengeInfo = { id: cid, role: isFrom ? 'from' : 'to', done: true, result: winnerUid == null ? 'tie' : winnerUid === user.id ? 'win' : 'loss' }
+              } else challengeInfo = { id: cid, role: isFrom ? 'from' : 'to', done: false }
+            }
+          } catch (e) {}
+        }
         return R({ ok: true, best, attempts: ent.attempts, rank: myRank, record_broken: recordBroken, record_pending: recordPending, score, att_max: hostMax,
-          prev_best: prevBest, pr: isPr, passed, next_best: nextRow ? nextRow.best : null, new_badges: newBadges, rival })
+          prev_best: prevBest, pr: isPr, passed, next_best: nextRow ? nextRow.best : null, new_badges: newBadges, rival,
+          final_row: isFinalRow, challenge: challengeInfo })
       }
 
       /* ============ O2 — olympic_profile: پروفایل مهارت من (PHASE 49) ============
@@ -3090,6 +3400,140 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         })
         if (mine && mine.logJson) personal = { nick: user.nick, score: mine.score, edition: mine.edition, tel: mine.logJson }
         return R({ ok: true, global: glob, personal })
+      }
+/* ============ V89 — RPCهای اکوسیستم رقابتی المپیک ============ */
+      /* شناسنامه‌ی ورزشکار: ویژگی‌ها + تخصص + مدال‌ها + توکن + سطح */
+      case 'olympic_athlete': {
+        if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
+        const card = await olyAthleteCard(user.id, user.nick)
+        return R({ ok: true, athlete: card })
+      }
+      /* ماموریت‌های دوره + اهراز جایزه (idempotent) */
+      case 'olympic_missions': {
+        if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
+        const gM = gamesPhase()
+        if (String(args.p_action || 'list') === 'claim') {
+          const key = String(args.p_key || '')
+          const m = await db.olympicMission.findUnique({ where: { edition_userId_key: { edition: gM.edition, userId: user.id, key } } })
+          if (!m) return R({ ok: false, reason: 'mission' })
+          if (!m.done) return R({ ok: false, reason: 'not_done' })
+          if (m.claimed) return R({ ok: false, reason: 'claimed' })
+          let rw: { token?: number; xp?: number } = {}
+          try { rw = JSON.parse(m.rewardJson || '{}') } catch (e) {}
+          const token = Number(rw.token) || 0, xp = Number(rw.xp) || 0
+          await db.olympicMission.update({ where: { id: m.id }, data: { claimed: true } })
+          await db.olympicAthlete.upsert({
+            where: { userId: user.id },
+            create: { userId: user.id, token, xp },
+            update: { token: { increment: token }, xp: { increment: xp } },
+          })
+          return R({ ok: true, claimed: key, token, xp })
+        }
+        const rows = await olyMissionEnsureAll(user.id, gM.edition)
+        return R({ ok: true, edition: gM.edition, missions: rows.map((m) => ({ key: m.key, prog: m.prog, goal: m.goal, done: m.done, claimed: m.claimed, reward: (function () { try { return JSON.parse(m.rewardJson || '{}') } catch (e) { return {} } })() })) })
+      }
+      /* فروشگاه سکه‌ی المپیک — فقط زینتی (ضد P2W) */
+      case 'olympic_token_spend': {
+        if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
+        const k = String(args.p_item || '')
+        const item = OLY_TOKEN_SHOP.find((x) => x.k === k)
+        if (!item) return R({ ok: false, reason: 'item' })
+        const a = await olyAthleteEnsure(user.id)
+        if (!a) return R({ ok: false, reason: 'athlete' })
+        let owned: { k: string; at: number }[] = []
+        try { owned = JSON.parse(a.ownedJson || '[]') } catch (e) { owned = [] }
+        if (!Array.isArray(owned)) owned = []
+        if (owned.some((o) => o && o.k === k)) return R({ ok: false, reason: 'owned' })
+        if (a.token < item.price) return R({ ok: false, reason: 'token' })
+        owned.push({ k, at: Date.now() })
+        await db.olympicAthlete.update({ where: { userId: user.id }, data: { token: { decrement: item.price }, ownedJson: JSON.stringify(owned) } })
+        return R({ ok: true, bought: k, token: a.token - item.price, catalog: OLY_TOKEN_SHOP })
+      }
+      /* تالار افتخارات دائمی */
+      case 'olympic_hof': {
+        const rows = await db.olympicHof.findMany({ orderBy: [{ value: 'desc' }], take: 120 })
+        const byKey: Record<string, unknown[]> = {}
+        for (const r of rows) {
+          const arr = byKey[r.key] || (byKey[r.key] = [])
+          if (arr.length < 10) arr.push({ nick: r.nick, countryFa: r.countryFa, value: r.value, detail: r.detail, edition: r.edition, at: r.at.toISOString() })
+        }
+        return R({ ok: true, hof: byKey })
+      }
+      /* رکوردهای ۷گانه: جهانی/فینال/دوره/کشوری/شخصی/الملی */
+      case 'olympic_records': {
+        if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
+        const gR = gamesPhase()
+        const world = await db.olympicRecord.findMany({ take: 40 })
+        /* رکورد فینال: برنده‌ی هر دوره از OlympicResult (رتبه‌ی ۱) — بهترین در طول تاریخ */
+        const golds = await db.olympicResult.findMany({ where: { rank: 1 }, orderBy: [{ score: 'desc' }], take: 300 })
+        const finalRec: Record<string, { nick: string; countryFa: string | null; score: number; edition: number }> = {}
+        for (const g0 of golds) { if (!finalRec[g0.discipline]) finalRec[g0.discipline] = { nick: g0.nick, countryFa: g0.countryFa, score: g0.score, edition: g0.edition } }
+        /* رکورد ملی دوره‌ی جاری: بهترین هر کشور */
+        const ents = await db.olympicEntry.findMany({ where: { edition: gR.edition, best: { gt: 0 } }, orderBy: [{ best: 'desc' }], take: 4000 })
+        const nat: Record<string, Record<string, { nick: string; best: number }>> = {}
+        for (const e of ents) {
+          const ck = e.countryFa || e.country || '?'
+          if (!nat[e.discipline]) nat[e.discipline] = {}
+          if (!nat[e.discipline][ck]) nat[e.discipline][ck] = { nick: e.nick, best: e.best }
+        }
+        const profs = await db.olympicProfile.findMany({ where: { userId: user.id }, select: { discipline: true, bestEver: true } })
+        const minePB: Record<string, number> = {}
+        for (const p of profs) minePB[p.discipline] = p.bestEver
+        const myEd = await db.olympicEntry.findMany({ where: { edition: gR.edition, userId: user.id }, select: { discipline: true, best: true } })
+        const mineSeason: Record<string, number> = {}
+        for (const e of myEd) mineSeason[e.discipline] = e.best
+        return R({ ok: true, edition: gR.edition, world, final: finalRec, national: nat,
+          mine: { personal: minePB, season: mineSeason } })
+      }
+      /* رقیب پایدار: تجمیع دفتر رقابت بین‌دوره‌ای + چالش‌های باز */
+      case 'olympic_rivals': {
+        if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
+        const rows = await db.olympicRivalry.findMany({ where: { userId: user.id }, orderBy: [{ updatedAt: 'desc' }], take: 200 })
+        const agg: Record<string, { nick: string; meetings: number; passes: number; falls: number; discs: string[]; last: number }> = {}
+        for (const r of rows) {
+          const a = agg[r.rivalUserId] || (agg[r.rivalUserId] = { nick: r.rivalNick, meetings: 0, passes: 0, falls: 0, discs: [], last: 0 })
+          a.meetings += r.passes + r.falls
+          a.passes += r.passes; a.falls += r.falls
+          if (a.discs.indexOf(r.discipline) < 0 && a.discs.length < 8) a.discs.push(r.discipline)
+          a.last = Math.max(a.last, new Date(r.updatedAt).getTime())
+        }
+        const rivals = Object.values(agg).sort((x, y) => y.meetings - x.meetings).slice(0, 8)
+        const incoming = await db.olympicChallenge.findMany({ where: { toUid: user.id, status: 'open' }, take: 5 })
+        const outgoing = await db.olympicChallenge.findMany({ where: { fromUid: user.id, status: 'open' }, take: 5 })
+        const recent = await db.olympicChallenge.findMany({ where: { status: 'done', fromUid: user.id }, orderBy: [{ updatedAt: 'desc' }], take: 5 })
+        const fmt = (c: typeof incoming[0]) => ({ id: c.id, edition: c.edition, discipline: c.discipline, from: c.fromNick, to: c.toNick, fromScore: c.fromScore, toScore: c.toScore, winner: c.winnerUid === user.id ? 'me' : c.winnerUid ? 'rival' : null, mine: c.fromUid === user.id ? c.fromScore : c.toScore, theirs: c.fromUid === user.id ? c.toScore : c.fromScore })
+        return R({ ok: true, rivals, incoming: incoming.map(fmt), outgoing: outgoing.map(fmt), recent: recent.map(fmt) })
+      }
+      /* چالش رقیب: ساخت/لغو — دوئل رسمی با seed مشترک؛ نتیجه فقط از مسابقه‌ی رسمی */
+      case 'olympic_challenge': {
+        if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
+        const gC = gamesPhase()
+        const act = String(args.p_action || '')
+        if (act === 'create') {
+          const key = String(args.p_discipline || '')
+          const nick = String(args.p_nick || '').trim()
+          if (GD_DAY[key] === undefined) return R({ ok: false, reason: 'discipline' })
+          if (!nick || nick === user.nick) return R({ ok: false, reason: 'nick' })
+          const target = await db.user.findFirst({ where: { nickLower: nick.toLowerCase() } })
+          if (!target) return R({ ok: false, reason: 'nick' })
+          if (gC.phase !== 'live') return R({ ok: false, reason: 'window' })
+          /* سقف چالش باز: حداکثر ۳ چالش فعال از هر نفر */
+          const openMine = await db.olympicChallenge.count({ where: { fromUid: user.id, status: 'open' } })
+          if (openMine >= 3) return R({ ok: false, reason: 'limit' })
+          const dup = await db.olympicChallenge.findFirst({ where: { fromUid: user.id, toUid: target.id, status: 'open', discipline: key } })
+          if (dup) return R({ ok: false, reason: 'dup' })
+          const seed = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
+          const ch = await db.olympicChallenge.create({ data: { edition: gC.edition, discipline: key, seed, fromUid: user.id, fromNick: user.nick, toUid: target.id, toNick: target.nick } })
+          return R({ ok: true, challenge: { id: ch.id, discipline: key, to: target.nick } })
+        }
+        if (act === 'decline') {
+          const id = String(args.p_id || '')
+          const ch = await db.olympicChallenge.findUnique({ where: { id } })
+          if (!ch || ch.toUid !== user.id || ch.status !== 'open') return R({ ok: false, reason: 'challenge' })
+          await db.olympicChallenge.update({ where: { id }, data: { status: 'declined' } })
+          return R({ ok: true, declined: id })
+        }
+        return R({ ok: false, reason: 'action' })
       }
       /* ============ O1 — oly_verify: رسیدگی به صف رکوردهای مشکوک (L9) ============ */
       case 'oly_verify': {

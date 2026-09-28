@@ -264,6 +264,9 @@ model OlympicEntry {
   best       Int      @default(0)
   attempts   Int      @default(0)
   lastAt     DateTime @default(now()) @map("last_at")
+  /* V89 — Olympics V2: مرحله‌ی مقدماتی/فینال — روز ۵ = شب فینال؛ ۱۶ نفر برتر هر رشته */
+  qualBest   Int      @default(0) @map("qual_best") /* بهترین امتیاز روزهای ۱ تا ۴ */
+  finalist   Boolean  @default(false) /* واجد شرایط فینال */
 
   @@unique([edition, userId, discipline])
   @@index([edition, discipline])
@@ -411,6 +414,91 @@ model OlympicRivalry {
   @@unique([edition, userId, discipline])
   @@index([edition, rivalUserId])
   @@map("olympic_rivalries")
+}
+
+/* ============ V89 — OLYMPICS V2: اکوسیستم رقابتی ============ */
+
+/* شناسنامه‌ی ورزشکار — همه‌ی ویژگی‌ها فقط از مسابقه‌ی رسمی بازمحاسبه می‌شوند
+   (ضد P2W: با جم نمی‌شود ویژگی/نتایج خرید؛ توکن فقط خرج زینتی می‌شود) */
+model OlympicAthlete {
+  userId    String   @id @map("user_id")
+  attrsJson String   @default("{}") @map("attrs_json") /* {speed,reaction,precision,endurance,power,balance,tactical} 0..100 */
+  spec      String   @default("") /* تخصص غالب: speed|reaction|... */
+  token     Int      @default(0) /* سکه‌ی المپیک — فقط از شرکت/ماموریت/مدال */
+  ownedJson String   @default("[]") @map("owned_json") /* آیتم‌های خریداری‌شده [{k,at}] */
+  xp        Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@map("olympic_athletes")
+}
+
+/* ماموریت‌های المپیک هر دوره — پیشرفت فقط از رویدادهای رسمی سرور */
+model OlympicMission {
+  id         String  @id @default(cuid())
+  edition    Int
+  userId     String  @map("user_id")
+  key        String
+  prog       Int     @default(0)
+  goal       Int     @default(1)
+  done       Boolean @default(false)
+  claimed    Boolean @default(false)
+  rewardJson String  @default("{}") @map("reward_json") /* {token,xp} */
+  @@unique([edition, userId, key])
+  @@index([userId, edition])
+  @@map("olympic_missions")
+}
+
+/* تلاش‌های شب فینال (روز ۵) — فقط ۱۶ واجد شرایط هر رشته؛ رتبه‌ی نهایی مدال از همین */
+model OlympicFinalAttempt {
+  id         String   @id @default(cuid())
+  edition    Int
+  discipline String
+  userId     String   @map("user_id")
+  nick       String
+  countryFa  String?  @map("country_fa")
+  score      Int
+  matchId    String   @map("match_id")
+  at         DateTime @default(now())
+  @@unique([matchId])
+  @@index([edition, discipline, score])
+  @@map("olympic_final_attempts")
+}
+
+/* تالار افتخارات دائمی — هیچ دوره‌ای این ردیف‌ها را پاک نمی‌کند */
+model OlympicHof {
+  id        String   @id @default(cuid())
+  key       String /* golds|medals|record|finals|multisport|rivalry|defense */
+  userId    String   @map("user_id")
+  nick      String
+  country   String?
+  countryFa String?  @map("country_fa")
+  value     Int      @default(0)
+  detail    String   @default("")
+  edition   Int
+  at        DateTime @default(now())
+  @@unique([key, userId])
+  @@index([key, value])
+  @@map("olympic_hof")
+}
+
+/* چالش رقیب — دوئل رسمی با seed مشترک؛ داوری کامل سمت سرور، کلاینت اثری ندارد */
+model OlympicChallenge {
+  id        String   @id @default(cuid())
+  edition   Int
+  discipline String
+  seed      String
+  fromUid   String   @map("from_uid")
+  fromNick  String   @map("from_nick")
+  toUid     String   @map("to_uid")
+  toNick    String   @map("to_nick")
+  status    String   @default("open") /* open|done|declined|expired */
+  fromScore Int      @default(0)
+  toScore   Int      @default(0)
+  winnerUid String?  @map("winner_uid")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@index([toUid, status])
+  @@index([fromUid, status])
+  @@map("olympic_challenges")
 }
 
 /* ============ V34 — social & competitive layer ============ */

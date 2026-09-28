@@ -7,7 +7,8 @@ const URL = BASE + '/game/index.html?v=' + Date.now()
 let pass = 0, fail = 0
 const check = (name, ok, info = '') => { if (ok) { pass++; console.log('PASS ' + name + (info ? ' — ' + info : '')) } else { fail++; console.log('FAIL ' + name + (info ? ' — ' + info : '')) } }
 const db = new PrismaClient()
-await db.gameSetting.deleteMany({ where: { key: 'wd_test_srvs' } }).catch(() => {})
+/* V89: server1=test-lock لازم است — تنظیم می‌شود (سایت‌های بعدی هم deleteMany می‌زنند) */
+await db.gameSetting.upsert({ where: { key: 'wd_test_srvs' }, update: { value: '[1]' }, create: { key: 'wd_test_srvs', value: '[1]' } }).catch(() => {})
 const browser = await chromium.launch({ headless: true })
 const errors = []
 

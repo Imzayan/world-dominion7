@@ -25,6 +25,64 @@ const REF: Record<string, Record<'tap' | 'sim', number>> = {
   football: { tap: 990, sim: 880 }, /* tap: کامل ۳ دور (۹۰×۶+۲۰۰+۱۵۰+۱۰۰) */
   wrestle: { tap: 990, sim: 640 }, /* tap: ۳ برد سریع (۲۵۰+۱۵۰) */
   lj: { tap: 1215, sim: 640 }, /* tap: ۳ پرش ۹ متری×۴۵ */
+  /* V89 — Olympics V2: رفرنس تجربی رشته‌های جدید */
+  hurdles: { tap: 1900, sim: 640 }, run400: { tap: 1450, sim: 640 }, highjump: { tap: 1680, sim: 640 },
+  javelin: { tap: 1300, sim: 640 }, discus: { tap: 1180, sim: 640 }, shotput: { tap: 1140, sim: 640 },
+  boxing: { tap: 1120, sim: 640 }, fencing: { tap: 980, sim: 640 }, judo: { tap: 900, sim: 640 },
+  reaction: { tap: 1000, sim: 640 }, shooting: { tap: 1100, sim: 640 }, movingtarget: { tap: 1500, sim: 640 },
+  sniper: { tap: 1020, sim: 640 }, rapidtarget: { tap: 1500, sim: 640 }, swim50: { tap: 980, sim: 640 },
+  diving: { tap: 1150, sim: 640 }, rowing: { tap: 1350, sim: 640 }, kayak: { tap: 1320, sim: 640 },
+  moto: { tap: 1350, sim: 640 }, rally: { tap: 780, sim: 640 }, formula: { tap: 1120, sim: 640 },
+  boat: { tap: 990, sim: 640 }, balance: { tap: 510, sim: 640 }, timing: { tap: 1120, sim: 640 },
+  memory: { tap: 880, sim: 640 },
+}
+
+/* ============================================================
+   V89 — Olympics V2: ویژگی‌های ورزشکار (Speed/Reaction/...).
+   فقط از پروفایل مهارت رسمی رشته‌ها بازمحاسبه می‌شود — هیچ مسیر
+   خرید/تمرین/دستی ندارد (ضد P2W). هر ویژگی = میانگین وزنی مهارت
+   رشته‌های همان خانواده؛ تخصص = قوی‌ترین ویژگی با سهم کافی.
+   ============================================================ */
+export const ATTR_FAMILIES: Record<string, string[]> = {
+  speed: ['sprint', 'swim50', 'hurdles', 'moto'],
+  reaction: ['reaction', 'boxing', 'fencing', 'volley', 'rapidtarget'],
+  precision: ['archery', 'shooting', 'sniper', 'movingtarget'],
+  endurance: ['run400', 'cycling', 'swim', 'rowing', 'kayak'],
+  power: ['weight', 'shotput', 'javelin', 'discus', 'highjump', 'wrestle'],
+  balance: ['balance', 'gym', 'kayak', 'diving', 'boat'],
+  tactical: ['chess', 'memory', 'football', 'rally', 'formula', 'timing'],
+}
+export const ATTR_FA: Record<string, string> = {
+  speed: 'سرعت', reaction: 'واکنش', precision: 'دقت', endurance: 'استقامت',
+  power: 'قدرت', balance: 'تعادل', tactical: 'تاکتیک',
+}
+export interface AttrProfileRow { discipline: string; n: number; recent: RecentScore[] }
+
+/** attrs 0..100 از سطرهای OlympicProfile — فقط مسابقه‌ی رسمی */
+export function attrsFromProfiles(rows: AttrProfileRow[]): { attrs: Record<string, number>; spec: string } {
+  const skillByDisc: Record<string, number> = {}
+  for (const r of rows) {
+    if (!r || r.n <= 0) continue
+    skillByDisc[r.discipline] = skillOf(r.discipline, r.recent || [])
+  }
+  const attrs: Record<string, number> = {}
+  let bestKey = '', bestVal = 0
+  for (const key of Object.keys(ATTR_FAMILIES)) {
+    const fam = ATTR_FAMILIES[key].filter((d) => skillByDisc[d] != null)
+    if (!fam.length) { attrs[key] = 0; continue }
+    /* وزن: مهارت × لگاریتم تجربه (کم‌تجربه وزن کمتر) */
+    let sw = 0, sv = 0
+    for (const d of fam) {
+      const row = rows.find((x) => x.discipline === d)
+      const w = Math.log2(2 + Math.min(40, row ? row.n : 0))
+      sw += w; sv += skillByDisc[d] * w
+    }
+    const v = Math.round(sw ? sv / sw : 0)
+    attrs[key] = v
+    if (v > bestVal) { bestVal = v; bestKey = key }
+  }
+  /* تخصص فقط با مهارت واقعی ≥ ۵۵ و تجربه‌ی خانواده ثبت می‌شود */
+  return { attrs, spec: bestVal >= 55 ? bestKey : '' }
 }
 export const refOf = (key: string, model: 'tap' | 'sim'): number =>
   (REF[key] && REF[key][model]) || 800
