@@ -665,3 +665,23 @@ model CvBuilding {
   @@index([userId, country])
   @@map("cv_buildings")
 }
+
+/* ============ V88 — SHOP V3 + WAR DEPTH ============ */
+model WarState {
+  userId    String   @id @map("user_id")
+  data      String   @default("{}")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("war_states")
+}
+
+model UserTrophy {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  key       String
+  at        DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("user_trophies")
+}

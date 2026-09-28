@@ -683,3 +683,28 @@ model CvBuilding {
   @@index([userId, country])
   @@map("cv_buildings")
 }
+
+/* ============ V88 — SHOP V3 + WAR DEPTH ============
+   WarState: وضعیت جنگ هر بازیکن (تک‌ردیف JSON) — لجستیک/اثرات فعال/کول‌داون سفارشات.
+   هیچ عدد جنگی از کلاینت پذیرفته نمی‌شود؛ این جدول فقط توسط RPC های سرور نوشته می‌شود.
+   supply با tick تنبل در هر خواندن بازیابی می‌شود (بدون تایمر). */
+model WarState {
+  userId    String   @id @map("user_id")
+  data      String   @default("{}") /* JSON: {supply,atkt,fx:[{k,until,data}],cd:{k:ts},blk:{nick:until},spy:{at,nick}} */
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("war_states")
+}
+
+/* V88 — تروفی‌های شخصی: فقط از داده‌ی واقعی سرور صادر می‌شوند (score/olympic/alliance/inventory).
+   یکتا به‌ازای هر کاربر+کلید؛ صادرشدن اولین بار خبر trophy در world_news می‌سازد (ضد اسپم). */
+model UserTrophy {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  key       String
+  at        DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("user_trophies")
+}

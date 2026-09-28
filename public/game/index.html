@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=87;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=87"></script>
+  <script>window.__WD_V=88;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=88"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -3991,12 +3991,13 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       /* V50: ضد قفل‌شدن — اگر پاسخ سرور ۱۵ ثانیه نیامد (اینترنت کند)، نبرد با پیام خطا آزاد می‌شود */
       const result=await Promise.race([
         sb.rpc('pvp_attack',{
-        p_server:SRV,p_country:country,p_attack:Math.round(calculateTotalAttack()),p_tactic:(window.WD65TACTIC||null)
+        p_server:SRV,p_country:country,p_attack:Math.round(calculateTotalAttack()),p_tactic:(window.WD65TACTIC||null),p_atk_type:(window.WD88_ATK||null)
       }),
         new Promise((_,rej)=>setTimeout(()=>rej(new Error('اتصال سرور کند بود — دوباره تلاش کن')),15000))
       ]);
       if(result.error)throw result.error;
       const x=result.data||{};
+      try{if(window.WD88&&WD88.onPvpResult)WD88.onPvpResult(x)}catch(e){}
       if(x.busy)throw new Error('این جبهه هم‌اکنون درگیر است.');
       if(x.error==='cap'){
         /* V59 wave-2 §8: سقف کشورها — پیام صادقانه با عدد دقیق */
@@ -15790,7 +15791,8 @@ function renderEmpire(b){
   sec.push('<div class="wd5-card"><div class="wd5-k">🛡️ ثبات داخلی</div><div class="wd5-v">'+faN(c.stab)+'٪</div><div class="wd5-meter"><i style="width:'+faN(c.stab)+'%"></i></div><div class="wd5-small">بهره‌وری مالیات ×'+(0.6+c.stab/250).toFixed(2)+'</div></div>');
   sec.push('<div class="wd5-card"><div class="wd5-k">🎖️ فرمانده فعال</div><div class="wd5-v">'+esc(activeGen()?activeGen().name:'—')+'</div><div class="wd5-small">'+(activeGen()?(TRAITS[activeGen().trait].ic+' '+TRAITS[activeGen().trait].n+' • Lv.'+faN(activeGen().level)+' • وفاداری '+faN(activeGen().loyalty)+'٪'):'از کارت فرماندهان یک فرمانده فعال کن')+'</div></div>');
   sec.push('</div>');
-  /* سیاست‌ها */
+  /* V88 — توکن آموزش فرمانده (از فروشگاه جنگ) */
+  sec.push('<div class="wd5-card" style="margin-top:6px" id="wd88-train-card"></div>');
   sec.push('<div class="wd5-section" style="margin-top:10px">📜 سیاست‌های حکومت (هر دسته یک انتخاب — مزیت و عیب همزمان)</div>');
   Object.keys(POL65).forEach(cat=>{
     const cn={economy:'💰 اقتصادی',military:'⚔️ نظامی',social:'👥 اجتماعی',diplomatic:'🤝 دیپلماتیک'}[cat];
@@ -15820,6 +15822,14 @@ function renderEmpire(b){
   b.querySelectorAll('[data-pol]').forEach(x=>x.onclick=()=>{const[cat,k]=x.dataset.pol.split(':');setPol(cat,k)});
   b.querySelectorAll('[data-up]').forEach(x=>x.onclick=()=>{const[c,k]=x.dataset.up.split(':');upgrade(c,k)});
   const wp=b.querySelector('[data-wplan]');if(wp)wp.onclick=()=>openPlan();
+  /* V88 — پر کردن کارت توکن آموزش + نوار بناها/تروفی */
+  try{const tc=b.querySelector('#wd88-train-card');
+    if(tc){const C88=(window.COS||window.COS27||{});const n88=(C88.training||0)|0;
+      if(n88>0){tc.innerHTML='<div class="wd5-k">🎓 توکن آموزش فرمانده: '+faN(n88)+' عدد</div><button class="wd65-btn gr" id="wd88-train" style="width:100%;margin-top:6px">🎓 مصرف توکن — +۹۰۰ XP به فرمانده فعال</button>';
+        tc.querySelector('#wd88-train').onclick=()=>{const g=activeGen();if(!g){toast65('اول از کارت فرماندهان یک فرمانده فعال کن','lose');return}
+          genXp(900);C88.training=Math.max(0,(C88.training|0)-1);chron('gen','🎓 فرمانده '+g.name+' توکن آموزش را مصرف کرد (+۹۰۰ XP)');save65();toast65('🎓 آموزش کامل شد — فرمانده قوی‌تر شد');renderIfOpen()};}
+      else tc.innerHTML='<div class="wd5-small">🎓 توکن آموزش نداری — از بخش ⚔️ جنگ فروشگاه قابل خرید است (۳۵۰ جم).</div>'}}catch(e){}
+  try{if(window.WD88&&WD88.empStrip)WD88.empStrip(b)}catch(e){}
 }
 /* ---------- 10) برنامه‌ی نبرد (sheet) — تاکتیک/جبهه/محاصره/شناسایی/عقب‌نشینی ---------- */
 const PLAN={t:null};
@@ -15872,6 +15882,8 @@ function openPlan(){
     save65();toast65('⚔️ عملیات آغاز می‌شود...');
     setTimeout(()=>{try{if(typeof attackTarget==='function')attackTarget(sel)}catch(e){}},250);
   };
+  /* V88 — دکترین حمله/لجستیک/سفارشات/اطلاعات سرور */
+  try{if(window.WD88&&WD88.plan)WD88.plan({card:card,sel:sel})}catch(e){}
 }
 
 /* ---------- 11) شکوه: رقیب + اهداف + تالار افتخارات + chronicle (سرور-مأخذ) ---------- */
@@ -16156,17 +16168,21 @@ var CAT66=null,OWN66={},EXP66={},VIEW='home',BUSY={},HIST=null;
 var INVQ='',INVF='all',INVS='new',PV66=null,TIMER66=null,INVHIST=false;
 var RARS={common:'معمولی',uncommon:'غیرمعمولی',rare:'کمیاب',epic:'حماسی',legendary:'افسانه‌ای',mythic:'اسطوره‌ای'};
 var CATS=[
+ /* V88 — ساختار ۱۲ بخشی Premium Empire Store (Shop V3) */
  {id:'home',ic:'🏠',fa:'خانه'},
  {id:'gems',ic:'💎',fa:'خرید جم'},
- {id:'offers',ic:'🔥',fa:'پیشنهاد ویژه'},
  {id:'identity',ic:'👑',fa:'هویت امپراتوری'},
- {id:'battle',ic:'⚔️',fa:'کازمتیک جنگ'},
- {id:'map',ic:'🗺️',fa:'کازمتیک نقشه'},
  {id:'capital',ic:'🏛️',fa:'پایتخت'},
+ {id:'map',ic:'🌍',fa:'تم‌های جهان'},
+ {id:'war',ic:'⚔️',fa:'جنگ'},
+ {id:'landmarks',ic:'🗿',fa:'بناها'},
  {id:'collections',ic:'🏆',fa:'مجموعه‌ها'},
- {id:'mystery',ic:'🎁',fa:'صندوق شانس'},
+ {id:'vault',ic:'🎁',fa:'خزانه امپراتوری'},
  {id:'vip',ic:'👑',fa:'VIP'},
  {id:'limited',ic:'🔥',fa:'محدود'},
+ {id:'pass',ic:'🎟️',fa:'پاس فصل'},
+ {id:'trophies',ic:'🏅',fa:'تروفی‌ها'},
+ {id:'cosmetic',ic:'🎨',fa:'زینتی سینمایی'},
  {id:'museum',ic:'🖼️',fa:'موزه'},
  {id:'inventory',ic:'🎒',fa:'انبار'}
 ];
@@ -16216,7 +16232,14 @@ function applyCapital(){try{
   else{var a=C.capAura;if(a&&ownOf('cap_aura_'+a))e2.classList.add('wd66-cap-aura-'+a)}
   if(C.capMonument&&ownOf('cap_monument'))e2.classList.add('wd66-cap-mon');
   if(C.capNameplate&&ownOf('cap_nameplate'))e2.classList.add('wd66-cap-name');
-  if(C.empHi&&ownOf('empire_highlight'))e2.classList.add('wd66-emp-hi')}catch(e){}}
+  if(C.empHi&&ownOf('empire_highlight'))e2.classList.add('wd66-emp-hi');
+  /* V88 — اسکین پایتخت + بنای ماندگار */
+  var wrap=null;try{wrap=e2.closest('.own-wrap')||e2.parentElement}catch(e){}
+  if(wrap){WD88_CSKS.forEach(function(k){wrap.classList.remove('wd88-csk-'+k)});
+    var csk=C.capSkin;if(csk&&ownOf(csk))wrap.classList.add('wd88-'+csk);
+    var oldLm=wrap.querySelector('.wd88-lm');if(oldLm)oldLm.remove();
+    var lm=C.landmark;
+    if(lm&&ownOf(lm)){var lit=itemOf(lm);var sp=D.createElement('span');sp.className='wd88-lm wd88-'+lm;sp.textContent=lit?(lit.icon||'🗿'):'🗿';sp.title=lit?lit.fa:'بنا';wrap.appendChild(sp)}}}catch(e){}}
 function applyProfile(){try{var c=H('acc-chip');if(!c)return;var C=COSC();
   c.classList.toggle('wd66-nameplate',ownOf('emp_nameplate'));
   c.classList.toggle('wd66-war',ownOf('war_badge'));
@@ -16224,8 +16247,9 @@ function applyProfile(){try{var c=H('acc-chip');if(!c)return;var C=COSC();
   c.classList.toggle('wd66-frame-battle',ownOf('battle_frame')&&C.frameStyle==='battle')}catch(e){}}
 function applyOwned(){try{
   var host=null;try{host=map.getContainer()}catch(e){}
-  if(host){host.classList.remove('wd66-ocean-azure','wd66-ocean-midnight','wd66-ocean-jade');
-    var th=activeMapTheme();if(th)host.classList.add('wd66-'+th)}
+  if(host){/* V88: حذف امن همه‌ی تم‌ها (اقیانوس قدیمی + تم‌های جدید) + نگاشت نام اقیانوس */
+    (host.className.match(/wd66-(map_|ocean-)[\w-]+/g)||[]).forEach(function(x){host.classList.remove(x)});
+    var th=activeMapTheme();if(th)host.classList.add('wd66-'+(th.indexOf('map_ocean_')===0?th.replace('map_ocean_','ocean-'):th))}
   applyCapital();applyProfile()}catch(e){}}
 try{if(typeof WD_COLOR_HOOKS!=='undefined'&&WD_COLOR_HOOKS.after)WD_COLOR_HOOKS.after.push(function(){applyCapital()})}catch(e){}
 
@@ -16245,6 +16269,11 @@ function buy(it){
       else if(it.id==='medal_s1')WD27_API.cosBuy('medal');
       else WD27_API.cosBuy(it.id);
     }
+    else if(it.id==='cmd_training'){ /* V88 — توکن آموزش فرمانده: مصرف در پنل امپراتوری */
+      spendGem({k:it.id,c:it.price,t:it.fa,f:function(){
+        var C2=COSC();C2.training=(C2.training||0)+1;
+        showToast('🎓 توکن آموزش ذخیره شد — از پنل «امپراتوری» مصرفش کن (+۹۰۰ XP)','win');
+        if(typeof saveNow==='function')saveNow()}})}
     else if(typeof GEM_ITEMS!=='undefined'&&GEM_ITEMS&&GEM_ITEMS.some(function(g){return g.k===it.id})){
       /* مصرفی‌های v3 — همان آبجکت با اثر اصلی (سرور قیمت را اعتبارسنجی می‌کند) */
       spendGem(GEM_ITEMS.filter(function(g){return g.k===it.id})[0]);
@@ -16255,7 +16284,14 @@ function buy(it){
         /* اثر فوری آیتم‌های جدید */
         if(it.id==='fx_storm'){C.fx='storm'}
         else if(it.id==='fx_comet'){C.fx='comet'}
-        else if(it.id.indexOf('map_ocean_')===0){C.mapTheme=it.id}
+        else if(it.id.indexOf('map_')===0){C.mapTheme=it.id}
+        else if(it.id.indexOf('csk_')===0){C.capSkin=it.id}
+        else if(it.id.indexOf('lm_')===0){C.landmark=it.id}
+        else if(it.id.indexOf('banner_')===0){C.banner=it.id}
+        else if(it.id.indexOf('wfr_')===0){C.wframe=it.id}
+        else if(it.id.indexOf('vs_')===0){C.vfx=it.id}
+        else if(it.id.indexOf('we_')===0){C.wemb=it.id}
+        else if(it.id.indexOf('cp_')===0){C.cport=it.id}
         else if(it.id==='cap_theme_royal'){C.capTheme='royal'}
         else if(it.id.indexOf('cap_aura_')===0){C.capAura=it.id.slice(9)}
         else if(it.id==='cap_monument'){C.capMonument=true}
@@ -16322,6 +16358,15 @@ function slotAction(it){ /* اکشن «مدیریت» برای آیتم دارا
     case 'anthem':case 'entrance':case 'announce':case 'frame':
       return{act:'w43pick',label:'تنظیم'};
     case 'map_theme':return activeMapTheme()===it.id?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    /* V88 — اسلات‌های جدید */
+    case 'cap_skin':return C.capSkin===it.id?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'landmark':return C.landmark===it.id?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'banner':return C.banner===it.id?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'wframe':return C.wframe===it.id?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'victory_fx':return C.vfx===it.id?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'war_emblem':return C.wemb===it.id?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'cmd_portrait':return C.cport===it.id?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
+    case 'intel':case 'order':case 'tslot':return null; /* از برنامه‌ی نبرد استفاده می‌شوند */
     case 'cap_aura':return C.capAura===it.id.slice(9)?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
     case 'cap_theme':return C.capTheme==='royal'?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
     case 'cap_monument':return C.capMonument?{act:'unequip',label:'برداشتن'}:{act:'equip',label:'فعال‌سازی'};
@@ -16626,12 +16671,11 @@ function preview(id){previewCleanup();
     if(it.id==='frame')c3.style.cssText+=';box-shadow:0 0 12px 2px rgba(255,216,77,.6)';
     c3.textContent='⭐ نام تو';
     stage.append(c3)}
-  else if(it.id.indexOf('map_ocean_')===0){stage.append(el('div','🌊 دکمه را بزن — نقشه‌ی واقعی زنده تم می‌گیرد (بعد از بستن، بدون تغییر می‌ماند):'));
+  else if(it.id.indexOf('map_')===0){stage.append(el('div','🌍 دکمه را بزن — نقشه‌ی واقعی زنده تم می‌گیرد (بعد از بستن، بدون تغییر می‌ماند):'));
     var b2=el('button','▶ نمایش زنده روی نقشه','wd66-buy alt');b2.style.cssText='margin-top:9px;width:100%';
-    b2.onclick=function(){try{var cls={map_ocean_azure:'wd66-ocean-azure',map_ocean_midnight:'wd66-ocean-midnight',map_ocean_jade:'wd66-ocean-jade'}[it.id];
-      map.getContainer().classList.add(cls)}catch(e){}};
+    b2.onclick=function(){try{map.getContainer().classList.add('wd66-'+it.id)}catch(e){}};
     var b3=el('button','↩ بازگردانی','wd66-buy off');b3.style.cssText='margin-top:6px;width:100%';
-    b3.onclick=function(){try{map.getContainer().classList.remove('wd66-ocean-azure','wd66-ocean-midnight','wd66-ocean-jade')}catch(e){}};
+    b3.onclick=function(){try{WD88ThemeOff()}catch(e){}};
     stage.append(b2,b3)}
   else if(it.id==='empire_highlight'||it.id.indexOf('cap_')===0){stage.append(el('div','🏛️ نمونه‌ی برچسب پایتخت:'));
     var demo2=el('div');demo2.className='own-wrap '+(it.id==='cap_aura_gold'?'wd66-cap-aura-gold':it.id==='cap_aura_ice'?'wd66-cap-aura-ice':it.id==='cap_aura_flame'?'wd66-cap-aura-flame':it.id==='cap_theme_royal'?'wd66-cap-theme wd66-cap-mon wd66-cap-name':it.id==='cap_monument'?'wd66-cap-mon':it.id==='cap_nameplate'?'wd66-cap-name':'wd66-emp-hi');
@@ -16658,6 +16702,14 @@ function preview(id){previewCleanup();
   else if(it.id==='vip7'||it.id==='vip30'){stage.append(el('div','👑 مزایای VIP:'));
     stage.append(el('div','✅ نشان 👑 • ✅ قاب پروفایل • ✅ ۱۰ جم روزانه از سرور • ✅ ۳۰۰ طلای قدیمی روزانه • ✅ بخش ویژه • بدون هیچ قدرت جنگی','wd66-note'))}
   else stage.append(el('div',it.icon||'🎁'),el('div',esc(it.d||''),'wd66-note'));
+  /* V88 — پیش‌نمایش زنده‌ی آیتم‌های جدید */
+  if(it.id.indexOf('csk_')===0){stage.append(el('div','🏛️ نمونه‌ی اسکین پایتخت:'));
+    var d88=el('div',null,'own-wrap wd88-'+it.id);d88.style.cssText='display:inline-block;margin:10px auto 0;padding:4px 9px';d88.textContent='⭐ پایتخت تو';stage.append(d88)}
+  else if(it.id.indexOf('lm_')===0||it.id.indexOf('banner_')===0||it.id.indexOf('vs_')===0||it.id.indexOf('we_')===0||it.id.indexOf('cp_')===0){
+    stage.append(el('div','🖼️ نمایش نمونه:'));
+    var g88=el('div',null,'wd88-pvglyph wd88-'+it.id);g88.textContent=(it.icon||'✨')+'  '+it.fa;stage.append(g88)}
+  else if(it.id.indexOf('wfr_')===0){stage.append(el('div','🛡️ نمونه‌ی قاب روی کارت نبرد:'));
+    var f88=el('div',null,'wd88-pvframe wd88-'+it.id);f88.textContent='⚔️ گزارش نبرد — حمله به همسایه';stage.append(f88)}
   cd.append(stage);
   cd.append(el('div','🏅 کمیابی: '+(RARS[it.rar]||it.rar)+(it.price>0?(' • 💎 '+gemN(it.price)+' جم'):''),'wd66-note'));
   if(!ownOf(it.id)&&it.price>0){var bb=el('button','💎 خرید — '+gemN(it.price),'wd66-buy');
@@ -16687,6 +16739,7 @@ function arm(){
     else if(act==='histtab'){INVHIST=true;render()}
     else if(act==='invf'){INVF=t.getAttribute('data-f')||'all';render()}
     else if(act==='claim'){claimCollection(t.getAttribute('data-col'),t)}
+    else if(act==='passclaim'){passClaim(Number(t.getAttribute('data-tier'))||0,t)}
   });
   b.addEventListener('input',function(ev){
     var t=ev.target;if(!t||!t.getAttribute)return;
@@ -16697,9 +16750,16 @@ function arm(){
     if(t.getAttribute('data-inv')==='sort'){INVS=t.value||'new';render()}
   })}
 function equipNew(id,on){var C=COSC();
-  if(id.indexOf('map_ocean_')===0){C.mapTheme=on?id:null}
+  if(id.indexOf('map_')===0){C.mapTheme=on?id:null}
   else if(id.indexOf('cap_aura_')===0){C.capAura=on?id.slice(9):null}
   else if(id==='cap_theme_royal'){C.capTheme=on?'royal':null}
+  else if(id.indexOf('csk_')===0){C.capSkin=on?id:null}
+  else if(id.indexOf('lm_')===0){C.landmark=on?id:null}
+  else if(id.indexOf('banner_')===0){C.banner=on?id:null}
+  else if(id.indexOf('wfr_')===0){C.wframe=on?id:null}
+  else if(id.indexOf('vs_')===0){C.vfx=on?id:null}
+  else if(id.indexOf('we_')===0){C.wemb=on?id:null}
+  else if(id.indexOf('cp_')===0){C.cport=on?id:null}
   else if(id==='cap_monument'){C.capMonument=!!on}
   else if(id==='cap_nameplate'){C.capNameplate=!!on}
   else if(id==='empire_highlight'){C.empHi=!!on}
@@ -16719,10 +16779,119 @@ function claimCollection(cid,btn){try{
       applyOwned();if(typeof saveNow==='function')saveNow()}
     render()}).catch(function(){showToast('❌ اتصال برقرار نشد','lose');if(btn){btn.className='wd66-buy alt';btn.textContent='🎁 دریافت پاداش'}})}catch(e){}}
 
+/* ---------- V88 — SHOP V3: نماهای بخش‌های جدید (جنگ/بناها/خزانه/پاس/تروفی/زینتی) ---------- */
+var WD88={_ws:null,_wsAt:0,_cat:null};
+var WD88_CSKS=['imperial','royal','cyber','desert','arctic','industrial','golden','military','olympic','neon','ancient','future'];
+function wd88ItemRow(ids,s){var n=0;ids.forEach(function(id){var it=itemOf(id);if(it){s.append(card(it));n++}});return n}
+function viewWar(c){
+  c.append(el('div','⚔️ جنگ — لژیون، اطلاعات، سفارشات تاکتیکی و پک‌ها','wd66-h'));
+  var s1=el('div',null,'wd66-sec');wd88ItemRow(['wfr_iron','wfr_thunder','wfr_redstorm','wfr_phoenix','wfr_night','wfr_steel'],s1);c.append(s1);
+  c.append(el('div','✅ قاب لژیون روی گزارش نبرد و کشو حمله‌ی تو دیده می‌شود — صفر قدرت جنگی، تمام هویت.','wd66-note'));
+  c.append(el('div','🏴 پرچم‌ها و نشان‌های جنگی (هویت امپراتوری)','wd66-h'));
+  var s2=el('div',null,'wd66-sec');wd88ItemRow(['banner_war','banner_victory','banner_defeat','we_iron','we_thunder','wt_legion','wt_shadow'],s2);c.append(s2);
+  c.append(el('div','📡 اطلاعات و شناسایی — قبل از حمله بدان','wd66-h'));
+  var s3=el('div',null,'wd66-sec');wd88ItemRow(['intel_l1','intel_l2','wo_airrecon','wo_reconsweep'],s3);c.append(s3);
+  c.append(el('div','ℹ️ سطح اطلاعات تو در «برنامه‌ی نبرد» خودکار اعمال می‌شود — گزارش مستقیماً از داده‌ی واقعی سرور صادر می‌شود؛ ضداطلاعات مدافع دقت را کم می‌کند.','wd66-note'));
+  c.append(el('div','🎛️ سفارشات تاکتیکی — شلیک از «برنامه‌ی نبرد»','wd66-h'));
+  var s4=el('div',null,'wd66-sec');wd88ItemRow(['wo_emsupply','wo_reserve','wo_convoy','wo_mobilize','wo_edefense','wo_blockade','wo_ewar'],s4);c.append(s4);
+  c.append(el('div','ℹ️ هر سفارش هزینه‌ی منابع (طلا/نفت/غذا) و کول‌داون سمت سرور دارد. هیچ سفارشی برد آنی نمی‌دهد — سقف سخت جمع بونوس‌ها +۲۲٪ است.','wd66-note'));
+  c.append(el('div','🚀 پک‌های جنگی — ارزش بیشتر از قیمت','wd66-h'));
+  var s5=el('div',null,'wd66-sec');wd88ItemRow(['war_prep_pack','war_starter','war_commander','war_defender','war_imperial'],s5);c.append(s5);
+  c.append(el('div','🎖️ پرتره‌ها، اسلات فرماندهی و آموزش','wd66-h'));
+  var s6=el('div',null,'wd66-sec');wd88ItemRow(['cp_iron','cp_sky','cp_admiral','cmd_training','tactical_slot','at_slash','df_shield'],s6);c.append(s6);
+  c.append(el('div','🎯 عملیات حمله‌ای سروری (کول‌داون و سقف هفتگی سرور)','wd66-h'));
+  c.append(el('div','نفوذ سایبری، راید کماندو، موشک پنچر و ضربه‌ی هسته‌ای — با کول‌داون و سقف هفتگی از سرور (ضد P2W)','wd66-note'));
+  try{if(window.WD54_SO_CARD&&window.WD54_OPS)Object.keys(WD54_OPS).forEach(function(k){var cd=window.WD54_SO_CARD(k);if(cd)c.append(cd)})}catch(e){}}
+function viewLandmarks(c){
+  c.append(el('div','🗿 بناهای ماندگار — امضای ابدی کشور تو','wd66-h'));
+  var s=el('div',null,'wd66-sec');
+  wd88ItemRow(['lm_monument','lm_palace','lm_victory','lm_space','lm_stadium','lm_trade','lm_command','lm_olympic','lm_energy','lm_peace','lm_factory','lm_museum','lm_mythic_monument'],s);
+  c.append(s);
+  c.append(el('div','✅ بنا کنار پایتختت روی نقشه و در نمای کشور نمایش داده می‌شود، در پروفایل ثبت می‌ماند و در مجموعه‌ی «بناها» شمرده می‌شود.','wd66-note'))}
+function viewVault(c){
+  c.append(el('div','🎁 خزانه‌ی امپراتوری — قرعه‌ی شفاف سمت سرور','wd66-h'));
+  var keys=Object.keys(CAT66.mystery||{});
+  keys.forEach(function(id){var it=itemOf(id);if(!it)return;
+    c.append(card(it,{owned:false}));
+    var m=CAT66.mystery[id];
+    if(m){var tbl=el('table',null,'wd66-odds');
+      m.odds.forEach(function(o){var tr=el('tr');
+        tr.append(el('td',faN(o.pct)+'٪'));
+        var td=el('td');
+        var txt=o.kind==='gems'?('💎 جم'+(o.min?' '+gemN(o.min)+' تا '+gemN(o.max):'')):('🎁 آیتم '+o.fa);
+        td.textContent=txt;tr.append(td);
+        var td2=el('td');td2.textContent=(o.items||[]).map(function(x){var it2=itemOf(x);return it2?it2.icon:''}).join('');tr.append(td2);
+        tbl.append(tr)});
+      var wrap=el('div',null,'wd66-card');wrap.style.cssText='display:block';
+      wrap.append(el('b','📊 شانس‌های '+m.fa+' (نمایش شفاف)'));
+      wrap.append(tbl);c.append(wrap)}});
+  c.append(el('div','🔒 نتیجه‌ی قرعه روی سرور تعیین می‌شود. هیچ آیتم مهمی انحصار صندوق نیست — همه‌ی آیتم‌های خزانه مسیر خرید مستقیم هم دارند. اگر همه‌ی استخر را داشته باشی، جم جایگزین می‌گیری.','wd66-note'))}
+var PASSD=null;
+function viewPass(c){
+  c.append(el('div','🎟️ پاس فصل — XP با بازی واقعی، جایزه در هر پله','wd66-h'));
+  if(!PASSD){c.append(loadingBox());
+    sb.rpc('pass_state',{}).then(function(r){PASSD=(r.error||!r.data||!r.data.ok)?{err:1}:r.data;var m=H('m-shop');if(m&&m.classList.contains('active')&&VIEW==='pass')render()}).catch(function(){PASSD={err:1}});return}
+  if(PASSD.err){c.append(errBox());PASSD=null;return}
+  var d=PASSD;
+  var st=el('div',null,'wd66-card');st.append(el('div','🎟️','wd66-ico'));
+  var tx=el('div',null,'wd66-tx');tx.append(el('b','فصل '+d.season+' — پله‌ی '+faN(d.tier)));
+  tx.append(el('small',faN(d.xp)+' XP کل — هر پله '+faN(d.tier_xp)+' XP'));
+  st.append(tx);c.append(st);
+  var bar=el('div',null,'wd66-bar');var fill=el('i');fill.style.width=Math.min(100,Math.round((d.xp%d.tier_xp)/d.tier_xp*100))+'%';bar.append(fill);c.append(bar);
+  c.append(el('div','🏅 پله‌ها — رایگان برای همه (مسیر بدون پرداخت)','wd66-h'));
+  (d.tiers||[]).forEach(function(rw,i){
+    var got=((d.claimed|0)&(1<<i))?true:false;var unlocked=d.tier>=i;
+    var r=el('div',null,'wd66-card');
+    r.append(el('div',unlocked?'🏅':'🔒','wd66-ico'));
+    var tx2=el('div',null,'wd66-tx');tx2.append(el('b','پله‌ی '+faN(i)));
+    var parts=[];if(rw.gem)parts.push('💎 '+faN(rw.gem)+' جم');if(rw.g)parts.push('🪙 '+faN(rw.g)+' طلا');if(rw.f)parts.push('🌾 '+faN(rw.f)+' غذا');if(rw.cos){var ci=itemOf(rw.cos);parts.push((ci?ci.icon+' ':'🎁 ')+(ci?ci.fa:rw.cos))}
+    tx2.append(el('small',parts.join(' • ')));
+    r.append(tx2);
+    var b;
+    if(got){b=el('button','✓ گرفته شد','wd66-buy own');b.disabled=true}
+    else if(unlocked){b=el('button','🎁 دریافت','wd66-buy alt');b.setAttribute('data-act','passclaim');b.setAttribute('data-tier',String(i))}
+    else{b=el('button','🔒 '+faN(i*d.tier_xp)+' XP','wd66-buy off');b.disabled=true}
+    r.append(b);c.append(r)});
+  c.append(el('div','📡 مأموریت‌های امروز — XP فقط با انجام واقعی','wd66-h'));
+  var md=d.mission_defs||{};var mc=d.missions||{};
+  Object.keys(md).forEach(function(k){var m3=md[k];
+    var r2=el('div',null,'wd66-hrow');r2.append(el('div',m3.ic||'🎯'));
+    var t2=el('div',null,'t');t2.append(el('b',m3.fa));t2.append(el('div','+'+faN(m3.xp)+' XP — سقف روزانه: '+faN(m3.cap),'d'));
+    r2.append(t2);r2.append(el('span',faN(mc[k]||0)+'/'+faN(m3.cap),'p'));c.append(r2)});
+  c.append(el('div','ℹ️ مأموریت فتح و المپیک فقط توسط داور سرور شمرده می‌شود — دستکاری کلاینت اثری ندارد. با پایان فصل، پاس تازه شروع می‌شود.','wd66-note'))}
+function passClaim(tier,btn){try{
+  if(btn){btn.className='wd66-buy busy';btn.textContent='⏳…'}
+  sb.rpc('pass_claim',{p_tier:tier}).then(function(r){
+    if(r.error||!r.data||!r.data.ok){showToast('❌ دریافت پله نشد — اول پله را باز کن','lose');if(btn){btn.className='wd66-buy alt';btn.textContent='🎁 دریافت'}}
+    else{showToast('🎁 جایزه‌ی پله پرداخت شد','win');PASSD=null}
+    render()}).catch(function(){showToast('❌ اتصال برقرار نشد','lose');PASSD=null;render()})}catch(e){}}
+var TROPHD=null;
+function viewTrophies(c){
+  c.append(el('div','🏅 تروفی‌های امپراتوری — فقط از داده‌ی واقعی سرور','wd66-h'));
+  if(!TROPHD){c.append(loadingBox());
+    sb.rpc('trophy_list',{}).then(function(r){TROPHD=(r.error||!r.data||!r.data.ok)?{err:1}:r.data;var m=H('m-shop');if(m&&m.classList.contains('active')&&VIEW==='trophies')render()}).catch(function(){TROPHD={err:1}});return}
+  if(TROPHD.err){c.append(errBox());TROPHD=null;return}
+  var earned=0;
+  (TROPHD.trophies||[]).forEach(function(t){if(t.earned)earned++;
+    var r=el('div',null,'wd66-card'+(t.earned?' wd88-earned':''));
+    r.append(el('div',t.ic,'wd66-ico'));
+    var tx3=el('div',null,'wd66-tx');tx3.append(el('b',t.fa));
+    tx3.append(el('small',t.d+(t.earned&&t.at?(' — '+new Date(t.at).toLocaleDateString('fa-IR')):(' — پیشرفت: '+(t.progress_now!=null?faN(t.progress_now):'—')))));
+    r.append(tx3);
+    r.append(el('span',t.earned?'✓':'🔒','wd88-tst'));
+    c.append(r)});
+  c.append(el('div','🏆 '+faN(earned)+' از '+faN((TROPHD.trophies||[]).length)+' تروفی — تروفی‌ها برای همیشه مال توست و در نمای کشور دیده می‌شود. تالار افتخارات سرور در تب «شکوه» امپراتوری است.','wd66-note'))}
+function viewCosmetic(c){
+  c.append(el('div','🎨 زینتی سینمایی — صحنه‌ی ورود، سرود، قاب و افکت‌ها','wd66-h'));
+  var s=el('div',null,'wd66-sec');
+  wd88ItemRow(['anthem','frame','entrance','announce','fx_conq','fx_storm','fx_comet','at_slash','df_shield'],s);
+  c.append(s);
+  c.append(el('div','ℹ️ افکت فتح بعد از هر فتح واقعی، سرود در ورود و افتتاحیه‌ها و قاب در رتبه‌بندی دیده می‌شود.','wd66-note'))}
+
 /* ---------- رندر اصلی ---------- */
-var VIEWS={home:viewHome,gems:viewGems,offers:viewOffers,identity:viewIdentity,battle:viewBattle,map:viewMap,
-  capital:viewCapital,collections:viewCollections,mystery:viewMystery,vip:viewVip,limited:viewLimited,
-  museum:viewMuseum,inventory:renderInv};
+var VIEWS={home:viewHome,gems:viewGems,identity:viewIdentity,capital:viewCapital,map:viewMap,war:viewWar,
+  landmarks:viewLandmarks,collections:viewCollections,vault:viewVault,vip:viewVip,limited:viewLimited,
+  pass:viewPass,trophies:viewTrophies,cosmetic:viewCosmetic,museum:viewMuseum,inventory:renderInv};
 function renderInv(c){if(INVHIST)viewHistory(c);else viewInventory(c)}
 function render(){var b=H('shop-body');if(!b)return;
   b.textContent='';
@@ -16785,7 +16954,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=87';
+              s.src='/game/cv-engine.js?v=88';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -16796,7 +16965,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=87"></script>
+<script src="/game/oly3.js?v=88"></script>
 <style id="v85-css">
 /* ============ V85: پریمیوم شاپ جم — قاب طلایی لوکس، صفر هزینه‌ی per-frame ============ */
 .wd66-pack{position:relative;overflow:hidden;
@@ -17139,6 +17308,298 @@ if(D.readyState==='complete'||D.readyState==='interactive')boot();
 else D.addEventListener('DOMContentLoaded',boot);
 setTimeout(function(){if(!S('wd87dock')){build();poll()}},1600);
 setInterval(poll,1200);
+})();
+</script>
+<style id="wd88-css">
+/* ==================== V88 — SHOP V3 + WAR DEPTH CSS (کلاس‌محور، صفر per-frame JS) ==================== */
+/* درخشش کمیابی برای کارت‌های epic+ */
+.wd66-card.rar-b-epic .wd66-ico{box-shadow:0 0 12px 2px rgba(176,102,255,.45);border-radius:12px}
+.wd66-card.rar-b-legendary .wd66-ico{box-shadow:0 0 14px 3px rgba(255,216,77,.5);border-radius:12px}
+.wd66-card.rar-b-mythic .wd66-ico{box-shadow:0 0 16px 4px rgba(255,107,107,.55);border-radius:12px}
+.wd88-earned{border-color:rgba(255,216,77,.5)!important;box-shadow:0 0 14px rgba(255,216,77,.14)}
+.wd88-tst{font-size:16px;flex:0 0 auto}
+/* ---- تم‌های نقشه V88 (۱۰ تم) — پس‌زمینه + فیلتر ثابت لایه کشورها ---- */
+.leaflet-container.wd66-map_global_night{background:linear-gradient(180deg,#0b1430 0%,#0a1026 55%,#070b1c 100%)!important}
+.leaflet-container.wd66-map_global_night .leaflet-overlay-pane{filter:brightness(.78) saturate(1.2)}
+.leaflet-container.wd66-map_satellite{background:linear-gradient(180deg,#12383f 0%,#0c2a30 100%)!important}
+.leaflet-container.wd66-map_satellite .leaflet-overlay-pane{filter:contrast(1.12) saturate(1.25) brightness(.95)}
+.leaflet-container.wd66-map_coldwar{background:linear-gradient(180deg,#4a4f55 0%,#3a3e44 100%)!important}
+.leaflet-container.wd66-map_coldwar .leaflet-overlay-pane{filter:sepia(.25) contrast(.95) saturate(.7)}
+.leaflet-container.wd66-map_frozen{background:linear-gradient(180deg,#cfe8f5 0%,#a8cfe4 100%)!important}
+.leaflet-container.wd66-map_frozen .leaflet-overlay-pane{filter:hue-rotate(165deg) brightness(1.14) saturate(.75)}
+.leaflet-container.wd66-map_desert{background:linear-gradient(180deg,#e8d5a8 0%,#d4bc85 100%)!important}
+.leaflet-container.wd66-map_desert .leaflet-overlay-pane{filter:sepia(.45) saturate(1.3) brightness(1.06)}
+.leaflet-container.wd66-map_golden{background:linear-gradient(180deg,#3d2f0e 0%,#2b2008 100%)!important}
+.leaflet-container.wd66-map_golden .leaflet-overlay-pane{filter:sepia(.5) saturate(1.45) brightness(1.02)}
+.leaflet-container.wd66-map_neon{background:linear-gradient(180deg,#160b2e 0%,#0e0620 100%)!important}
+.leaflet-container.wd66-map_neon .leaflet-overlay-pane{filter:saturate(1.65) hue-rotate(288deg) brightness(.92) contrast(1.08)}
+.leaflet-container.wd66-map_atlas{background:linear-gradient(180deg,#efe3c4 0%,#e0d0a8 100%)!important}
+.leaflet-container.wd66-map_atlas .leaflet-overlay-pane{filter:sepia(.6) contrast(.88) brightness(1.05)}
+.leaflet-container.wd66-map_storm{background:linear-gradient(180deg,#2e3742 0%,#222a33 100%)!important}
+.leaflet-container.wd66-map_storm .leaflet-overlay-pane{filter:brightness(.82) contrast(1.18) saturate(.85)}
+.leaflet-container.wd66-map_industrial{background:linear-gradient(180deg,#3a3430 0%,#2a2522 100%)!important}
+.leaflet-container.wd66-map_industrial .leaflet-overlay-pane{filter:sepia(.3) brightness(.9) saturate(.8)}
+/* ---- اسکین‌های پایتخت ×۱۲ ---- */
+.own-wrap.wd88-csk-imperial .own{box-shadow:0 0 16px 4px rgba(255,205,60,.65);border:1px solid rgba(255,216,77,.8);border-radius:12px}
+.own-wrap.wd88-csk-royal .own{box-shadow:0 0 15px 4px rgba(186,120,255,.6);border:1px solid rgba(186,120,255,.7);border-radius:12px}
+.own-wrap.wd88-csk-cyber .own{box-shadow:0 0 15px 3px rgba(57,230,208,.6);border:1px dashed rgba(57,230,208,.75);border-radius:12px}
+.own-wrap.wd88-csk-desert .own{box-shadow:0 0 14px 3px rgba(232,180,90,.55);border:1px solid rgba(232,180,90,.6);border-radius:12px}
+.own-wrap.wd88-csk-arctic .own{box-shadow:0 0 14px 3px rgba(150,220,255,.6);border:1px solid rgba(150,220,255,.7);border-radius:12px}
+.own-wrap.wd88-csk-industrial .own{box-shadow:0 0 13px 3px rgba(200,140,80,.5);border:1px solid rgba(200,140,80,.6);border-radius:10px}
+.own-wrap.wd88-csk-golden .own{box-shadow:0 0 20px 6px rgba(255,216,77,.75),inset 0 0 8px rgba(255,216,77,.4);border:2px solid #ffd84d;border-radius:14px}
+.own-wrap.wd88-csk-military .own{box-shadow:0 0 12px 2px rgba(180,170,110,.55);border:1px solid rgba(180,170,110,.65);border-radius:10px}
+.own-wrap.wd88-csk-olympic .own{box-shadow:0 0 0 2px #3e8ef7,0 0 0 4px #111,0 0 0 6px #ffd84d,0 0 0 8px #111,0 0 0 10px #3ee8a5;border-radius:16px}
+.own-wrap.wd88-csk-neon .own{box-shadow:0 0 16px 4px rgba(255,80,200,.65);border:1px solid rgba(255,80,200,.75);border-radius:12px}
+.own-wrap.wd88-csk-ancient .own{box-shadow:0 0 12px 2px rgba(205,180,140,.5);border:1px solid rgba(205,180,140,.6);border-radius:8px}
+.own-wrap.wd88-csk-future .own{box-shadow:0 0 16px 4px rgba(120,255,240,.55);border:1px solid transparent;background:linear-gradient(rgba(10,20,40,.4),rgba(10,20,40,.4)) padding-box,linear-gradient(120deg,#7dfff0,#b066ff) border-box;border-radius:14px}
+/* بنای ماندگار کنار پایتخت — بدون انیمیشن دائمی */
+.wd88-lm{position:absolute;top:-15px;inset-inline-end:-4px;font-size:13px;line-height:1;z-index:6;pointer-events:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,.65))}
+/* ---- قاب‌های لژیون روی نبرد ---- */
+body.wd88-wfr-iron #c-pop,body.wd88-wfr-iron .wd88-pvframe{border-color:#9fb4c7!important;box-shadow:0 0 0 2px rgba(159,180,199,.65),0 0 24px rgba(120,150,180,.35)}
+body.wd88-wfr-thunder #c-pop,body.wd88-wfr-thunder .wd88-pvframe{border-color:#ffd84d!important;box-shadow:0 0 0 2px rgba(255,216,77,.7),0 0 26px rgba(255,216,77,.4)}
+body.wd88-wfr-redstorm #c-pop,body.wd88-wfr-redstorm .wd88-pvframe{border-color:#ff5a5a!important;box-shadow:0 0 0 2px rgba(255,90,90,.7),0 0 26px rgba(255,90,90,.4)}
+body.wd88-wfr-phoenix #c-pop,body.wd88-wfr-phoenix .wd88-pvframe{border-color:#ff9a3d!important;box-shadow:0 0 0 2px rgba(255,154,61,.75),0 0 28px rgba(255,120,40,.45)}
+body.wd88-wfr-night #c-pop,body.wd88-wfr-night .wd88-pvframe{border-color:#3d5a8f!important;box-shadow:0 0 0 2px rgba(61,90,143,.8),0 0 24px rgba(40,70,130,.45)}
+body.wd88-wfr-steel #c-pop,body.wd88-wfr-steel .wd88-pvframe{border-color:#8a9199!important;box-shadow:0 0 0 2px rgba(138,145,153,.6)}
+/* ---- صفحه‌ی پیروزی ---- */
+#wd88-vict{position:fixed;inset:0;z-index:99998;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .35s}
+#wd88-vict.on{opacity:1}
+#wd88-vict .in{font-size:34px;font-weight:900;color:#ffd84d;text-shadow:0 0 24px rgba(255,216,77,.8),0 2px 8px rgba(0,0,0,.6);background:radial-gradient(circle,rgba(20,10,0,.6),transparent 72%);padding:28px 54px;border-radius:26px;text-align:center}
+#wd88-vict.thunder .in{color:#eef3ff;text-shadow:0 0 26px rgba(120,180,255,.9),0 2px 8px rgba(0,0,0,.6)}
+@keyframes wd88pop{0%{transform:scale(.6)}70%{transform:scale(1.08)}100%{transform:scale(1)}}
+#wd88-vict.on .in{animation:wd88pop .5s ease}
+/* ---- برنامه‌ی نبرد V88 ---- */
+.wd88-atkgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0}
+.wd88-atk{border:1px solid rgba(255,255,255,.14);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:10.5px;font-weight:800;padding:7px 4px;cursor:pointer;text-align:center;line-height:1.55}
+.wd88-atk small{display:block;font-weight:400;font-size:9px;color:#aeb8ca}
+.wd88-atk.on{background:rgba(62,232,165,.16);border-color:#3ee8a5}
+.wd88-sup{height:8px;border-radius:6px;background:rgba(255,255,255,.1);overflow:hidden;margin:6px 0 2px}
+.wd88-sup i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#3ee8a5,#6ca8ff)}
+.wd88-sup.low i{background:linear-gradient(90deg,#ff785a,#ff5a5a)}
+.wd88-suprow{display:flex;justify-content:space-between;font-size:10.5px;color:#aeb8ca;margin-bottom:4px}
+.wd88-fxrow{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
+.wd88-fx{font-size:9.5px;padding:3px 8px;border-radius:99px;background:rgba(108,168,255,.14);border:1px solid rgba(108,168,255,.4);color:#cfe2ff}
+.wd88-ordrow{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.wd88-ord{border:1px solid rgba(255,255,255,.14);border-radius:10px;background:rgba(255,255,255,.06);color:#fff;font-size:11px;font-weight:800;padding:8px 9px;cursor:pointer}
+.wd88-ord small{display:block;font-weight:400;font-size:9px;color:#aeb8ca}
+.wd88-ord:disabled{opacity:.4;cursor:not-allowed}
+.wd88-ord.cd{border-color:rgba(255,120,90,.4)}
+.wd88-intel{background:rgba(0,0,0,.3);border:1px solid rgba(108,168,255,.3);border-radius:12px;padding:8px 10px;font-size:11.5px;line-height:2;color:#dbe7f5;margin-top:6px}
+.wd88-intel b{color:#7dffcf}
+.wd88-cwarn{color:#ffb84d;font-weight:800}
+.wd88-lv{display:inline-block;font-size:9.5px;padding:2px 8px;border-radius:99px;background:rgba(62,232,165,.14);border:1px solid rgba(62,232,165,.4);color:#aef7dd;font-weight:800}
+/* ---- نوار امپراتوری (بناها) ---- */
+.wd88-lmrow{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.wd88-lmchip{font-size:15px;padding:3px 6px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
+.wd88-lmchip.on{border-color:#ffd84d;background:rgba(255,216,77,.12)}
+/* ---- پیش‌نمایش V88 ---- */
+.wd88-pvglyph{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:8px 14px;margin:10px auto 0;font-weight:800;font-size:13px}
+.wd88-pvframe{margin-top:10px;padding:10px;border-radius:14px;background:rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.2);font-weight:800;font-size:12.5px;text-align:center}
+/* نشان جنگی کنار نام */
+body.wd88-wemb #acc-chip .wd-nick::before{content:'🔱 '}
+/* lowfx + reduced-motion */
+body.wd-lowfx .wd66-card .wd66-ico{box-shadow:none!important}
+body.wd-lowfx #wd88-vict .in{animation:none}
+@media (max-width:480px){.wd88-atkgrid{grid-template-columns:repeat(3,1fr)}}
+@media (prefers-reduced-motion:reduce){#wd88-vict .in{animation:none!important;transition:none!important}.wd88-lm{transition:none!important}}
+</style>
+<script id="wd88-js">
+/* ==================== V88 — WAR DEPTH ENGINE (سرور-مأخذ) ==================== */
+(function(){
+'use strict';
+var D=document;
+function $88(id){return D.getElementById(id)}
+function esc88(s){return String(s==null?'':s).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function faN88(n){try{return Number(n||0).toLocaleString('fa-IR')}catch(e){return String(n==null?0:n)}}
+function cos88(){return window.COS||window.COS27||{}}
+function toast88(m,t){try{if(typeof showToast==='function')showToast(m,t||'win')}catch(e){}}
+/* آینه‌ی نمایشی پیکربندی سرور — اعتبار نهایی همیشه سمت سرور است */
+var ATKS={balanced:{fa:'⚖️ متعادل',d:'پایه — بدون بونوس',sup:5},blitz:{fa:'⚡ برق‌آسا',d:'+۱۰٪ قدرت • +۸٪ تلفات',sup:8},siege:{fa:'🏰 محاصره',d:'نفوذ استحکامات • ۲۰۰طلا',sup:12},defensive:{fa:'🛡️ تدافعی',d:'−۱۰٪ حمله • سپر ۶ساعت',sup:2},naval:{fa:'⚓ دریایی',d:'+۸٪ • ۳۰۰طلا+۱۵۰نفت',sup:10},air:{fa:'✈️ هوایی',d:'+۱۲٪ • +۱۵٪ تلفات • ۱۲۰نفت',sup:9},economic:{fa:'💰 اقتصادی',d:'دفاع هدف −۸٪ • ۵۰۰طلا',sup:4}};
+var ORDS={emsupply:{fa:'تدارک اضطراری',ic:'🚑',res:'۵۰۰نفت+۲۰۰۰غذا',tgt:0},reserve:{fa:'ذخیره‌ی استراتژیک',ic:'⚡',res:'۳۰۰۰طلا',tgt:0},convoy:{fa:'کاروان تدارکات',ic:'🚚',res:'۳۰۰۰غذا',tgt:0},mobilize:{fa:'بسیج سریع',ic:'📣',res:'۲۰۰۰طلا+۱۰۰۰غذا',tgt:0},edefense:{fa:'دفاع اضطراری',ic:'🛡️',res:'۲۵۰۰طلا+۱۵۰۰غذا',tgt:0},airrecon:{fa:'شناسایی هوایی',ic:'✈️',res:'۴۰۰نفت',tgt:0},reconsweep:{fa:'جاروی اطلاعاتی',ic:'🔍',res:'۳۰۰نفت',tgt:0},ewar:{fa:'جنگ الکترونیک',ic:'📻',res:'۱۵۰۰طلا',tgt:0},blockade:{fa:'محاصره‌ی دریایی',ic:'🚢',res:'۲۰۰۰طلا+۶۰۰نفت',tgt:1},sabotage:{fa:'خرابکاری',ic:'💣',res:'۱۵۰۰طلا+۵۰۰نفت',tgt:1}};
+var FXFA={reserve:'⚡ ذخیره‌ی استراتژیک',mobilize:'📣 بسیج سریع',emsupply:'🚑 تدارک فعال',convoy:'🚚 کاروان فعال',edef:'🛡️ سپر دفاعی',airrecon:'✈️ شناسایی هوایی',ewar:'📻 ضداطلاعات',sabotaged:'💣 تحت خرابکاری'};
+var WD88={_ws:null,_wsAt:0,_cat:null,_troph:null,_trophAt:0};
+window.WD88=WD88;
+function sb88(){return (typeof sb!=='undefined'&&sb&&sb.rpc)?sb:null}
+WD88.ws=function(force){
+  if(!force&&WD88._ws&&Date.now()-WD88._wsAt<60000)return Promise.resolve(WD88._ws);
+  var s=sb88();if(!s)return Promise.resolve(null);
+  return s.rpc('war_state',{}).then(function(r){
+    if(r.error||!r.data||!r.data.ok)return null;
+    WD88._ws=r.data;WD88._wsAt=Date.now();return r.data}).catch(function(){return null})};
+WD88.cat=function(){
+  if(WD88._cat)return Promise.resolve(WD88._cat);
+  try{if(window.WD66_SHOP&&window.WD66_SHOP.fetchCatalog)return window.WD66_SHOP.fetchCatalog().then(function(c){WD88._cat=c;return c})}
+  catch(e){}
+  return Promise.resolve(null)};
+WD88.troph=function(force){
+  if(!force&&WD88._troph&&Date.now()-WD88._trophAt<300000)return Promise.resolve(WD88._troph);
+  var s=sb88();if(!s)return Promise.resolve(null);
+  return s.rpc('trophy_list',{}).then(function(r){
+    if(r.error||!r.data||!r.data.ok)return null;
+    WD88._troph=r.data;WD88._trophAt=Date.now();return r.data}).catch(function(){return null})};
+function ownedIds(cat){var o={};try{(cat.owned||[]).forEach(function(x){o[x.item_id]=1})}catch(e){}return o}
+/* ---------- حذف همه‌ی تم‌ها (پیش‌نمایش) ---------- */
+window.WD88ThemeOff=function(){try{
+  var host=map.getContainer();
+  (host.className.match(/wd66-(map_|ocean-)[\w-]+/g)||[]).forEach(function(x){host.classList.remove(x)});
+  if(window.WD66_SHOP&&window.WD66_SHOP.applyOwned)window.WD66_SHOP.applyOwned()}catch(e){}};
+/* ---------- برنامه‌ی نبرد: دکترین + لجستیک + سفارشات + اطلاعات ---------- */
+WD88.plan=function(ctx){try{
+  var card=ctx&&ctx.card;if(!card||!card.querySelector)return;
+  if(card.querySelector('#wd88-atksec'))return;
+  var atk=window.WD88_ATK||'balanced';
+  var h='';
+  h+='<h4 style="margin-top:10px">🎯 دکترین حمله (سرور — در PvP جایگزین تاکتیک می‌شود)</h4>';
+  h+='<div class="wd88-atkgrid" id="wd88-atkgrid">';
+  Object.keys(ATKS).forEach(function(k){h+='<button type="button" class="wd88-atk'+(k===atk?' on':'')+'" data-atk="'+k+'">'+ATKS[k].fa+'<small>'+ATKS[k].d+'</small></button>'});
+  h+='</div>';
+  h+='<div class="wd88-suprow"><span id="wd88-supfa">🚚 تدارک لجستیک</span><span id="wd88-supn">…</span></div><div class="wd88-sup" id="wd88-supbar"><i style="width:100%"></i></div>';
+  h+='<div class="wd88-fxrow" id="wd88-fxrow"></div>';
+  h+='<h4>🎛️ سفارشات تاکتیکی (شلیک واقعی با هزینه‌ی منابع)</h4><div class="wd88-ordrow" id="wd88-ordrow">⏳ …</div>';
+  h+='<div class="wd65-mut">هدف سفارش‌های 🚢/💣 باید بازیکن واقعی باشد — از دکمه‌ی شناسایی هم نام دقیق دشمن را می‌گیری.</div>';
+  h+='<h4>📡 اطلاعات سرور (سطح تو خودکار اعمال می‌شود)</h4><button type="button" class="wd65-btn cy" id="wd88-intel-btn" style="width:100%">🛰️ دریافت گزارش اطلاعاتی از سرور</button><div id="wd88-intel" class="wd88-intel" style="display:none"></div>';
+  var tac=card.querySelector('.wd65-tactic');
+  if(tac)tac.insertAdjacentHTML('afterend',h);else card.insertAdjacentHTML('beforeend',h);
+  /* chips */
+  card.querySelectorAll('[data-atk]').forEach(function(b){b.onclick=function(){
+    window.WD88_ATK=b.getAttribute('data-atk');
+    card.querySelectorAll('[data-atk]').forEach(function(x){x.classList.toggle('on',x===b)});
+    toast88('🎯 دکترین «'+ATKS[window.WD88_ATK].fa+'» برای حمله‌ی بعدی ثبت شد — بعد از حمله بازنشانی می‌شود')}}); 
+  /* intel */
+  var ib=card.querySelector('#wd88-intel-btn');
+  if(ib)ib.onclick=function(){
+    var tg=card.querySelector('#w65-tg');var nick=tg?tg.value:'';
+    var p=$88('wd88-intel');if(!p)return;
+    p.style.display='block';p.innerHTML='⏳ در حال دریافت از سرور…';
+    var s=sb88();if(!s){p.textContent='برای اطلاعات باید آنلاین باشی.';return}
+    s.rpc('war_intel',{p_target:nick}).then(function(r){
+      if(r.error||!r.data||!r.data.ok){
+        var e=r.data&&r.data.error;
+        if(e==='cd'){var m=Math.ceil((r.data.cd_ms||0)/60000);p.innerHTML='⏳ شناسایی رایگان بعدی: '+faN88(m)+' دقیقه دیگر';}
+        else p.innerHTML=e==='target'?'❌ هدف باید نام دقیق یک بازیکن واقعی باشد.':'❌ دریافت گزارش نشد.';
+        return}
+      WD88.renderIntel(p,r.data.report)}).catch(function(){p.textContent='❌ اتصال برقرار نشد'})};
+  /* logistics + orders */
+  WD88.planSupply(card);
+  WD88.planOrders(card);
+}catch(e){}};
+WD88.renderIntel=function(p,rep){try{
+  var h='';
+  h+='<div><span class="wd88-lv"> سطح '+faN88(rep.level)+' — '+esc88(rep.level_fa||'')+'</span>'+(rep.counterintel?' <span class="wd88-cwarn">⚠️ ضداطلاعات فعال — دقت کم شده</span>':'')+'</div>';
+  h+='<div>👤 <b>'+esc88(rep.nick||'—')+'</b> • 🏴 قلمرو: <b>'+faN88(rep.territories)+'</b></div>';
+  function band(l,v){var b=rep[v];if(!b)return;h+='<div>'+l+' <b>'+faN88(b.lo)+' تا '+faN88(b.hi)+'</b></div>'}
+  band('⚔️ ارتش تقریبی:','army');band('🛡️ دفاع:','defense');band('💰 اقتصاد:','economy');band('🛢️ نفت:','oil');
+  if(rep.fortifications!=null)h+='<div>🏰 استحکامات فعال: <b>'+faN88(rep.fortifications)+'</b></div>';
+  if(rep.readiness!=null)h+='<div>🚚 آمادگی لجستیک مدافع: <b>'+faN88(rep.readiness)+'٪</b></div>';
+  if(rep.recent&&rep.recent.length){h+='<div style="margin-top:4px">📜 نبردهای اخیر:</div>';
+    rep.recent.slice(0,4).forEach(function(b2){h+='<div style="font-size:10.5px;color:#aeb8ca">'+(b2.win?'✅':'❌')+' '+(b2.as==='attacker'?'حمله به':'دفاع در')+' '+esc88(b2.country||'—')+' در برابر '+esc88(b2.vs||'—')+'</div>'})}
+  p.innerHTML=h}catch(e){}};
+WD88.planSupply=function(card){WD88.ws().then(function(w){
+  var bar=card&&card.querySelector('#wd88-supbar');if(!bar)return;
+  var n=card.querySelector('#wd88-supn'),fa=card.querySelector('#wd88-supfa');
+  if(!w){if(n)n.textContent='آفلاین';return}
+  var sup=Math.round(w.supply||0),mx=w.supply_max||100;
+  bar.querySelector('i').style.width=Math.max(2,Math.round(sup/mx*100))+'%';
+  bar.classList.toggle('low',sup<30);
+  if(n)n.textContent=faN88(sup)+' / '+faN88(mx)+(sup<30?' ⚠️ بحرانی (−۱۰٪ قدرت)':'');
+  if(fa)fa.textContent='🚚 تدارک لجستیک (هر ۶ دقیقه +۱)';
+  var fr=card.querySelector('#wd88-fxrow');if(fr){var h='';
+    (w.fx||[]).forEach(function(f){if(FXFA[f.k]){var left=Math.max(0,Math.round((f.until-Date.now())/60000));h+='<span class="wd88-fx">'+FXFA[f.k]+' — '+faN88(left)+' دقیقه</span>'}});
+    (w.slots===2)?(h+='<span class="wd88-fx">🎚️ اسلات دوم فعال</span>'):0;
+    fr.innerHTML=h}})};
+WD88.planOrders=function(card){WD88.cat().then(function(cat){WD88.ws().then(function(w){
+  var row=card&&card.querySelector('#wd88-ordrow');if(!row)return;
+  if(!cat){row.innerHTML='<span style="font-size:11px;color:#aeb8ca">برای سفارشات باید آنلاین باشی.</span>';return}
+  var own=ownedIds(cat);var cd=(w&&w.cd)||{};var now=Date.now();
+  var h='';
+  Object.keys(ORDS).forEach(function(k){
+    var unlock=k==='sabotage'?'intel_l2':'wo_'+k;
+    var has=own[unlock];
+    if(!has)return;
+    var cdLeft=cd[k]?cd[k]-now:0;
+    h+='<button type="button" class="wd88-ord'+(cdLeft>0?' cd':'')+'" data-ord="'+k+'"'+(cdLeft>0?' disabled':'')+'>'+ORDS[k].ic+' '+ORDS[k].fa+(cdLeft>0?'<small>⏳ '+faN88(Math.ceil(cdLeft/60000))+' دقیقه</small>':'<small>'+ORDS[k].res+(ORDS[k].tgt?' • نیازمند هدف':'')+'</small>')+'</button>'});
+  row.innerHTML=h||'<span style="font-size:11px;color:#aeb8ca">هنوز سفارشی نداری — از بخش ⚔️ جنگ فروشگاه باز کن.</span>';
+  row.querySelectorAll('[data-ord]').forEach(function(b){b.onclick=function(){WD88.fire(b.getAttribute('data-ord'),b,card)}})})})};
+WD88.fire=function(key,btn,card){try{
+  var tg=card?card.querySelector('#w65-tg'):null;var target=tg?tg.value:'';
+  if(ORDS[key]&&ORDS[key].tgt&&!target){toast88('❌ «'+ORDS[key].fa+'» به نام دقیق بازیکن واقعی نیاز دارد — اول شناسایی کن','lose');return}
+  if(btn){btn.disabled=true;btn.classList.add('cd')}
+  var s=sb88();if(!s)return;
+  s.rpc('war_order',{p_key:key,p_target:target||null}).then(function(r){
+    if(r.error||!r.data||!r.data.ok){
+      var e=r.data&&r.data.error;
+      var msg=e==='locked'?'🔒 اول این سفارش را از فروشگاه باز کن':e==='cd'?'⏳ کول‌داون سفارش فعال است':e==='res'?'❌ منابع کافی نیست (طلا/نفت/غذا)':e==='counterintel'?'🛡️ مدافع ضداطلاعات دارد — خرابکاری خنثی شد (هزینه‌ای پرداخت نشد)':e==='target'?'❌ هدف باید نام دقیق یک بازیکن واقعی باشد':'❌ اجرای سفارش نشد';
+      toast88(msg,'lose')}
+    else{
+      WD88._wsAt=0;
+      var nm=ORDS[key]?ORDS[key].fa:key;
+      toast88('⚡ سفارش «'+nm+'» اجرا شد'+(r.data.report?' — گزارش سطح ۴ در پنل اطلاعات آماده است':''));
+      if(r.data.supply!=null){var n=card&&card.querySelector('#wd88-supn');if(n){WD88._ws=null;WD88.planSupply(card)}}}
+    WD88.planOrders(card)}).catch(function(){toast88('❌ اتصال برقرار نشد','lose');if(btn){btn.disabled=false;btn.classList.remove('cd')}})}catch(e){}};
+/* ---------- نوار امپراتوری: بناها + تروفی‌ها ---------- */
+WD88.empStrip=function(b){try{
+  var an=b.querySelector('#wd88-train-card');if(!an||!window.WD66_SHOP)return;
+  var old=b.querySelector('#wd88-emp-strip');if(old)old.remove();
+  var d=D.createElement('div');d.id='wd88-emp-strip';d.className='wd5-card';d.style.cssText='margin-top:6px';
+  d.innerHTML='<div class="wd5-k">🗿 بناها و 🏅 تروفی‌های امپراتوری</div><div class="wd88-lmrow" id="wd88-lmrow">⏳ …</div>';
+  an.after(d);
+  WD88.cat().then(function(cat){var row=b.querySelector('#wd88-lmrow');if(!row||!cat)return;
+    var own=ownedIds(cat);var C=cos88();
+    var h='';
+    (cat.items||[]).forEach(function(x){if(x.id.indexOf('lm_')===0&&own[x.id])h+='<span class="wd88-lmchip'+(C.landmark===x.id?' on':'')+'" title="'+esc88(x.fa)+'">'+x.icon+'</span>'});
+    (cat.items||[]).forEach(function(x){if(x.id.indexOf('banner_')===0&&own[x.id])h+='<span class="wd88-lmchip" title="'+esc88(x.fa)+'">'+x.icon+'</span>'});
+    row.innerHTML=h||'<span style="font-size:11px;color:#aeb8ca">هنوز بنایی نداری — از بخش 🗿 بناها فروشگاه</span>';
+    WD88.troph().then(function(t){if(!t||!t.trophies)return;
+      var e=t.trophies.filter(function(x){return x.earned}).length;
+      if(e)row.insertAdjacentHTML('beforeend','<span class="wd88-lmchip" title="تروفی‌های تو">🏅 '+faN88(e)+'</span>')})}).catch(function(){})}catch(e){}};
+/* ---------- پاسخ PvP: بازنشانی دکترین + اثرات + صفحه پیروزی ---------- */
+WD88.onPvpResult=function(x){try{
+  window.WD88_ATK=null;
+  if(x&&x.fx_used&&x.fx_used.length){
+    var fa=x.fx_used.map(function(k){return FXFA[k]||k}).filter(Boolean).slice(0,3).join(' + ');
+    if(fa)toast88('🎖️ اثرات اعمال‌شده: '+fa)}
+  if(x&&x.captured)WD88.victory()}catch(e){}};
+WD88.victory=function(){try{
+  WD88.cat().then(function(cat){
+    if(!cat)return;var own=ownedIds(cat);var C=cos88();
+    var vfx=C.vfx;
+    if(!vfx||!own[vfx])return;
+    var v=$88('wd88-vict');
+    if(!v){v=D.createElement('div');v.id='wd88-vict';v.innerHTML='<div class="in">🏆 پیروزی!</div>';D.body.appendChild(v)}
+    v.className=(vfx==='vs_thunder')?'thunder':'';
+    v.querySelector('.in').textContent=(vfx==='vs_thunder')?'⚡ پیروزی رعدآسا!':'🏆 پیروزی!';
+    requestAnimationFrame(function(){v.classList.add('on')});
+    setTimeout(function(){v.classList.remove('on')},2100)})}catch(e){}};
+/* ---------- قاب لژیون روی سینمای نبرد ---------- */
+function wfrClass(){var C=cos88();return C.wframe?('wd88-wfr-'+C.wframe.slice(4)):null}
+try{
+  var H88=window.WD_ATTACK_HOOKS=window.WD_ATTACK_HOOKS||{};
+  var _cs=H88.cinemaStart;H88.cinemaStart=function(n,fa){try{document.body.classList.add('wd88-live');var c=wfrClass();if(c)document.body.classList.add(c)}catch(e){}return _cs&&_cs.apply(this,arguments)};
+  var _ce=H88.cinemaEnd;H88.cinemaEnd=function(){try{setTimeout(function(){document.body.classList.remove('wd88-live','wd88-wfr-iron','wd88-wfr-thunder','wd88-wfr-redstorm','wd88-wfr-phoenix','wd88-wfr-night','wd88-wfr-steel')},700)}catch(e){}return _ce&&_ce.apply(this,arguments)};
+}catch(e){}
+/* ---------- اخبار جهانی V88 ---------- */
+try{
+  var _nf=window.wdNewsFa;
+  if(typeof _nf==='function')window.wdNewsFa=function(x){try{
+    var a=x&&x.action;var who=x.actor_nick||'بازیکن';var whom=x.target_nick||'';
+    if(a==='war_blockade')return '🚢 '+who+' ناوگان محاصره‌ی دریایی را به سمت آب‌های '+whom+' گسیل داشت — تجارت هدف تحت فشار است.';
+    if(a==='war_sabotage')return '💣 خبرهای فوری از جبهه: عملیات ویژه‌ی '+who+' در خاک '+whom+' انجام شد — آمادگی دفاعی موقتاً کاهش یافت.';
+    if(a==='trophy')return '🏅 '+who+' تروفی تازه‌ای به ویترین امپراتوری‌اش افزود: '+whom+'.';
+    if(a==='col_done')return '🏆 '+who+' مجموعه‌ی «'+whom+'» را کامل کرد — پاداش انحصاری از آنِ اوست.';
+    if(a==='shop_mythic')return '💎 '+who+' آیتم اسطوره‌ای «'+whom+'» را به دست آورد!';
+  }catch(e){}
+    return _nf.apply(this,arguments)};
+}catch(e){}
+/* ---------- بوت: نشان جنگی پروفایل ---------- */
+function boot88(){try{
+  WD88.cat().then(function(cat){if(!cat)return;
+    var own=ownedIds(cat);var C=cos88();
+    var wemb=(C.wemb&&own[C.wemb])||own['we_thunder']||own['we_iron'];
+    document.body.classList.toggle('wd88-wemb',!!wemb);
+    if(C.wframe&&!own[C.wframe]){C.wframe=null}
+  }).catch(function(){})}catch(e){}}
+if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',boot88);else boot88();
+setTimeout(boot88,3000);
 })();
 </script>
 </body>

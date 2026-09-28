@@ -123,6 +123,185 @@ for (const [emstId, emstCost] of Object.entries(EMST_COSTS)) {
 }
 const SHOP_ITEM_MAP = new Map(SHOP_ITEMS.map((x) => [x.id, x]))
 
+/* ============================================================
+   V88 — SHOP V3 + WAR DEPTH (افزودنی — سیستم V66 دست‌نخورده)
+   ساختار ۱۲ بخشی امپراتوری: identity/capital/map/war/landmark/
+   vault/vip/limited/pass/trophies/cosmetic + packs
+   قانون: هر آیتم حداقل یکی از IDENTITY/STATUS/COLLECTION/
+   EXPERIENCE/CONVENIENCE/STRATEGIC CHOICE — هیچ آیتم بی‌خاصیتی نیست.
+   هیچ آیتم جنگی instant-win نیست؛ همه ≤ چند درصد با سقف سخت سرور.
+   ============================================================ */
+const V88_ITEMS: ShopItemDef[] = [
+  /* ---- 1) EMPIRE IDENTITY — پرچم‌ها و عناوین جنگی (در منو/نمای کشور/گزارش نبرد دیده می‌شوند) ---- */
+  { id: 'banner_war', fa: 'پرچم جنگ', d: 'پرچم ⚔ امپراتوری در منو و نمای کشورت اهتزاز دارد.', icon: '🏴', price: 24, kind: 'cosmetic', cat: 'identity', rar: 'uncommon', slot: 'banner' },
+  { id: 'banner_victory', fa: 'پرچم پیروزی', d: 'پرچم 🎌 طلایی پیروزی — امضای فاتح‌ها.', icon: '🎌', price: 26, kind: 'cosmetic', cat: 'identity', rar: 'rare', slot: 'banner' },
+  { id: 'banner_defeat', fa: 'پرچم پایداری', d: 'پرچم 🏁 پایداری در شکست — افتخار مدافعان.', icon: '🏁', price: 24, kind: 'cosmetic', cat: 'identity', rar: 'uncommon', slot: 'banner' },
+  { id: 'wt_legion', fa: 'لقب «آهنین»', d: 'لقب جنگی کنار نامت در رتبه‌بندی و گزارش نبرد.', icon: '⚔️', price: 30, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'title' },
+  { id: 'wt_shadow', fa: 'لقب «سایه‌ی جنگ»', d: 'لقب ویژه‌ی فرماندهان شب‌کار.', icon: '🌑', price: 30, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'title' },
+  /* ---- 2) CAPITAL SKINS ×12 — تغییر واقعی ظاهر پایتخت روی نقشه + نمای کشور ---- */
+  { id: 'csk_imperial', fa: 'پایتخت امپراتوری', d: 'شکوه طلایی با هاله‌ی امپراتوری دور پرچم پایتخت.', icon: '🏛️', price: 50, kind: 'cosmetic', cat: 'capital', rar: 'epic', slot: 'cap_skin' },
+  { id: 'csk_royal', fa: 'پایتخت سلطنتی', d: 'ظرف بنفش سلطنتی + نشان تاج.', icon: '👑', price: 45, kind: 'cosmetic', cat: 'capital', rar: 'epic', slot: 'cap_skin' },
+  { id: 'csk_cyber', fa: 'پایتخت سایبری', d: 'نئون فیروزه‌ای با خطوط داده.', icon: '🤖', price: 45, kind: 'cosmetic', cat: 'capital', rar: 'epic', slot: 'cap_skin' },
+  { id: 'csk_desert', fa: 'پایتخت کویری', d: 'کهربای گرم شن‌های طلایی.', icon: '🏜️', price: 40, kind: 'cosmetic', cat: 'capital', rar: 'rare', slot: 'cap_skin' },
+  { id: 'csk_arctic', fa: 'پایتخت قطبی', d: 'یخ‌بلور سرد و آرام.', icon: '❄️', price: 40, kind: 'cosmetic', cat: 'capital', rar: 'rare', slot: 'cap_skin' },
+  { id: 'csk_industrial', fa: 'پایتخت صنعتی', d: 'فولاد و دودکش — قلب کارخانه‌ها.', icon: '🏭', price: 40, kind: 'cosmetic', cat: 'capital', rar: 'rare', slot: 'cap_skin' },
+  { id: 'csk_golden', fa: 'پایتخت طلایی', d: 'تمام‌طلایی — گران‌ترین شکوه فروشگاه.', icon: '🟡', price: 70, kind: 'cosmetic', cat: 'capital', rar: 'legendary', slot: 'cap_skin' },
+  { id: 'csk_military', fa: 'پایتخت نظامی', d: 'خاکی نظامی با نشان ستاره.', icon: '🎖️', price: 42, kind: 'cosmetic', cat: 'capital', rar: 'rare', slot: 'cap_skin' },
+  { id: 'csk_olympic', fa: 'پایتخت المپیکی', d: 'حلقه‌های پنج‌گانه دور پرچم پایتخت.', icon: '🥇', price: 42, kind: 'cosmetic', cat: 'capital', rar: 'rare', slot: 'cap_skin' },
+  { id: 'csk_neon', fa: 'پایتخت نئون', d: 'نور صورتی سایبری برای شب‌های بی‌خوابی.', icon: '💜', price: 48, kind: 'cosmetic', cat: 'capital', rar: 'epic', slot: 'cap_skin' },
+  { id: 'csk_ancient', fa: 'پایتخت باستان', d: 'سنگ‌نگاره و ستون‌های هزارساله.', icon: '🏺', price: 42, kind: 'cosmetic', cat: 'capital', rar: 'rare', slot: 'cap_skin' },
+  { id: 'csk_future', fa: 'پایتخت آینده', d: 'هاله‌ی هولوگرام نسل بعد.', icon: '🛸', price: 55, kind: 'cosmetic', cat: 'capital', rar: 'legendary', slot: 'cap_skin' },
+  /* ---- 3) MAP THEMES ×10 — اتمسفر کامل نقشه (CSS-محور، سبک، فقط برای خودت) ---- */
+  { id: 'map_global_night', fa: 'تم: شب جهانی', d: 'شب همیشگی با چراغ شهرها.', icon: '🌃', price: 38, kind: 'cosmetic', cat: 'map', rar: 'epic', slot: 'map_theme' },
+  { id: 'map_satellite', fa: 'تم: ماهواره‌ای', d: 'دید ماهواره‌ای خنثی و دقیق.', icon: '🛰️', price: 36, kind: 'cosmetic', cat: 'map', rar: 'rare', slot: 'map_theme' },
+  { id: 'map_coldwar', fa: 'تم: جنگ سرد', d: 'خاکستر و مه آیرونی قرن بیستم.', icon: '🌫️', price: 34, kind: 'cosmetic', cat: 'map', rar: 'rare', slot: 'map_theme' },
+  { id: 'map_frozen', fa: 'تم: جهان یخ‌زده', d: 'همه‌جا قطب است.', icon: '🧊', price: 34, kind: 'cosmetic', cat: 'map', rar: 'rare', slot: 'map_theme' },
+  { id: 'map_desert', fa: 'تم: جهان کویر', d: 'ریگ‌زار بی‌پایان زیر آفتاب.', icon: '🏜️', price: 34, kind: 'cosmetic', cat: 'map', rar: 'rare', slot: 'map_theme' },
+  { id: 'map_golden', fa: 'تم: عصر طلایی', d: 'تاریخ‌نگاری زرین امپراتوری‌ها.', icon: '🖼️', price: 38, kind: 'cosmetic', cat: 'map', rar: 'epic', slot: 'map_theme' },
+  { id: 'map_neon', fa: 'تم: نئون‌ورلد', d: 'مرزهای نئونی شب‌های سایبری.', icon: '🌆', price: 38, kind: 'cosmetic', cat: 'map', rar: 'epic', slot: 'map_theme' },
+  { id: 'map_atlas', fa: 'تم: اطلس کلاسیک', d: 'کاغذ قدیمی اطلس‌های چاپی.', icon: '📜', price: 32, kind: 'cosmetic', cat: 'map', rar: 'uncommon', slot: 'map_theme' },
+  { id: 'map_storm', fa: 'تم: جهان طوفان', d: 'آسمان طوفانی و دریای خشمگین.', icon: '⛈️', price: 36, kind: 'cosmetic', cat: 'map', rar: 'rare', slot: 'map_theme' },
+  { id: 'map_industrial', fa: 'تم: عصر صنعتی', d: 'ذغال و بخار، زادگاه کارخانه‌ها.', icon: '⚙️', price: 34, kind: 'cosmetic', cat: 'map', rar: 'rare', slot: 'map_theme' },
+  /* ---- 4) WAR COSMETICS — ۶ لژیون + نشان/افکت/پرتره/انیمیشن (صفر قدرت جنگی) ---- */
+  { id: 'wfr_iron', fa: 'قاب آهنین (IRON LEGION)', d: 'قاب فولادی گزارش نبرد و کشو حمله.', icon: '🛡️', price: 35, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'wframe' },
+  { id: 'wfr_thunder', fa: 'قاب رعد (THUNDER COMMAND)', d: 'قاب آذرخش برای فرماندهان تندباد.', icon: '⚡', price: 45, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'wframe' },
+  { id: 'wfr_redstorm', fa: 'قاب طوفان سرخ (RED STORM)', d: 'قاب سرخ آتشین.', icon: '🔥', price: 42, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'wframe' },
+  { id: 'wfr_phoenix', fa: 'قاب ققنوس (PHOENIX GUARD)', d: 'قاب پر‌زدودن ققنوس — از خاکستر برمی‌خیزیم.', icon: '🦅', price: 48, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'wframe' },
+  { id: 'wfr_night', fa: 'قاب ناوگان شب (NIGHT FLEET)', d: 'قاب سرمه‌ای ناوگان شب.', icon: '🌙', price: 42, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'wframe' },
+  { id: 'wfr_steel', fa: 'قاب فولاد (STEEL EMPIRE)', d: 'قاب مینیمال فولادی.', icon: '⚙️', price: 38, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'wframe' },
+  { id: 'we_iron', fa: 'نشان جنگی آهنین', d: 'نشان لژیون کنار نامت در منو و گزارش نبرد.', icon: '🔱', price: 18, kind: 'cosmetic', cat: 'war', rar: 'uncommon', slot: 'war_emblem' },
+  { id: 'we_thunder', fa: 'نشان جنگی رعد', d: 'نشان آذرخش کنار نامت.', icon: '🌩️', price: 20, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'war_emblem' },
+  { id: 'vs_gold', fa: 'صفحه‌ی پیروزی: طلا', d: 'جشن سینمایی طلایی بعد از هر پیروزی.', icon: '🏆', price: 28, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'victory_fx' },
+  { id: 'vs_thunder', fa: 'صفحه‌ی پیروزی: رعد', d: 'آذرخش پیروزی روی صفحه.', icon: '⚡', price: 30, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'victory_fx' },
+  { id: 'cp_iron', fa: 'پرتره: ژنرال آهنین', d: 'پرتره‌ی فرمانده +۳٪ دفاع در کارت فرمانده.', icon: '🎖️', price: 22, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'cmd_portrait' },
+  { id: 'cp_sky', fa: 'پرتره: فرمانده آسمان', d: 'پرتره‌ی خلبان عملیات هوایی.', icon: '✈️', price: 22, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'cmd_portrait' },
+  { id: 'cp_admiral', fa: 'پرتره: دریاسالار', d: 'پرتره‌ی ناوگان دریایی.', icon: '⚓', price: 22, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'cmd_portrait' },
+  { id: 'at_slash', fa: 'انیمیشن حمله: ضربه‌ی شمشیر', d: 'جرقه‌ی ضربه هنگام اعلام حمله.', icon: '🗡️', price: 20, kind: 'cosmetic', cat: 'war', rar: 'uncommon', slot: 'atk_anim' },
+  { id: 'df_shield', fa: 'انیمیشن دفاع: سپر نور', d: 'هاله‌ی سپر هنگام دفاع.', icon: '💠', price: 20, kind: 'cosmetic', cat: 'war', rar: 'uncommon', slot: 'def_anim' },
+  /* ---- 5) WAR UTILITY (جم) — اطلاعات/تسهیلات/گزینه‌ی استراتژیک؛ صفر برد آنی، همه سمت سرور ---- */
+  { id: 'intel_l1', fa: 'گزارش اطلاعاتی (Scout)', d: 'برای همیشه: سطح ۲ اطلاعات — ارتش + دفاع + اقتصاد با دقت بهتر.', icon: '📡', price: 100, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'intel' },
+  { id: 'intel_l2', fa: 'شناسایی پیشرفته (Advanced Recon)', d: 'برای همیشه: سطح ۳ — + استحکامات/آمادگی/نفت هدف.', icon: '🛰️', price: 250, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'intel' },
+  { id: 'wo_emsupply', fa: 'سفارش: تدارک اضطراری', d: 'قابل خرید برای همیشه — هر بار: +۴۰ تدارک (۶ساعت کول‌داون، هزینه‌ی غذا/نفت).', icon: '🚑', price: 300, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'order' },
+  { id: 'wo_reserve', fa: 'سفارش: ذخیره‌ی استراتژیک', d: 'قابل خرید برای همیشه — حمله‌ی بعدی +۱۲٪ قدرت (۲۴ساعت کول‌داون، مصرف یک‌بار).', icon: '⚡', price: 400, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'order' },
+  { id: 'wo_convoy', fa: 'سفارش: کاروان تدارکات', d: 'قابل خرید برای همیشه — ۳۰دقیقه تلفات −۷٪.', icon: '🚚', price: 250, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'order' },
+  { id: 'wo_airrecon', fa: 'سفارش: شناسایی هوایی', d: 'قابل خرید برای همیشه — ۱۲ساعت سطح اطلاعات +۱.', icon: '✈️', price: 200, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'order' },
+  { id: 'wo_blockade', fa: 'سفارش: محاصره‌ی دریایی', d: 'قابل خرید برای همیشه — ۱۲ساعت دفاع هدف در نبرد بعدی −۵٪.', icon: '🚢', price: 400, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'order' },
+  { id: 'wo_edefense', fa: 'سفارش: دفاع اضطراری', d: 'قابل خرید برای همیشه — ۳۰دقیقه دفاع +۱۵٪ (خودکار هنگام حمله).', icon: '🛡️', price: 300, kind: 'cosmetic', cat: 'war', rar: 'epic', slot: 'order' },
+  { id: 'wo_mobilize', fa: 'سفارش: بسیج سریع', d: 'قابل خرید برای همیشه — ۲۰دقیقه قدرت +۸٪.', icon: '📣', price: 200, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'order' },
+  { id: 'wo_reconsweep', fa: 'سفارش: جاروی اطلاعاتی', d: 'قابل خرید برای همیشه — یک گزارش کامل سطح ۴ فوری.', icon: '🔍', price: 150, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'order' },
+  { id: 'wo_ewar', fa: 'سفارش: جنگ الکترونیک', d: 'قابل خرید برای همیشه — ۱۲ساعت ضداطلاعات: گزارش دشمن بی‌دقت + خرابکاری خنثی.', icon: '📻', price: 200, kind: 'cosmetic', cat: 'war', rar: 'rare', slot: 'order' },
+  { id: 'cmd_training', fa: 'توکن آموزش فرمانده', d: 'فعال‌سازی = +۹۰۰ XP به فرمانده فعال امپراتوری.', icon: '🎓', price: 350, kind: 'consumable', cat: 'war', rar: 'epic' },
+  { id: 'tactical_slot', fa: 'اسلات تاکتیکی دوم', d: 'برای همیشه: نمایش و شلیک همزمان دو سفارش تاکتیکی — ظرفیت فرماندهی.', icon: '🎚️', price: 600, kind: 'cosmetic', cat: 'war', rar: 'legendary', slot: 'tslot' },
+  { id: 'war_prep_pack', fa: 'پک آماده‌سازی جنگ', d: 'بسته‌ی کامل ورود به جنگ: تدارک اضطراری + بسیج سریع + پرچم جنگ + قاب آهنین — به‌جای ۵۵۹، فقط ۵۰۰.', icon: '🎒', price: 500, kind: 'bundle', cat: 'war', rar: 'epic', grants: ['wo_emsupply', 'wo_mobilize', 'banner_war', 'wfr_iron'] },
+  /* ---- 6) WAR PACKS — بسته‌های واقعی (ارزش > قیمت) ---- */
+  { id: 'war_starter', fa: '⚔️ پک شروع جنگ', d: 'تدارک اضطراری + جاروی اطلاعاتی + پرچم جنگ + قاب آهنین — ارزش ۵۶۳، فقط ۵۰۰.', icon: '⚔️', price: 500, kind: 'bundle', cat: 'war', rar: 'epic', grants: ['wo_emsupply', 'wo_reconsweep', 'banner_war', 'wfr_iron'] },
+  { id: 'war_commander', fa: '🔥 پک فرمانده', d: 'پرتره ژنرال آهنین + صفحه پیروزی طلا + لقب آهنین + ذخیره استراتژیک — ارزش ۱۰۸۰، فقط ۱۰۰۰.', icon: '🎖️', price: 1000, kind: 'bundle', cat: 'war', rar: 'legendary', grants: ['cp_iron', 'vs_gold', 'wt_legion', 'wo_reserve'] },
+  { id: 'war_defender', fa: '🛡️ پک مدافع', d: 'دفاع اضطراری + کاروان + جنگ الکترونیک + نشان آهنین + سپر نور — ارزش ۸۰۸، فقط ۸۰۰.', icon: '🛡️', price: 800, kind: 'bundle', cat: 'war', rar: 'epic', grants: ['wo_edefense', 'wo_convoy', 'wo_ewar', 'we_iron', 'df_shield'] },
+  { id: 'war_imperial', fa: '👑 صندوق جنگی امپراتوری', d: 'اسلات تاکتیکی + محاصره دریایی + شناسایی پیشرفته + قاب رعد + پیروزی رعد + لقب سایه — ارزش ۱۵۵۳، فقط ۱۵۰۰.', icon: '👑', price: 1500, kind: 'bundle', cat: 'war', rar: 'legendary', grants: ['tactical_slot', 'wo_blockade', 'intel_l2', 'wfr_thunder', 'vs_thunder', 'wt_shadow'] },
+  /* ---- 7) LANDMARKS ×12 — بنای ماندگار کشور شما (نمای کشور + پروفایل + مجموعه) ---- */
+  { id: 'lm_monument', fa: 'بنای جهانی', d: 'بنای یادبود جهانی کنار پایتختت — ماندگار در تاریخ کشور.', icon: '🗽', price: 40, kind: 'cosmetic', cat: 'landmark', rar: 'rare', slot: 'landmark' },
+  { id: 'lm_palace', fa: 'کاخ امپراتوری', d: 'کاخ باشکوه اقامتگاه فرمانروایی.', icon: '🏯', price: 45, kind: 'cosmetic', cat: 'landmark', rar: 'epic', slot: 'landmark' },
+  { id: 'lm_victory', fa: 'بنای پیروزی', d: 'طاق نصرت برای فاتحان.', icon: '🏛️', price: 42, kind: 'cosmetic', cat: 'landmark', rar: 'rare', slot: 'landmark' },
+  { id: 'lm_space', fa: 'مرکز فضایی', d: 'سکوی پرتاب — آینده از اینجا شروع می‌شود.', icon: '🚀', price: 48, kind: 'cosmetic', cat: 'landmark', rar: 'epic', slot: 'landmark' },
+  { id: 'lm_stadium', fa: 'ورزشگاه بزرگ', d: 'ورزشگاه ملی صد‌هزارنفری.', icon: '🏟️', price: 42, kind: 'cosmetic', cat: 'landmark', rar: 'rare', slot: 'landmark' },
+  { id: 'lm_trade', fa: 'مرکز تجارت جهانی', d: 'برج‌های دوقلوی تجارت.', icon: '🏢', price: 44, kind: 'cosmetic', cat: 'landmark', rar: 'rare', slot: 'landmark' },
+  { id: 'lm_command', fa: 'قرارگاه فرماندهی', d: 'مرکز عملیات نظامی کشور.', icon: '🪖', price: 44, kind: 'cosmetic', cat: 'landmark', rar: 'rare', slot: 'landmark' },
+  { id: 'lm_olympic', fa: 'ورزشگاه المپیک', d: 'میخانه‌ی افتخار المپیکی کشورت.', icon: '🥇', price: 46, kind: 'cosmetic', cat: 'landmark', rar: 'epic', slot: 'landmark' },
+  { id: 'lm_energy', fa: 'برج انرژی', d: 'برج تولید توان بی‌پایان.', icon: '⚡', price: 42, kind: 'cosmetic', cat: 'landmark', rar: 'rare', slot: 'landmark' },
+  { id: 'lm_peace', fa: 'بنای صلح', d: 'کبوتر صلح بر فراز کشور.', icon: '🕊️', price: 40, kind: 'cosmetic', cat: 'landmark', rar: 'rare', slot: 'landmark' },
+  { id: 'lm_factory', fa: 'مگا کارخانه', d: 'غول صنعتی تولید ملی.', icon: '🏭', price: 42, kind: 'cosmetic', cat: 'landmark', rar: 'rare', slot: 'landmark' },
+  { id: 'lm_museum', fa: 'موزه‌ی ملی', d: 'نگهبان تاریخ و گنج‌هایت.', icon: '🖼️', price: 40, kind: 'cosmetic', cat: 'landmark', rar: 'rare', slot: 'landmark' },
+  /* ---- 8) LIMITED واقعی — پنجره‌ی سمت سرور، بعدش فقط موزه ---- */
+  { id: 'lim_war_banner', fa: 'پرچم جنگی ویژه (محدود)', d: 'پرچم حماسی ۷۲ساعته — بعد از پایان فقط در موزه.', icon: '🚩', price: 699, kind: 'limited', cat: 'limited', rar: 'legendary', slot: 'banner', window: { from: Date.UTC(2026, 8, 28), to: Date.UTC(2026, 9, 1) } },
+  { id: 'lim_leg_capital', fa: 'پایتخت افسانه‌ای (محدود)', d: 'اسکین اسطوره‌ای پایتخت — فقط ۷ روز.', icon: '🏰', price: 1499, kind: 'limited', cat: 'limited', rar: 'legendary', slot: 'cap_skin', window: { from: Date.UTC(2026, 8, 28), to: Date.UTC(2026, 9, 5) } },
+  { id: 'lm_mythic_monument', fa: 'بنای اسطوره‌ای (محدود)', d: 'نادرترین بنای فروشگاه — ۷۲ ساعت.', icon: '🗿', price: 1999, kind: 'limited', cat: 'limited', rar: 'mythic', slot: 'landmark', window: { from: Date.UTC(2026, 8, 28), to: Date.UTC(2026, 9, 1) } },
+  /* ---- 9) خزانه‌ی امپراتوری — صندوق سوم (آیتم + استخر قرعه) ---- */
+  { id: 'vault_mythic', fa: 'خزانه‌ی امپراتوری', d: 'قرعه سمت سرور با ۵ سطح کمیابی شفاف — جم یا آیتم‌های کمیاب تا افسانه‌ای. همه‌ی آیتم‌ها مسیر خرید مستقیم هم دارند.', icon: '🏛️', price: 120, kind: 'mystery', cat: 'mystery', rar: 'legendary' },
+]
+SHOP_ITEMS.push(...V88_ITEMS)
+/* refresh the map with the new ids (const rebinding is not allowed → mutate in place) */
+V88_ITEMS.forEach((x) => SHOP_ITEM_MAP.set(x.id, x))
+/* پاداش‌های مجموعه‌های V88 (hidden — فقط از مسیر claim) */
+const V88_REWARDS: ShopItemDef[] = [
+  { id: 'col_thunder_reward', fa: 'لقب «فرمانده رعد»', d: 'پاداش تکمیل مجموعه‌ی رعد.', icon: '⚡', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'title', hidden: true },
+  { id: 'col_warlord_reward', fa: 'نشان ⚜ استراتژیست', d: 'پاداش تکمیل مجموعه‌ی استراتژیست جنگ.', icon: '⚜️', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'emblem', hidden: true },
+  { id: 'col_landmark_reward', fa: 'لقب «شهرساز»', d: 'پاداش تکمیل مجموعه‌ی بناها.', icon: '🗿', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'title', hidden: true },
+  { id: 'col_capital_reward', fa: 'نشان 🏛 معمار پایتخت‌ها', d: 'پاداش تکمیل مجموعه‌ی پایتخت‌ها.', icon: '🏛️', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'emblem', hidden: true },
+  { id: 'col_vault_reward', fa: 'لقب «افسانه‌ی خزانه»', d: 'پاداش تکمیل مجموعه‌ی خزانه.', icon: '💎', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'mythic', slot: 'title', hidden: true },
+]
+SHOP_ITEMS.push(...V88_REWARDS)
+V88_REWARDS.forEach((x) => SHOP_ITEM_MAP.set(x.id, x))
+
+/* ============================================================
+   V88 — WAR DEPTH: پیکربندی جنگ (تک‌منبع سرور)
+   ============================================================ */
+type AtkTypeDef = { fa: string; d: string; atk: number; loss: number; supply: number; gold: number; oil: number; defPen?: number; defDown?: number; selfDefFx?: number; blockTarget?: boolean }
+const ATK_TYPES: Record<string, AtkTypeDef> = {
+  balanced: { fa: '⚖️ متعادل', d: 'بدون بونوس/جریمه — مصرف تدارک پایه', atk: 1, loss: 1, supply: 5, gold: 0, oil: 0 },
+  blitz: { fa: '⚡ برق‌آسا', d: '+۱۰٪ قدرت، +۸٪ تلفات — تدارک بیشتر', atk: 1.10, loss: 1.08, supply: 8, gold: 0, oil: 0 },
+  siege: { fa: '🏰 محاصره', d: 'نصف اثر استحکامات دفاعی هدف، +۱۰٪ تلفات — پرهزینه', atk: 1.06, loss: 1.10, supply: 12, gold: 200, oil: 0, defPen: 0.5 },
+  defensive: { fa: '🛡️ تدافعی', d: '−۱۰٪ قدرت حمله؛ اما ۶ساعت دفاع +۲۵٪ برای خودت', atk: 0.90, loss: 0.95, supply: 2, gold: 0, oil: 0, selfDefFx: 6 * 3600_000 },
+  naval: { fa: '⚓ یورش دریایی', d: '+۸٪ قدرت — ۱۵۰ نفت + ۳۰۰ طلا؛ ۱۲ساعت دفاع هدف −۵٪', atk: 1.08, loss: 1, supply: 10, gold: 300, oil: 150, blockTarget: true },
+  air: { fa: '✈️ حمله‌ی هوایی', d: '+۱۲٪ قدرت، +۱۵٪ تلفات — ۱۲۰ نفت؛ ۶ساعت اطلاعات +۱', atk: 1.12, loss: 1.15, supply: 9, gold: 0, oil: 120, selfDefFx: 0 },
+  economic: { fa: '💰 فشار اقتصادی', d: 'قدرت عادی — ۵۰۰ طلا؛ دفاع هدف همین نبرد −۸٪', atk: 1, loss: 1, supply: 4, gold: 500, oil: 0, defDown: 0.08 },
+}
+type OrderDef = { fa: string; ic: string; cd: number; gold: number; oil: number; food: number; fx?: string; dur?: number; supply?: number; instant?: string; target?: boolean }
+const WAR_ORDERS: Record<string, OrderDef> = {
+  emsupply: { fa: 'تدارک اضطراری', ic: '🚑', cd: 6 * 3600_000, gold: 0, oil: 500, food: 2000, supply: 40 },
+  reserve: { fa: 'ذخیره‌ی استراتژیک', ic: '⚡', cd: 24 * 3600_000, gold: 3000, oil: 0, food: 0, fx: 'reserve', dur: 24 * 3600_000 },
+  convoy: { fa: 'کاروان تدارکات', ic: '🚚', cd: 12 * 3600_000, gold: 0, oil: 0, food: 3000, fx: 'convoy', dur: 30 * 60_000 },
+  mobilize: { fa: 'بسیج سریع', ic: '📣', cd: 8 * 3600_000, gold: 2000, oil: 0, food: 1000, fx: 'mobilize', dur: 20 * 60_000 },
+  edefense: { fa: 'دفاع اضطراری', ic: '🛡️', cd: 8 * 3600_000, gold: 2500, oil: 0, food: 1500, fx: 'edef', dur: 30 * 60_000 },
+  airrecon: { fa: 'شناسایی هوایی', ic: '✈️', cd: 12 * 3600_000, gold: 0, oil: 400, food: 0, fx: 'airrecon', dur: 12 * 3600_000 },
+  reconsweep: { fa: 'جاروی اطلاعاتی', ic: '🔍', cd: 12 * 3600_000, gold: 0, oil: 300, food: 0, instant: 'intel4' },
+  ewar: { fa: 'جنگ الکترونیک', ic: '📻', cd: 24 * 3600_000, gold: 1500, oil: 0, food: 0, fx: 'ewar', dur: 12 * 3600_000 },
+  blockade: { fa: 'محاصره‌ی دریایی', ic: '🚢', cd: 48 * 3600_000, gold: 2000, oil: 600, food: 0, target: true },
+  sabotage: { fa: 'مأموریت خرابکاری', ic: '💣', cd: 48 * 3600_000, gold: 1500, oil: 500, food: 0, target: true },
+}
+const WAR_INTEL_FA = ['پایه (عمومی)', 'سطح ۱ — ارتش تقریبی', 'سطح ۲ — + دفاع و اقتصاد', 'سطح ۳ — + استحکامات و آمادگی', 'سطح ۴ — اطلاعات کامل']
+/* سقف سخت توازن: جمع بونوس جم‌محور V88 روی حمله هرگز بیش از +۲۲٪ نیست (ضد P2W) */
+const WAR_MAX_ADD = 0.22
+const SUPPLY_REGEN_MS = 6 * 60_000 /* +۱ تدارک هر ۶ دقیقه */
+const SUPPLY_MAX = 100
+
+type WarFx = { k: string; until: number; data?: Record<string, unknown> }
+type WarData = { supply?: number; supplyAt?: number; cd?: Record<string, number>; fx?: WarFx[]; blk?: Record<string, number>; atkt?: string }
+
+function warStateRow(userId: string) {
+  return db.warState.upsert({ where: { userId }, update: {}, create: { userId } })
+}
+function warParse(raw: string): WarData {
+  try { return (JSON.parse(raw) || {}) as WarData } catch { return {} }
+}
+/* بازیابی تنبل تدارک — بدون تایمر؛ در هر خواندن محاسبه و ذخیره می‌شود */
+async function warStateOf(userId: string): Promise<{ data: WarData; row: { data: string } }> {
+  const row = await warStateRow(userId)
+  const data = warParse(row.data)
+  const now = Date.now()
+  const last = data.supplyAt || 0
+  let supply = typeof data.supply === 'number' ? data.supply : SUPPLY_MAX
+  if (supply < SUPPLY_MAX && last) {
+    const regen = Math.floor((now - last) / SUPPLY_REGEN_MS)
+    if (regen > 0) supply = Math.min(SUPPLY_MAX, supply + regen)
+  }
+  data.supply = supply
+  data.supplyAt = now
+  data.fx = (data.fx || []).filter((f) => f.until > now)
+  return { data, row }
+}
+async function warStateSave(userId: string, data: WarData) {
+  await db.warState.upsert({ where: { userId }, update: { data: JSON.stringify(data) }, create: { userId, data: JSON.stringify(data) } })
+}
+function warFxOf(data: WarData, now: number): Record<string, WarFx> {
+  const out: Record<string, WarFx> = {}
+  for (const f of data.fx || []) if (f.until > now) out[f.k] = f
+  return out
+}
+/* سرورِ فعلی کاربر برای اخبار جنگ (از Score — همان منبع ثبت‌نام) */
+async function warUserServer(userId: string): Promise<number> {
+  try { const s = await db.score.findUnique({ where: { userId }, select: { server: true } }); return Math.max(1, s?.server || 1) } catch { return 1 }
+}
+
 /* بسته‌های جم — تنها بخشی که پرداخت واقعی دارد؛ url خالی یعنی «به‌زودی» (هیچ قیمتی سمت کلاینت اعمال نمی‌شود) */
 const SHOP_PACKS = [
   /* PriceSync-v3 (V85): قیمت‌های جدید پنل مایکت — ۱۰۰جم=۴۰٬۰۰۰ / ۳۰۰جم=۱۱۰٬۰۰۰ / ۵۵۰جم=۲۰۰٬۰۰۰ / ۱۰۰۰جم=۳۸۰٬۰۰۰ تومان.
@@ -167,6 +346,27 @@ const SHOP_MYSTERY: Record<string, { fa: string; tiers: MysteryTier[]; dupGems: 
       { w: 20, kind: 'item', ids: ['frame', 'cap_theme_royal', 'emst_neon', 'emst_orbit'], fa: 'افسانه‌ای' },
     ],
   },
+}
+
+/* V88 — مجموعه‌های جدید + خزانه‌ی امپراتوری (بعد از تعریف اصلی) */
+SHOP_COLLECTIONS.push(
+  { id: 'thunder', fa: 'رعد', icon: '⚡', members: ['wfr_thunder', 'we_thunder', 'vs_thunder', 'banner_war', 'at_slash'], reward: 'col_thunder_reward' },
+  { id: 'warlord', fa: 'استراتژیست جنگ', icon: '⚜️', members: ['wo_reserve', 'wo_blockade', 'wo_mobilize', 'wo_emsupply', 'intel_l2'], reward: 'col_warlord_reward' },
+  { id: 'landmarks', fa: 'بناها', icon: '🗿', members: ['lm_monument', 'lm_palace', 'lm_victory', 'lm_space', 'lm_stadium', 'lm_trade'], reward: 'col_landmark_reward' },
+  { id: 'capitals', fa: 'پایتخت‌ها', icon: '🏛️', members: ['csk_imperial', 'csk_cyber', 'csk_arctic', 'csk_golden', 'csk_neon'], reward: 'col_capital_reward' },
+  { id: 'vault', fa: 'خزانه', icon: '💎', members: ['csk_golden', 'wfr_phoenix', 'wfr_night', 'lm_peace', 'lm_museum'], reward: 'col_vault_reward' },
+)
+/* خزانه‌ی امپراتوری — صندوق سوم با شانس شفاف + همه‌ی آیتم‌ها مسیر خرید مستقیم دارند (بدون dark pattern) */
+SHOP_MYSTERY['vault_mythic'] = {
+  fa: 'خزانه‌ی امپراتوری',
+  dupGems: 60,
+  tiers: [
+    { w: 20, kind: 'gems', min: 40, max: 90, fa: 'جم' },
+    { w: 30, kind: 'item', ids: ['map_golden', 'map_neon', 'wfr_steel', 'cp_sky', 'cp_admiral', 'lm_stadium', 'lm_energy'], fa: 'کمیاب' },
+    { w: 28, kind: 'item', ids: ['wfr_redstorm', 'vs_thunder', 'csk_neon', 'lm_palace', 'lm_space', 'banner_victory'], fa: 'حماسی' },
+    { w: 17, kind: 'item', ids: ['csk_golden', 'csk_future', 'wfr_phoenix', 'wfr_night'], fa: 'افسانه‌ای' },
+    { w: 5, kind: 'item', ids: ['lm_peace', 'lm_museum'], fa: 'اسطوره‌ای' },
+  ],
 }
 
 /* فصل جاری برای مدال فصلی (همان منطق تقویم کلاینت — فصل‌های ۳ ماهه) */
@@ -329,6 +529,13 @@ async function shopBuy(userId: string, p_item: string, requestId: string | null)
     await db.shopPurchase.create({
       data: { userId, itemId: grantId, price, status: 'ok', provider: kind === 'mystery' ? 'mystery' : 'shop', requestId, meta: JSON.stringify({ kind, reward }) },
     })
+    /* V88 — اخبار جهانی برای خریدهای اسطوره‌ای (ضد اسپم: فقط mythic) */
+    if (def.rar === 'mythic') {
+      try {
+        const bu = await db.user.findUnique({ where: { id: userId }, select: { nick: true } })
+        await addNews(await warUserServer(userId), 'shop_mythic', null, bu?.nick || '—', def.fa)
+      } catch (e) { console.log('mythicnews', e) }
+    }
     const nw = await ensureWallet(userId)
     return {
       ok: true, gems: nw.gems,
@@ -1641,6 +1848,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             odds: m.tiers.map((t) => ({ pct: Math.round((t.w / m.tiers.reduce((a, q) => a + q.w, 0)) * 100), kind: t.kind, min: t.min || null, max: t.max || null, fa: t.fa, items: t.ids || [] })),
           }])),
           wallet: { gems: w.gems, boost_until: w.boostUntil ? w.boostUntil.toISOString() : null, vip_until: w.vipUntil ? w.vipUntil.toISOString() : null },
+          war_cfg: { atk_types: ATK_TYPES, orders: WAR_ORDERS, intel_fa: WAR_INTEL_FA, supply_max: SUPPLY_MAX, regen_ms: SUPPLY_REGEN_MS },
           season: shopSeasonSlug(),
           now: nowC,
           owned: inv.map((r) => ({ item_id: r.itemId, source: r.source, rarity: r.rarity, expires_at: r.expiresAt ? r.expiresAt.toISOString() : null, created_at: r.createdAt.toISOString() })),
@@ -1683,8 +1891,199 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (!already) {
           await shopGrant(user.id, col.reward, 'collection', rewardDef.rar, null, { collection: cid })
           await db.shopPurchase.create({ data: { userId: user.id, itemId: col.reward, price: 0, status: 'ok', provider: 'collection', meta: JSON.stringify({ collection: cid }) } })
+          /* V88 — تکمیل مجموعه خبر جهانی دارد (ضد اسپم: فقط هنگام تکمیل واقعی) */
+          try { await addNews(await warUserServer(user.id), 'col_done', null, user.nick, col.fa) } catch (e) { console.log('colnews', e) }
         }
         return R({ ok: true, already, reward: col.reward, fa: rewardDef.fa, icon: rewardDef.icon })
+      }
+
+      /* ---------------- V88 — WAR DEPTH RPCs (سرور-مأخذ، ضدتقلب) ---------------- */
+      case 'war_state': {
+        const { data } = await warStateOf(user.id)
+        const now = Date.now()
+        const inv = await db.shopInventory.findMany({ where: { userId: user.id, itemId: { in: ['tactical_slot'] } }, select: { itemId: true } })
+        return R({
+          ok: true,
+          supply: Math.max(0, Math.min(SUPPLY_MAX, Math.round(data.supply || SUPPLY_MAX))),
+          supply_max: SUPPLY_MAX,
+          atk_type: data.atkt || 'balanced',
+          fx: (data.fx || []).filter((f) => f.until > now).map((f) => ({ k: f.k, until: f.until })),
+          cd: Object.fromEntries(Object.entries(data.cd || {}).filter(([, t]) => t > now)),
+          blk: Object.fromEntries(Object.entries(data.blk || {}).filter(([, t]) => t > now)),
+          slots: inv.length ? 2 : 1,
+          cfg: { atk_types: ATK_TYPES, orders: WAR_ORDERS, intel_fa: WAR_INTEL_FA },
+        })
+      }
+      case 'war_order': {
+        const key = String(args.p_key || '')
+        const target = String(args.p_target || '').trim()
+        const od = WAR_ORDERS[key]
+        if (!od) return R({ ok: false, error: 'order' })
+        /* مالکیت: هر سفارش باید قبلاً از فروشگاه باز شده باشد (آیتم wo_* / intel_l2 برای خرابکاری) */
+        const unlockId = key === 'sabotage' ? 'intel_l2' : 'wo_' + key
+        const owned = await db.shopInventory.findUnique({ where: { userId_itemId: { userId: user.id, itemId: unlockId } } })
+        if (!owned || (owned.expiresAt && owned.expiresAt.getTime() < Date.now())) return R({ ok: false, error: 'locked' })
+        const { data } = await warStateOf(user.id)
+        const now = Date.now()
+        const cdAt = (data.cd || {})[key] || 0
+        if (now < cdAt) return R({ ok: false, error: 'cd', cd_ms: cdAt - now })
+        /* هدف‌محورها (محاصره/خرابکاری) به nick واقعی نیاز دارند */
+        let targetUid: string | null = null
+        if (od.target) {
+          if (!target) return R({ ok: false, error: 'target' })
+          const tu = await db.user.findFirst({ where: { nickLower: target.toLowerCase() }, select: { id: true, nick: true } })
+          if (!tu || tu.id === user.id) return R({ ok: false, error: 'target' })
+          targetUid = tu.id
+          if (key === 'sabotage') {
+            const def = await warStateOf(tu.id)
+            if (warFxOf(def.data, now).ewar) return R({ ok: false, error: 'counterintel' }) /* قابل دفاع — هزینه‌ای پرداخت نمی‌شود */
+          }
+        }
+        /* هزینه‌ی منابع از خزانه‌ی واقعی (تک‌نویسنده tradeApply) */
+        if (od.gold || od.oil || od.food) {
+          const paid = await tradeApply(user.id, (r) => {
+            if (od.gold) r.gold = resNum(r.gold) - od.gold
+            if (od.oil) r.oil = resNum(r.oil) - od.oil
+            if (od.food) r.food = resNum(r.food) - od.food
+          })
+          if (!paid) return R({ ok: false, error: 'res' })
+        }
+        data.cd = { ...(data.cd || {}), [key]: now + od.cd }
+        let report: Record<string, unknown> | null = null
+        if (od.supply) data.supply = Math.min(SUPPLY_MAX, (data.supply || 0) + od.supply)
+        if (od.fx && od.dur) {
+          data.fx = (data.fx || []).filter((f) => f.k !== od.fx)
+          data.fx.push({ k: od.fx, until: now + od.dur })
+        }
+        if (key === 'blockade' && target) {
+          data.blk = { ...(data.blk || {}), [target.toLowerCase()]: now + 12 * 3600_000 }
+          try { await addNews(await warUserServer(user.id), 'war_blockade', null, user.nick, target) } catch (e) {}
+        }
+        if (key === 'sabotage' && targetUid && target) {
+          const def = await warStateOf(targetUid)
+          def.data.fx = (def.data.fx || []).filter((f) => f.k !== 'sabotaged')
+          def.data.fx.push({ k: 'sabotaged', until: now + 6 * 3600_000 })
+          await warStateSave(targetUid, def.data)
+          try { await addNews(await warUserServer(user.id), 'war_sabotage', null, user.nick, target) } catch (e) {}
+        }
+        if (key === 'reconsweep') report = { intel: 4, fa: 'گزارش کامل سطح ۴ — در پنل اطلاعات استفاده کن' }
+        await warStateSave(user.id, data)
+        return R({ ok: true, key, supply: data.supply, cd_until: now + od.cd, fx: data.fx, report })
+      }
+      case 'war_intel': {
+        const targetNick = String(args.p_target || '').trim()
+        if (!targetNick || targetNick.toLowerCase() === String(user.nick).toLowerCase()) return R({ ok: false, error: 'target' })
+        const tu = await db.user.findFirst({
+          where: { nickLower: targetNick.toLowerCase() },
+          select: { id: true, nick: true, score: { select: { score: true, conquered: true, kills: true, economy: true } } },
+        })
+        if (!tu) return R({ ok: false, error: 'target' })
+        const now = Date.now()
+        /* سطح اطلاعات: پایه ۱ + intel_l1 + intel_l2 + اثر شناسایی هوایی (سقف ۴) */
+        const mine = await warStateOf(user.id)
+        const mfx = warFxOf(mine.data, now)
+        const invRows = await db.shopInventory.findMany({ where: { userId: user.id, itemId: { in: ['intel_l1', 'intel_l2'] } }, select: { itemId: true } })
+        const ownedIntel = new Set(invRows.map((r) => r.itemId))
+        let level = 1
+        if (ownedIntel.has('intel_l1')) level++
+        if (ownedIntel.has('intel_l2')) level++
+        if (mfx.airrecon) level++
+        level = Math.min(4, level)
+        /* ضداطلاعات مدافع → دقت کمتر و پنهان‌شدن آمادگی */
+        const def = await warStateOf(tu.id)
+        const dfx = warFxOf(def.data, now)
+        const counter = !!dfx.ewar
+        const band = (v: number, pct: number) => {
+          const w = Math.max(1, Math.round(v * pct))
+          const lo = Math.max(0, v - w), hi = v + w
+          return { lo, hi }
+        }
+        const terrCount = await db.territory.count({ where: { userId: tu.id } })
+        const rep: Record<string, unknown> = { nick: tu.nick, level, level_fa: WAR_INTEL_FA[level], counterintel: counter, territories: terrCount }
+        const score = tu.score?.score || 0
+        const bandPct = (counter ? 0.45 : [0.4, 0.25, 0.15, 0.08][level] || 0.08)
+        rep.army = band(score, bandPct)
+        if (level >= 2) {
+          rep.defense = band(score, bandPct)
+          rep.economy = band(tu.score?.economy || 0, counter ? 0.5 : 0.3)
+        }
+        if (level >= 3) {
+          /* استحکامات واقعی = ساختمان‌های دفاعی CV در کشورهای مدافع + آمادگی لجستیک خودش */
+          const forts = await db.cvBuilding.count({ where: { userId: tu.id, type: 'fort', status: 'active' } })
+          rep.fortifications = counter ? null : forts
+          rep.readiness = counter ? null : Math.round(def.data.supply ?? 100)
+          const ds = await db.save.findUnique({ where: { userId: tu.id }, select: { state: true } })
+          try {
+            const st = ds ? JSON.parse(ds.state || '{}') : {}
+            const res = st.res || {}
+            if (!counter) rep.oil = band(resNum(res.oil), 0.35)
+          } catch {}
+        }
+        if (level >= 4) {
+          const recent = await db.battleLog.findMany({
+            where: { OR: [{ attacker: tu.nick }, { defender: tu.nick }] },
+            orderBy: { createdAt: 'desc' }, take: 5,
+            select: { kind: true, country: true, win: true, createdAt: true, attacker: true, defender: true },
+          })
+          rep.recent = recent.map((r) => ({ kind: r.kind, country: r.country, win: r.win, at: r.createdAt.toISOString(), vs: r.attacker === tu.nick ? (r.defender || '—') : r.attacker, as: r.attacker === tu.nick ? 'attacker' : 'defender' }))
+        }
+        /* کول‌داون شناسایی رایگان (هر ساعت یک‌بار بدون هزینه) — سطح ۴ رایگان نیست */
+        const suKey = 'intel_' + tu.id
+        const lastSu = await db.specialUse.findFirst({ where: { userId: user.id, item: suKey }, orderBy: { usedAt: 'desc' } })
+        if (lastSu && now - lastSu.usedAt.getTime() < 3600_000) return R({ ok: false, error: 'cd', cd_ms: 3600_000 - (now - lastSu.usedAt.getTime()), report: rep, free: true })
+        await db.specialUse.create({ data: { userId: user.id, item: suKey } }).catch(() => {})
+        return R({ ok: true, report: rep })
+      }
+      case 'trophy_list': {
+        /* تروفی فقط از داده‌ی واقعی سرور — هیچ ورودی کلاینت پذیرفته نمی‌شود */
+        const defs: { key: string; fa: string; ic: string; d: string }[] = [
+          { key: 'veteran', fa: 'تروفی کهنه‌کار', ic: '🎖️', d: '۱۰۰ نبرد واقعی (کشتار)' },
+          { key: 'conqueror', fa: 'تروفی فاتح', ic: '🏰', d: '۵۰ کشور فتح‌شده' },
+          { key: 'commander', fa: 'تروفی فرمانده', ic: '⚔️', d: '۲۵ نبرد واقعی' },
+          { key: 'olympic', fa: 'تروفی المپیک', ic: '🥇', d: 'قهرمانی المپیک جهانی' },
+          { key: 'economy', fa: 'تروفی اقتصاد طلایی', ic: '💰', d: '۲ میلیون اقتصاد' },
+          { key: 'alliance', fa: 'تروفی اتحاد', ic: '🤝', d: 'بنیان‌گذاری اتحاد' },
+          { key: 'collector', fa: 'تروفی مجموعه‌دار', ic: '🧿', d: '۳۰ آیتم در انبار' },
+          { key: 'legend', fa: 'تروفی افسانه', ic: '👑', d: '۲۵۰٬۰۰۰ امتیاز قدرت' },
+        ]
+        const sc = await db.score.findUnique({ where: { userId: user.id } })
+        const invN = await db.shopInventory.count({ where: { userId: user.id } })
+        const champ = await db.olympicChampion.findFirst({ where: { userId: user.id }, select: { id: true } })
+        const ally = await db.alliance.findFirst({ where: { ownerUid: user.id }, select: { id: true } })
+        const w88 = await ensureWallet(user.id)
+        const has: Record<string, boolean> = {
+          veteran: (sc?.kills || 0) >= 100,
+          conqueror: (sc?.conquered || 0) >= 50,
+          commander: (sc?.kills || 0) >= 25,
+          olympic: !!champ,
+          economy: (sc?.economy || 0) >= 2_000_000,
+          alliance: !!ally,
+          collector: invN >= 30,
+          legend: (sc?.score || 0) >= 250_000,
+        }
+        const existing = await db.userTrophy.findMany({ where: { userId: user.id } })
+        const haveSet = new Set(existing.map((t) => t.key))
+        const fresh: string[] = []
+        for (const d of defs) {
+          if (has[d.key] && !haveSet.has(d.key)) {
+            await db.userTrophy.upsert({ where: { userId_key: { userId: user.id, key: d.key } }, update: {}, create: { userId: user.id, key: d.key } })
+            fresh.push(d.key)
+          }
+        }
+        if (fresh.length) {
+          try { await addNews(sc?.server || 1, 'trophy', null, user.nick, fresh.join(',')) } catch (e) {}
+        }
+        const nowT = Date.now()
+        const rows = await db.userTrophy.findMany({ where: { userId: user.id } })
+        return R({
+          ok: true,
+          trophies: defs.map((d) => {
+            const r = rows.find((x) => x.key === d.key)
+            return { ...d, earned: !!r, at: r ? r.at.toISOString() : null, progress_now: d.key === 'veteran' || d.key === 'commander' ? (sc?.kills || 0) : d.key === 'conqueror' ? (sc?.conquered || 0) : d.key === 'economy' ? (sc?.economy || 0) : d.key === 'collector' ? invN : d.key === 'legend' ? (sc?.score || 0) : null }
+          }),
+          vip_until: w88.vipUntil ? w88.vipUntil.toISOString() : null,
+          now: nowT,
+        })
       }
 
       /* ---------------- admin ---------------- */
@@ -1873,6 +2272,68 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           cvDefPct = (await cvMilBonus(t.userId, country)).defPct
           if (cvDefPct > 0) d = Math.max(1, Math.round(d * (1 + cvDefPct / 100)))
         } catch (e) { console.log('cvmil', e) }
+        /* ================= V88 — WAR DEPTH (فقط وقتی کلاینت جدید p_atk_type بفرستد) =================
+           دکترین حمله جای تاکتیک را می‌گیرد (تک‌منبع — بدون دوبار جمع‌شدن بونوس).
+           همه‌ی اعداد سمت سرور؛ سقف سخت بونوس جم‌محور = +۲۲٪ کل. صفر instant-win. */
+        let lossMult88 = 1, fxUsed88: string[] = [], supplyAfter88: number | null = null, atk88: string | null = null
+        const rawAtk88 = String(args.p_atk_type || '')
+        if (rawAtk88) {
+          atk88 = ATK_TYPES[rawAtk88] ? rawAtk88 : 'balanced'
+          const AT = ATK_TYPES[atk88]
+          /* ۱) هزینه‌ی لجستیک دکترین از خزانه‌ی واقعی */
+          if (AT.gold || AT.oil) {
+            const paid88 = await tradeApply(user.id, (r) => {
+              if (AT.gold) r.gold = resNum(r.gold) - AT.gold
+              if (AT.oil) r.oil = resNum(r.oil) - AT.oil
+            })
+            if (!paid88) return R({ ok: false, error: 'res' })
+          }
+          /* ۲) تدارک (supply) — بازیابی تنبل + مصرف دکترین */
+          const w88 = await warStateOf(user.id)
+          const now88 = Date.now()
+          const supply88 = w88.data.supply || SUPPLY_MAX
+          if (supply88 < AT.supply) return R({ ok: false, error: 'supply', need: AT.supply, have: Math.round(supply88) })
+          w88.data.supply = supply88 - AT.supply
+          w88.data.atkt = atk88
+          const fx88 = warFxOf(w88.data, now88)
+          /* ۳) محاسبه‌ی بونوس با سقف سخت — ذخیره/بسیج/دکترین جمع و به +۲۲٪ محدود می‌شوند */
+          let add88 = Math.max(0, AT.atk - 1)
+          if (fx88.reserve) { add88 += 0.12; fxUsed88.push('reserve'); w88.data.fx = (w88.data.fx || []).filter((f) => f.k !== 'reserve') } /* یک‌بارمصرف */
+          if (fx88.mobilize) { add88 += 0.08; fxUsed88.push('mobilize') }
+          add88 = Math.min(WAR_MAX_ADD, add88)
+          a = Math.round(a * (1 + add88))
+          if (AT.atk < 1) a = Math.round(a * AT.atk) /* تدافعی: جریمه‌ی حمله */
+          lossMult88 = AT.loss
+          if (fx88.emsupply) { lossMult88 *= 0.93; fxUsed88.push('emsupply') }
+          if (fx88.convoy) { lossMult88 *= 0.96; fxUsed88.push('convoy') }
+          if (supply88 < 30) { a = Math.round(a * 0.90); lossMult88 *= 1.10 } /* لجستیک بحرانی */
+          /* ۴) دکترین تدافعی → سپر ۶ساعته برای خودم | هوایی → شناسایی ۶ساعته */
+          if (AT.selfDefFx) {
+            const k = atk88 === 'defensive' ? 'edef' : 'airrecon'
+            w88.data.fx = (w88.data.fx || []).filter((f) => f.k !== k)
+            w88.data.fx.push({ k, until: now88 + AT.selfDefFx, data: atk88 === 'defensive' ? { pct: 25 } : {} })
+            fxUsed88.push(k)
+          }
+          /* ۵) دفاع هدف: اثرات واقعی مدافع + محاصره‌ی دریایی مهاجم + فشار اقتصادی + نفوذ محاصره در استحکامات */
+          try {
+            const dState = await warStateOf(t.userId)
+            const dfx88 = warFxOf(dState.data, now88)
+            if (dfx88.edef) { const pct = Number((dfx88.edef.data || {}).pct) || 15; d = Math.max(1, Math.round(d * (1 + pct / 100))); fxUsed88.push('def_edef') }
+            if (dfx88.sabotaged) { d = Math.max(1, Math.round(d * 0.94)); fxUsed88.push('def_sabotaged') }
+          } catch (e) { console.log('war88def', e) }
+          if (AT.defDown) { d = Math.max(1, Math.round(d * (1 - AT.defDown))); fxUsed88.push('eco_pressure') }
+          if (AT.blockTarget) {
+            const blk = (w88.data.blk || {})[String(t.nick).toLowerCase()]
+            if (blk && blk > now88) { d = Math.max(1, Math.round(d * 0.95)); fxUsed88.push('blockade') }
+          }
+          if (AT.defPen && cvDefPct > 0) {
+            d = Math.max(1, Math.round(d / (1 + cvDefPct / 100) * (1 + cvDefPct * AT.defPen / 100)))
+            fxUsed88.push('def_pen')
+          }
+          supplyAfter88 = Math.round(w88.data.supply || 0)
+          await warStateSave(user.id, w88.data)
+        }
+        /* ================= پایان V88 ================= */
         const chance = Math.min(0.85, Math.max(0.2, 0.5 + (a - d) / (2 * (a + d + 500))))
         const win = Math.random() < chance
         if (rev) await db.revengeMark.update({ where: { id: rev.id }, data: { used: true } })
@@ -1899,7 +2360,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
            defense/captured — before this it always computed 0% and 60% losses and
            syncTerr deleted the just-won territory */
-        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct })
+        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88 })
       }
       case 'pvp_capture_territory': {
         if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
@@ -2038,6 +2499,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           ['olympicChampion', () => db.olympicChampion.deleteMany({})],
           ['olympicArchive', () => db.olympicArchive.deleteMany({})],
           ['seasonPass', () => db.seasonPass.deleteMany({})],
+          /* V88: وضعیت جنگ و تروفی‌ها هم گیم‌پلی‌اند — ریست کامل عرضه */
+          ['warState', () => db.warState.deleteMany({})],
+          ['userTrophy', () => db.userTrophy.deleteMany({})],
         ]
         const wiped: Record<string, number> = {}
         const failed: string[] = []
