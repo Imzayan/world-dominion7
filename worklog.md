@@ -2052,3 +2052,24 @@ Work Log:
 Stage Summary:
 - زنجیره V82→V83→V84 کامل تحویل شد؛ remote==local؛ لینک‌های عمومی سبز
 - ریلیزها: releases/tag/v83 و releases/tag/v84
+
+---
+Task ID: FIX-V85
+Agent: Super Z (main)
+Task: گزارش کاربر — لگ + ورود کند + قیمت‌های جم + باگ افتتاحیه المپیک + ادامه پریمیوم
+
+Work Log:
+- ورود کند: گیت waitSplash حذف شد — نقشه زیر سینماتیک مونتاژ می‌شود (اندازه‌گیری: mount@0.9s در برابر splashGone@2.6s) + invalidateSize تک‌بار در leave
+- پرچم‌ها: ۷۳ فایل جاافتاده در w80 از flagcdn دانلود و کامیت شد — پوشش ۱۰۰٪ کشورهای geo؛ هیچ پرچمی دیگر به CDN خارجی نمی‌رود (علت اصلی «کشورا دیر لود میشن»)
+- لگ: گلس تطبیقی در cv-engine — tier=low → backdrop-filter خاموش برای panel/goals/hchips؛ pointer:coarse → blur 16→10px؛ سیم‌کشی به hysteresis موجود؛ CSS صفر هزینه
+- المپیک (ریشه‌ی «افتتاحیه میزنم انجام نمیشه»): ۱) گارد gPhase33 === به >= — بعد از «دور جدید ادمین» (oly_edoff) اسنپ‌شات فاز سرور برای همیشه رد می‌شد؛ ۲) مسیر open ادمین حالا فلگ wd33open_<ed> را می‌سوزاند و WD33_OPEN_CEREMONY را بلافاصله پخش می‌کند (تا V84 فقط close پخش فوری داشت)
+- قیمت‌ها: PriceSync-v3 — ۱۰۰=۴۰٬۰۰۰ / ۳۰۰=۱۱۰٬۰۰۰ / ۵۵۰=۲۰۰٬۰۰۰ / ۱۰۰۰=۳۸۰٬۰۰۰ تومان (perGem ۴۰۰/۳۶۷/۳۶۴/۳۸۰ — ۵۵۰ بهترین) در route.ts SHOP_PACKS + کامنت کلاینت
+- پریمیوم: کارت‌های طلایی پک جم + نشان «👑 بهترین نرخ» (پارس ارقام فارسی perGem) + قاب طلایی ظریف استیج CV
+- نسخه: v.txt=85، beacon=85، ?v=85 ×3
+- QA: v85-qa 18/18 (پروب مونتاژ-زیر-اسپلش، پرچم 6/6، یونیت گارد ادیشن، پخش ACT-I، ۴ قیمت زنده از shop_catalog، رندر besttag، پینت CV ایران+برزیل، صفر pageerror) + v79 19/19 + v78 27/27 + apk-sim 28/28 + lowfx 6/6 + map-visual 16/16 + sw-selfheal 8/8 + verify-build 9/9 + check-html-js 84/0
+- اسکریپت‌های QA قدیمی v80-v82 در ریست محیط از بین رفته بودند (untracked) — v85-qa.mjs جایگزین تمرکزشده ساخته شد
+- push: rebaseline روی 2d32788 (کامیت موازی ورک‌لاگ) → 02ad8de؛ tag v85؛ Release id=397926151 + ZIP 7,239,342 بایت (state=uploaded)؛ لینک عمومی 200/206
+
+Stage Summary:
+- هر ۴ گزارش کاربر فیکس و پریمیوم ادامه یافت؛ همه‌ی سوئیت‌ها سبز؛ V85 روی گیت‌هاب و ریلیز
+- شواهد: download/v85-worldmap.png، download/v85-cv-brazil.png
