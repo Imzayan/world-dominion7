@@ -2189,3 +2189,31 @@ Stage Summary:
 - سفارش OLYMPICS V2 اکنون کامل است: ۳۶ رشته + شب فینال + هویت ورزشکار + رقیب و چالش + رکوردها + تالار + ماموریت + توکن + حالا رده‌بندی Elo و جفت‌یاب هم‌رده — همه server-authoritative و ضد P2W مطلق
 - باگ پنهان اسکیمای پستگرس (شکننده‌ی بیلد Render) قبل از انتشار فیکس شد
 - گام بعدی پیشنهادی: جدول برترین‌های رده‌بندی کلی (Top Rated) در تب رکوردها یا پروفایل + اعلان «پله عوض شد» با اولویت — داده‌ها آماده‌اند، فقط نمایش
+
+---
+Task ID: V91-APK-Myket-Compliance
+Agent: Super Z (main)
+Task: بازنویسی سیستم آپدیت APK برای انطباق کامل با بازخورد بازبین مایکت — حذف کامل دانلود/نصب مستقیم APK، ارجاع آپدیت فقط به مایکت (Myket Intent)، دیالوغ غیرمسدودکننده، حذف REQUEST_INSTALL_PACKAGES، بیلد ریلیز v1.0.8/vc9
+
+Work Log:
+- PHASE 1 آدیت واقعی (بدون حدس): MainActivity.java خوانده شد — مسیر قدیمی V49: checkUpdate() بعد از ۴ ثانیه + هر ۱۵ دقیقه latest.json را می‌خواند و در صورت نسخه‌ی جدید بدون سؤال downloadApk() (دانلود از Vercel + sha256) و سپس installApk() با PackageInstaller.Session + ACTION_MANAGE_UNKNOWN_APP_SOURCES + PendingIntent INSTALL_STATUS اجرا می‌کرد؛ AndroidManifest حاوی REQUEST_INSTALL_PACKAGES؛ بدون DownloadManager/FileProvider در کل ریپو (rg: فقط ۳ فایل مرتبط)
+- ابزارهای بیلد (aapt2/d8/apksigner/zipalign/android.jar/jdk17) از تاریخچه‌ی گیت (d64cd09) به apk-build/tools/ بازیابی و خارج از استیج نگه داشته شد
+- کیستور قدیمی (گواهی 98:1F:75:F8…، امضای v1.0.1 تا v1.0.7) تأیید شد که غیرقابل بازیابی است (مطابق worklog سشن قبل: جستجوی فایل‌سیستم + کل تاریخچه‌ی گیت + تأیید خود کاربر)
+- MainActivity.java بازنویسی شد (۳۶۹ خط → تمیز): حذف کامل downloadApk/installApk/handleInstallStatus/maybeResumeInstall/updateFile/uiProgress/dismissProgress/sha256/fiels pendingApk/lastDownloadedApk/progressDlg/ACTION_INSTALL_STATUS و importهای PackageInstaller/Settings/Build/streams/MessageDigest؛ checkUpdate جدید: خواندن اطلاعات نسخه از latest.json (۸ ثانیه timeout)، مقایسه‌ی versionCode واقعی پکیج، فقط تشخیص → هیچ دانلودی؛ خطاها (آفلاین/۴۰۴/۵۰۰/JSON نامعتبر/timeout) بی‌صدا با Log.w و بدون قفل بازی؛ چک دوره‌ای ۱۵ دقیقه حفظ شد
+- showUpdateDialog: دیالوغ غیرمسدودکننده با [به‌روزرسانی از مایکت] [ادامه] + cancelable (بک/تپ بیرون = ادامه)؛ dismissedVc جلوگیری از اسپم برای همان نسخه؛ داور مایکت همیشه می‌تواند وارد بازی شود
+- openMyket مطابق مستندات رسمی Myket Intents: Intent ACTION_VIEW با URI رسمی myket://application?id=com.worlddominion.game + setPackage(ir.mservices.market) → اگر مایکت نبود: مرورگر با MYKET_APP_URL (فقط اگر http باشد) → در نهایت پیام راهنمای امن «برای بروزرسانی، صفحه‌ی World Dominion در مایکت را باز کنید.» — هیچ مسیر دانلودی وجود ندارد؛ MYKET_APP_URL = "REPLACE_WITH_REAL_MYKET_APP_URL" (placeholder صریح، URL جعلی ساخته نشد)
+- AndroidManifest: REQUEST_INSTALL_PACKAGES حذف، <queries><package ir.mservices.market> برای package visibility اندروید ۱۱+، بقیه دست‌نخورده (vc9/1.0.8/minSdk21/targetSdk34/INTERNET)
+- WebView/صفحه‌ی آفلاین/GAME_URL دست‌نخورده (فقط GAME_VER 53→90 برای cache-bust همسو با نسخه‌ی وب v90)
+- کیستور ریلیز جدید: download/keystore/world-dominion-release.keystore (RSA 2048، ۳۰ سال، DN یکسان، alias worlddominion، SHA-256 گواهی 09fa0a08…e63) + keystore.properties + README فوری بکاپ — خارج از گیت (gitignore /download/)؛ رمز فقط در فایل محلی و پیام به کاربر
+- اسکریپت بیلد ماندگار scripts/build-apk-myket.sh: aapt2 compile/link → javac17 (target 8, bootclasspath android-34) → d8 --release → zip → zipalign -f 4 → apksigner v1+v2+v3
+- بیلد موفق: public/apk/WorldDominion-v1.0.8.apk (984,569B، sha256 69f1380a…0620)
+- اعتبارسنجی استاتیک: apksigner verify (v1/v2/v3 = true)، badging (vc9/1.0.8/targetSdk34/launchable MainActivity)، xmltree (فقط INTERNET + queries، بدون debuggable)، اسکن dex: PackageInstaller/REQUEST_INSTALL/UNKNOWN_APP_SOURCES/wd_update_/DownloadManager/FileProvider/canRequestPackageInstalls = صفر؛ رشته‌های لازم (myket://، ir.mservices.market، placeholder، فارسی) موجود
+- latest.json → vc9/1.0.8 با URL و sha256 واقعی + یادداشت فارسی (آپدیت فقط مایکت + توضیح حذف/نصب برای دارندگان کلید قدیمی)
+- گیت: tools unstaged، کامیت مسیرهای صریح (e05506f)، اسکن راز پاک (توکن/رمز کیستور/فایل کیستور صفر)، push موفق main→e05506f
+- انتها-به-انتها: دانلود APK از Vercel لایو → sha256 بایت‌به‌بایت با بیلد محلی یکسان؛ latest.json لایو = vc9
+
+Stage Summary:
+- تسک مایکت ۲۷فازی کامل: دانلود/نصب مستقیم APK به‌کلی حذف، PackageInstaller و REQUEST_INSTALL_PACKAGES صفر شدند، آپدیت فقط از طریق Intent رسمی مایکت، دیالوغ هرگز مسدودکننده نیست، رفتار آفلاین/خطا/بدون‌مایکت امن است، WebView و بازی دست‌نخورده
+- APK آماده‌ی ارسال به مایکت: download/WorldDominion-v1.0.8-MyketReady.apk و لینک عمومی https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.8.apk
+- pending برای کاربر: (۱) بکاپ فوری کیستور از download/keystore/ (۲) پس از ساخت صفحه‌ی برنامه در مایکت، MYKET_APP_URL در MainActivity را با آدرس واقعی جایگزین و build-apk-myket.sh را دوباره اجرا کن (بازبینی نسخه‌ی بعدی)
+- تذکر: دارندگان v1.0.x با کلید قدیمی (دانلود مستقیم) باید یک‌بار حذف/نصب کنند — در notes رکورد latest.json مستند شد
