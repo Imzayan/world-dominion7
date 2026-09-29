@@ -2217,3 +2217,17 @@ Stage Summary:
 - APK آماده‌ی ارسال به مایکت: download/WorldDominion-v1.0.8-MyketReady.apk و لینک عمومی https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.8.apk
 - pending برای کاربر: (۱) بکاپ فوری کیستور از download/keystore/ (۲) پس از ساخت صفحه‌ی برنامه در مایکت، MYKET_APP_URL در MainActivity را با آدرس واقعی جایگزین و build-apk-myket.sh را دوباره اجرا کن (بازبینی نسخه‌ی بعدی)
 - تذکر: دارندگان v1.0.x با کلید قدیمی (دانلود مستقیم) باید یک‌بار حذف/نصب کنند — در notes رکورد latest.json مستند شد
+
+---
+Task ID: V91.1-Review-Workflow
+Agent: Super Z (main)
+Task: راه‌اندازی گردش کار بازبینی دو مرحله‌ای — آپدیت‌ها اول در محیط بررسی کاربر، بعد از تایید روی بازی/سایت
+
+Work Log:
+- شاخه‌ی dev از main ساخته و push شد (preview deployment ورسل باید خودکار ساخته شود؛ production دست‌نخورده — prod 200 تأیید شد)
+- حدس URLهای پیش‌نمایش (world-dominion7-git-dev-imzayan / -imzayans-projects) → DEPLOYMENT_NOT_FOUND (اسلاگ ورسل کاربر متفاوت است یا branch deployments خاموش است) — URL یک‌بار از داشبورد کاربر گرفته می‌شود و برای همیشه ثابت است
+- قرارداد APK بتا: فایل آزمایشی در public/apk/beta/ (هرگز در latest.json اشاره نمی‌شود) → bump versionCode فقط بعد از تایید کاربر
+
+Stage Summary:
+- گردش کار جدید: هر تغییر روی dev → لینک پیش‌نمایش → تست کاربر → تایید → merge به main (زنده در ~۱ دقیقه) → در صورت باگ، فیکس روی dev بدون دیدن بازیکنان
+- تغییرات سرور/دیتابیس همیشه backward-compatible با نسخه‌ی زنده اعمال می‌شوند (تست پیش‌نمایش امن بماند)
