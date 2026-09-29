@@ -2246,3 +2246,18 @@ Work Log:
 Stage Summary:
 - URL ثابت پیش‌نمایش ثبت شد: world-dominion7-git-dev-world-dominion.vercel.app — از این به بعد هر push به dev همان لینک را به‌روز می‌کند
 - گردش کار بازبینی رسملا فعال؛ اولین استفاده با اولین آپدیت بعدی
+
+---
+Task ID: V91.3-Preview-Protection-UserBlocked
+Agent: Super Z (main)
+Task: کاربر گفت «گزینه‌ای که می‌گویی نیست» (اسکرین‌شات از کروم موبایل) — رفع انسداد دسترسی به پیش‌نمایش dev
+
+Work Log:
+- اسکرین‌شات کاربر به سرور نرسید (فایل در upload/ موجود نیست) — بدون آن ادامه دادیم
+- راستی‌آزمایی مجدد: world-dominion7-git-dev-world-dominion.vercel.app همچنان 302 به vercel.com/sso-api (Deployment Protection/Vercel Authentication روشن) برای / و /game/index.html
+- جستجوی دسترسی برنامه‌ای: vercel CLI نصب نیست، .vercel/ و VERCEL_TOKEN موجود نیستند → خاموش‌سازی Protection از سمت من ممکن نیست؛ فقط از داشبورد مالک
+- پاسخ به کاربر با دو مسیر: (۱) لینک مستقیم deep-link به صفحه‌ی دقیق تنظیمات: vercel.com/world-dominion/world-dominion7/settings/deployment-protection → Vercel Authentication → Disabled → Save (۲) بدون هیچ تنظیمی: باز کردن لینک پیش‌نمایش و لاگین یک‌باره با اکانت Vercel مالک → کوکی می‌ماند و از آن به بعد لینک همیشه باز می‌شود
+- یادآوری عملیاتی: QA خودکار من قبل از push به‌صورت لوکال اجرا می‌شود؛ دسترسی من به preview صرفا مکمل است و انسداد رویه‌ی بازبینی ایجاد نمی‌کند
+
+Stage Summary:
+- منتظر اقدام کاربر: یا خاموش‌کردن Vercel Authentication با لینک مستقیم، یا لاگین یک‌باره — تا آن زمان preview فقط با لاگین مالک باز می‌شود؛ تولید دست‌نخورده و سالم
