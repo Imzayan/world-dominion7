@@ -2231,3 +2231,18 @@ Work Log:
 Stage Summary:
 - گردش کار جدید: هر تغییر روی dev → لینک پیش‌نمایش → تست کاربر → تایید → merge به main (زنده در ~۱ دقیقه) → در صورت باگ، فیکس روی dev بدون دیدن بازیکنان
 - تغییرات سرور/دیتابیس همیشه backward-compatible با نسخه‌ی زنده اعمال می‌شوند (تست پیش‌نمایش امن بماند)
+
+---
+Task ID: V91.2-Preview-URL-Registered
+Agent: Super Z (main)
+Task: ثبت و راستی‌آزمایی لینک پیش‌نمایش dev از کاربر
+
+Work Log:
+- کاربر لینک را فرستاد: https://world-dominion7-git-dev-world-dominion.vercel.app/ (اسلاگ تیم ورسل = world-dominion)
+- راستی‌آزمایی: دیپلوی dev موجود و فعال؛ اما Vercel Authentication (Deployment Protection) روشن است → بازدید ناشناس 302 به لاگین ورسل (کاورل + API از بیرون قابل تست نیستند)
+- فرق dev/main فقط چک‌پوینت‌های خودکار سندباکس بود (آرتیفکت بیلد + worklog، صفر تغییر کد) → dev به d2eee8e fast-forward و push شد؛ remote main = e05506f (نسخه‌ی تاییدشده‌ی Myket) و تولید سالم
+- pending: کاربر Deployment Protection را خاموش کند (Settings → Deployment Protection → Vercel Authentication → Disabled) تا تست گوشی بدون لاگین + QA خودکار من روی پیش‌نمایش ممکن شود
+
+Stage Summary:
+- URL ثابت پیش‌نمایش ثبت شد: world-dominion7-git-dev-world-dominion.vercel.app — از این به بعد هر push به dev همان لینک را به‌روز می‌کند
+- گردش کار بازبینی رسملا فعال؛ اولین استفاده با اولین آپدیت بعدی
