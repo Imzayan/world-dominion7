@@ -1619,14 +1619,17 @@ function v3Moto(ev: TelemEvent[], seed: string): ScoreResult {
 }
 function v3Rally(ev: TelemEvent[], seed: string): ScoreResult {
   let pts = 0, n = 0
+  /* V92: aS تجمعی — گپ پیچ‌های مجاور همیشه ۱۵۰۰..۲۲۰۰ms. فرمول قبلی 800+i*(1500+700r)
+     با r مستقل می‌توانست گپ مجاورها را تا <380ms برساند یا معکوس کند و تلاش صادقی را
+     impossible_rate/non_monotonic رد کند. رکوردهای قدیمی بازممیزی نمی‌شوند (داور لحظه‌ی ثبت). */
+  let aS = 800
   for (const e of ev) {
     if (e[0] !== 'corner') continue
     const t = Number(e[1]) || 0, qC = Number(e[3])
     const i = n
     if (i >= 6) return { ok: false, score: 0, reason: 'overrun' }
     if (!(qC >= 0 && qC <= 1)) return { ok: false, score: 0, reason: 'bad_q' }
-    const r = rngOf3(seed, 'ral:' + i)
-    const aS = 800 + i * (1500 + r() * 700)
+    aS += 1500 + rngOf3(seed, 'ral:' + i)() * 700
     if (t < aS - 350 || t > aS + 900) return { ok: false, score: 0, reason: 'ghost_timing' }
     pts += Math.round(qC * 130); n++
   }

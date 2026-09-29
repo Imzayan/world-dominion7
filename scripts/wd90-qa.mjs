@@ -80,7 +80,7 @@ let A, APage, AUid
 {
   const r = await boot(NICK_A)
   A = r; APage = r.page
-  check('beacon=90', await APage.evaluate(() => window.__WD_V === 90), String(await APage.evaluate(() => window.__WD_V)))
+  check('beacon>=90', await APage.evaluate(() => window.__WD_V >= 90), String(await APage.evaluate(() => window.__WD_V)))
   check('v90 css injected (tier/matchmaker styles)', !!(await APage.$('#v90-css')))
   AUid = (await ensureTerritory(NICK_A)).id
 

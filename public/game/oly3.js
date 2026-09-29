@@ -2120,7 +2120,9 @@
   G3.rally = function (el, done) {
     var seed = seedOf(); if (!seed) return false;
     var corners = [];
-    for (var i = 0; i < 6; i++) corners.push(800 + i * (1500 + rngOf3(seed, 'ral:' + i)() * 700));
+    /* V92: aS تجمعی — بایت‌سازگار با داور جدید (olyScore.v3Rally) — گپ مجاورها ۱۵۰۰..۲۲۰۰ms */
+    var aSAcc = 800;
+    for (var i = 0; i < 6; i++) { aSAcc += 1500 + rngOf3(seed, 'ral:' + i)() * 700; corners.push(aSAcc) }
     return game('rally', {
       el: el, done: done, col: '#c9a06b', hint: 'وقتی پیچ نزدیک شد درست فرمان بده — دقت فرمان = امتیاز',
       build: function (st) { st.i = 0; st.pts = 0; st.phase = 'ready' },

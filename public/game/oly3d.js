@@ -928,14 +928,16 @@
   /* ============================================================
      ۱۵) رالی 3D — جاده‌ی پیچ‌دار + فرمان زنده + ۶ دروازه
      تله‌متری: corner(t,0,q) — داور: v3Rally (بایت‌سازگار)
-     aS_i = 800+i*(1500+rng('ral:'+i)*700) — پنجره‌ی مجاز سرور
+     aS تجمعی: aS += 1500+rng('ral:'+i)*700 از 800 — پنجره‌ی مجاز سرور
      [aS-350, aS+900] → ثبت در لحظه‌ی عبور از دروازه (aS)
      ideal = sin((i+1)*2.1) → q = clamp(1-|steer-0.4·sin|/0.6,0,1)
      ============================================================ */
   CTRL.rally = function (S) {
     var T3 = S.T3, seed = seedOf(); if (!seed || !M) return false;
     var corners = [];
-    for (var i = 0; i < 6; i++) corners.push(800 + i * (1500 + M.rngOf3(seed, 'ral:' + i)() * 700));
+    /* V92: aS تجمعی — بایت‌سازگار با داور جدید (olyScore.v3Rally) — گپ مجاورها ۱۵۰۰..۲۲۰۰ms */
+    var aSAcc = 800;
+    for (var i = 0; i < 6; i++) { aSAcc += 1500 + M.rngOf3(seed, 'ral:' + i)() * 700; corners.push(aSAcc) }
     var st = { i: 0, pts: 0, steer: 0, steerT: 0, touching: false, tPx: 0.5 };
     S.dbg = st;
     var V = 12; /* سرعت ثابت m/s — زمان = مسافت/V */
@@ -1045,7 +1047,10 @@
           var ideal = Math.sin((st.i + 1) * 2.1);
           var q = clamp(1 - Math.abs(st.steer - 0.4 * ideal) / 0.6, 0, 1);
           q = Math.round(q * 20) / 20;
-          TE('corner', t, 0, q);
+          /* زمان رویداد = زمان فیزیکی عبور (aS قطعی از seed) نه زمان تیکِ مشاهده —
+             stall/فریم‌دراپ هرگز دو پیچ را هم‌زمان ثبت نمی‌کند (گپ داور ۳۸۰ms) و
+             t همیشه دقیقاً وسط پنجره‌ی مجاز سرور [aS−350, aS+900] است. */
+          TE('corner', aS, 0, q);
           st.pts += Math.round(q * 130);
           S.hud.setScore(st.pts);
           gates[st.i].material.color.setHex(q >= 0.8 ? 0x7dff9e : 0xffd75e);

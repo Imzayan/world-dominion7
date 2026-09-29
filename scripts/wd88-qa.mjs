@@ -50,7 +50,7 @@ async function giveSave(userId) {
 const NICK_A = 'q88a' + Math.random().toString(36).slice(2, 7)
 {
   const { ctx, page } = await boot(NICK_A)
-  check('v.txt=90 beacon', await page.evaluate(() => window.__WD_V === 90), String(await page.evaluate(() => window.__WD_V)))
+  check('v.txt>=90 beacon', await page.evaluate(() => window.__WD_V >= 90), String(await page.evaluate(() => window.__WD_V)))
   check('v87 dock still intact (regression)', !!(await page.$('#wd87dock')))
 
   const cat = await rpc(page, 'shop_catalog')

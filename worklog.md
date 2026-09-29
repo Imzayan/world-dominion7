@@ -2300,3 +2300,29 @@ Stage Summary:
 - معماری نهایی V3: فایل جدید public/game/oly3d.js (lazy، self-CSS) — ران‌تایم 3D (renderer یک‌بارمصرف‌دISP، صحنه‌های on-the-fly و dispose کامل، ورزشکار procedural low-poly با اسکلت سلسله‌مراتبی و پوزهای procedural با damping) + ۵ کنترلر رشته که تله‌متری بایت‌سازگار با داورهای v3 فعلی تولید می‌کنند + شبح replay واقعی + HUD فارسی RTL
 - صفر تغییر در olyScore.ts / route.ts / اسکیما / دیتابیس — ریسک مهاجرت صفر، رکوردها دست‌نخورده
 - دو بهبود ایمنی (بدون تغییر سقف امتیاز): گارد 250ms بین شوت‌های کمان (جلوگیری از reject impossible_rate) و تأخیر DQ اسپرینت تا 1800ms (سرور به‌جای reject، پرچم dq_false_start تمیز برمی‌گرداند)
+
+---
+Task ID: V92-OLY3D-PHASE3-8-Implement
+Agent: Super Z (main)
+Task: OLYMPICS V3 — پیاده‌سازی موتور 3D (فازهای ۳ تا ۸) + کشف و رفع دو باگ داوری رالی + QA کامل و push به dev
+
+Work Log:
+- oly3d.js (1281 سطر، فایل جدید public/game/oly3d.js): ران‌تایم 3D با Three.js r160 ESM (vendor عمومی public/game/vendor/three.module.min.js — import پویا، فقط با اولین ورود به 3D)
+  - Performance Manager: DPR سقف‌دار (LOW=1/high=1.8)، blob shadow به‌جای سایه‌ی واقعی، InstancedMesh تماشاگر، dispose کامل صحنه، توقف خودکار با پنهان‌شدن تب، کشف قابلیت WebGL → شکست = سقوط امن به 2D نسل ۳
+  - ورزشکار procedural low-poly (اسکلت سلسله‌مراتبی، پوز با damping) + استادیوم شب (پیست/تماشاگر instanced/دکل نور/پرچم)
+  - ۵ کنترلر رشته (CTRL.sprint/archery/swim/boxing/rally) که تله‌متری بایت‌سازگار با داورهای v3 سرور تولید می‌کنند — داوری/امتیاز/رکورد صفر تغییر قرارداد
+  - تک‌حلقه‌ی rAF از A.loop33 (هیچ حلقه‌ی دائمی جدیدی)؛ شبح = replay واقعی تله‌متری رکورددار (olympic_ghost) + چیپ‌های تمپوی ۴ چک‌پوینت؛ HUD فارسی RTL
+- index.html: بوت V92 (لود تنبل oly3d.js?v=91)، سوییچ «🏟️ استادیوم 3D / 📜 کلاسیک» در intro پنج رشته‌ی پرچم‌دار (localStorage wd3d، پیش‌فرض 3D)، پیش‌بارگیری نرم موتور در openGame33 — همیشه غیرمسدودکننده
+- sw.js: مسیر /game/oly3d.js و vendor/three به کش versioned اضافه شد
+- نسخه: v.txt=91، __WD_V=91، ?v=91 ×۴ (balance/cv-engine/oly3/oly3d) — MainActivity GAME_VER=91 (سورس APK هم‌گام؛ بیلد فقط بعد از تایید)
+- باگ ۱ (کشف با پروب زنده): رالی 3D در فریم‌دراپ/stall چند پیچ را در یک تیک ثبت می‌کرد → timestamp یکسان → داور impossible_rate. فیکس: زمان رویداد = زمان فیزیکی عبور aS (قطعی از seed) نه زمان تیک مشاهده
+- باگ ۲ (ریشه‌ای‌تر): فرمول seed داور v3Rally «800+i*(1500+700r)» با r مستقل می‌توانست گپ پیچ‌های مجاور را <380ms یا معکوس بسازد → ردِ تلاش صادقی (در 2D زنده هم بالقوه!). فیکس قفل‌استپ هر سه‌لایه (olyScore.ts + oly3.js + oly3d.js): aS تجمعی — گپ مجاورها همیشه ۱۵۰۰..۲۲۰۰ms؛ رکوردهای قدیمی بازممیزی نمی‌شوند
+- QA: wd91-qa (V92): ۴۲/۴۲ ×۲ — بوت تنبل/capability/تاگل intro/۵ رشته 3D با تلاش واقعی pointer + پذیرش داور سرور (train score>0 برای هر رشته)/رد ۵ تله‌متری خرابکاری‌شده با دلیل دقیق (no_alternation/ghost_shot/bad_rt/ghost_timing)/بهداشت runtime/fallback 2D/صفر pageerror. هارنس ارتقا یافت: submit per-discipline tag + poll تا ۲۰ ثانیه (headless swiftshader در نشست‌های متوالی ~۴fps — submit دیر می‌رسد، نه هرگز)
+- رگرسیون: wd88 ۳۵/۳۵ (بدون offset — آتش‌بس المپیک)، wd90 ۳۱/۳۱ (چک beacon به >=90 تولرانت)، check-html-js ۸۸/۰، tsc src تمیز
+- اسکرین‌شات: download/v92-{intro-sprint,3d-sprint,3d-archery,3d-rally}.png (استادیوم شب + ورزشکار low-poly + HUD فارسی + شبح واقعی)
+
+Stage Summary:
+- پنج رشته‌ی پرچم‌دار (۱۰۰م/کمان/شنا/بوکس/رالی) حالا با استادیوم 3D قابل بازی‌اند — همان داور سرور، همان امتیاز، همان رکورد؛ سوییچ به 2D همیشه در دسترس
+- دو باگ داوری رالی ریشه‌ای رفع شد (رفتار ناعادلانه‌ی ردِ تلاش صادقی) — هم برای 3D جدید هم 2D زنده
+- همه‌ی ۲۳ قانون مطلق رعایت شد: تک‌موتور (Three.js)، لود تنبل، تک‌حلقه rAF، صفر تغییر دیتابیس/سکیما/داورهای دیگر، صفر داده‌ی جعلی، صفر pay-to-win
+- push به dev → preview برای بازبینی کاربر؛ merge main فقط بعد از تایید
