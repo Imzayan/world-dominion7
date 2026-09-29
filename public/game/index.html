@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=91;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=91"></script>
+  <script>window.__WD_V=92;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=92"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -17314,7 +17314,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=91';
+              s.src='/game/cv-engine.js?v=92';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17325,9 +17325,9 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=91"></script>
+<script src="/game/oly3.js?v=92"></script>
 <script id="v92-oly3d-boot">
-/* ============ OLYMPICS V3 (V92) — بوت نسخه‌ی 3D ============
+/* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
    در intro هاب؛ اگر oly3d لود/parse نشود (WebView قدیم) همه‌چیز
    به موتور 2D نسل ۳ برمی‌گردد — بازی هرگز قفل نمی‌شود. */
@@ -17339,7 +17339,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=91';
+      s.src='/game/oly3d.js?v=92';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -17355,7 +17355,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
         row.innerHTML='<div class="t">نسخه‌ی بازی:</div>'+
           '<button data-m="3d" class="'+(on?'on':'')+'">🏟️ استادیوم 3D</button>'+
           '<button data-m="2d" class="'+(on?'':'on')+'">📜 کلاسیک</button>'+
-          '<span class="hint">همان داور، همان امتیاز — فقط سه‌بعدی</span>';
+          '<span class="hint">تمام‌صفحه سینمایی — همان داور سرور</span>';
         bd.appendChild(row);
         row.querySelectorAll('button[data-m]').forEach(function(b){
           b.addEventListener('click',function(){
