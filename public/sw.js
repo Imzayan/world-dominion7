@@ -37,7 +37,8 @@ self.addEventListener('fetch', (e) => {
   if (url.pathname === '/game/v.txt') return;      // V63 version beacon: always fresh, never intercepted
 
   // 1) immutable vendor + self-hosted flags → cache-first
-  if (IMMUTABLE.indexOf(url.pathname) !== -1 || url.pathname.indexOf('/cdn/flags/') === 0) {
+  if (IMMUTABLE.indexOf(url.pathname) !== -1 || url.pathname.indexOf('/cdn/flags/') === 0 ||
+      url.pathname.indexOf('/game/vendor/') === 0 || url.pathname === '/game/oly3d.js') { /* V92: موتور 3D — versioned query = cache entry تازه */
     e.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((res) => {
         if (res && res.ok) {

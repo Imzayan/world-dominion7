@@ -2277,3 +2277,26 @@ Work Log:
 Stage Summary:
 - گردش کار بازبینی کاملاً فعال: push به dev → همین لینک خودکار به‌روز → تست کاربر → تایید → merge main (~۱ دقیقه لایو)
 - اولین محتوای پیش‌نمایش = همان v90 تاییدشده (صفر تفاوت با تولید) — نقطه‌ی شروع تمیز
+
+---
+Task ID: V92-OLY3D-PHASE0-1-Audit
+Agent: Super Z (main)
+Task: OLYMPICS V3 — PHASE 0 ممیزی کامل + PHASE 1 گزارش معماری (پیش از هر خط کد)
+
+Work Log (یافته‌های ممیزی — فایل/تابع/رفتار/تصمیم):
+- معماری فعلی: public/game/index.html (1.5MB) شامل هاب المپیک: GD33 (ثبت ۳۶ رشته، ~سطر 9368)، فاز سرورمحور gPhase33/WD33_SPHASE، صحنه‌ی #wd33-stage (کرو wg35 + هدر wg33-ic/nm/att/bst + بدنه‌ی #wg33-sbd + پاورقی #wg33-sft)
+- چرخه‌ی تلاش: openGame33=window.WD33_PLAY → intro33 (رسمی/تمرین + انتخابگر شبح جهانی/شخصی) → RPC olympic_start {match_id, seed, token, is_final, att_max, edition} → countdown33 → TELE.begin → GAMES[key](bd,fin) → fin(norm) → finish33 → TELE.end → RPC olympic_submit {p_discipline,p_match_id,p_nonce,p_telemetry,p_score} — امتیاز نهایی فقط بازمحاسبه‌ی سرور
+- oly3.js (133KB، ۳۳ بازی نسل ۳): آینه‌ی بایت‌به‌بایت داور سرور (seedOf3/rngOf3/archRing3/archSway/...)، تک‌حلقه‌ی rAF از طریق A.loop33 (خودتاب با بستن صحنه — sOpen guard)، Pointer Events، میرورها عمومی: window.WD_OLY3.mirrors
+- داور سرور src/lib/olyScore.ts (1787 سطر): Telemetry {s,e,ev[]}, EV_CAP=420, DUR bounds, EV_GAP ضداتوکلیک, withL3L4 (مدت/مونوتونیک/finite/gap), computeScore → SKILL3 (v3, seed-محور) برای دوره≥10 یا train
+- قراردادهای ۵ رشته‌ی V3 (سرور، تاییدشده سطر‌به‌سطر): sprint v3Sprint (go/fs/p — یک‌درمیان، واکنش≥100ms، گپ≥150، ≤120 گام، fs≥2=DQ صفر، dist=strides×1.9، reactPts 100/80/60/35/15، rhythm 1−sd/160 → dist×7.5+react+rhythm×180) | archery v3Archery (draw(i)/shot(ring) — ring=archRing3(seed,i,t,hold) بازمحاسبه، ادعای کلاینت ±1، hold 40..12000، pts=ring×20، پنج‌۹=+60) | swim v3Swim (p side یک‌درمیان گپ≥140، turn فقط در n∈{16,32,48}±3 حداکثر ۳، dist=n×1.55، rhythm 1−sd/170 → dist×7+rhythm×200+Σq×27 (سقف 81)) | boxing v3Boxing=v3CombatGeo('box','ex',9) (tel=floor(rng('box:'+i)×2)، act 0/1/2=بلاک‌بالا/بلاک‌پایین/کانتر، win=act2?rt≤650:(act==tel&&rt≤900)، pts=110+(900−rt)/10، ≤9) | rally v3Rally (corner[t,idx=0,q] — aS=800+i×(1500+rng('ral:'+i)×700)، پنجره‌ی سرور [aS−350,aS+900]، q∈[0,1] → q×130، دقیقاً ۶)
+- کشف مهم: هر ۵ رشته‌ی V3 همین حالا در GD33 موجودند (sprint/archery/swim/boxing/rally) → ارتقای 3D = پوسته‌ی رندر جدید روی همان قرارداد تله‌متری → داور/دیتابیس/رکورد/رده صفر تغییر — قانون «حذف ممنوع/ریست ممنوع» کاملاً برقرار
+- شبح: RPC olympic_ghost تله‌متری واقعی رکورددار جهانی (logJson) + بهترین تلاش رسمی شخصی را برمی‌گرداند → شبح 3D = replay واقعی رویدادها (بدون داده‌ی جعلی، PHASE 12 ✓)
+- cv-engine.js (V78): پیشینه‌ی lazy-load ماژول سنگین — الگوی پذیرفته‌شده؛ oly3.js با <script src="/game/oly3.js?v=90"> سطر 17324 از ابتدا لود می‌شود
+- عملکرد: LOWFX داخل oly3.js (WD60_FX)، DPR=min(2,dpr)؛ loop33 تکی؛ CL cleanup؛ sw.js: IMMUTABLE cache-first برای vendor، /game/v.txt همیشه تازه
+- نسخه‌گذاری: __WD_V=90 (سطر 4)، balance.js?v=90 (سطر 5)، cv-engine.js?v=90 (سطر 17313)، oly3.js?v=90 (سطر 17324)، public/game/v.txt=90 → همه به 91
+- PHASE 2 تصمیم موتور: WebGL موجود در پروژه نیست (cv-engine = canvas 2D) → Three.js r160 ESM vendor شد public/game/vendor/three.module.min.js (670,681B، MIT، jsdelivr) — فقط با import() پویا هنگام ورود به 3D؛ شکست parse (WebView قدیم) = کل فایل oly3d نادیده → سقوط امن به 2D
+
+Stage Summary:
+- معماری نهایی V3: فایل جدید public/game/oly3d.js (lazy، self-CSS) — ران‌تایم 3D (renderer یک‌بارمصرف‌دISP، صحنه‌های on-the-fly و dispose کامل، ورزشکار procedural low-poly با اسکلت سلسله‌مراتبی و پوزهای procedural با damping) + ۵ کنترلر رشته که تله‌متری بایت‌سازگار با داورهای v3 فعلی تولید می‌کنند + شبح replay واقعی + HUD فارسی RTL
+- صفر تغییر در olyScore.ts / route.ts / اسکیما / دیتابیس — ریسک مهاجرت صفر، رکوردها دست‌نخورده
+- دو بهبود ایمنی (بدون تغییر سقف امتیاز): گارد 250ms بین شوت‌های کمان (جلوگیری از reject impossible_rate) و تأخیر DQ اسپرینت تا 1800ms (سرور به‌جای reject، پرچم dq_false_start تمیز برمی‌گرداند)
