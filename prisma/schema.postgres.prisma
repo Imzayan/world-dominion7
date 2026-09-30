@@ -853,3 +853,79 @@ model UserTrophy {
   @@index([userId])
   @@map("user_trophies")
 }
+
+/* ============ SOCIAL & PLAYER IDENTITY V1 (wd-soc) — همه‌ی سطوح server-side ============ */
+model ServerPresence {
+  userId    String   @id @map("user_id")
+  server    Int
+  nick      String
+  state     String   @default("online") /* online|away */
+  lastSeen  DateTime @map("last_seen")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([server, lastSeen])
+  @@map("server_presence")
+}
+
+model SocialProfile {
+  userId    String   @id @map("user_id")
+  title     String   @default("") /* انتخاب از بین Titleهای earned — اعتبارسنجی سمت سرور */
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("social_profiles")
+}
+
+model PlayerFriend {
+  id          String   @id @default(cuid())
+  aUid        String   @map("a_uid") /* نرمال‌سازی: aUid < bUid */
+  bUid        String   @map("b_uid")
+  status      String   @default("pending") /* pending|accepted */
+  requestedBy String   @map("requested_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([aUid, bUid])
+  @@index([bUid])
+  @@map("player_friends")
+}
+
+model PlayerBlock {
+  id         String   @id @default(cuid())
+  uid        String
+  blockedUid String   @map("blocked_uid")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([uid, blockedUid])
+  @@index([blockedUid])
+  @@map("player_blocks")
+}
+
+model PrivateMessage {
+  id        String    @id @default(cuid())
+  server    Int
+  fromUid   String    @map("from_uid")
+  fromNick  String    @map("from_nick")
+  toUid     String    @map("to_uid")
+  toNick    String    @map("to_nick")
+  body      String
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([toUid, createdAt])
+  @@index([fromUid, createdAt])
+  @@map("private_messages")
+}
+
+model PlayerNotif {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  server    Int       @default(1)
+  kind      String    /* dm|freq|freq_ok|ach|attack|oly */
+  title     String
+  body      String    @default("")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("player_notifs")
+}
