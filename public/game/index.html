@@ -3723,6 +3723,88 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
   function openAdvisor(){renderAdvisor();openModal('wd-advisor');try{localStorage.setItem('wd_advisor_seen','1')}catch(e){}}
   $('wd-advisor-btn').onclick=openAdvisor;
   $('wd-news-btn').onclick=()=>{renderNews();openModal('wd-news')};
+  /* ================= U4 — WD_TOUR_V1: آنبوردینگ ۶۰ ثانیه‌ای + مشاور داده‌محور =================
+     منبع داده = وضعیت واقعی بازی (playerRes/infra/Q/wdTerrCount/oilStorageCap) — نه متن ثابت.
+     چک‌کننده رویدادی ۱.۵ ثانیه‌ای فقط تا پایان توالی فعال است؛ صفر هزینه per-frame؛ پس از اتمام خاموش دائمی. */
+  ;(function(){
+    const TK='wd_tour_v1';
+    const STEPS=[
+      {k:'capital',ic:'🏛️',t:'انتخاب پایتخت',d:'روی یک کشور آزاد بزن و آن را پایتخت کن — مرکز اقتصاد و ارتش تو همین‌جا شکل می‌گیرد.'},
+      {k:'army',ic:'🪖',t:'آموزش اولین یگان',d:'در «مرکز آموزش نیرو» یک یگان به صف اضافه کن؛ قدرت حمله از همین‌جا می‌آید.'},
+      {k:'infra',ic:'🏗️',t:'ارتقای زیرساخت',d:'در «لابی ← زیرساخت» یک بخش را ارتقا بده؛ مخزن سقف نفت و کارخانه سرعت آموزش را بالا می‌برد.'},
+      {k:'conquer',ic:'⚔️',t:'گسترش قلمرو',d:'روی یک کشور آزاد بزن و حمله را شروع کن — هر فتح جمعیت و منابع بیشتری می‌دهد.'},
+      {k:'oly',ic:'🥇',t:'ورزشکار شو',d:'وارد هاب المپیک شو و یک رشته را باز کن؛ مدال آبروی ملت است.'}
+    ];
+    let st; try{st=JSON.parse(localStorage.getItem(TK)||'null')}catch(e){}
+    if(!st||typeof st.i!=='number') st={i:0,got:[]};
+    if(st.i>=STEPS.length){return} /* توالی تمام شده — هیچ تایمری ثبت نمی‌شود */
+    const save=()=>{try{localStorage.setItem(TK,JSON.stringify(st))}catch(e){}};
+    const probe={
+      capital:()=>typeof myCountryName!=='undefined'&&!!myCountryName,
+      army:()=>(typeof window.totalRecruits==='number'&&window.totalRecruits>0)||(typeof queued==='function'&&queued()>0),
+      infra:()=>typeof infra!=='undefined'&&!!infra&&((infra.oil|0)+(infra.arms|0)+(infra.air|0)+(infra.storage|0))>0,
+      conquer:()=>typeof wdTerrCount==='function'&&wdTerrCount()>=2,
+      oly:()=>!!(window.WD33_API&&window.WD33_API.isOpen&&window.WD33_API.isOpen())
+    };
+    const T=(m,k)=>{try{(typeof showToast==='function'?showToast:toast)(m,k||'win')}catch(e){}};
+    let chip=null;
+    const chipText=()=>{const s=STEPS[st.i];return s.ic+' هدف بعدی: '+s.t+' ('+(st.i+1)+' از '+STEPS.length+')'};
+    const mountChip=()=>{
+      chip=document.createElement('div');chip.id='wd-tour-chip';
+      chip.style.cssText='position:fixed;bottom:64px;left:50%;transform:translateX(-50%);z-index:2600;background:linear-gradient(160deg,rgba(10,42,72,.95),rgba(4,16,32,.95));border:1px solid rgba(0,220,255,.4);color:#cfeaff;padding:8px 14px;border-radius:14px;font-size:11px;font-weight:900;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4);max-width:92vw;text-align:center';
+      chip.textContent=chipText();
+      chip.onclick=()=>{try{openAdvisor()}catch(e){}};
+      (document.body||document.documentElement).appendChild(chip);
+    };
+    const reward=(idx)=>{
+      if(st.got.indexOf(idx)>=0)return;
+      st.got.push(idx);
+      try{ if(window.WD6&&window.WD6.xp)window.WD6.xp(45,'توالی شروع: '+STEPS[idx].t) }catch(e){}
+      try{ if(typeof playerRes!=='undefined'&&playerRes){playerRes.gold=(playerRes.gold|0)+1500;T('🎁 پاداش: ۱۵۰۰ طلا + ۴۵ XP — '+STEPS[idx].t)}else T('🎁 پاداش: ۴۵ XP — '+STEPS[idx].t) }catch(e){}
+    };
+    let timer=null;
+    const evaluate=()=>{
+      if(document.visibilityState==='hidden')return; /* پس‌زمینه = صفر کار */
+      while(st.i<STEPS.length){ let ok=false; try{ok=!!probe[STEPS[st.i].k]()}catch(e){}
+        if(!ok)break;
+        reward(st.i); st.i++; save();
+        if(st.i<STEPS.length){ T('🎯 مرحله بعدی: '+STEPS[st.i].t) }
+      }
+      if(st.i>=STEPS.length){
+        if(timer){clearInterval(timer);timer=null}
+        if(chip){chip.remove();chip=null}
+        T('🏅 توالی شروع کامل شد — حالا فرمانده‌ی واقعی این دنیایی!','win');
+        return;
+      }
+      if(chip)chip.textContent=chipText();
+    };
+    mountChip(); evaluate();
+    if(st.i<STEPS.length) timer=setInterval(evaluate,1500);
+    window.WD_TOUR_V1={get step(){return st.i},total:STEPS.length}; /* هارنس QA */
+  })();
+
+  /* U4b — مشاور داده‌محور: تزریق «وضعیت الان» از مسیر رسمی wdModalHook (صفر لمسِ کد باز شدن، سازگار با همه‌ی مسیرهای دکمه) */
+  ;(function(){
+    function wdLiveAdvice(){
+      try{
+        const b=document.getElementById('wd-advisor-body');
+        if(!b||document.getElementById('wd-live-advice'))return;
+        const L=[];
+        const add=(ic,tx)=>L.push('<div style="display:flex;gap:6px;align-items:flex-start;margin-top:5px"><span>'+ic+'</span><span style="font-size:11px">'+tx+'</span></div>');
+        try{ if(typeof myCountryName==='undefined'||!myCountryName) add('🏛️','<b>هنوز پایتخت نداری.</b> روی یک کشور آزاد بزن و آن را پایتخت کن — بدون پایتخت اقتصاد و ارتش قفل است.') }catch(e){}
+        try{ if(typeof myCountryName!=='undefined'&&myCountryName){ const t=(typeof wdTerrCount==='function')?wdTerrCount():0,mx=(typeof WD_MAX_COUNTRIES!=='undefined')?WD_MAX_COUNTRIES:'?'; add('🗺️','قلمرو فعلی: <b>'+t+'/'+mx+'</b> کشور'+(t<3?' — هر فتح، پایه‌ی اقتصادی قوی‌تر است.':' — امپراتوری داری!')) } }catch(e){}
+        try{ if(typeof window.oilStorageCap==='function'&&typeof playerRes!=='undefined'&&playerRes){ const cap=window.oilStorageCap()||0,o=playerRes.oil|0; if(cap>0&&o>=cap*0.85) add('🛢️','انبار نفت تقریباً <b>پر</b> است ('+Math.round(o/cap*100)+'٪) — مخزن را ارتقا بده یا در بازار بفروش؛ تولید اضافه هدر می‌رود.') } }catch(e){}
+        try{ if(typeof myCountryName!=='undefined'&&myCountryName&&typeof queued==='function'&&queued()===0) add('🪖','صف آموزش نیرو <b>خالی</b> است — بدون یگان تازه، حمله‌ی بعدی نتیجه‌ی مطمئنی ندارد.') }catch(e){}
+        try{ if(typeof infra!=='undefined'&&infra&&(infra.arms|0)===0&&(infra.oil|0)===0) add('🏗️','هنوز هیچ زیرساختی نساخته‌ای — پالایشگاه نفت درآمد، کارخانه سرعت آموزش و مخزن سقف انبار را بالا می‌برد.') }catch(e){}
+        try{ if(typeof M!=='undefined'&&typeof day==='function'&&M.lastDay!==day()) add('🎁','پاداش ورود روزانه‌ات <b>دریافت نشده</b> — از صفحه‌ی حساب بگیرش.') }catch(e){}
+        if(!L.length) add('✅','همه‌چیز مرتب است — روی مرزها، فناوری و ترکیب نیروها تمرکز کن؛ رقیب‌های واقعی همین حالا دارند پیشرفت می‌کنند.');
+        b.insertAdjacentHTML('afterbegin','<div id="wd-live-advice" class="wd-card" style="border-color:rgba(0,220,255,.35)"><div style="font-size:13px;font-weight:900">🧭 وضعیت الان تو <span style="font-size:9px;color:#7d92ad">(از داده‌ی واقعی بازی)</span></div>'+L.join('')+'</div>');
+      }catch(e){}
+    }
+    try{ if(typeof wdModalHook==='function') wdModalHook('wd-advisor', wdLiveAdvice) }catch(e){}
+    window.WD_LIVE_ADVICE=wdLiveAdvice; /* هارنس QA */
+  })();
+
 
   // ---------- Add storage UI immediately after existing infra rendering ----------
   if(typeof renderLobbyInfra==='function'){
