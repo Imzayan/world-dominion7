@@ -431,6 +431,28 @@ model OlympicAthlete {
   @@map("olympic_athletes")
 }
 
+/* V91 — BOX5: پروفایل دائمی بوکس (کمپین سینمایی «دور آخر») — سرور مرجع مطلق */
+model BoxingSave {
+  userId        String   @id @map("user_id")
+  name          String   @default("")
+  act           Int      @default(0) /* بالاترین پرده‌ی بازشده 0..5 */
+  actClear      String   @default("") /* پرده‌های کامل‌شده «1,2,3» */
+  xp            Int      @default(0)
+  wins          Int      @default(0)
+  losses        Int      @default(0)
+  kos           Int      @default(0)
+  counters      Int      @default(0)
+  dodges        Int      @default(0)
+  perfectRounds Int      @default(0)
+  gloves        Int      @default(14164778)
+  shorts        Int      @default(1710618)
+  buff          String   @default("") /* باف تمرین فعال: defense|power|stamina|reaction */
+  trainJson     String   @default("{}") /* {act:{type:best}} */
+  choiceJson    String   @default("{}") /* {act:choice} */
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  @@map("boxing_saves")
+}
+
 /* ماموریت‌های المپیک هر دوره — پیشرفت فقط از رویدادهای رسمی سرور */
 model OlympicMission {
   id         String  @id @default(cuid())

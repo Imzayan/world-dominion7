@@ -1,0 +1,17 @@
+{
+  "metrics": [
+    {
+      "file": "boxer.glb",
+      "inBytes": 3984952,
+      "outBytes": 510676,
+      "ms": 806
+    },
+    {
+      "file": "ring.glb",
+      "inBytes": 9790480,
+      "outBytes": 1273220,
+      "ms": 637
+    }
+  ],
+  "ts": 1790730212959
+}

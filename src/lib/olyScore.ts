@@ -34,7 +34,7 @@ const EV_GAP: Record<string, Record<string, number>> = {
   weight: { lift: 220 }, cycling: { pedal: 90 }, volley: { hit: 180 }, wrestle: {}, chess: {}, football: { shot: 250 }, lj: { jump: 700 },
   /* V89 — Olympics V2 */
   hurdles: { p: 55, jump: 300 }, run400: { p: 60 }, highjump: { jump: 1200 }, javelin: { throw: 1200 },
-  discus: { throw: 1200 }, shotput: { throw: 1000 }, boxing: { ex: 400 }, fencing: { touch: 350 },
+  discus: { throw: 1200 }, shotput: { throw: 1000 }, boxing: { ex: 400, p: 200, atk: 1200, bell: 3000, rl: 15000, kd: 1200 }, fencing: { touch: 350 },
   judo: { throw: 1000 }, reaction: { go: 250 }, shooting: { shot: 350 }, movingtarget: { hit: 140 },
   sniper: { shot: 700 }, rapidtarget: { hit: 85 }, swim50: { p: 80 }, diving: { dive: 1100 },
   rowing: { stroke: 210 }, kayak: { gate: 110 }, moto: { ob: 55 }, rally: { corner: 380 },
@@ -1419,6 +1419,158 @@ function v3CombatGeo(ev: TelemEvent[], seed: string, salt: string, evtName: stri
   return { ok: true, score: pts }
 }
 const v3Boxing = (ev: TelemEvent[], seed: string): ScoreResult => v3CombatGeo(ev, seed, 'box', 'ex', 9, (rt) => 110 + Math.max(0, Math.round((900 - rt) / 10)), (act, rt, tel) => (act === 2 ? rt <= 650 : act === tel && rt <= 900))
+
+/* ============================================================
+   V91 — BOX5: داور بوکس سینمایی V5 — بازمحاکمه‌ی برنامه‌ی حمله‌ی AI از seed
+   آینه‌ی بایت‌به‌بایت: b5main.rngOf3 + FightCtl.buildPlan (کلاینت)
+   رویدادها (همه عددی):
+     ['v5', t, 3]                → مارکر ورود به داور V5
+     ['bell', t, round]          → شروع راند (کارتبورد ۱.۸s قبل از جنگ)
+     ['atk', t, planIdx, res, 0] → حل حمله‌ی برنامه‌ای AI: res 0 ویس/1 بلاک/2 خورد/3 داوج
+     ['p', t, kindId, res, dmg, counter] → ضربه‌ی بازیکن (زمانِ حل)
+     ['rl', t, round, thrown, landed, defOk, kdMe, kdOp] → خلاصه‌ی راند
+     ['kd', t, who, gotUp]       → ناک‌داون (who 0 بازیکن/1 حریف)
+     ['end', t, verdict, byKo]
+   امتیاز فقط از همین‌ها بازمحاسبه می‌شود — p_score کلاینت هرگز معتبر نیست.
+   ============================================================ */
+const B5_PUNCH: Array<{ score: number; dmgMax: number; stam: number; startup: number; active: number; recovery: number }> = [
+  { score: 9, dmgMax: 8, stam: 4, startup: 0.1, active: 0.06, recovery: 0.16 },   /* jab    */
+  { score: 15, dmgMax: 16, stam: 9, startup: 0.16, active: 0.07, recovery: 0.28 },  /* cross  */
+  { score: 17, dmgMax: 18, stam: 11, startup: 0.21, active: 0.07, recovery: 0.32 }, /* hookL  */
+  { score: 17, dmgMax: 18, stam: 11, startup: 0.21, active: 0.07, recovery: 0.32 }, /* hookR  */
+  { score: 21, dmgMax: 22, stam: 13, startup: 0.25, active: 0.08, recovery: 0.36 }, /* upper  */
+  { score: 13, dmgMax: 13, stam: 8, startup: 0.18, active: 0.07, recovery: 0.27 },  /* body   */
+]
+const B5_ROUNDS = 3, B5_ROUND_LEN = 30, B5_CARD_DELAY = 1800, B5_ATK_TOL = 950, B5_MAX_KD_BONUS = 3 /* زمان‌ها ms — آینه‌ی TELE */
+function b5BuildPlan(seed: string): Array<Array<{ t: number; kind: number }>> {
+  const r = rngOf3(seed, 'plan')
+  const plan: Array<Array<{ t: number; kind: number }>> = []
+  for (let rd = 0; rd < B5_ROUNDS; rd++) {
+    const n = 7 + Math.floor(r() * 4)
+    const list: Array<{ t: number; kind: number }> = []
+    let t = 2.5 + r() * 2.5
+    for (let i = 0; i < n; i++) {
+      const kind = Math.floor(r() * 6)
+      list.push({ t, kind })
+      t += 2.4 + r() * 2.6
+      if (t > B5_ROUND_LEN - 1) break /* انتهای راند — حمله‌های جاافتاده حذف (مونوتونیک می‌ماند) */
+    }
+    plan.push(list)
+  }
+  return plan
+}
+function v5Boxing(ev: TelemEvent[], seed: string): ScoreResult {
+  const plan = b5BuildPlan(seed)
+  const bells: number[] = []
+  let score = 0
+  let chain = 0, chainT = -9
+  let lastLandT = -9
+  let lastPunch: { t: number; p: typeof B5_PUNCH[0] } | null = null
+  let stamCost = 0
+  let kdOpp = 0
+  let endSeen = false, win = 0
+  const rlSeen: Record<number, { thrown: number; landed: number }> = {}
+  let atkSeen = 0
+  let lastCounterWinT = -9
+  /* شمارش رویدادها به ترتیب — تک‌پاس */
+  for (const e of ev) {
+    const kind0 = String(e[0])
+    const t = Number(e[1]) || 0
+    if (kind0 === 'v5') continue
+    if (kind0 === 'bell') {
+      const rd = Math.round(Number(e[2]) || 0)
+      if (rd !== bells.length + 1 || rd > B5_ROUNDS) return { ok: false, score: 0, reason: 'bell_seq' }
+      bells.push(t)
+      atkSeen = 0 /* planIdx هر راند از صفر (آینه‌ی کلاینت) */
+      continue
+    }
+    if (kind0 === 'atk') {
+      const idx = Math.round(Number(e[2]) || 0), res = Math.round(Number(e[3]) || 0)
+      if (bells.length < 1) return { ok: false, score: 0, reason: 'atk_no_bell' }
+      const rd = bells.length - 1
+      const lst = plan[rd]
+      if (!lst) return { ok: false, score: 0, reason: 'plan_round' }
+      if (idx !== atkSeen || idx >= lst.length) return { ok: false, score: 0, reason: 'plan_seq' }
+      const step = lst[idx]
+      const bellT = bells[rd]
+      const expect = bellT + B5_CARD_DELAY + step.t * 1000
+      if (Math.abs(t - expect) > B5_ATK_TOL) return { ok: false, score: 0, reason: 'plan_time' }
+      if (!(res >= 0 && res <= 3)) return { ok: false, score: 0, reason: 'atk_res' }
+      atkSeen++
+      if (res === 1) score += 4
+      else if (res === 3) { score += 6; lastCounterWinT = t }
+      continue
+    }
+    if (kind0 === 'p') {
+      const id = Math.round(Number(e[2]) || 0), res = Math.round(Number(e[3]) || 0)
+      const dmg = Number(e[4]) || 0, counter = Math.round(Number(e[5]) || 0)
+      const P = B5_PUNCH[id]
+      if (!P) return { ok: false, score: 0, reason: 'p_kind' }
+      if (!(res >= 0 && res <= 2)) return { ok: false, score: 0, reason: 'p_res' }
+      if (dmg < 0 || dmg > 34) return { ok: false, score: 0, reason: 'p_dmg' }
+      if ((res === 0) !== (dmg === 0)) return { ok: false, score: 0, reason: 'p_dmg_res' }
+      /* فریم‌های ریکاوری: ضربه‌ی بعدی نه زودتر از startup+active+recovery×۰.۸۵ */
+      if (lastPunch) {
+        const need = (lastPunch.p.startup + lastPunch.p.active + lastPunch.p.recovery * 0.85) * 1000
+        if (t - lastPunch.t < need - 60) return { ok: false, score: 0, reason: 'p_recovery' }
+      }
+      lastPunch = { t, p: P }
+      stamCost += P.stam
+      if (counter) {
+        /* کانتر فقط داخل پنجره‌ی پس از داوج/بلاک موفق معتبر است */
+        if (t - lastCounterWinT > 700) return { ok: false, score: 0, reason: 'ghost_counter' }
+      }
+      if (res === 2) {
+        score += Math.round(P.score * (counter ? 1.6 : 1))
+        if (t - lastLandT < 1100) { chain++; if (chain >= 3) score += 5 } else chain = 1
+        lastLandT = t
+      } else if (res === 1) score += 3
+      continue
+    }
+    if (kind0 === 'kd') {
+      const who = Math.round(Number(e[2]) || 0)
+      if (!(who === 0 || who === 1)) return { ok: false, score: 0, reason: 'kd_who' }
+      if (who === 1) kdOpp++
+      continue
+    }
+    if (kind0 === 'rl') {
+      const rd = Math.round(Number(e[2]) || 0)
+      if (rlSeen[rd]) return { ok: false, score: 0, reason: 'rl_dup' }
+      rlSeen[rd] = { thrown: Math.round(Number(e[3]) || 0), landed: Math.round(Number(e[4]) || 0) }
+      continue
+    }
+    if (kind0 === 'end') {
+      if (endSeen) return { ok: false, score: 0, reason: 'end_dup' }
+      endSeen = true
+      win = Math.round(Number(e[2]) || 0)
+      continue
+    }
+    /* رویداد ناشناخته → رد (بازیدستکاری) */
+    return { ok: false, score: 0, reason: 'v5_unknown:' + kind0.slice(0, 12) }
+  }
+  if (!endSeen) return { ok: false, score: 0, reason: 'no_end' }
+  if (bells.length !== B5_ROUNDS) return { ok: false, score: 0, reason: 'bell_count' }
+  /* استقامت: مجموع هزینه‌ی ضربه‌ها نمی‌تواند از ظرفیت+ریجن فراتر رود */
+  const durS = Math.max(1, ev.length ? (Number(ev[ev.length - 1][1]) || 0) / 1000 : 1)
+  if (stamCost > 100 + 7.5 * durS + 45) return { ok: false, score: 0, reason: 'stam_burst' }
+  /* خلاصه‌ی راند ↔ رویدادهای واقعی */
+  for (const rdS of Object.keys(rlSeen)) {
+    const rd = Number(rdS)
+    if (rd < 1 || rd > B5_ROUNDS) return { ok: false, score: 0, reason: 'rl_round' }
+    const t0 = bells[rd - 1], t1 = rd < bells.length ? bells[rd] : 1e9
+    let thrown = 0, landed = 0
+    for (const e of ev) {
+      if (String(e[0]) !== 'p') continue
+      const tt = Number(e[1]) || 0
+      if (tt > t0 + B5_CARD_DELAY - 600 && tt <= t1 + 2000) { thrown++; if (Math.round(Number(e[3]) || 0) === 2) landed++ }
+    }
+    if (Math.abs(thrown - rlSeen[rdS].thrown) > 3 || Math.abs(landed - rlSeen[rdS].landed) > 3) return { ok: false, score: 0, reason: 'rl_mismatch' }
+  }
+  score += Math.min(B5_MAX_KD_BONUS, kdOpp) * 40
+  if (win === 1) score += 120
+  return { ok: true, score: Math.max(0, Math.round(score)) }
+}
+
 const v3Fencing = (ev: TelemEvent[], seed: string): ScoreResult => v3CombatGeo(ev, seed, 'fen', 'touch', 8, (rt) => 130 + Math.max(0, Math.round((700 - rt) / 8)), (act, rt, tel, i) => { const r = rngOf3(seed, 'fend:' + i); return act === 1 ? (rt >= 120 + r() * 200 && rt <= 620) : act === tel && rt <= 380 })
 function v3Judo(ev: TelemEvent[], seed: string): ScoreResult {
   let pts = 0, n = 0
@@ -1739,6 +1891,14 @@ export function computeScore(key: string, tel: Telemetry | null | undefined, edi
   const fn0 = RECALC[key]
   if (!fn0) return { ok: false, score: 0, reason: 'discipline' }
   /* مدل مسابقه: اگر نشانگر پایان sim وجود دارد → اعتبارسنج شبیه‌سازی، وگرنه مدل tap */
+  /* V91 — BOX5: مارکر v5 → داور بوکس سینمایی (بازمحاکمه‌ی seed) */
+  const isV5 = ev.some((e2) => Array.isArray(e2) && String(e2[0]) === 'v5')
+  if (isV5) {
+    if (key !== 'boxing') return { ok: false, score: 0, reason: 'v5_discipline' }
+    const seed5 = opts && opts.seed ? String(opts.seed) : ''
+    if (!seed5) return { ok: false, score: 0, reason: 'no_seed' }
+    return withL3L4((ev2) => v5Boxing(ev2, seed5), key, tel, ev)
+  }
   const isSim = ev.some((e2) => Array.isArray(e2) && SIM_END.has(String(e2[0])))
   if (isSim && typeof edition === 'number' && edition >= SIM_V2_ED) {
     const v2fn = SIM_V2[key]
