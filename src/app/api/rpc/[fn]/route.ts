@@ -1249,6 +1249,7 @@ async function transferTerritory(server: number, country: string, uid: string, n
     update: { taken, players: rows.length },
   })
   await addNews(server, 'pvp_capture', country, nick, t.nick)
+  void (async () => { try { const cC = await db.territory.count({ where: { userId: uid, server } }); if (cC >= 5) await socAchGrant(uid, 'soc_conq5') } catch {} })() /* SOCIAL V1 */
   await doomHit(4) /* V43: هر فتح بزرگ ساعت آخرالزمان مشترک را ۴ واحد جلو می‌برد */
   /* V69 §26: XP مسیر فصل برای فتح PvP — مستقیم از داور سرور (territory_sync دیگر دوباره اعطا نمی‌کند
      چون کشور همین حالا مالِ همین کاربر شده و در حلقه‌ی grant نمی‌افتد) */
@@ -2149,6 +2150,86 @@ async function cvMilBonus(userId: string, country?: string): Promise<{ atkPct: n
   }
 }
 
+/* ============================================================
+   SOCIAL & PLAYER IDENTITY V1 (wd-soc) — helpers
+   همه‌چیز server-authoritative؛ کلاینت فقط نمایش می‌دهد.
+   ============================================================ */
+const SOC_PRESENCE_STALE_MS = 90_000 /* بعد از این مدت بدون heartbeat → offline */
+const SOC_SRV_CAP = 80   /* قرینه‌ی SRV_CAP کلاینت — سقف کشور هر سرور */
+const SOC_SRV_MAX = 20
+const SOC_DM_MAX = 500
+
+let SOC_STATUS_CACHE: { at: number; data: unknown } = { at: 0, data: null }
+
+type SocAchDef = { fa: string; d: string; cat: string }
+/* کاتالوگ نمایش دستاوردها — هم دستاوردهای اجتماعی جدید، هم trophهای واقعی المپیک موجود */
+const SOC_ACH_ALL: Record<string, SocAchDef> = {
+  soc_first_blood: { fa: 'اولین خون', d: 'نخستین پیروزی در حمله‌ی واقعی PvP', cat: 'war' },
+  soc_war_vet: { fa: 'کهنه‌سرباز جنگ', d: '۲۵ پیروزی در حمله‌ی واقعی PvP', cat: 'war' },
+  soc_conq5: { fa: 'فاتح تازه‌کار', d: 'در اختیار داشتن همزمان ۵ کشور', cat: 'war' },
+  soc_first_dm: { fa: 'اولین پیام', d: 'نخستین پیام خصوصی به یک بازیکن دیگر', cat: 'social' },
+  soc_dm10: { fa: 'دیپلمات میدانی', d: '۱۰ پیام خصوصی ارسال‌شده', cat: 'social' },
+  soc_first_friend: { fa: 'اولین متحد', d: 'نخستین دوستی تأییدشده', cat: 'social' },
+  soc_friend5: { fa: 'شبکه‌ی قدرت', d: '۵ دوستی تأییدشده', cat: 'social' },
+  soc_diplomat: { fa: 'دیپلمات', d: 'عضویت در یک اتحاد', cat: 'diplomacy' },
+  /* نگاشت trophهای المپیک موجود (همان کلیدهای UserTrophy) */
+  rookie: { fa: 'تازه‌وارد المپیک', d: 'نخستین رقابت رسمی المپیک', cat: 'olympics' },
+  veteran25: { fa: 'کهنه‌کار المپیک', d: '۲۵ رقابت رسمی المپیک', cat: 'olympics' },
+  sprint100: { fa: 'صاعقه', d: '۱۰۰ بار دو ۱۰۰ متر', cat: 'olympics' },
+  pr10: { fa: 'شکست‌زن مرزها', d: '۱۰ رکورد شخصی', cat: 'olympics' },
+  podium: { fa: 'سکوبر', d: 'حضور روی سکوی المپیک', cat: 'olympics' },
+  first_gold: { fa: 'طلای المپیک', d: 'نخستین مدال طلا', cat: 'olympics' },
+  top10: { fa: 'صف جلو', d: 'رتبه‌ی ۱۰ جهان در یک رشته', cat: 'olympics' },
+  global_top100: { fa: 'نخبه‌ی جهانی', d: 'رتبه‌ی ۱۰۰ جهان', cat: 'olympics' },
+  bullseye100: { fa: 'تیرانداز ممتاز', d: '۱۰۰ بی‌سایکل در تیراندازی', cat: 'olympics' },
+}
+
+/* صدور دستاورد idempotent + نوتیفیکیشن باز شدن — فقط از نقاط رویداد واقعی سرور */
+async function socAchGrant(userId: string, key: string): Promise<void> {
+  try {
+    const ex = await db.userTrophy.findFirst({ where: { userId, key }, select: { id: true } })
+    if (ex) return
+    await db.userTrophy.create({ data: { userId, key } })
+    const d = SOC_ACH_ALL[key]
+    if (d) await socNotif(userId, 'ach', '🏅 دستاورد باز شد: ' + d.fa, d.d)
+  } catch (e) { console.log('soc-ach', e) }
+}
+
+async function socNotif(userId: string, kind: string, title: string, body = '', server = 1): Promise<void> {
+  try { await db.playerNotif.create({ data: { userId, kind, title: title.slice(0, 120), body: body.slice(0, 200), server } }) } catch (e) { console.log('soc-notif', e) }
+}
+
+function socPair(a: string, b: string): [string, string] { return a < b ? [a, b] : [b, a] }
+
+async function socFriendRow(me: string, peer: string) {
+  const [a, b] = socPair(me, peer)
+  return db.playerFriend.findUnique({ where: { aUid_bUid: { aUid: a, bUid: b } } })
+}
+
+async function socSeasonXp(userId: string): Promise<number> {
+  const agg = await db.seasonPass.aggregate({ where: { userId }, _sum: { xp: true } })
+  return agg._sum.xp || 0
+}
+
+function socLevelOf(totalXp: number): number { return Math.floor(Math.max(0, totalXp) / 500) + 1 }
+
+type SocTitleCtx = { kills: number; conquered: number; economy: number; score: number; fought: number; winRate: number; allied: boolean; olympian: boolean; accAgeD: number; trophies: number; milRank: number }
+/* Titleها فقط از داده‌ی واقعی سرور — تک‌منبع برای profile_get و title_set */
+function socEarnedTitles(c: SocTitleCtx): string[] {
+  const out = ['recruit']
+  if (c.kills >= 50) out.push('commander')
+  if (c.kills >= 250) out.push('general')
+  if (c.fought >= 40 && c.winRate >= 60) out.push('strategist')
+  if (c.conquered >= 10) out.push('conqueror')
+  if (c.allied) out.push('diplomat')
+  if (c.economy >= 1000) out.push('industrialist')
+  if (c.score >= 15000) out.push('tycoon')
+  if (c.olympian) out.push('olympian')
+  if (c.accAgeD >= 30 && c.trophies >= 8) out.push('veteran')
+  if (c.milRank === 1) out.push('world_commander')
+  return out
+}
+
 export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string }> }) {
   const { fn } = await ctx.params
   const user = await getSessionUser()
@@ -2225,6 +2306,326 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           byDay[d].eng[r2.worstEngine] = (byDay[d].eng[r2.worstEngine] || 0) + 1
         }
         return R({ ok: true, days: Object.entries(byDay).map(([day, v]) => ({ day, users: v.n, avg: Math.round(v.sum / v.n), min: v.min, worst: v.eng })).sort((a, b) => a.day.localeCompare(b.day)) })
+      }
+      /* ============================================================
+         SOCIAL & PLAYER IDENTITY V1 (wd-soc) — RPCs
+         ============================================================ */
+      /* وضعیت سرورها برای سلکتور — کش ۴ ثانیه‌ای، صفر COUNT(*) پرتکرار */
+      case 'srv_status': {
+        const nowS = Date.now()
+        if (nowS - SOC_STATUS_CACHE.at < 4000 && SOC_STATUS_CACHE.data) return R(SOC_STATUS_CACHE.data)
+        const tst = await testSrvsGet()
+        const stats = await db.serverStat.findMany()
+        const smap: Record<number, { taken: number; players: number }> = {}
+        for (const s of stats) smap[s.server] = { taken: s.taken, players: s.players }
+        const cutS = new Date(nowS - SOC_PRESENCE_STALE_MS)
+        const pres = await db.serverPresence.groupBy({ by: ['server'], where: { lastSeen: { gt: cutS } }, _count: { _all: true } })
+        const pmap: Record<number, number> = {}
+        for (const p of pres) pmap[p.server] = p._count._all
+        const firsts = await db.worldNews.groupBy({ by: ['server'], _min: { createdAt: true } })
+        const fmap: Record<number, number> = {}
+        for (const f of firsts) if (f._min.createdAt) fmap[f.server] = f._min.createdAt.getTime()
+        const evOly = await evOn('olympic').catch(() => false)
+        const season = shopSeasonSlug()
+        const servers: Array<Record<string, unknown>> = []
+        let firstLockedAdded = false
+        for (let k = 1; k <= SOC_SRV_MAX; k++) {
+          const t = smap[k]?.taken || 0
+          const open = !tst.includes(k) && (k === 1 || tst.includes(k - 1) || (smap[k - 1]?.taken || 0) >= SOC_SRV_CAP)
+          const isTest = tst.includes(k)
+          if (!open && !isTest && t === 0) {
+            if (!firstLockedAdded && servers.length) { firstLockedAdded = true; servers.push({ server: k, status: 'locked', taken: 0, players: 0, online: 0, cap: SOC_SRV_CAP, world_day: 1, event: '' }) }
+            continue
+          }
+          const status = isTest ? 'maintenance' : (t >= SOC_SRV_CAP ? 'full' : 'online')
+          const wd = fmap[k] ? Math.max(1, Math.floor((nowS - fmap[k]) / 86400000) + 1) : 1
+          servers.push({ server: k, status, taken: t, players: smap[k]?.players || 0, online: pmap[k] || 0, cap: SOC_SRV_CAP, world_day: wd, event: evOly ? 'olympic' : '' })
+          if (servers.length >= 9) break
+        }
+        const out = { ok: true, season: { slug: season.slug, fa: season.fa }, servers }
+        SOC_STATUS_CACHE = { at: nowS, data: out }
+        return R(out)
+      }
+      /* heartbeat presence — سرور از Score خودش خوانده می‌شود نه از ادعای کلاینت */
+      case 'presence_ping': {
+        const rawSt = String(args.p_state || 'online')
+        if (rawSt === 'offline') { await db.serverPresence.deleteMany({ where: { userId: user.id } }); return R({ ok: true }) }
+        const st = rawSt === 'away' ? 'away' : 'online'
+        const scP = await db.score.findUnique({ where: { userId: user.id }, select: { server: true } })
+        const server = scP?.server || 1
+        await db.serverPresence.upsert({
+          where: { userId: user.id },
+          create: { userId: user.id, server, nick: user.nick, state: st, lastSeen: new Date() },
+          update: { server, nick: user.nick, state: st, lastSeen: new Date() },
+        })
+        return R({ ok: true })
+      }
+      case 'presence_list': {
+        const cutL = new Date(Date.now() - SOC_PRESENCE_STALE_MS)
+        const rowsL = await db.serverPresence.findMany({ where: { lastSeen: { gt: cutL } }, select: { userId: true, server: true, nick: true, state: true }, take: 400, orderBy: { lastSeen: 'desc' } })
+        return R({ ok: true, rows: rowsL.map((r) => ({ uid: r.userId, server: r.server, nick: r.nick, state: r.state })) })
+      }
+      /* شمارنده‌های نشان‌ها — یک رفت‌وبرگشت برای سه بج */
+      case 'social_unread': {
+        const [dmC, nfC] = await Promise.all([
+          db.privateMessage.count({ where: { toUid: user.id, readAt: null } }),
+          db.playerNotif.count({ where: { userId: user.id, readAt: null } }),
+        ])
+        const fRows = await db.playerFriend.findMany({ where: { OR: [{ aUid: user.id }, { bUid: user.id }], status: 'pending' }, select: { requestedBy: true } })
+        return R({ ok: true, dm: dmC, notif: nfC, freq: fRows.filter((x) => x.requestedBy !== user.id).length })
+      }
+      /* پروفایل بازیکن — تجمیع فقط از داده‌ی معتبر سرور؛ هیچ email/uuid/منابع خصوصی */
+      case 'profile_get': {
+        const uidG = String(args.p_uid || user.id)
+        const tu = await db.user.findUnique({ where: { id: uidG }, select: { id: true, nick: true, createdAt: true } })
+        if (!tu) return R({ ok: false, error: 'no_user' })
+        const sc = await db.score.findUnique({ where: { userId: tu.id } })
+        const server = sc?.server || 1
+        const [mil0, eco0, pow0] = await Promise.all([
+          db.score.count({ where: { server, kills: { gt: sc?.kills || 0 } } }),
+          db.score.count({ where: { server, economy: { gt: sc?.economy || 0 } } }),
+          db.score.count({ where: { server, score: { gt: sc?.score || 0 } } }),
+        ])
+        const milRank = mil0 + 1, ecoRank = eco0 + 1, powRank = pow0 + 1
+        const wars = await db.battleLog.findMany({ where: { server, OR: [{ attacker: tu.nick }, { defender: tu.nick }] }, select: { attacker: true, defender: true, win: true }, orderBy: { createdAt: 'desc' }, take: 500 })
+        let wins = 0, losses = 0
+        for (const w of wars) { const mine = w.attacker === tu.nick ? w.win : !w.win; if (mine) wins++; else losses++ }
+        const fought = wars.length
+        const winRate = fought ? Math.round((wins * 1000) / fought) / 10 : 0
+        const ratings = await db.olympicRating.findMany({ where: { userId: tu.id }, select: { rating: true } })
+        const olyBest = ratings.reduce((m, r) => Math.max(m, r.rating), 0)
+        const olyRank = ratings.length ? await db.olympicRating.count({ where: { rating: { gt: olyBest } } }) + 1 : 0
+        const olyGold = await db.userTrophy.findFirst({ where: { userId: tu.id, key: 'first_gold' }, select: { id: true } })
+        const totalXp = await socSeasonXp(tu.id)
+        const level = socLevelOf(totalXp)
+        const am = await db.allianceMember.findFirst({ where: { userId: tu.id } })
+        const al = am ? await db.alliance.findUnique({ where: { id: am.allianceId } }) : null
+        const pr = await db.serverPresence.findUnique({ where: { userId: tu.id } })
+        const online = pr && pr.lastSeen.getTime() > Date.now() - SOC_PRESENCE_STALE_MS ? pr.state : 'offline'
+        const tro = await db.userTrophy.findMany({ where: { userId: tu.id }, orderBy: { at: 'desc' } })
+        const soc = await db.socialProfile.findUnique({ where: { userId: tu.id } })
+        /* Titles — فقط از داده‌ی واقعی سرور مشتق می‌شود */
+        const accAgeD = Math.floor((Date.now() - tu.createdAt.getTime()) / 86400000)
+        const earned = socEarnedTitles({
+          kills: sc?.kills || 0, conquered: sc?.conquered || 0, economy: sc?.economy || 0, score: sc?.score || 0,
+          fought, winRate, allied: !!al, olympian: !!olyGold || olyBest >= 1400,
+          accAgeD, trophies: tro.length, milRank,
+        })
+        const chosen = soc?.title && earned.includes(soc.title) ? soc.title : earned[earned.length - 1]
+        /* رابطه‌ی بیننده با هدف — برای دکمه‌های کارت */
+        const isMe = tu.id === user.id
+        const fr = isMe ? null : await socFriendRow(user.id, tu.id)
+        const blk = isMe ? null : await db.playerBlock.findFirst({ where: { OR: [{ uid: user.id, blockedUid: tu.id }, { uid: tu.id, blockedUid: user.id }] } })
+        const friend_status = !fr ? 'none' : (fr.status === 'accepted' ? 'accepted' : (fr.requestedBy === user.id ? 'pending_out' : 'pending_in'))
+        return R({
+          ok: true,
+          p: {
+            is_me: isMe, nick: tu.nick, joined: tu.createdAt.toISOString(), server,
+            online, level, xp_total: totalXp,
+            power: sc?.score || 0, conquered: sc?.conquered || 0, kills: sc?.kills || 0, economy: sc?.economy || 0, recruits: sc?.recruits || 0,
+            ranks: { military: milRank, economy: ecoRank, power: powRank, olympic: olyRank || null },
+            olympic: { best_rating: olyBest, gold: !!olyGold },
+            wars: { fought, wins, losses, win_rate: winRate },
+            alliance: al ? { name: al.name, tag: al.tag } : null,
+            titles: earned, title: chosen,
+            achievements: tro.map((t) => ({ key: t.key, at: t.at.toISOString() })),
+            social: { friend_status, dm_allowed: !blk, blocked_by_me: !!(blk && blk.uid === user.id) },
+          },
+          catalog: SOC_ACH_ALL,
+        })
+      }
+      /* انتخاب Title — فقط از بین earnedهای همان لحظه (اعتبارسنجی سرور) */
+      case 'title_set': {
+        const want = String(args.p_title || '')
+        const my = await db.score.findUnique({ where: { userId: user.id } })
+        const srv = my?.server || 1
+        const [milBetter, am2, troC, goldT] = await Promise.all([
+          db.score.count({ where: { server: srv, kills: { gt: my?.kills || 0 } } }),
+          db.allianceMember.findFirst({ where: { userId: user.id }, select: { id: true } }),
+          db.userTrophy.count({ where: { userId: user.id } }),
+          db.userTrophy.findFirst({ where: { userId: user.id, key: 'first_gold' }, select: { id: true } }),
+        ])
+        const rB = await db.olympicRating.aggregate({ where: { userId: user.id }, _max: { rating: true } })
+        const meU = await db.user.findUnique({ where: { id: user.id }, select: { createdAt: true } })
+        const accD = meU ? Math.floor((Date.now() - meU.createdAt.getTime()) / 86400000) : 0
+        const bl = await db.battleLog.findMany({ where: { server: srv, OR: [{ attacker: user.nick }, { defender: user.nick }] }, select: { attacker: true, win: true }, take: 300 })
+        let w2 = 0
+        for (const x of bl) { if (x.attacker === user.nick ? x.win : !x.win) w2++ }
+        const winR = bl.length ? Math.round((w2 * 1000) / bl.length) / 10 : 0
+        const earned2 = socEarnedTitles({
+          kills: my?.kills || 0, conquered: my?.conquered || 0, economy: my?.economy || 0, score: my?.score || 0,
+          fought: bl.length, winRate: winR, allied: !!am2, olympian: !!goldT || (rB._max.rating || 0) >= 1400,
+          accAgeD: accD, trophies: troC, milRank: milBetter + 1,
+        })
+        if (!earned2.includes(want)) return R({ ok: false, error: 'not_earned' })
+        await db.socialProfile.upsert({ where: { userId: user.id }, create: { userId: user.id, title: want }, update: { title: want } })
+        return R({ ok: true, title: want })
+      }
+      /* ---------------- دوستی‌ها ---------------- */
+      case 'friend_add': {
+        const rF = rateLimit(req, 'frq:' + user.id, 10, 60_000)
+        if (rF) return rF
+        const toF = String(args.p_uid || '')
+        if (!toF || toF === user.id) return R({ ok: false, error: 'bad' })
+        const tuF = await db.user.findUnique({ where: { id: toF }, select: { id: true, nick: true } })
+        if (!tuF) return R({ ok: false, error: 'no_user' })
+        const blkF = await db.playerBlock.findFirst({ where: { OR: [{ uid: user.id, blockedUid: toF }, { uid: toF, blockedUid: user.id }] } })
+        if (blkF) return R({ ok: false, error: 'blocked' })
+        const exF = await socFriendRow(user.id, toF)
+        if (exF) {
+          if (exF.status === 'accepted') return R({ ok: false, error: 'already' })
+          if (exF.requestedBy === user.id) return R({ ok: false, error: 'already' })
+          /* درخواست متقابل → تأیید خودکار */
+          await db.playerFriend.update({ where: { id: exF.id }, data: { status: 'accepted' } })
+          await socNotif(toF, 'freq_ok', '🤝 ' + user.nick + ' درخواست دوستی تو را تأیید کرد', '', (await db.score.findUnique({ where: { userId: toF }, select: { server: true } }))?.server || 1)
+          void socAchGrant(user.id, 'soc_first_friend')
+          void socAchGrant(toF, 'soc_first_friend')
+          return R({ ok: true, status: 'accepted' })
+        }
+        const [a2, b2] = socPair(user.id, toF)
+        await db.playerFriend.create({ data: { aUid: a2, bUid: b2, status: 'pending', requestedBy: user.id } })
+        await socNotif(toF, 'freq', '🤝 درخواست دوستی از ' + user.nick, 'در بخش پیام‌ها پاسخ بده')
+        return R({ ok: true, status: 'pending' })
+      }
+      case 'friend_reply': {
+        const toR = String(args.p_uid || '')
+        const acc = !!args.p_accept
+        const rowR = await socFriendRow(user.id, toR)
+        if (!rowR || rowR.status !== 'pending' || rowR.requestedBy === user.id) return R({ ok: false, error: 'gone' })
+        if (acc) {
+          await db.playerFriend.update({ where: { id: rowR.id }, data: { status: 'accepted' } })
+          await socNotif(toR, 'freq_ok', '🤝 ' + user.nick + ' درخواست دوستی تو را تأیید کرد')
+          void socAchGrant(user.id, 'soc_first_friend')
+          void socAchGrant(toR, 'soc_first_friend')
+          const cF = await db.playerFriend.count({ where: { OR: [{ aUid: user.id }, { bUid: user.id }], status: 'accepted' } })
+          if (cF >= 5) { void socAchGrant(user.id, 'soc_friend5'); void socAchGrant(toR, 'soc_friend5') }
+          return R({ ok: true, status: 'accepted' })
+        }
+        await db.playerFriend.delete({ where: { id: rowR.id } })
+        return R({ ok: true, status: 'none' })
+      }
+      case 'friend_remove': {
+        const toX = String(args.p_uid || '')
+        const rowX = await socFriendRow(user.id, toX)
+        if (rowX) await db.playerFriend.delete({ where: { id: rowX.id } })
+        return R({ ok: true })
+      }
+      case 'friend_list': {
+        const rowsFL = await db.playerFriend.findMany({ where: { OR: [{ aUid: user.id }, { bUid: user.id }] }, orderBy: { updatedAt: 'desc' }, take: 200 })
+        const peers = rowsFL.map((r) => (r.aUid === user.id ? r.bUid : r.aUid))
+        const cutFL = new Date(Date.now() - SOC_PRESENCE_STALE_MS)
+        const [us, pres] = await Promise.all([
+          db.user.findMany({ where: { id: { in: peers } }, select: { id: true, nick: true } }),
+          db.serverPresence.findMany({ where: { userId: { in: peers }, lastSeen: { gt: cutFL } }, select: { userId: true, state: true } }),
+        ])
+        const nmap: Record<string, string> = {}; for (const u of us) nmap[u.id] = u.nick
+        const pmapF: Record<string, string> = {}; for (const p of pres) pmapF[p.userId] = p.state
+        return R({
+          ok: true,
+          friends: rowsFL.map((r) => {
+            const pid = r.aUid === user.id ? r.bUid : r.aUid
+            return { uid: pid, nick: nmap[pid] || '؟', status: r.status, mine: r.requestedBy === user.id, state: pmapF[pid] || 'offline' }
+          }),
+        })
+      }
+      /* ---------------- بلاک — enforcement سمت سرور در dm_send/friend_add ---------------- */
+      case 'block_set': {
+        const toB = String(args.p_uid || '')
+        const on = args.p_on !== false
+        if (!toB || toB === user.id) return R({ ok: false, error: 'bad' })
+        if (on) {
+          await db.playerBlock.upsert({ where: { uid_blockedUid: { uid: user.id, blockedUid: toB } }, create: { uid: user.id, blockedUid: toB }, update: {} })
+          const rowB = await socFriendRow(user.id, toB)
+          if (rowB) await db.playerFriend.delete({ where: { id: rowB.id } })
+        } else {
+          await db.playerBlock.deleteMany({ where: { uid: user.id, blockedUid: toB } })
+        }
+        return R({ ok: true, blocked: on })
+      }
+      case 'block_list': {
+        const rowsB = await db.playerBlock.findMany({ where: { uid: user.id }, take: 200 })
+        const usB = await db.user.findMany({ where: { id: { in: rowsB.map((r) => r.blockedUid) } }, select: { id: true, nick: true } })
+        const nB: Record<string, string> = {}; for (const u of usB) nB[u.id] = u.nick
+        return R({ ok: true, blocks: rowsB.map((r) => ({ uid: r.blockedUid, nick: nB[r.blockedUid] || '؟' })) })
+      }
+      /* ---------------- پیام خصوصی ---------------- */
+      case 'dm_send': {
+        const rD = rateLimit(req, 'dm:' + user.id, 8, 60_000)
+        if (rD) return rD
+        const toD = String(args.p_to_uid || '')
+        const bodyD = String(args.p_body || '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim().slice(0, SOC_DM_MAX)
+        if (!toD || toD === user.id || !bodyD) return R({ ok: false, error: 'bad' })
+        const tuD = await db.user.findUnique({ where: { id: toD }, select: { id: true, nick: true } })
+        if (!tuD) return R({ ok: false, error: 'no_user' })
+        const blkD = await db.playerBlock.findFirst({ where: { OR: [{ uid: user.id, blockedUid: toD }, { uid: toD, blockedUid: user.id }] } })
+        if (blkD) return R({ ok: false, error: 'blocked' })
+        const [mS, tS] = await Promise.all([
+          db.score.findUnique({ where: { userId: user.id }, select: { server: true } }),
+          db.score.findUnique({ where: { userId: toD }, select: { server: true } }),
+        ])
+        const msrv = mS?.server || 1, tsrv = tS?.server || 1
+        if (msrv !== tsrv) return R({ ok: false, error: 'different_server' })
+        const msg = await db.privateMessage.create({ data: { server: msrv, fromUid: user.id, fromNick: user.nick, toUid: toD, toNick: tuD.nick, body: bodyD } })
+        await socNotif(toD, 'dm', '💬 پیام خصوصی از ' + user.nick, bodyD.slice(0, 80), msrv)
+        void (async () => {
+          try {
+            await socAchGrant(user.id, 'soc_first_dm')
+            const cD = await db.privateMessage.count({ where: { fromUid: user.id } })
+            if (cD >= 10) await socAchGrant(user.id, 'soc_dm10')
+          } catch {}
+        })()
+        return R({ ok: true, id: msg.id })
+      }
+      case 'dm_threads': {
+        const rowsT = await db.privateMessage.findMany({ where: { OR: [{ fromUid: user.id }, { toUid: user.id }] }, orderBy: { createdAt: 'desc' }, take: 400 })
+        const byT = new Map<string, { uid: string; nick: string; last: string; at: string; unread: number }>()
+        for (const m of rowsT) {
+          const pid = m.fromUid === user.id ? m.toUid : m.fromUid
+          const pnick = m.fromUid === user.id ? m.toNick : m.fromNick
+          const e = byT.get(pid) || { uid: pid, nick: pnick, last: '', at: '', unread: 0 }
+          if (!e.last) { e.last = m.body; e.at = m.createdAt.toISOString() }
+          if (m.toUid === user.id && !m.readAt) e.unread++
+          byT.set(pid, e)
+        }
+        const uidsT = [...byT.keys()].slice(0, 100)
+        const cutT = new Date(Date.now() - SOC_PRESENCE_STALE_MS)
+        const presT = uidsT.length ? await db.serverPresence.findMany({ where: { userId: { in: uidsT }, lastSeen: { gt: cutT } }, select: { userId: true, state: true } }) : []
+        const pmapT: Record<string, string> = {}; for (const p of presT) pmapT[p.userId] = p.state
+        const threads = [...byT.values()].slice(0, 100).map((t) => ({ ...t, state: pmapT[t.uid] || 'offline' })).sort((a, b) => b.at.localeCompare(a.at))
+        return R({ ok: true, threads })
+      }
+      case 'dm_thread': {
+        const peer = String(args.p_uid || '')
+        if (!peer || peer === user.id) return R({ ok: false, error: 'bad' })
+        const tuT = await db.user.findUnique({ where: { id: peer }, select: { id: true, nick: true } })
+        if (!tuT) return R({ ok: false, error: 'no_user' })
+        const rowsTh = await db.privateMessage.findMany({
+          where: { OR: [{ fromUid: user.id, toUid: peer }, { fromUid: peer, toUid: user.id }] },
+          orderBy: { createdAt: 'desc' }, take: 200,
+        })
+        const blkTh = await db.playerBlock.findFirst({ where: { OR: [{ uid: user.id, blockedUid: peer }, { uid: peer, blockedUid: user.id }] } })
+        await db.privateMessage.updateMany({ where: { toUid: user.id, fromUid: peer, readAt: null }, data: { readAt: new Date() } })
+        const cutTh = new Date(Date.now() - SOC_PRESENCE_STALE_MS)
+        const prTh = await db.serverPresence.findUnique({ where: { userId: peer } })
+        const state = prTh && prTh.lastSeen.getTime() > cutTh.getTime() ? prTh.state : 'offline'
+        return R({
+          ok: true,
+          peer: { uid: tuT.id, nick: tuT.nick, state },
+          blocked: !!blkTh,
+          blocked_by_me: !!(blkTh && blkTh.uid === user.id),
+          msgs: rowsTh.slice().reverse().map((m) => ({ id: m.id, mine: m.fromUid === user.id, body: m.body, at: m.createdAt.toISOString(), read: m.fromUid === user.id ? !!m.readAt : undefined })),
+        })
+      }
+      /* ---------------- نوتیفیکیشن‌ها — فقط منابع واقعی سرور ---------------- */
+      case 'notif_list': {
+        const rowsN = await db.playerNotif.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 60 })
+        return R({ ok: true, items: rowsN.map((n) => ({ id: n.id, kind: n.kind, title: n.title, body: n.body, at: n.createdAt.toISOString(), unread: !n.readAt })) })
+      }
+      case 'notif_read': {
+        const idN = String(args.p_id || 'all')
+        if (idN === 'all') await db.playerNotif.updateMany({ where: { userId: user.id, readAt: null }, data: { readAt: new Date() } })
+        else await db.playerNotif.updateMany({ where: { id: idN, userId: user.id }, data: { readAt: new Date() } })
+        return R({ ok: true })
       }
       case 'get_wallet': {
         const serverW = Math.max(1, Number(args.p_server) || 1)
@@ -2786,6 +3187,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         /* V34: battle log feeds the 48h war-heatmap layer */
         try { await db.battleLog.create({ data: { server, kind: 'attack', country, attacker: user.nick, defender: t.nick, win } }) } catch (e) { console.log('blog', e) }
+        /* SOCIAL V1 — نوتیف حمله به مدافع (رویداد واقعی) + دستاوردهای جنگی fire-and-forget */
+        try { await socNotif(t.userId, 'attack', win ? ('⚔️ کشور ' + country + ' سقوط کرد') : ('🛡️ دفاع موفق در ' + country), win ? (user.nick + ' کشور تو را تصرف کرد') : (user.nick + ' به ' + country + ' حمله کرد و شکست خورد'), server) } catch (e) { console.log('soc-att', e) }
+        if (win) void (async () => { try { await socAchGrant(user.id, 'soc_first_blood'); const wv = await db.battleLog.count({ where: { server, attacker: user.nick, win: true } }); if (wv >= 25) await socAchGrant(user.id, 'soc_war_vet') } catch {} })()
         /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
            defense/captured — before this it always computed 0% and 60% losses and
            syncTerr deleted the just-won territory */
@@ -2907,6 +3311,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           ['electionWinner', () => db.electionWinner.deleteMany({})],
           ['mentorOffer', () => db.mentorOffer.deleteMany({})],
           ['mentorLink', () => db.mentorLink.deleteMany({})],
+          /* SOCIAL V1 — جداول اجتماعی هم در ریست کامل صفر می‌شوند */
+          ['serverPresence', () => db.serverPresence.deleteMany({})],
+          ['socialProfile', () => db.socialProfile.deleteMany({})],
+          ['playerFriend', () => db.playerFriend.deleteMany({})],
+          ['playerBlock', () => db.playerBlock.deleteMany({})],
+          ['privateMessage', () => db.privateMessage.deleteMany({})],
+          ['playerNotif', () => db.playerNotif.deleteMany({})],
           ['allianceMember', () => db.allianceMember.deleteMany({})],
           ['alliance', () => db.alliance.deleteMany({})],
           ['hofTitle', () => db.hofTitle.deleteMany({})],
@@ -4380,6 +4791,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           const a = await db.alliance.create({ data: { server, name, tag, ownerUid: user.id, ownerNick: user.nick } })
           await db.allianceMember.create({ data: { allianceId: a.id, userId: user.id, nick: user.nick, role: 'owner' } })
           await addNews(server, 'alliance_new', null, name + ' [' + tag + ']', user.nick)
+          void socAchGrant(user.id, 'soc_diplomat') /* SOCIAL V1 */
           return R({ ok: true, id: a.id, tag })
         } catch (e) {
           const c = (e as { code?: string })?.code
@@ -4431,6 +4843,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           throw e
         }
         await addNews(server, 'alliance_join', null, user.nick, a.tag)
+        void socAchGrant(user.id, 'soc_diplomat') /* SOCIAL V1 */
         return R({ ok: true, tag: a.tag })
       }
       case 'alliance_leave': {
@@ -4465,12 +4878,22 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       case 'get_world_chat': {
         const server = Number(args.p_server || 1)
         const limit = Math.min(200, Math.max(1, Number(args.p_limit || 100)))
-        const rows = await db.worldChat.findMany({ where: { server }, orderBy: { createdAt: 'desc' }, take: limit })
+        /* SOCIAL V1 — فیلتر بلاک دوطرفه سمت سرور + نشانگر آنلاین (سازگار رو به عقب: فیلدهای قدیمی دست‌نخورده) */
+        const blkC = await db.playerBlock.findMany({ where: { OR: [{ uid: user.id }, { blockedUid: user.id }] }, select: { uid: true, blockedUid: true } })
+        const hideC = new Set<string>()
+        for (const b of blkC) hideC.add(b.uid === user.id ? b.blockedUid : b.uid)
+        const rows = await db.worldChat.findMany({ where: { server, userId: { notIn: [...hideC] } }, orderBy: { createdAt: 'desc' }, take: limit })
+        const cutC = new Date(Date.now() - SOC_PRESENCE_STALE_MS)
+        const presC = await db.serverPresence.findMany({ where: { server, lastSeen: { gt: cutC } }, select: { userId: true, state: true } })
+        const pmapC: Record<string, string> = {}
+        for (const p of presC) pmapC[p.userId] = p.state
         return R(rows.map((r) => ({
           user_id: r.userId,
           nick: r.nick,
           message: r.message,
           created_at: r.createdAt.toISOString(),
+          online: !!pmapC[r.userId],
+          state: pmapC[r.userId] || 'offline',
         })))
       }
 
