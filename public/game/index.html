@@ -18280,10 +18280,11 @@ function btn(label,icon,cls){var b=D.createElement('button');b.className='wds-bt
 function errOf(e){var m=(e&&(e.message||e))||'';if(m==='blocked')return 'ارسال پیام به این بازیکن ممکن نیست';if(m==='different_server')return 'این بازیکن در سرور دیگری است';if(m==='no_user')return 'بازیکن پیدا نشد';if(m==='already')return 'قبلاً ثبت شده';if(m==='not_earned')return 'این عنوان هنوز باز نشده';return 'عملیات ناموفق بود'}
 
 /* ---------------- Server Selector + Status ---------------- */
+function curSrv(){try{return (typeof SRV!=='undefined'&&SRV)||st.srv}catch(e){return st.srv}}
 function getSrv(){var now=Date.now();if(st.srvCache&&now-st.srvAt<5000)return Promise.resolve(st.srvCache);
   var t0=performance.now();
   return rpc('srv_status').then(function(d){st.ping=Math.round(performance.now()-t0);st.srvCache=d;st.srvAt=Date.now();
-    var mine=null;(d.servers||[]).forEach(function(s){if(s.server===st.srv)mine=s});
+    var mine=null;var CS=curSrv();(d.servers||[]).forEach(function(s){if(s.server===CS)mine=s});st.srv=CS;
     if(mine)st.online=mine.online||0;return d})}
 function servers(){mkModal('wd-servers','سرورهای جهانی','server');openModal('wd-servers');renderServers();
   clearInterval(st.timers.srv);st.timers.srv=setInterval(function(){var mm=D.getElementById('wd-servers');if(!mm||!mm.classList.contains('active')){clearInterval(st.timers.srv);return}renderServers()},5000)}
@@ -18297,7 +18298,7 @@ function srvBadge(s){var cls,txt;
 function renderServers(){var b=D.getElementById('wd-servers-b');if(!b)return;
   getSrv().then(function(d){
     var h='<div class="wds-sub" style="margin:2px 2px 10px;white-space:normal">فصل '+esc((d.season&&d.season.fa)||'—')+' · هر سرور یک دنیای مستقل با چت، اقتصاد و جنگ خودش است.</div>';
-    (d.servers||[]).forEach(function(s){var mine=s.server===st.srv;
+    (d.servers||[]).forEach(function(s){var mine=s.server===curSrv();
       h+='<div class="wds-scard'+(mine?' wds-mine':'')+'">'
        +'<div style="display:flex;align-items:center;gap:8px">'+ic('server',20)+'<b style="flex:1;color:#fff;font-size:13px">SERVER '+faN(s.server)+(mine?' <span style="color:#38e08e">(تو اینجایی)</span>':'')+'</b>'+srvBadge(s)+'</div>'
        +'<div style="display:flex;align-items:baseline;gap:6px;margin:9px 0 3px"><b style="font-size:20px;color:#38e08e">'+faN(s.online)+'</b><span class="wds-sub">آنلاین از '+faN(s.players)+' بازیکن</span><span style="flex:1"></span><span class="wds-sub">'+faN(s.taken)+'/'+faN(s.cap)+' کشور</span></div>'
@@ -18308,7 +18309,7 @@ function renderServers(){var b=D.getElementById('wd-servers-b');if(!b)return;
     b.innerHTML=h;
     var en=b.querySelector('[data-srventer]');if(en)en.addEventListener('click',function(){closeModal('wd-servers')});
   }).catch(function(){dead(b,'وضعیت سرورها در دسترس نیست — اتصال اینترنت را بررسی کن.')})}
-function srvLabel(){return st.srvCache?'🖥️ S'+faN(st.srv)+' · '+faN(st.online)+' آنلاین':'🖥️ —'}
+function srvLabel(){return st.srvCache?'🖥️ S'+faN(curSrv())+' · '+faN(st.online)+' آنلاین':'🖥️ —'}
 
 /* ---------------- Notifications ---------------- */
 function notifs(){mkModal('wd-notifs','اعلان‌ها','bell');openModal('wd-notifs');renderNotifs()}
