@@ -1,9 +1,14 @@
 /* diff every model+field between the two prisma schemas */
 import fs from 'fs';
 const parse = (p) => {
-  const src = fs.readFileSync(p, 'utf8');
+  /* U3-fix (root cause): @default("{}") و کامنت‌های JSON حاوی '}' بودند و regex قبلی بدنه‌ی مدل را
+     زودتر می‌بُرد → هشدار کاذب CvCountry/tech. اول مقادیر default و کامنت‌ها خنثی، بعد استخراج
+     بدنه تا '}' در ابتدای خط (بستن واقعی مدل). */
+  const src = fs.readFileSync(p, 'utf8')
+    .replace(/@default\("(?:[^"\\]|\\.)*"\)/g, '@default("")')
+
   const out = {};
-  for (const m of src.matchAll(/model (\w+) \{([^}]*)\}/g)) {
+  for (const m of src.matchAll(/model (\w+) \{([^]*?\n\})/g)) {
     const fields = m[2].split('\n').map(l => l.trim().replace(/\/\*[\s\S]*?\*\//g, '').trim()).filter(l => l && !l.startsWith('//') && !l.startsWith('@@')).map(l => l.split(/\s+/)[0]);
     out[m[1]] = fields;
   }

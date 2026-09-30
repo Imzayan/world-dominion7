@@ -72,3 +72,6 @@ scripts/
 apk-build/tools/
 scripts/next44.log
 *.idsig
+
+# U5: باینری‌های خروجی build APK — هرگز در گیت (فقط خروجی نهایی public/apk/ می‌ماند)
+apk-build/build/
