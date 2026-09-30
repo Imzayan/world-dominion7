@@ -2459,3 +2459,23 @@ Work Log:
 Stage Summary:
 - production روی https://world-dominion7.vercel.app اکنون v94 است: کمپین بوکس V5 (مسیر انحصاری box5) + المپیک V4 چهار رشته‌ی 3D + آنبوردینگ ۶۰ثانیه‌ای + مشاور داده‌محور + جنگ اتحاد هفتگی + تلومتری FPS + ابزار release — همه‌ی گیت‌ها سبز، صفر راز، بدون تغییر مخرب DB (مدل‌های جدید BoxingSave/AllianceOp/PerfDaily قبلاً روی DB مشترک push شده بودند)
 - pending برای کاربر: (۱) تست production/گوشی — به‌خصوص جنگ اتحاد، آنبوردینگ و بوکس؛ (۲) بازگرداندن keystore از بکاپ به download/keystore/ تا APK v1.0.9/vc10 را همان‌جا بیلد و امضا کنم؛ (۳) پس از ساخت صفحه‌ی مایکت، MYKET_APP_URL واقعی جایگزین placeholder شود
+
+---
+Task ID: SOCIAL-V1
+Agent: Super Z (main)
+Task: WORLD DOMINION — SOCIAL & PLAYER IDENTITY SYSTEM V1 (۳۵بندی) — audit → architecture → implementation → QA → release v95
+
+Work Log:
+- AUDIT: شیم supabase-js خودمیزبان (rpc→/api/rpc، from→/api/db، auth→/api/auth/*)؛ multi-server واقعی موجود (SRV_COUNT=5/SRV_CAP=80/ServerStat/WorldChat.server)؛ موتورهای reuse: UserTrophy+evalAchievements، SeasonPass+passAddXp، rateLimit/clientIp، addNews، OlympicRating، Score، BattleLog، Alliance — هیچ نسخه‌ی دومی ساخته نشد
+- DB: ۶ مدل جدید در هر دو گویش (server_presence/social_profiles/player_friends/player_blocks/private_messages/player_notifs) — db push سبز، schema-diff «identical»، admin_reset هر ۶ جدول را صفر می‌کند
+- SERVER (+424 خط): ۱۷ RPC — srv_status (کش ۴s، online واقعی از presence، وضعیت online/full/maintenance/locked، season+world_day+event) | presence_ping (سرور از Score، نه ادعای کلاینت) | presence_list | social_unread | profile_get (تجمیع Score/BattleLog/Alliance/UserTrophy/OlympicRating/presence + ranks، resolve با uid یا nick، بدون email/uuid/منابع) | title_set (اعتبارسنجی earned) | friend_add/reply/remove/list | block_set/list | dm_send (بلاک دوطرفه + rate 8/min + هم‌سروری) | dm_threads/dm_thread (read receipts) | notif_list/read + ارتقای get_world_chat (فیلتر بلاک سمت سرور + نشانگر آنلاین، سازگار رو به عقب) + دستاوردهای واقعی روی رویدادها (pvp win→first_blood/war_vet، conquer≥5، alliance→diplomat، dm→first_dm/dm10، friend→first_friend/friend5) + socEarnedTitles تک‌منبع (۱۱ Title)
+- CLIENT: بلوک WDS (CSS tokens + sprite SVG ۲۹ نماد + ماژول) — سلکتور سرور با پینگ واقعی، چیپ‌های HUD پیام/اعلان با بج، ارتقای ردیف‌های چت جهانی (آواتار/نقطه‌ی آنلاین/نیک قابل کلیک)، Messages/DM به سبک پیام‌رسان (read receipt، composer با Enter، بلاک‌نوت)، پروفایل کامل (آمار/رده‌بندی/عنوان انتخابی/دستاوردها/دوستی/بلاک)، دوستان (درخواست‌ها/آنلاین/آفلاین)، اعلان‌ها (mark all)، کاتالوگ دستاوردها گروهی — touch target ≥44px، safe-area، انیمیشن سبک transform-only، تایمرها فقط هنگام باز بودن پنل + تیک ۳۰s سوار بر sync موجود
+- اتصال‌های حداقلی به کد موجود: renderSrvChip (برچسب آنلاین زنده)، hud-srv (باز کردن سلکتور جدید)، loadChat (ردیف ارتقایافته)، WD_CLICK_HOOKS.post (دکمه‌ی پروفایل در کشوی کشور رقیب) — هیچ کد بازی بازنویسی نشد
+- فیکس‌های حین QA: boot قطعی (sb/ACC لکسیکال‌اند نه window.*؛ sbBridge دیر mirror می‌کند → typeof bare + هook enterOnline دوم + start idempotent)؛ uid-direction تست‌ها؛ بالانس try/catch wrap؛ برچسب SRV زنده (curSrv)
+- QA: wd95-social-qa **35/35** (۲ کاربر واقعی: presence آنلاین، چت متقابل+بلاک‌فیلتر، دوستی چرخه کامل، DM با رسید دیده‌شد، دستاوردهای رویدادی، title نه‌کسب‌شده رد، اعلان‌ها mark-all، بلاک سروری DM/friend/chat، جداسازی cross-server، ۵ مودال UI، صفر pageerror) | رگرسیون: wd91-e2e 3/3 (داور بوکس) + wd90 32/32 (دوئل/Elo/المپیک) + wd94-tour 7/7 + wd94-ally 11/11 (پس از باز کردن واقعی پنجره با oly_admin_shift — علت ۶ فیل اولیه «window» زمان‌گیت بود نه رگرسیون) + wd91-qa/wd88-qa این چرخه اجرا نشد (سنگین؛ مسیرهای اصلی با e2e/90 پوشش داده شد) | گیت‌ها: check-html 89/0، verify-build 9/9، schema-diff identical، tsc src تمیز، release.mjs هر ۵ گیت سبز (v94→v95)
+- شواهد: download/v95-servers.png، v95-profile.png، v95-messages.png، v95-notifs.png، v95-world-chat.png، v95-hud-chips.png
+- دامنه‌ی صادقانه‌ی V1: مهاجرت بین سرورها فقط نمایش وضعیت (تخصیص خودکار موجود دست‌نخورده) — جابه‌جایی دستی = فاز بعد؛ منابع زنده‌ی اقتصادی در پروفایل نمایش داده نمی‌شود (داده‌ی خصوصی سیو)؛ آواتار = مونوگرام رنگی از nick (کازمتیک فروشگاه = فاز بعد)
+
+Stage Summary:
+- سیستم اجتماعی و هویت بازیکن V1 کامل و server-authoritative: دنیای زنده با presence واقعی، چت جهانی ارتقایافته، پیام خصوصی امن با بلاک سروری، پروفایل/عنوان/دستاورد/دوستی/اعلان — همه روی داده‌ی واقعی سرور و بدون هیچ P2W
+- نسخه v95 همگام (v.txt+beacon+?v×5+GAME_VER)؛ dev آماده‌ی push برای preview
