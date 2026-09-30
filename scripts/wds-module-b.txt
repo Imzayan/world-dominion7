@@ -198,7 +198,14 @@ var tries=0,bootIv=setInterval(function(){tries++;
   if((typeof sb!=='undefined')&&sb&&(typeof ACC!=='undefined')&&ACC&&ACC.uid){clearInterval(bootIv);try{if(window.SRV)st.srv=SRV}catch(e){}start()}
   else if(tries>300)clearInterval(bootIv)},800);
 /* تریگر قطعی دوم: پس از ورود آنلاین — بدون رقابت زمانی */
-try{var _eoW=enterOnline;enterOnline=async function(u,nick){var r=await _eoW(u,nick);try{if(!st.uid&&(typeof ACC!=='undefined')&&ACC&&ACC.uid&&(typeof sb!=='undefined')&&sb){try{if(window.SRV)st.srv=SRV}catch(e){}start()}}return r}}catch(e){console.log('wds-eo',e)}
+try{
+  var _eoW=enterOnline;
+  enterOnline=async function(u,nick){
+    var r=await _eoW(u,nick);
+    try{if(!st.uid&&(typeof ACC!=='undefined')&&ACC&&ACC.uid&&(typeof sb!=='undefined')&&sb){try{if(window.SRV)st.srv=SRV}catch(e){}start()}}catch(e){}
+    return r
+  }
+}catch(e){console.log('wds-eo',e)}
 window.WDS={servers:servers,msgs:msgs,dm:dm,profile:profile,notifs:notifs,friends:friends,achs:achs,tick:tick,
   srvLabel:srvLabel,av:av,dot:dot,reload:function(){st.srvAt=0;getSrv()}};
 })();
