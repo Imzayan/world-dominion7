@@ -684,6 +684,7 @@ model Alliance {
   createdAt DateTime @default(now()) @map("created_at")
 
   members AllianceMember[]
+  ops      AllianceOp[]
 
   @@unique([server, tag])
   @@map("alliances")
@@ -702,6 +703,25 @@ model AllianceMember {
   @@unique([userId])
   @@index([allianceId])
   @@map("alliance_members")
+}
+/* U7 — عملیات هفتگی اتحاد (جنگ اتحاد): امتیاز فقط از رویدادهای واقعی سرور — فتح PvP/برد دوئل/المپیک رسمی */
+model AllianceOp {
+  id         String    @id @default(cuid())
+  allianceId String    @map("alliance_id")
+  weekKey    String    @map("week_key")
+  goal       Int
+  progress   Int       @default(0)
+  contribs   String    @default("{}") /* JSON userId->سهم هفته (سقف ۶۰۰ هر عضو — ضد مونوپولی) */
+  rewarded   String    @default("[]") /* JSON userId[] — جایزه‌ی تکمیل یک‌بار برای هر عضو */
+  doneAt     DateTime? @map("done_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  alliance Alliance @relation(fields: [allianceId], references: [id], onDelete: Cascade)
+
+  @@unique([allianceId, weekKey])
+  @@index([weekKey])
+  @@map("alliance_ops")
 }
 
 /* V36: admin-controlled global switches (KV) — the owner turns events on/off manually */

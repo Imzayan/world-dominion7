@@ -3608,6 +3608,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     if(a==='alliance_new')return '🤝 اتحاد «'+who+'» توسط '+whom+' تاسیس شد — عضویت از مرکز اجتماعی باز است.';
     if(a==='alliance_join')return '🤝 '+who+' به اتحاد ['+whom+'] پیوست.';
     if(a==='alliance_gone')return '💨 اتحاد «'+who+'» منحل شد.';
+    if(a==='alliance_war')return '⚔️ اتحاد '+who+' هدف جنگی هفته را کامل کرد — ۳۰ جم جایزه برای هر عضو واریز شد.';
     return who+(fa?(' در '+fa):'')+' اقدامی انجام داد.';
   };
   try{ /* V30fix: purge legacy «در null» ticker rows cached from older versions */
@@ -11105,7 +11106,7 @@ const errFa=r=>{const e=r&&r.e?(String(r.e.message||r.e.code||'')):((r&&r.d&&r.d
 function cdTxt(ms){if(!(ms>0))return '—';const m=Math.max(0,Math.round(ms/60000));if(m<60)return faN(m)+' دقیقه';const h=Math.floor(m/60),mm=m%60;if(h<48)return faN(h)+' ساعت و '+faN(mm)+' دقیقه';return faN(Math.floor(h/24))+' روز'}
 
 /* ---------- shared state + badge exports (chat / leaderboard consume these) ---------- */
-const S={open:false,tab:'duel',duels:null,elect:null,allyList:null,allyInfo:null,mentor:null,revenge:[],tags:{},pres:null,streakSt:null,heat:false,heatL:null,heatData:null,poster:null,pollT:null};
+const S={open:false,tab:'duel',duels:null,elect:null,allyList:null,allyInfo:null,allyOp:null,mentor:null,revenge:[],tags:{},pres:null,streakSt:null,heat:false,heatL:null,heatData:null,poster:null,pollT:null};
 window.WD34_PRES=()=>S.pres?S.pres.nick:null;
 window.WD34_TAG=uid=>{try{return S.tags[uid]||null}catch(e){return null}};
 window.WD34_STREAK=()=>S.streakSt;
@@ -11135,7 +11136,8 @@ async function refresh34(){
   const srv=SRV();
   if(S.tab==='duel'){const r=await wx('duel_list',{p_server:srv});if(r.ok)S.duels=r.d}
   else if(S.tab==='ally'){const a=await wx('alliance_list',{p_server:srv});if(a.ok)S.allyList=a.d;
-    const i=await wx('alliance_info',{p_server:srv});S.allyInfo=i.ok?i.d:null}
+    const i=await wx('alliance_info',{p_server:srv});S.allyInfo=i.ok?i.d:null;
+    const o=await wx('alliance_op',{});if(o.ok)S.allyOp=o.d}
   else if(S.tab==='elect'){const e=await wx('election_status',{p_server:srv});if(e.ok){S.elect=e.d;S.pres=e.d?e.d.president||null:null}}
   else if(S.tab==='mentor'){const m=await wx('mentor_status',{p_server:srv});if(m.ok)S.mentor=m.d}
   else if(S.tab==='poster'){if(!S.poster)await makePoster()}
@@ -11224,7 +11226,7 @@ function renderDuel(b){
 function renderAlly(b){
   const L=S.allyList||{list:[],mine_tag:null,mine_id:null},I=S.allyInfo;
   let h='';
-  if(I){h+='<div class="wd34-card"><div class="wd34-h">🤝 ['+esc(I.tag)+'] '+esc(I.name)+'<small>قدرت جمعی: '+num(I.power)+'</small></div>'+
+  if(I){const O=S.allyOp&&S.allyOp.op;const pct=(O&&O.goal)?Math.min(100,Math.round(O.progress/O.goal*100)):0;h+='<div class="wd34-card"><div class="wd34-h">⚔️ عملیات هفتگی اتحاد<small>هدف مشترک: '+(O?num(O.goal):'۲٬۰۰۰')+' امتیاز جنگی این هفته</small></div>'+(O?'<div style="height:8px;border-radius:6px;background:rgba(255,255,255,.1);overflow:hidden;margin:7px 0"><i style="display:block;height:100%;width:'+pct+'%;background:linear-gradient(90deg,#ff4d6d,#ffd75e)"></i></div>'+'<div class="wd34-mini">'+(O.done?'✅ هدف کامل شد — ۳۰ جم برای هر عضو واریز می‌شود':'🎯 پیشرفت: <b>'+num(O.progress)+'</b> از '+num(O.goal)+' • سهم تو: <b>'+num(O.my)+'</b> از سقف ۶۰۰ • 👥 '+num(O.members)+' عضو')+'</div>'+(O.done?'':'<div class="wd34-mini">⚔️ فتح PvP +۱۲۰ • 🥇 برد دوئل +۵۰ • 🏅 المپیک رسمی امتیاز÷۱۰۰ — فقط رویدادهای واقعی سرور، خریدنی نیست</div>'):'<div class="wd34-mini">این هفته هنوز عملیاتی ثبت نشده — با اولین فتح/دوئل/المپیک رسمیِ اعضا، جنگ اتحاد شروع می‌شود</div>')+'</div>';h+='<div class="wd34-card"><div class="wd34-h">🤝 ['+esc(I.tag)+'] '+esc(I.name)+'<small>قدرت جمعی: '+num(I.power)+'</small></div>'+
     '<div class="wd34-mini">رهبر: <b>'+esc(I.owner)+'</b> — '+faN(I.members.length)+' از ۱۰ عضو</div>'+
     I.members.map(m=>'<div class="wd34-row"><b>'+esc(m.nick)+'</b>'+(m.role==='owner'?'<span class="wd34-mini">👑</span>':'')+'<span class="grow"></span><span class="wd34-mini">⭐ '+num(m.score)+' • 🏴 '+faN(m.terr)+'</span></div>').join('')+
     '<button class="wd34-btn red" id="wd34-al leave" style="margin-top:9px">🚪 خروج از اتحاد'+(I.i_am_owner?' (رهبر = انحلال در صورت تنها ماندن)':'')+'</button></div>'}

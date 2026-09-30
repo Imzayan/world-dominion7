@@ -978,6 +978,41 @@ function weekKey(d = new Date()): string {
   return `${date.getUTCFullYear()}-W${week}`
 }
 
+/* ================= U7 — عملیات هفتگی اتحاد (جنگ اتحاد) =================
+   امتیاز فقط از رویدادهای واقعی سرور: فتح PvP +۱۲۰ • برد دوئل +۵۰ • المپیک رسمی امتیاز÷۱۰۰ (سقف ۳۰ در هر ثبت).
+   سقف سهم هفتگی هر عضو ۶۰۰ (ضد مونوپولی) — هدف ۲۰۰۰ — تکمیل = خبر جهانی + ۳۰ جم برای هر عضو (یک‌بار). */
+const OP_GOAL = 2000
+const OP_CAP = 600
+const opWeekKey = () => {
+  const d = new Date()
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  const wd = t.getUTCDay() || 7
+  t.setUTCDate(t.getUTCDate() - wd + 1)
+  return t.toISOString().slice(0, 10)
+}
+async function opAccrue(userId: string, pts: number) {
+  try {
+    pts = Math.max(1, Math.min(200, Math.round(pts)))
+    const mem = await db.allianceMember.findFirst({ where: { userId } })
+    if (!mem) return
+    const wk = opWeekKey()
+    const op = await db.allianceOp.upsert({ where: { allianceId_weekKey: { allianceId: mem.allianceId, weekKey: wk } }, create: { allianceId: mem.allianceId, weekKey: wk, goal: OP_GOAL }, update: {} })
+    if (op.doneAt) return
+    const contribs = JSON.parse(op.contribs || '{}') as Record<string, number>
+    const old = contribs[userId] || 0
+    const mine = Math.min(OP_CAP, old + pts)
+    const add = mine - old
+    if (add <= 0) return
+    contribs[userId] = mine
+    const progress = Math.min(OP_GOAL, op.progress + add)
+    const done = progress >= OP_GOAL && !op.doneAt
+    await db.allianceOp.update({ where: { id: op.id }, data: { contribs: JSON.stringify(contribs), progress, doneAt: done ? new Date() : undefined } })
+    if (done) {
+      const a = await db.alliance.findUnique({ where: { id: mem.allianceId } })
+      if (a) { try { await addNews(a.server, 'alliance_war', null, a.name + ' [' + a.tag + ']', 'هدف جنگی هفته کامل شد') } catch (e) {} }
+    }
+  } catch (e) { console.log('opAccrue', e) }
+}
 async function addNews(server: number, action: string, country: string | null, actorNick: string | null, targetNick: string | null) {
   try {
     await db.worldNews.create({ data: { server, action, country, actorNick, targetNick } })
@@ -1218,6 +1253,7 @@ async function transferTerritory(server: number, country: string, uid: string, n
   /* V69 §26: XP مسیر فصل برای فتح PvP — مستقیم از داور سرور (territory_sync دیگر دوباره اعطا نمی‌کند
      چون کشور همین حالا مالِ همین کاربر شده و در حلقه‌ی grant نمی‌افتد) */
   passAddXp(uid, 'conquest').catch(() => {})
+  try { await opAccrue(uid, 120) } catch (e) {} /* U7 — فتح PvP = +۱۲۰ امتیاز جنگ اتحاد */
   return { ok: true, prevOwner }
 }
 
@@ -2127,6 +2163,29 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
   try {
     switch (fn) {
       /* ---------------- wallet / shop ---------------- */
+      /* U7 — وضعیت عملیات هفتگی اتحاد + واریز جایزه‌ی تکمیل (هر عضو یک‌بار، اتمیک) */
+      case 'alliance_op': {
+        const memOp = await db.allianceMember.findFirst({ where: { userId: user.id } })
+        if (!memOp) return R({ ok: true, has_alliance: false })
+        const wk = opWeekKey()
+        const op = await db.allianceOp.findUnique({ where: { allianceId_weekKey: { allianceId: memOp.allianceId, weekKey: wk } } })
+        if (!op) return R({ ok: true, has_alliance: true, op: null })
+        const rewarded = JSON.parse(op.rewarded || '[]') as string[]
+        let rewardedNow = 0
+        if (op.doneAt && !rewarded.includes(user.id)) {
+          try {
+            await db.$transaction([
+              db.wallet.updateMany({ where: { userId: user.id }, data: { gems: { increment: 30 } } }),
+              db.allianceOp.update({ where: { id: op.id }, data: { rewarded: JSON.stringify([...rewarded, user.id]) } }),
+            ])
+            rewardedNow = 30
+          } catch (e) { console.log('alliance_op reward', e) }
+        }
+        const members = await db.allianceMember.count({ where: { allianceId: memOp.allianceId } })
+        const contribs = JSON.parse(op.contribs || '{}') as Record<string, number>
+        const top = Object.entries(contribs).sort((a, b) => (b[1] || 0) - (a[1] || 0)).slice(0, 10).map(([u, v]) => ({ u, v }))
+        return R({ ok: true, has_alliance: true, op: { week_key: wk, goal: op.goal, progress: op.progress, done: !!op.doneAt, my: contribs[user.id] || 0, members, rewarded_now: rewardedNow, top } })
+      }
       case 'get_wallet': {
         const serverW = Math.max(1, Number(args.p_server) || 1)
         const { w, granted, vipGranted } = await dailyBonus(user.id)
@@ -3453,6 +3512,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             }
           } catch (e) {}
         }
+        try { await opAccrue(user.id, Math.min(30, Math.round(score / 100))) } catch (e) {} /* U7 — المپیک رسمی */
+        try { if (typeof challengeInfo !== 'undefined' && challengeInfo && challengeInfo.done && challengeInfo.result === 'win') await opAccrue(user.id, 50) } catch (e2) {} /* U7 — برد دوئل */
         return R({ ok: true, best, attempts: ent.attempts, rank: myRank, record_broken: recordBroken, record_pending: recordPending, score, att_max: hostMax,
           prev_best: prevBest, pr: isPr, passed, next_best: nextRow ? nextRow.best : null, new_badges: newBadges, rival,
           final_row: isFinalRow, challenge: challengeInfo })
