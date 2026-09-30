@@ -2186,6 +2186,44 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const top = Object.entries(contribs).sort((a, b) => (b[1] || 0) - (a[1] || 0)).slice(0, 10).map(([u, v]) => ({ u, v }))
         return R({ ok: true, has_alliance: true, op: { week_key: wk, goal: op.goal, progress: op.progress, done: !!op.doneAt, my: contribs[user.id] || 0, members, rewarded_now: rewardedNow, top } })
       }
+      /* U8 — تلومتری پرفورمنس واقعی-دستگاه: فلاش ۶۰ثانیه‌ای کلاینت، مرزها سخت، سقف ۴۸ نمونه در روز */
+      case 'perf_push': {
+        const avg = Math.max(0, Math.min(240, Math.round(Number(args.p_avg) || 0)))
+        const min = Math.max(0, Math.min(240, Math.round(Number(args.p_min) || 0)))
+        const worst = ['map', 'oly3d', 'box5'].indexOf(String(args.p_worst)) >= 0 ? String(args.p_worst) : 'map'
+        const device = String(args.p_device || '').slice(0, 60)
+        let samples: Array<{ e: string; a: number; m: number; n: number }> = []
+        try {
+          samples = (JSON.parse(String(args.p_samples || '[]')) as Array<Record<string, unknown>>)
+            .filter((s) => s && ['map', 'oly3d', 'box5'].indexOf(String(s.e)) >= 0 && Number(s.a) > 0 && Number(s.a) <= 240)
+            .slice(-48)
+            .map((s) => ({ e: String(s.e).slice(0, 8), a: Math.round(Number(s.a)), m: Math.min(240, Math.max(0, Math.round(Number(s.m) || Number(s.a)))), n: Math.min(120, Math.max(1, Math.round(Number(s.n) || 1))) }))
+        } catch {}
+        if (!avg && !samples.length) return R({ ok: true, stored: 0 })
+        const dayKey = new Date(olNow()).toISOString().slice(0, 10)
+        const prev = await db.perfDaily.findUnique({ where: { userId_dayKey: { userId: user.id, dayKey } } })
+        let merged = samples
+        if (prev) { try { const old = JSON.parse(prev.samples || '[]') as Array<{ e: string; a: number; m: number; n: number }>; merged = [...old, ...samples].slice(-48) } catch {} }
+        const avgFps = merged.length ? Math.round(merged.reduce((s, x) => s + x.a, 0) / merged.length) : avg
+        const minFps = merged.length ? merged.reduce((m, x) => Math.min(m, x.m), 240) : min
+        const worstEngine = merged.length ? merged.slice().sort((a, b) => a.m - b.m)[0].e : worst
+        await db.perfDaily.upsert({ where: { userId_dayKey: { userId: user.id, dayKey } }, create: { userId: user.id, dayKey, samples: JSON.stringify(merged), avgFps, minFps, worstEngine, device }, update: { samples: JSON.stringify(merged), avgFps, minFps, worstEngine, device } })
+        return R({ ok: true, stored: merged.length })
+      }
+      /* U8 — گزارش تجمیعی ۱۴ روز اخیر (فقط ادمین) */
+      case 'perf_report': {
+        if (!user.isAdmin) return R({ ok: false, reason: 'admin' })
+        const since = new Date(Date.now() - 14 * 86400000)
+        const rows = await db.perfDaily.findMany({ where: { updatedAt: { gte: since } }, orderBy: { updatedAt: 'desc' }, take: 400 })
+        const byDay: Record<string, { n: number; sum: number; min: number; eng: Record<string, number> }> = {}
+        for (const r2 of rows) {
+          const d = r2.dayKey
+          byDay[d] = byDay[d] || { n: 0, sum: 0, min: 240, eng: {} }
+          byDay[d].n++; byDay[d].sum += r2.avgFps; byDay[d].min = Math.min(byDay[d].min, r2.minFps)
+          byDay[d].eng[r2.worstEngine] = (byDay[d].eng[r2.worstEngine] || 0) + 1
+        }
+        return R({ ok: true, days: Object.entries(byDay).map(([day, v]) => ({ day, users: v.n, avg: Math.round(v.sum / v.n), min: v.min, worst: v.eng })).sort((a, b) => a.day.localeCompare(b.day)) })
+      }
       case 'get_wallet': {
         const serverW = Math.max(1, Number(args.p_server) || 1)
         const { w, granted, vipGranted } = await dailyBonus(user.id)

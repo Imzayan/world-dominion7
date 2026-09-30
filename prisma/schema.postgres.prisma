@@ -35,6 +35,7 @@ model User {
   shopInventory  ShopInventory[]
 
   @@map("users")
+  perfDaily PerfDaily[]
 }
 
 model Session {
@@ -716,6 +717,25 @@ model AllianceOp {
   @@index([weekKey])
   @@map("alliance_ops")
 }
+/* U8 — تلومتری پرفورمنس واقعی-دستگاه: یک ردیف per user/day — نمونه‌های FPS فقط اندازه‌گیری، صفر اثر گیم‌پلی */
+model PerfDaily {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  dayKey      String   @map("day_key") /* UTC yyyy-mm-dd */
+  samples     String   @default("[]") /* JSON [{e:map|oly3d|box5,a:avg,m:min,n:sec}] سقف ۴۸ */
+  avgFps      Int      @default(0) @map("avg_fps")
+  minFps      Int      @default(0) @map("min_fps")
+  worstEngine String   @default("map") @map("worst_engine")
+  device      String   @default("") /* dpr/mem/cores */
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayKey])
+  @@index([dayKey])
+  @@map("perf_daily")
+}
+
 
 /* V36: admin-controlled global switches (KV) — the owner turns events on/off manually */
 model GameSetting {

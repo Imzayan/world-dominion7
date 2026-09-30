@@ -3784,6 +3784,43 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     window.WD_TOUR_V1={get step(){return st.i},total:STEPS.length}; /* هارنس QA */
   })();
 
+  /* ================= U8 — WD_PERF: تلومتری FPS واقعی-دستگاه =================
+     تک‌شمارنده‌ی rAF بدون هیچ کار رندر/DOM (میتر، نه حلقه‌ی دوم) + نمونه‌گیری ۱Hz + فلاش ۶۰ثانیه‌ای
+     وقتی صفحه پنهان است صفر کار؛ موتور فعال از WD_OLY3D.info تشخیص داده می‌شود؛ شکست شبکه = سکوت ۱۰ دقیقه. */
+  ;(function(){
+    if(window.WD_PERF)return;
+    let frames=0,last=performance.now();
+    const SAMPLES=[];let eng='map',lastFlush=0,failUntil=0;
+    const count=()=>{frames++;requestAnimationFrame(count)};
+    requestAnimationFrame(count);
+    setInterval(()=>{try{
+      if(document.visibilityState!=='visible'){frames=0;last=performance.now();return}
+      const now=performance.now(),sec=Math.max(1,Math.min(120,Math.round((now-last)/1000)));
+      const fps=Math.round(frames*1000/(now-last));frames=0;last=now;
+      try{const o=window.WD_OLY3D;if(o&&o.active&&o.active())eng='oly3d'}catch(e){}
+      if(fps>=5&&fps<=240)SAMPLES.push({e:eng,a:fps,m:fps,n:sec});
+      if(eng==='oly3d')eng='map';
+      if(SAMPLES.length>48)SAMPLES.splice(0,SAMPLES.length-48);
+    }catch(e){}},1000);
+    async function flush(force){try{
+      if(!SAMPLES.length)return;
+      if(document.visibilityState!=='visible'&&!force)return;
+      if(Date.now()-lastFlush<55000&&!force)return;
+      if(Date.now()<failUntil)return;
+      if(typeof window.sb==='undefined'||!window.sb||!window.sb.rpc)return;
+      const dev='dpr:'+((window.devicePixelRatio||1).toFixed(1))+'/mem:'+(navigator.deviceMemory||'?')+'/cores:'+(navigator.hardwareConcurrency||'?');
+      const avg=Math.round(SAMPLES.reduce((s,x)=>s+x.a,0)/SAMPLES.length);
+      const min=SAMPLES.reduce((m,x)=>Math.min(m,x.m),240);
+      const worst=SAMPLES.slice().sort((a,b)=>a.m-b.m)[0].e;
+      const r=await window.sb.rpc('perf_push',{p_avg:avg,p_min:min===240?avg:min,p_worst:worst,p_device:dev,p_samples:SAMPLES.slice(-48)});
+      if(r&&r.error){failUntil=Date.now()+600000;return}
+      if(r&&r.data&&r.data.ok){SAMPLES.length=0;lastFlush=Date.now()}
+    }catch(e){failUntil=Date.now()+600000}}
+    setInterval(()=>{flush(false)},60000);
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flush(true)});
+    window.WD_PERF={flush:()=>flush(true),get pending(){return SAMPLES.length}};
+  })();
+
   /* U4b — مشاور داده‌محور: تزریق «وضعیت الان» از مسیر رسمی wdModalHook (صفر لمسِ کد باز شدن، سازگار با همه‌ی مسیرهای دکمه) */
   ;(function(){
     function wdLiveAdvice(){
