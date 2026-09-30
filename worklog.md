@@ -2438,3 +2438,24 @@ Stage Summary:
 - dev حالا: المپیک V4 (۵ رشته پریمیوم) + کمپین بوکس V5 + جنگ اتحاد + آنبوردینگ + مشاور داده‌محور + تلومتری پرفورمنس + ابزار release/داور اسکیما — همه server-authoritative و بدون P2W
 - نسخه: v94 همه‌ی نقاط لمس همگام (release.mjs)؛ QA نهایی: 27/27 + 32/32 + 35/35 + 18/18 + 3/3 + 7/7 + 11/11 + 8/8 + 88/0 + 9/9 + schema identical + tsc تمیز
 - pending برای کاربر: تست preview (به‌خصوص جنگ اتحاد و آنبوردینگ)؛ پس از تأیید → merge به main + bump نسخه‌ی بعد + بیلد APK
+
+---
+Task ID: RELEASE-V94-PROD
+Agent: Super Z (main)
+Task: دستور کاربر «انجام بده» — اجرای گام pending کارلog پس از تأیید: merge dev (U1..U8) به main + انتشار production + پیگیری APK
+
+Work Log:
+- کشف وضعیت: dev=dc95816 شامل کل نقشه‌راه U1..U8 (قبلاً push و روی preview لایو با v94)؛ main=c15dbdb هنوز V91؛ merge-base==HEAD main → ادغام FF بدون هیچ تدفلی
+- پاکسازی آرتیفکت سندباکس: ۱۷ فایل با تغییر mode-only (644→755) روی working tree اصلی با git restore دور ریخته شد (صفر تغییر محتوا — تأیید با diffstat 0/0)
+- گیت‌های تازه روی محتوای dc95816: check-html-js (checked=88 errors=0)، verify-build 9/9، schema-diff «schemas identical» (فیکس U3 فعال)
+- اسکن راز روی کل رنج c15dbdb..dc95816 (دیف + پیام‌ها): فقط ۱ match = سورسِ خودِ اسکنر داخل scripts/release.mjs (مثبت کاذب شناخته‌شده و مستند) — صفر راز واقعی
+- ادغام FF: main → dc95816 (۱۶ کامیت شامل worklogها)؛ push اولیه با origin بدون cred fail شد (could not read Username) → push با URL توکن‌دار کاربر موفق: c15dbdb..dc95816 main→main؛ ls-remote تأیید remote==local
+- انتشار production تأیید شد با پولینگ: v.txt 91→94 (HTTP 200)؛ deep-checks: beacon __WD_V=94 + ?v=94 برای oly3d/box5 در HTML لایو، box5.js/oly3d.js/ring.glb/boxer.glb همه 200
+- امنیت RPCهای جدید روی production: alliance_op و perf_push با بدنه‌ی خالی → {error:"not authenticated",code:401} (قرارداد 200-with-error این کدبیس) — هیچ مسیر بدون احراز باز نیست
+- تلاش بیلد APK v1.0.9/vc10: ناموفق — سندباکس بین جلسات download/keystore/ (کیستور ریلیز) و apk-build/tools/ (aapt2/d8/apksigner/…) را از دیسک پاک کرده؛ جستجوی کل /home/z برای keystore/jks/properties = صفر؛ ابزارها از تاریخچه‌ی گیت (d64cd09) قابل بازیابی‌اند اما keystore فقط از بکاپ کاربر قابل بازگشت است — بیلد امضادار مسدود شد و هیچ APK ناقص/امضای جایگزین ساخته نشد (رعایت قاعده‌ی «بدون فیک»)
+- MainActivity روی dev از قبل GAME_VER=94 دارد (release.mjs)؛ Manifest همچنان vc9/1.0.8 — bump به vc10/1.0.9 در لحظه‌ی بیلد بعد از بازگشت keystore
+- همگام‌سازی نهایی: کامیت کارلog روی main + push، سپس push main:dev تا هر دو برنچ روی یک کامیت باشند (variant «dev ⊇ main» حفظ شد)
+
+Stage Summary:
+- production روی https://world-dominion7.vercel.app اکنون v94 است: کمپین بوکس V5 (مسیر انحصاری box5) + المپیک V4 چهار رشته‌ی 3D + آنبوردینگ ۶۰ثانیه‌ای + مشاور داده‌محور + جنگ اتحاد هفتگی + تلومتری FPS + ابزار release — همه‌ی گیت‌ها سبز، صفر راز، بدون تغییر مخرب DB (مدل‌های جدید BoxingSave/AllianceOp/PerfDaily قبلاً روی DB مشترک push شده بودند)
+- pending برای کاربر: (۱) تست production/گوشی — به‌خصوص جنگ اتحاد، آنبوردینگ و بوکس؛ (۲) بازگرداندن keystore از بکاپ به download/keystore/ تا APK v1.0.9/vc10 را همان‌جا بیلد و امضا کنم؛ (۳) پس از ساخت صفحه‌ی مایکت، MYKET_APP_URL واقعی جایگزین placeholder شود
