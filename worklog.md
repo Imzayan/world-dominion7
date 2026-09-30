@@ -2217,3 +2217,31 @@ Stage Summary:
 - APK آماده‌ی ارسال به مایکت: download/WorldDominion-v1.0.8-MyketReady.apk و لینک عمومی https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.8.apk
 - pending برای کاربر: (۱) بکاپ فوری کیستور از download/keystore/ (۲) پس از ساخت صفحه‌ی برنامه در مایکت، MYKET_APP_URL در MainActivity را با آدرس واقعی جایگزین و build-apk-myket.sh را دوباره اجرا کن (بازبینی نسخه‌ی بعدی)
 - تذکر: دارندگان v1.0.x با کلید قدیمی (دانلود مستقیم) باید یک‌بار حذف/نصب کنند — در notes رکورد latest.json مستند شد
+
+---
+Task ID: PUSH-V91
+Agent: Super Z (main)
+Task: درخواست کاربر — OLYMPICS BOXING V5 «THE LAST ROUND» — تبدیل بوکس المپیک به تجربه‌ی سینمایی داستان‌محور سه‌بعدی واقعی روی دو GLB داده‌شده (boxing_ring.glb + cyborg_woman_boxing.glb)، بدون شبیه‌سازی دکمه‌ای
+
+Work Log:
+- Audit اول: بوکس موجود = تلگراف ۲D ساده در oly3.js (G3.boxing) با داور v3Boxing؛ پایپ‌لاین رقابتی (olympic_start/submit + تله‌متری + بازمحاسبه‌ی سرور) نگه داشته شد و فقط gameplay/داور ارتقا یافت
+- Asset pipeline (scripts/box-optimize.mjs — gltf-transform): ring 9.79MB→1.27MB و boxer 3.98MB→0.51MB (specGloss→metalRough برای three r160، weld/dedup/prune/resample، WebP 1024، quantize+meshopt؛ اسکین ۶۶ مفصلی و کلیپ mixamo سالم — با بازخوانی تأیید شد). انکرها از هندسه: سطح تشک y=0.855، رینگ ~7.1m (scripts/box-anchor + هیستوگرام سطح‌های افقی)
+- موتور box5 (scripts/box5-src/ ۵ فایل → bun build → public/game/box5.js تک‌فایل 684KB/gzip 182KB، lazy فقط هنگام ورود به بوکس): صحنه‌ی آرنا (رینگ GLB + جمعیت InstancedMesh با رنگ per-instance و bob گردشی ۱/۸ + پرچم + تابلوی «THE LAST ROUND» + حلقه‌های المپیک)، نور ۱ سایه‌انداز + ۲ کمکی + محیطی
+- گیم‌پلی واقعی: ۶ ضربه با startup/active/recovery (اسپم می‌بازد)، گارد/شکستن گارد، استقامت/خستگی، داوج با i-frame + پنجره‌ی کانتر، مومنتوم (واکنش جمعیت/موسیقی/VFX/آسیب ≤+۱۵٪)، ناک‌داون فلش+HP با مینی‌گیم حلقه‌ی برگشت، FINISHER سینمایی، لایه‌ی انیمیشن رویه‌ای روی کلیپ پایه (یک اسکلت مشترک، کالون‌های SkeletonUtils، dispose امن هندسه‌ی مشترک)
+- AI: ۱۳ حالت با تصمیم ۷-۹ هرتز، پروفایل شخصیت هر حریف، تطبیق با عادت بازیکن؛ در سپار حمله فقط از برنامه‌ی seed (def-only)
+- SPAR رقابتی: برنامه‌ی حمله‌ی AI آینه‌ی بایت‌به‌بایت از seed → تله‌متری v5/bell/atk/p/rl/kd/end (میلی‌ثانیه) → داور جدید v5Boxing در olyScore.ts (بازمحاکمه‌ی برنامه + فریم‌های ریکاوری + استقامت + ghost_counter/plan_seq/plan_time/rl_mismatch/unknown-event) — امتیاز فقط سروری (e2e: کلاینت ۹۹۹۹۹۹ گفت، سرور ۶۴۶ داد)
+- داستان THE LAST ROUND: ۶ پرده — سینمای سالن بارانی + ساخت شخصیت (نام/دستکش/شلوارک)، ۵ حریف امضادار (رافا، ماتئو «دیوار»، نیکولای «تپ آهنین»، یوسف «سندان»، آریا «صفر» با مدل سایبورگ و آرنای بزرگ)، خطوط مربی از آمار واقعی نبرد، انتخاب تمرین بین پرده‌ها با باف مبارزه‌ی بعد، ۴ مینی‌گیم تمرین ۲۰-۴۰ ثانیه‌ای، زنجیره‌ی رتبه ناشناخته→قهرمان
+- دوربین سینمایی ۱۲ حالته با فریمینگ پخش تلویزیونی بلنددهی بیرون طناب‌ها (portrait-adaptive) و CONTROL ALWAYS WINS؛ HIT FEEL: VFX استخری ≤۱۹۰ ذره، صدای رویه‌ای WebAudio (زنگ/سوت/ضربه/جمعیت/موسیقی حالت‌محور با شدت مومنتوم)، هپتیک، اسلوموشن کنترل‌شده
+- Performance §29-52: تک‌حلقه‌ی رندر (یک chain loop33)، صفر DOM-write per-frame (HUD dirty-flag 10Hz + transform)، یک نور سایه (tier-gated)، جمعیت نمونه‌ای، ۴ tier کیفیت با مانیتور FPS زمان‌واقعی + داون‌گرید خودکار (MEDIUM→LOW در تست headless دیده شد)، لود lazy با progress، چرخه‌ی کامل init/start/pause/resume/stop/dispose (visibilitychange، contextlost/restored، WD33_ONCLOSE)، ورود مجدد بدون reload (کش asset/arena)، صفر درخواست شبکه داخل حلقه
+- باگ‌های حین QA (همه رفع شدند): زمان تله‌متری ثانیه بود → ms؛ clamp برنامه‌ی AI ناپایداری زمانی می‌ساخت → break؛ شمارنده‌ی atk داور global بود → per-round؛ داوج حین recovery تله‌متری زیرگپ می‌ساخت → گیت canAct؛ boxingOut داخل switch hoist نمی‌شد → ماژول‌سکوپ؛ bindCanvas حذف‌شده crash می‌داد؛ لانچر lazy بدون pending-registration → شمارش معکوس گیر می‌کرد (root-cause واقعی «stuck»)؛ دوربین داخل طناب‌ها و جداسازی روی محور اشتباه
+- DB: مدل BoxingSave در هر دو اسکیما (db push سبز + schema-diff) + RPCهای boxing_load/boxing_save با کپ‌های سخت/XP idempotent/باف تمرین — ضد P2W مطلق، بدون جم
+- نسخه: v.txt=91، beacon=91، ?v=91 ×3
+- QA: wd91-qa ۲۷/۲۷ صفر pageerror (سوارشدن spar/HUD/تعامل/dispose/ورود مجدد تک‌کانواس، منوی داستان/پرده۱/ساخت شخصیت/آنلاک پرده، رد locked/XP idempotent/کپ‌ها/باف/نوع تمرین نامعتبر، کارت پروفایل، ردیف boxing_saves) + wd91-judge-test ۱۸/۱۸ (شامل ۱۰ تامپر) + wd91-e2e ۳/۳ (start→submit→داوری سرور روی RPC واقعی) + check-html-js 87/0 + tsc تمیز (src) + verify-build 9/9 + schema-diff
+- push: f8beadf روی main؛ اسکن راز پاک؛ تأیید remote==local (ls-remote)
+- اسکریپت‌ها با git add -f: wd91-qa.mjs، wd91-judge-test.mts، wd91-e2e.mjs، wd91-look.mjs، box5-src/*، box-optimize.mjs، box-anchor.mjs
+- شواهد: download/v91-spar-round1.png (دوربین GAMEPLAY)، v91-boxing-intro.png، v91-story-menu.png، v91-prologue.png، v91-profile.png
+
+Stage Summary:
+- بوکس المپیک حالا یک تجربه‌ی سه‌بعدی سینمایی کامل است: کمپین «دور آخر» با ۵ حریف شخصیت‌دار + مربی + تمرین + باف، سپار رقابتی seed-محور با داور آینه‌ای سرور، hit-feel کامل، کیفیت تطبیقی و چرخه‌ی حیات بدون لیک — همه روی دو GLB واقعی کاربر با کل دانلود اولیه فقط ~2MB
+- نکته‌ی عملیاتی: headless/software-GL رندر ~2-4fps است (زمان نبرد کند دیده می‌شود) — روی دستگاه واقعی با GPU سخت‌افزاری ۳۰-۶۰fps هدف است؛ QA در همان حالت هم ۲۷/۲۷ سبز شد
+- pending برای کاربر: تست روی گوشی (preview)، به‌خصوص لمس ژست‌ها و فینال آریا؛ در صورت تأیید → merge/تگ و bump نسخه‌ی بعد
