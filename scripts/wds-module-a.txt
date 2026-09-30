@@ -1,0 +1,86 @@
+<script id="wds-v1">
+/* ============================================================
+   WORLD DOMINION — SOCIAL & PLAYER IDENTITY V1 (WDS)
+   تک‌ماژول اجتماعی: Server Selector/Widget · World Chat enrich ·
+   Messages/DM · Profile/Titles · Achievements · Friends/Block · Notifications
+   همه‌ی داده‌ها server-authoritative (sb.rpc → /api/rpc) — بدون polling سنگین
+   ============================================================ */
+(function(){
+'use strict';
+if(window.WDS)return;
+var D=document;
+var TITLE_FA={recruit:'تازه‌کار',commander:'فرمانده',general:'ژنرال',strategist:'استراتژیست',conqueror:'فاتح',diplomat:'دیپلمات',industrialist:'صنعتگر',tycoon:'تاجر بزرگ',olympian:'المپیادی',veteran:'کهنه‌کار',world_commander:'فرمانده جهان'};
+var ICON_OF={dm:'msg',attack:'war',ach:'trophy',freq:'users',freq_ok:'check',oly:'oly'};
+var st={uid:null,nick:null,srv:1,online:0,ping:null,srvCache:null,srvAt:0,badges:{dm:0,notif:0,freq:0},lastAch:null,timers:{}};
+function ic(n,s){return '<svg class="wds-ic" width="'+s+'" height="'+s+'" aria-hidden="true"><use href="#i-'+n+'"/></svg>'}
+function esc(v){return String(v==null?'':v).replace(/[<>&"]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+function hue(n){var h=0;n=String(n||'');for(var i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))>>>0;return h%360}
+function ini(n){n=String(n||'؟').trim();return (n.slice(0,2)||'؟').toUpperCase()}
+function faN(v){return Number(v||0).toLocaleString('fa-IR')}
+function rel(at){try{var d=Date.now()-new Date(at).getTime();if(d<60e3)return 'الان';if(d<3600e3)return faN(Math.floor(d/60e3))+' دقیقه پیش';if(d<86400e3)return faN(Math.floor(d/3600e3))+' ساعت پیش';var dd=Math.floor(d/86400e3);if(dd<30)return faN(dd)+' روز پیش';return new Date(at).toLocaleDateString('fa-IR')}catch(e){return ''}}
+function rpc(fn,p){return sb.rpc(fn,p||{}).then(function(r){if(r.error)throw r.error;return r.data})}
+function av(nick,cls){return '<span class="wds-av '+cls+'" style="background:hsl('+hue(nick)+',55%,42%)">'+esc(ini(nick))+'</span>'}
+function dot(state){return state&&state!=='offline'?'<span class="wds-dot wds-dot-'+state+'"></span>':''}
+function stateFa(s){return s==='online'?'🟢 آنلاین':s==='away'?'🟡 غایب':'🔴 آفلاین'}
+function titleFa(k){return TITLE_FA[k]||k}
+function toast(msg,kind){try{showToast(msg,kind||'win')}catch(e){try{console.log(msg)}catch(e2){}}}
+function mkModal(id,title,icon,special){var m=D.getElementById(id);if(m)return m;
+  m=D.createElement('div');m.id=id;m.className='modal';
+  m.innerHTML='<div class="wds-modal-card"><div class="wds-head"><span class="wds-title">'+ic(icon,20)+'<span>'+title+'</span></span><button class="wds-ibtn" data-close="'+id+'" aria-label="بستن">'+ic('x',18)+'</button></div><div class="wds-body" id="'+id+'-b"></div></div>';
+  D.body.appendChild(m);
+  m.querySelector('[data-close]').addEventListener('click',function(){closeModal(id)});
+  return m}
+function busy(b,msg){b.innerHTML='<div class="wds-sub" style="text-align:center;padding:24px 0">'+(msg||'در حال دریافت…')+'</div>'}
+function dead(b,msg){b.innerHTML='<div class="wds-sub" style="text-align:center;padding:24px 12px">'+msg+'</div>'}
+function btn(label,icon,cls){var b=D.createElement('button');b.className='wds-btn '+(cls||'wds-btn-g');b.innerHTML=ic(icon,16)+'<span>'+label+'</span>';return b}
+function errOf(e){var m=(e&&(e.message||e))||'';if(m==='blocked')return 'ارسال پیام به این بازیکن ممکن نیست';if(m==='different_server')return 'این بازیکن در سرور دیگری است';if(m==='no_user')return 'بازیکن پیدا نشد';if(m==='already')return 'قبلاً ثبت شده';if(m==='not_earned')return 'این عنوان هنوز باز نشده';return 'عملیات ناموفق بود'}
+
+/* ---------------- Server Selector + Status ---------------- */
+function getSrv(){var now=Date.now();if(st.srvCache&&now-st.srvAt<5000)return Promise.resolve(st.srvCache);
+  var t0=performance.now();
+  return rpc('srv_status').then(function(d){st.ping=Math.round(performance.now()-t0);st.srvCache=d;st.srvAt=Date.now();
+    var mine=null;(d.servers||[]).forEach(function(s){if(s.server===st.srv)mine=s});
+    if(mine)st.online=mine.online||0;return d})}
+function servers(){mkModal('wd-servers','سرورهای جهانی','server');openModal('wd-servers');renderServers();
+  clearInterval(st.timers.srv);st.timers.srv=setInterval(function(){var mm=D.getElementById('wd-servers');if(!mm||!mm.classList.contains('active')){clearInterval(st.timers.srv);return}renderServers()},5000)}
+function srvBadge(s){var cls,txt;
+  if(s.status==='maintenance'){cls='st-maint';txt='🔧 تعمیر'}
+  else if(s.status==='full'){cls='st-full';txt='🔴 پر'}
+  else if(s.status==='locked'){cls='st-maint';txt='🔒 قفل'}
+  else if((s.taken||0)>=(s.cap||80)*0.6||((s.online||0)>40)){cls='st-busy';txt='🟠 شلوغ'}
+  else{cls='st-online';txt='🟢 آنلاین'}
+  return '<span class="wds-status '+cls+'">'+txt+'</span>'}
+function renderServers(){var b=D.getElementById('wd-servers-b');if(!b)return;
+  getSrv().then(function(d){
+    var h='<div class="wds-sub" style="margin:2px 2px 10px;white-space:normal">فصل '+esc((d.season&&d.season.fa)||'—')+' · هر سرور یک دنیای مستقل با چت، اقتصاد و جنگ خودش است.</div>';
+    (d.servers||[]).forEach(function(s){var mine=s.server===st.srv;
+      h+='<div class="wds-scard'+(mine?' wds-mine':'')+'">'
+       +'<div style="display:flex;align-items:center;gap:8px">'+ic('server',20)+'<b style="flex:1;color:#fff;font-size:13px">SERVER '+faN(s.server)+(mine?' <span style="color:#38e08e">(تو اینجایی)</span>':'')+'</b>'+srvBadge(s)+'</div>'
+       +'<div style="display:flex;align-items:baseline;gap:6px;margin:9px 0 3px"><b style="font-size:20px;color:#38e08e">'+faN(s.online)+'</b><span class="wds-sub">آنلاین از '+faN(s.players)+' بازیکن</span><span style="flex:1"></span><span class="wds-sub">'+faN(s.taken)+'/'+faN(s.cap)+' کشور</span></div>'
+       +'<div class="wds-sub">روز '+faN(s.world_day)+' از دنیا'+(s.event?' · 🏅 رویداد المپیک فعال':'')+(mine&&st.ping!=null?' · پینگ ≈ '+faN(st.ping)+'ms':'')+'</div>'
+       +'<div style="margin-top:9px">'+(mine?'<button class="wds-btn wds-btn-p" style="width:100%" data-srventer>'+ic('check',16)+' ورود به دنیا</button>'
+         :'<button class="wds-btn wds-btn-g" style="width:100%" disabled>مهاجرت سرور در نسخه‌ی بعد</button>')+'</div>'
+      +'</div>'});
+    b.innerHTML=h;
+    var en=b.querySelector('[data-srventer]');if(en)en.addEventListener('click',function(){closeModal('wd-servers')});
+  }).catch(function(){dead(b,'وضعیت سرورها در دسترس نیست — اتصال اینترنت را بررسی کن.')})}
+function srvLabel(){return st.srvCache?'🖥️ S'+faN(st.srv)+' · '+faN(st.online)+' آنلاین':'🖥️ —'}
+
+/* ---------------- Notifications ---------------- */
+function notifs(){mkModal('wd-notifs','اعلان‌ها','bell');openModal('wd-notifs');renderNotifs()}
+function renderNotifs(){var b=D.getElementById('wd-notifs-b');if(!b)return;
+  rpc('notif_list').then(function(d){var items=d.items||[];
+    if(!items.length){dead(b,'فعلاً خبری نیست — وقتی اتفاقی بیفتد اینجا می‌بینی.');return}
+    var h='<div style="display:flex;justify-content:flex-start;margin-bottom:6px"><button class="wds-btn wds-btn-g" id="wds-nread" style="min-height:36px;font-size:11px">علامت‌گذاری همه به‌عنوان خوانده‌شده</button></div>';
+    items.forEach(function(n){
+      h+='<div class="wds-row" data-nid="'+esc(n.id)+'" style="'+(n.unread?'background:rgba(18,181,229,.07);':'')+'cursor:default">'
+       +ic(ICON_OF[n.kind]||'bell',20)
+       +'<div class="wds-grow"><div class="wds-nick">'+esc(n.title)+'</div>'+(n.body?'<div class="wds-sub" style="white-space:normal">'+esc(n.body)+'</div>':'')+'<div class="wds-sub">'+rel(n.at)+'</div></div>'
+       +(n.unread?'<span class="wds-dot" style="background:#12b5e5;border:0"></span>':'')
+      +'</div>'});
+    b.innerHTML=h;
+    var ra=D.getElementById('wds-nread');if(ra)ra.addEventListener('click',function(){rpc('notif_read',{p_id:'all'}).then(function(){badges();renderNotifs()}).catch(function(){})});
+    b.querySelectorAll('[data-nid]').forEach(function(r){r.addEventListener('click',function(){
+      if(!r.querySelector('.wds-dot'))return;
+      rpc('notif_read',{p_id:r.getAttribute('data-nid')}).then(function(){badges();var dt=r.querySelector('.wds-dot');if(dt)dt.remove();r.style.background=''}).catch(function(){})})});
+  }).catch(function(){dead(b,'اعلان‌ها در دسترس نیستند.')})}

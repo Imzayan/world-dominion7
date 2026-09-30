@@ -1,0 +1,59 @@
+/* WDS V1 — Design tokens + components (Persian RTL strategy-game style) */
+<style id="wds-css-v1">
+/* ===== WORLD DOMINION — SOCIAL DESIGN SYSTEM V1 ===== */
+#wds-sprite{position:absolute;width:0;height:0;overflow:hidden}
+.wds-ic{display:inline-flex;vertical-align:middle;flex:none}
+.wds-modal-card{position:relative;margin:auto;width:min(520px,calc(100vw - 18px));max-height:min(80vh,780px);background:linear-gradient(180deg,#0b1d33,#081527);border:1px solid #194373;border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden;animation:wdsIn .18s ease-out}
+.wds-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(25,67,115,.6);flex:none}
+.wds-title{font-weight:800;font-size:14px;color:#e8f1fb;display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.wds-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 12px calc(16px + env(safe-area-inset-bottom));flex:1}
+.wds-av{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:800;flex:none;text-shadow:0 1px 2px rgba(0,0,0,.45);letter-spacing:.5px}
+.wds-av-s{width:34px;height:34px;font-size:12px}
+.wds-av-m{width:44px;height:44px;font-size:15px}
+.wds-av-l{width:64px;height:64px;font-size:22px;border:2px solid rgba(255,255,255,.18)}
+.wds-dot{width:10px;height:10px;border-radius:50%;flex:none;border:2px solid #081527;display:inline-block}
+.wds-dot-online{background:#38e08e}.wds-dot-away{background:#ffb02e}
+.wds-grow{flex:1;min-width:0}
+.wds-nick{font-weight:700;color:#e8f1fb;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wds-sub{color:#8fa8c7;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wds-badge{min-width:18px;height:18px;border-radius:9px;background:#ff5d6a;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px;position:relative;top:-6px;margin-inline-start:2px}
+.wds-btn{min-height:44px;border:0;border-radius:12px;font-weight:800;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;font-family:inherit;transition:filter .15s}
+.wds-btn:active{filter:brightness(1.15)}
+.wds-btn-p{background:linear-gradient(135deg,#12b5e5,#0d8fc0);color:#00131f}
+.wds-btn-g{background:rgba(255,255,255,.06);color:#cdd7e8;border:1px solid rgba(255,255,255,.12)}
+.wds-btn-d{background:rgba(255,93,106,.12);color:#ff8d96;border:1px solid rgba(255,93,106,.35)}
+.wds-btn:disabled{opacity:.45;cursor:default}
+.wds-ibtn{width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#cdd7e8;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;font-family:inherit}
+.wds-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.wds-stat{background:rgba(10,32,58,.7);border:1px solid rgba(25,67,115,.55);border-radius:12px;padding:8px 6px;text-align:center}
+.wds-stat b{display:block;font-size:14px;color:#fff;margin-bottom:2px}
+.wds-stat span{font-size:10px;color:#8fa8c7}
+.wds-sec{font-size:11px;font-weight:800;color:#12b5e5;margin:14px 2px 8px;display:flex;align-items:center;gap:6px}
+.wds-row{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 6px;border-bottom:1px solid rgba(25,67,115,.3);border-radius:10px}
+.wds-row:active{background:rgba(18,181,229,.08)}
+.wds-scard{border:1px solid rgba(25,67,115,.55);border-radius:14px;padding:12px;margin-bottom:10px;background:linear-gradient(180deg,rgba(18,181,229,.05),rgba(10,32,58,.4))}
+.wds-scard.wds-mine{border-color:rgba(56,224,142,.45)}
+.wds-status{font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px;display:inline-flex;align-items:center;gap:4px;flex:none}
+.st-online{background:rgba(56,224,142,.15);color:#38e08e}
+.st-busy{background:rgba(255,176,46,.15);color:#ffb02e}
+.st-full{background:rgba(255,93,106,.15);color:#ff5d6a}
+.st-maint{background:rgba(143,168,199,.14);color:#8fa8c7}
+.st-title{background:rgba(255,216,77,.14);color:#ffd84d}
+.wds-bubble{max-width:80%;padding:8px 11px;border-radius:14px;font-size:13px;line-height:1.5;word-break:break-word}
+.wds-bm{margin-inline-start:auto;background:linear-gradient(135deg,#0d8fc0,#12b5e5);color:#02141f;border-end-end-radius:4px}
+.wds-bo{background:rgba(255,255,255,.07);color:#e8f1fb;border-end-start-radius:4px}
+.wds-composer{display:flex;gap:8px;padding:8px 10px calc(10px + env(safe-area-inset-bottom));border-top:1px solid rgba(25,67,115,.6);background:#081527;flex:none}
+.wds-input{flex:1;min-height:44px;max-height:96px;background:#031225;border:1px solid #194373;border-radius:12px;color:#fff;padding:10px 12px;font-size:13px;font-family:inherit;outline:none}
+.wds-input:focus{border-color:#12b5e5}
+.wds-ach{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:12px;border:1px solid rgba(25,67,115,.45);margin-bottom:8px;background:rgba(10,32,58,.5)}
+.wds-ach.locked{opacity:.45}
+.wds-ach.earned{border-color:rgba(255,216,77,.4)}
+.hchip .wds-badge{position:static;top:0;margin:0}
+.wdc-row{display:flex;gap:8px;align-items:flex-start}
+.wdc-main{flex:1;min-width:0}
+.wdc-nick:hover{text-decoration:underline}
+@keyframes wdsIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes wdsPop{0%{transform:scale(.85);opacity:0}60%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
+.wds-pop{animation:wdsPop .3s ease-out}
+@media (max-width:400px){.wds-grid{grid-template-columns:repeat(2,1fr)}.wds-bubble{max-width:86%}}
+</style>

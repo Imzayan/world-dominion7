@@ -2376,7 +2376,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       }
       /* پروفایل بازیکن — تجمیع فقط از داده‌ی معتبر سرور؛ هیچ email/uuid/منابع خصوصی */
       case 'profile_get': {
-        const uidG = String(args.p_uid || user.id)
+        /* SOCIAL V1: با uid یا nick — نقشه فقط nick بازیکن دیگر را دارد */
+        let uidG = String(args.p_uid || '')
+        if (!uidG && args.p_nick) { const byN = await db.user.findFirst({ where: { nickLower: String(args.p_nick).toLowerCase() }, select: { id: true } }); uidG = byN?.id || '' }
+        if (!uidG) uidG = user.id
         const tu = await db.user.findUnique({ where: { id: uidG }, select: { id: true, nick: true, createdAt: true } })
         if (!tu) return R({ ok: false, error: 'no_user' })
         const sc = await db.score.findUnique({ where: { userId: tu.id } })
@@ -2420,7 +2423,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({
           ok: true,
           p: {
-            is_me: isMe, nick: tu.nick, joined: tu.createdAt.toISOString(), server,
+            is_me: isMe, uid: tu.id, nick: tu.nick, joined: tu.createdAt.toISOString(), server,
             online, level, xp_total: totalXp,
             power: sc?.score || 0, conquered: sc?.conquered || 0, kills: sc?.kills || 0, economy: sc?.economy || 0, recruits: sc?.recruits || 0,
             ranks: { military: milRank, economy: ecoRank, power: powRank, olympic: olyRank || null },
