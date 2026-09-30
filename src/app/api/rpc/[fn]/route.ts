@@ -1469,6 +1469,15 @@ const ED_REG = 15 * 86400000
 const ED_OPEN = 24 * 86400000
 const ED_CLOSE = 29 * 86400000
 /* V89 — Olympics V2: ۳۶ رشته در ۵ روز (۸+۷+۷+۷+۷) — توزیع خانواده‌ها بین روزها */
+/* V91 — BOX5: خروجی استاندارد پروفایل بوکس (تک‌منبع برای load/save) */
+type BoxingSaveRow = NonNullable<Awaited<ReturnType<typeof db.boxingSave.findUnique>>>
+function boxingOut(r: BoxingSaveRow) {
+  return {
+    name: r.name, act: r.act, actClear: (r.actClear || '').split(',').filter(Boolean).map(Number),
+    xp: r.xp, wins: r.wins, losses: r.losses, kos: r.kos, counters: r.counters, dodges: r.dodges,
+    perfectRounds: r.perfectRounds, gloves: r.gloves, shorts: r.shorts, buff: r.buff,
+  }
+}
 const GD_DAY: Record<string, number> = {
   sprint: 0, archery: 0, hurdles: 0, highjump: 0, javelin: 0, discus: 0, shotput: 0, reaction: 0,
   swim: 1, gym: 1, swim50: 1, diving: 1, rowing: 1, kayak: 1, boxing: 1,
@@ -3497,6 +3506,82 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (!(await evOn('olympic'))) return R({ ok: false, reason: 'disabled' })
         const card = await olyAthleteCard(user.id, user.nick)
         return R({ ok: true, athlete: card })
+      }
+      /* ============ V91 — BOX5: پروفایل بوکس (کمپین «دور آخر») ============
+         سرور مرجع مطلق: XP/پیشرفت/آمار فقط با کپ‌های سخت اعتبارسنجی می‌شود.
+         هیچ پرداختی/جیمی در مسیر نیست — ضد P2W مطلق. */
+      case 'boxing_load': {
+        const rowB = await db.boxingSave.findUnique({ where: { userId: user.id } })
+        return R({ ok: true, profile: rowB ? boxingOut(rowB) : null })
+      }
+      case 'boxing_save': {
+        const kindB = String(args.p_kind || '')
+        const pB = (args.p_payload && typeof args.p_payload === 'object' && !Array.isArray(args.p_payload)) ? (args.p_payload as Record<string, unknown>) : {}
+        const ci = (v: unknown, lo: number, hi: number) => { const n = Math.round(Number(v) || 0); return n < lo ? lo : n > hi ? hi : n }
+        let rowB = await db.boxingSave.findUnique({ where: { userId: user.id } })
+        if (!rowB) rowB = await db.boxingSave.create({ data: { userId: user.id } })
+        let xpGain = 0
+        if (kindB === 'intro') {
+          const name = String(pB.name || '').trim().slice(0, 14)
+          const gloves = ci(pB.gloves, 0, 0xffffff), shorts = ci(pB.shorts, 0, 0xffffff)
+          rowB = await db.boxingSave.update({ where: { userId: user.id }, data: { name: name || rowB.name, gloves, shorts, act: Math.max(rowB.act, 1) } })
+        } else if (kindB === 'act') {
+          const act = ci(pB.act, 1, 5)
+          const win = !!pB.win
+          if (act > rowB.act) return R({ ok: false, reason: 'locked' }) /* فقط پرده‌ی بازشده */
+          const durMs = ci(pB.durMs, 8000, 600000)
+          const thrown = ci(pB.thrown, 0, Math.floor((durMs / 1000) * 4))
+          const landed = ci(pB.landed, 0, thrown)
+          const counters = ci(pB.counters, 0, landed)
+          const dodges = ci(pB.dodges, 0, 80)
+          ci(pB.kd, 0, 4) /* اعتبارسنجی ناک‌داون دریافتی — کپ سخت */
+          const maxCombo = ci(pB.maxCombo, 0, 12)
+          const perfect = ci(pB.perfectRounds, 0, 1)
+          const byKo = !!pB.byKo
+          let actClear = rowB.actClear ? rowB.actClear.split(',').map(Number).filter((n) => !Number.isNaN(n)) : []
+          const firstClear = win && actClear.indexOf(act) < 0
+          if (firstClear) actClear.push(act)
+          actClear = [...new Set(actClear)].sort()
+          const ACT_XP: Record<number, number> = { 1: 150, 2: 220, 3: 280, 4: 360, 5: 520 }
+          if (firstClear) {
+            xpGain = (ACT_XP[act] || 100) + (perfect ? 40 : 0) + (byKo ? 30 : 0)
+          }
+          rowB = await db.boxingSave.update({
+            where: { userId: user.id },
+            data: {
+              wins: win ? { increment: 1 } : undefined,
+              losses: win ? undefined : { increment: 1 },
+              kos: win && byKo ? { increment: 1 } : undefined,
+              counters: { increment: counters },
+              dodges: { increment: dodges },
+              perfectRounds: { increment: perfect },
+              xp: { increment: xpGain },
+              act: win && act === rowB.act ? Math.min(5, rowB.act + 1) : rowB.act,
+              actClear: actClear.join(','),
+            },
+          })
+        } else if (kindB === 'train') {
+          const type = String(pB.type || '')
+          if (['reaction', 'power', 'stamina', 'defense'].indexOf(type) < 0) return R({ ok: false, reason: 'type' })
+          const act = ci(pB.act, 1, 5)
+          if (act > rowB.act) return R({ ok: false, reason: 'locked' })
+          const score = ci(pB.score, 0, 200)
+          let train: Record<string, Record<string, number>> = {}
+          try { train = JSON.parse(rowB.trainJson || '{}') } catch (e) { train = {} }
+          if (!train[act] || typeof train[act] !== 'object') train[act] = {}
+          const prevBest = Number(train[act][type]) || 0
+          const improved = score > prevBest
+          train[act][type] = Math.max(prevBest, score)
+          xpGain = Math.min(30, Math.floor(score / 10))
+          const buff = (score >= 60 && improved) ? type : rowB.buff
+          rowB = await db.boxingSave.update({ where: { userId: user.id }, data: { trainJson: JSON.stringify(train), xp: { increment: xpGain }, buff } })
+        } else if (kindB === 'cos') {
+          const gloves = ci(pB.gloves, 0, 0xffffff), shorts = ci(pB.shorts, 0, 0xffffff)
+          rowB = await db.boxingSave.update({ where: { userId: user.id }, data: { gloves, shorts } })
+        } else {
+          return R({ ok: false, reason: 'kind' })
+        }
+        return R({ ok: true, xpGain, profile: boxingOut(rowB) })
       }
       /* ماموریت‌های دوره + اهراز جایزه (idempotent) */
       case 'olympic_missions': {

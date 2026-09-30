@@ -1522,8 +1522,9 @@
   G3.discus = throwGame('discus', '#c08bff', { salt: 'dis', mul: 14, hi: 66, hint: 'چرخش بگیر و دیسک را در زاویه‌ی طلایی رها کن', dist: function (q, w) { return 22 + 40 * q + w * 4 } });
   G3.shotput = throwGame('shotput', '#ff8b6b', { salt: 'sht', mul: 40, hi: 21, hint: 'قدرت جمع کن و در لحظه‌ی درست پرتاب کن', dist: function (q) { return 7 + 13 * q } });
 
-  /* ——— ۱۸) بوکس: تلگراف بالا/پایین + کانتر — داور: v3Boxing ——— */
-  G3.boxing = function (el, done) {
+  /* ——— ۱۸) بوکس V5: تجربه‌ی سینمایی سه‌بعدی — داور: v5Boxing (آینه‌ی seed) ———
+     در نبود WebGL یا موتور box5 → بوکس ۲D قدیمی (boxing2d) fallback می‌شود */
+  G3.boxing2d = function (el, done) {
     var seed = seedOf(); if (!seed) return false;
     return game('boxing', {
       el: el, done: done, col: '#ff4d6d', hint: 'حمله‌ی بالا/پایین را بلاک کن یا کانتر بزن — کانتر سریع‌ترین امتیاز را دارد',
@@ -1564,6 +1565,34 @@
         txt(c, 'چپ: بلاک بالا • وسط: کانتر • راست: بلاک پایین', W / 2, H - 22, 10, '#7d92ad');
       }
     });
+  };
+  /* V5 — لانچر بوکس: موتور سه‌بعدی lazy (box5.js)؛ فقط نشست رسمی/تمرین با seed */
+  G3.boxing = function (el, done) {
+    var seed = seedOf(); if (!seed) return false;
+    var B5 = window.WD_BOX5;
+    if (!B5) {
+      /* ثبت نشست به‌عنوان pending — هم برای اولین درخواست و هم برای درخواست‌های همزمان */
+      G3._b5pending = [el, done];
+      if (G3._b5loading) {
+        setTimeout(function () { if (!G3._b5fired && G3._b5pending) { G3._b5fired = true; G3._b5pending = null; try { done(0) } catch (e2) {} } }, 12000);
+        return true;
+      }
+      G3._b5loading = true;
+      var sc = document.createElement('script');
+      sc.src = '/game/box5.js?v=91';
+      sc.onload = function () {
+        G3._b5loading = false;
+        var p = G3._b5pending; G3._b5pending = null;
+        if (p) { var r5 = G3.boxing(p[0], p[1]); if (r5 === false && !G3._b5fired) { G3._b5fired = true; try { p[1](0) } catch (e3) {} } }
+      };
+      sc.onerror = function () { G3._b5loading = false; G3._b5fired = true; G3._b5pending = null; try { done(0) } catch (e4) {} };
+      document.head.appendChild(sc);
+      return true; /* نتیجه بعد از لود — بدون fallback همزمان */
+    }
+    var ok5 = false;
+    try { ok5 = B5.openSpar(el, done) } catch (e) { console.log('b5spar', e); ok5 = false }
+    if (ok5) return true;
+    return G3.boxing2d(el, done); /* بدون WebGL → نسخه‌ی ۲D */
   };
 
   /* ——— ۱۹) شمشیربازی: فینت + لانگ/ریپوست — داور: v3Fencing ——— */

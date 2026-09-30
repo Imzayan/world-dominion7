@@ -38,7 +38,7 @@ self.addEventListener('fetch', (e) => {
 
   // 1) immutable vendor + self-hosted flags → cache-first
   if (IMMUTABLE.indexOf(url.pathname) !== -1 || url.pathname.indexOf('/cdn/flags/') === 0 ||
-      url.pathname.indexOf('/game/vendor/') === 0 || url.pathname === '/game/oly3d.js') { /* V92: موتور 3D — versioned query = cache entry تازه */
+      url.pathname.indexOf('/game/vendor/') === 0 || url.pathname === '/game/oly3d.js' || url.pathname === '/game/box5.js' || url.pathname.indexOf('/game/assets/box/') === 0) { /* V92: موتور 3D — versioned query = cache entry تازه | V94-merge: box5 + GLBهای بوکس (فقط ۱.۸MB، یک‌بار دانلود) */
     e.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((res) => {
         if (res && res.ok) {

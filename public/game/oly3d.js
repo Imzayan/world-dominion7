@@ -24,7 +24,7 @@
   var A = window.WD33_API;
   if (!A || !A.GAMES) return; /* صحنه‌ی المپیک نیست — هیچ */
   var M = (window.WD_OLY3 && window.WD_OLY3.mirrors) || null; /* آینه‌های سرور */
-  var FIVE = ['sprint', 'archery', 'swim', 'boxing', 'rally'];
+  var FIVE = ['sprint', 'archery', 'swim', 'rally']; /* ادغام V94: بوکس از پوشش 3D حذف شد — مسیر اختصاصی box5 (کمپین «دور آخر») */
   var TAU = Math.PI * 2;
 
   /* ---------- ۰) ابزار ---------- */

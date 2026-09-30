@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=92;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=92"></script>
+  <script>window.__WD_V=93;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=93"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -10749,8 +10749,24 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
     '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">'+
     '<button class="wg33-start" id="wg33-go">'+(live?'شروع رقابت رسمی':'رسمی فقط در زمان بازی‌ها')+'</button>'+
     '<button class="wg33-start" id="wg33-tr" style="background:rgba(126,216,255,.14);color:#cfeaff">تمرین آزاد 🌀</button></div>'+
+    '<div id="wg33-b5row" style="margin-top:10px"></div>'+
     '<p style="font-size:10px;color:#7d92ad;margin-top:8px">تمرین: نامحدود و غیررسمی • رقابت رسمی: امتیاز توسط سرور از روی تله‌متری ورودی راستی‌آزمایی می‌شود</p></div>';
   foot('برای شروع، دکمه را بزن — حین بازی صفحه را نکش');
+  /* V91 — BOX5: کمپین سینمایی «دور آخر» + پروفایل بوکس (فقط رشته‌ی بوکس، lazy) */
+  try{
+    if((m.key||'')==='boxing'){
+      const row=bd.querySelector('#wg33-b5row');
+      if(row){
+        row.innerHTML='<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">'+
+          '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
+          '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
+          '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=93';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
+        row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
+      }
+    }
+  }catch(e){}
   /* V35: شعله‌ی زنده روی آیکون معرفی + پانچ دکمه شروع */
   tm33(()=>{const b=bd.querySelector('#wg33-go');if(b){FX.punch(b)}},900);
   bd.querySelector('#wg33-go').addEventListener('click',onOfficial);
@@ -17314,7 +17330,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=92';
+              s.src='/game/cv-engine.js?v=93';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17325,21 +17341,21 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=92"></script>
+<script src="/game/oly3.js?v=93"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
    در intro هاب؛ اگر oly3d لود/parse نشود (WebView قدیم) همه‌چیز
    به موتور 2D نسل ۳ برمی‌گردد — بازی هرگز قفل نمی‌شود. */
 (function(){
-  var FOR={sprint:1,archery:1,swim:1,boxing:1,rally:1};
+  var FOR={sprint:1,archery:1,swim:1,rally:1}; /* ادغام V94: بوکس → کمپین box5 (V5 «دور آخر») — از مسیر oly3d حذف شد */
   var loaded=null;
   window.WD3D_FOR=FOR;
   window.WD3D_BOOT=function(){
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=92';
+      s.src='/game/oly3d.js?v=93';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
