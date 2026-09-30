@@ -2194,7 +2194,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const device = String(args.p_device || '').slice(0, 60)
         let samples: Array<{ e: string; a: number; m: number; n: number }> = []
         try {
-          samples = (JSON.parse(String(args.p_samples || '[]')) as Array<Record<string, unknown>>)
+          const rawPf = args.p_samples
+          const parsedPf: Array<Record<string, unknown>> = Array.isArray(rawPf) ? (rawPf as Array<Record<string, unknown>>) : (typeof rawPf === 'string' ? JSON.parse(rawPf) : [])
+          samples = parsedPf
             .filter((s) => s && ['map', 'oly3d', 'box5'].indexOf(String(s.e)) >= 0 && Number(s.a) > 0 && Number(s.a) <= 240)
             .slice(-48)
             .map((s) => ({ e: String(s.e).slice(0, 8), a: Math.round(Number(s.a)), m: Math.min(240, Math.max(0, Math.round(Number(s.m) || Number(s.a)))), n: Math.min(120, Math.max(1, Math.round(Number(s.n) || 1))) }))
