@@ -178,7 +178,7 @@ function tick(){if(!sb||!st.uid||D.hidden)return;
     try{if(typeof renderSrvChip==='function')renderSrvChip()}catch(e){}
     if(nfChanged&&d.notif>0)probeAch();
   }).catch(function(){})}
-function start(){st.uid=ACC.uid;st.nick=ACC.nick;
+function start(){if(st.uid)return;st.uid=ACC.uid;st.nick=ACC.nick;
   chips();tick();
   setInterval(function(){try{if(window.SRV)st.srv=SRV;tick()}catch(e){}},30000);
   D.addEventListener('visibilitychange',function(){if(!st.uid)return;
@@ -195,8 +195,10 @@ function start(){st.uid=ACC.uid;st.nick=ACC.nick;
     b.addEventListener('click',function(){profile(o.nick,true)});
     d.appendChild(b)})}catch(e){console.log('wds-hook',e)}}
 var tries=0,bootIv=setInterval(function(){tries++;
-  if(window.sb&&window.ACC&&ACC.uid){clearInterval(bootIv);try{if(window.SRV)st.srv=SRV}catch(e){}start()}
-  else if(tries>60)clearInterval(bootIv)},800);
+  if((typeof sb!=='undefined')&&sb&&(typeof ACC!=='undefined')&&ACC&&ACC.uid){clearInterval(bootIv);try{if(window.SRV)st.srv=SRV}catch(e){}start()}
+  else if(tries>300)clearInterval(bootIv)},800);
+/* تریگر قطعی دوم: پس از ورود آنلاین — بدون رقابت زمانی */
+try{var _eoW=enterOnline;enterOnline=async function(u,nick){var r=await _eoW(u,nick);try{if(!st.uid&&(typeof ACC!=='undefined')&&ACC&&ACC.uid&&(typeof sb!=='undefined')&&sb){try{if(window.SRV)st.srv=SRV}catch(e){}start()}}return r}}catch(e){console.log('wds-eo',e)}
 window.WDS={servers:servers,msgs:msgs,dm:dm,profile:profile,notifs:notifs,friends:friends,achs:achs,tick:tick,
   srvLabel:srvLabel,av:av,dot:dot,reload:function(){st.srvAt=0;getSrv()}};
 })();
