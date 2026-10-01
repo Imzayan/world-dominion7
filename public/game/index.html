@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=99;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=99"></script>
+  <script>window.__WD_V=100;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=100"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1918,7 +1918,7 @@ addEventListener('load',()=>{try{
   const v=document.createElement('div');v.id='vignette';document.body.appendChild(v);
   const s=document.createElement('div');s.id='hud-strip';s.innerHTML='<div class="hchip" id="hud-date">📅</div><div class="hchip" id="hud-snd">🔊</div>';document.body.appendChild(s);
   const t=document.createElement('div');t.id='ticker';t.innerHTML='<span id="tk"></span>';document.body.appendChild(t);
-  H$('hud-snd').addEventListener('click',()=>{muted=!muted;H$('hud-snd').textContent=muted?'🔇':'🔊'});
+  H$('hud-snd').addEventListener('click',()=>{muted=!muted;window.WD100_SND&&WD100_SND(muted)});
   showDate();if(!NEWS.length){ const t=H$('tk'); if(t)t.textContent='در حال انتظار برای نخستین رویداد ثبت‌شده در سرور…'; }
   /* V59 wave-2 §10: ساعت/اقتصاد بازی در تب مخفی متوقف می‌شود */
   setInterval(function(){if(!document.hidden)gameTick()},1000)}catch(e){console.log(e)}});
@@ -2621,7 +2621,7 @@ async function startup(){
    </script>
    <style id="v4-css">
     /* tidy top area: compact grid on the right, date + tension stacked on the left */
-#hud-strip{display:grid!important;grid-template-columns:repeat(3,auto);gap:4px!important;direction:ltr;justify-items:end;max-width:60vw}
+#hud-strip{gap:4px!important;direction:ltr}
 #hud-strip .hchip{padding:2px 8px!important;font-size:10px!important}
 #hud-terr{display:none!important}
 #hud-info{position:fixed;top:106px;left:8px;z-index:9997;display:flex;flex-direction:column;gap:4px;align-items:flex-start;direction:ltr}
@@ -4398,7 +4398,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
   const $=id=>document.getElementById(id);
   // Make the single globe/command button unmistakable and keep all secondary tools inside it.
   const main=$('wd7-btn');
-  if(main){main.textContent='☰';main.title='مرکز فرماندهی';main.setAttribute('aria-label','مرکز فرماندهی');}
+  if(main){main.innerHTML=(window.WD100_SVG?WD100_SVG.burger:'☰');main.title='مرکز فرماندهی';main.setAttribute('aria-label','مرکز فرماندهی');}
 
   // Reliable tool launcher: news/advisor/chat are now reachable from the command center.
   function injectTools(){
@@ -4986,7 +4986,7 @@ function cleanDock(){
  if(!dock)return;
  dock.querySelectorAll('.nav-btn').forEach((b,i)=>{b.setAttribute('data-wd16','1'); if(i===4)b.title='ارتش';});
  const launcher=$('wd7-btn');
- if(launcher){launcher.textContent='☰';launcher.setAttribute('aria-label','مرکز فرماندهی');launcher.title='مرکز فرماندهی';}
+ if(launcher){launcher.innerHTML=(window.WD100_SVG?WD100_SVG.burger:'☰');launcher.setAttribute('aria-label','مرکز فرماندهی');launcher.title='مرکز فرماندهی';}
  const feature=$('wd-feature-dock');if(feature)feature.remove(); /* V74: خط wd5-launcher حذف شد */
 }
 function lowPower(){
@@ -5128,7 +5128,7 @@ window.addEventListener('resize',cleanDock,{passive:true});
 /* Prevent old floating cards from competing with the main controls. */
 #wd24-overlay,#wd24-mainbar{display:none!important}
 /* Compact mobile HUD: no stacked resource cards. */
-#hud-strip{max-width:calc(100vw - 16px)!important;overflow:hidden!important}
+#hud-strip{max-width:calc(100vw - 16px)!important}
 #hud-strip .hchip{white-space:nowrap!important}
 #hud-info{max-width:55vw!important;pointer-events:none!important}
 /* Panels use one consistent mobile sheet. */
@@ -6001,7 +6001,7 @@ window.renderAdmin=async function(){
 .wd-menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .wd-menu-item{display:flex;align-items:center;gap:9px;padding:12px;border-radius:16px;background:linear-gradient(180deg,rgba(23,52,92,.75),rgba(10,24,46,.85));border:1px solid rgba(255,255,255,.08);cursor:pointer;transition:transform .12s}
 .wd-menu-item:active{transform:scale(.96)}
-.wd-menu-item i{font-style:normal;font-size:19px;flex:0 0 auto;width:24px;text-align:center}
+.wd-menu-item i{font-style:normal;font-size:19px;flex:0 0 auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center}
 .wd-menu-item b{font-size:12.5px;color:#eef8ff;display:block}
 .wd-menu-item small{display:block;font-size:9px;color:var(--g-mut);margin-top:1px}
 .wd-menu-item.gold{border-color:rgba(255,201,60,.45)}
@@ -6135,20 +6135,20 @@ function flyToCountry(n){
 function viewHome(){
   var b=menuBody();b.innerHTML='';menuHead();
   var g=D.createElement('div');g.className='wd-menu-grid';
-  g.appendChild(item('🏴','قلمروهای من','پرش سریع روی نقشه',function(){viewTerr()}));
-  g.appendChild(item('🏆','رتبه‌بندی','برترین فرماندهان',function(){triggerBtn('btn-m-rank')},1));
-  g.appendChild(item('💎','فروشگاه جم','بوست و منابع',function(){if(!triggerBtn('btn-m-shop')){try{renderShop();openModal('m-shop');sClose()}catch(e){}}}));
-  g.appendChild(item('💬','چت جهانی','با بازیکنان سرور',function(){if(!triggerBtn('wd-chat-btn')){if(window.WD28Chat){window.WD28Chat.open();sClose()}else{sClose()}}}));
-  g.appendChild(item('🏗️','زیرساخت‌ها','پالایشگاه، کارخانه، فرودگاه',function(){try{openSites(null);sClose()}catch(e){}},1));
-  g.appendChild(item('🏢','لابی','مدیریت و ارتقا',function(){triggerBtn('btn-m-lobby')}));
-  g.appendChild(item('🪖','ارتش','استخدام نیرو',function(){triggerBtn('btn-m-army')}));
+  g.appendChild(item((window.MI100?MI100.land:'🏴'),'قلمروهای من','پرش سریع روی نقشه',function(){viewTerr()}));
+  g.appendChild(item((window.MI100?MI100.rank:'🏆'),'رتبه‌بندی','برترین فرماندهان',function(){triggerBtn('btn-m-rank')},1));
+  g.appendChild(item((window.MI100?MI100.gem:'💎'),'فروشگاه جم','بوست و منابع',function(){if(!triggerBtn('btn-m-shop')){try{renderShop();openModal('m-shop');sClose()}catch(e){}}}));
+  g.appendChild(item((window.MI100?MI100.chat:'💬'),'چت جهانی','با بازیکنان سرور',function(){if(!triggerBtn('wd-chat-btn')){if(window.WD28Chat){window.WD28Chat.open();sClose()}else{sClose()}}}));
+  g.appendChild(item((window.MI100?MI100.infra:'🏗️'),'زیرساخت‌ها','پالایشگاه، کارخانه، فرودگاه',function(){try{openSites(null);sClose()}catch(e){}},1));
+  g.appendChild(item((window.MI100?MI100.lobby:'🏢'),'لابی','مدیریت و ارتقا',function(){triggerBtn('btn-m-lobby')}));
+  g.appendChild(item((window.MI100?MI100.army:'🪖'),'ارتش','استخدام نیرو',function(){triggerBtn('btn-m-army')}));
   /* V65 — جهان زنده: امپراتوری و شکوه در منوی اصلی بازی */
-  g.appendChild(item('🏛️','امپراتوری','جمعیت، سیاست‌ها، استان‌ها و برنامه‌ی نبرد',function(){sClose();if(window.WD65)WD65.open('empire')}));
-  g.appendChild(item('🏆','شکوه','اهداف، رقیب، تالار افتخارات و تاریخچه',function(){sClose();if(window.WD65)WD65.open('glory')},1));
-  g.appendChild(item('🧭','مشاور','آموزش کامل با آرمان',function(){sClose();try{window.WD98_ADVISOR&&window.WD98_ADVISOR.open()}catch(e){}}));
-  g.appendChild(item('⚙️','تنظیمات','صدا، کارایی، برچسب‌ها',function(){viewSettings()}));
-  g.appendChild(item('🚪','خروج از حساب','تعویض کاربری',function(){doLogout()}));
-  try{if(typeof isAdmin==='function'&&isAdmin())g.appendChild(item('👑','پنل مدیریت','اطلاعات بازیکنان',function(){try{renderAdmin();openModal('m-admin');sClose()}catch(e){}},1))}catch(e){}
+  g.appendChild(item((window.MI100?MI100.empire:'🏛️'),'امپراتوری','جمعیت، سیاست‌ها، استان‌ها و برنامه‌ی نبرد',function(){sClose();if(window.WD65)WD65.open('empire')}));
+  g.appendChild(item((window.MI100?MI100.glory:'🏆'),'شکوه','اهداف، رقیب، تالار افتخارات و تاریخچه',function(){sClose();if(window.WD65)WD65.open('glory')},1));
+  g.appendChild(item((window.MI100?MI100.advisor:'🧭'),'مشاور','آموزش کامل با آرمان',function(){sClose();try{window.WD98_ADVISOR&&window.WD98_ADVISOR.open()}catch(e){}}));
+  g.appendChild(item((window.MI100?MI100.settings:'⚙️'),'تنظیمات','صدا، کارایی، برچسب‌ها',function(){viewSettings()}));
+  g.appendChild(item((window.MI100?MI100.logout:'🚪'),'خروج از حساب','تعویض کاربری',function(){doLogout()}));
+  try{if(typeof isAdmin==='function'&&isAdmin())g.appendChild(item((window.MI100?MI100.admin:'👑'),'پنل مدیریت','اطلاعات بازیکنان',function(){try{renderAdmin();openModal('m-admin');sClose()}catch(e){}},1))}catch(e){}
   b.appendChild(g);
 }
 function viewTerr(){
@@ -10741,7 +10741,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=99';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=100';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -17311,7 +17311,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=99';
+              s.src='/game/cv-engine.js?v=100';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17322,7 +17322,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=99"></script>
+<script src="/game/oly3.js?v=100"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17336,7 +17336,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=99';
+      s.src='/game/oly3d.js?v=100';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -17689,7 +17689,7 @@ function poll(){
   try{if(bGem&&typeof GEMS!=='undefined')setB(bGem,fa(GEMS))}catch(e){}
   try{if(bTerr&&typeof conqueredCountries!=='undefined')setB(bTerr,fa(conqueredCountries.size))}catch(e){}
   try{if(bSrv)bSrv.classList.toggle('wd87-on',(typeof MP_OK!=='undefined')&&MP_OK===true)}catch(e){}
-  try{if(bSnd){var lc=S('hud-snd');bSnd.classList.toggle('wd87-muted',!!lc&&String(lc.textContent).indexOf('🔇')>-1)}}catch(e){}
+  try{if(bSnd){var lc=S('hud-snd');bSnd.classList.toggle('wd87-muted',!!lc&&(lc.classList.contains('wd100-muted')||String(lc.textContent).indexOf('🔇')>-1))}}catch(e){}
   try{if(bGift){var g=S('wd86-gift');bGift.classList.toggle('wd87-done',window.WD86_TG===true||!!(g&&g.classList.contains('wd86-done')))}}catch(e){}
   try{
     var hd=S('hud-doom');
@@ -18197,7 +18197,50 @@ var tries=0;
 (function w(){if(boot()||++tries>40)return;setTimeout(w,500)})();
 })();
 </script>
-<script src="/game/social.js?v=99"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=99"></script><!-- V99 مشاور ارشد آرمان — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<style id="wd100-css">
+/* ============ V100: نوار بالا بدون سرریز + منوی ☰ با آیکون SVG ============ */
+#hud-strip{display:flex!important;flex-wrap:wrap!important;justify-content:flex-end!important;row-gap:4px!important;max-width:calc(100vw - 16px)!important;overflow:visible!important;pointer-events:none!important}
+#hud-strip .hchip{pointer-events:auto!important;flex:0 0 auto;min-width:0;max-width:46vw;overflow:hidden}
+#hud-snd{cursor:pointer}
+#hud-snd svg{width:16px;height:16px;flex:0 0 auto;filter:drop-shadow(0 0 5px rgba(125,214,255,.65))}
+#wd7-btn svg{width:27px;height:27px;display:block;filter:drop-shadow(0 0 9px rgba(0,255,225,.4))}
+.wd-menu-item i svg{width:21px;height:21px;filter:drop-shadow(0 0 6px rgba(255,205,90,.35))}
+.wd-menu-item.gold i svg{filter:drop-shadow(0 0 8px rgba(255,201,60,.65))}
+@media(max-width:600px){#hud-srv2 .wd-srv-t small{display:none!important}}
+</style>
+<script id="wd100-js">
+/* V100 — HUD حرفه‌ای: snd/برگر SVG + آیکون‌های SVG منوی فرماندهی (بدون ایموجی خام) */
+(function(){
+'use strict';
+var D=document;
+
+var MI100={
+land:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 8.5 9 13 15.5 16.5 10.5 20 20 Z" fill="#7dff9e" opacity=".9"/><path d="M12 4v6M12 4l5 1.6-5 1.8" fill="none" stroke="#ffd75e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+rank:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14.6" r="5.4" fill="#ffcf4d" stroke="#a8720a" stroke-width=".9"/><path d="m8.6 3.4 3.4 6.4L15.4 3.4" fill="none" stroke="#4a9fd8" stroke-width="2.2" stroke-linecap="round"/><path d="M12 11.6l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z" fill="#8a5a00"/></svg>',
+gem:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10l4 5.4L12 20.5 3 9.4Z" fill="rgba(125,214,255,.2)" stroke="#7dd6ff" stroke-width="1.5" stroke-linejoin="round"/><path d="M3 9.4h18M7 4l2.4 5.4L12 20.5M17 4l-2.4 5.4L12 20.5" fill="none" stroke="#7dd6ff" stroke-width="1" opacity=".85"/></svg>',
+chat:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.6h16v10.2H9.6L5.4 19.6v-3.8H4Z" fill="rgba(125,214,255,.16)" stroke="#7dd6ff" stroke-width="1.5" stroke-linejoin="round"/><circle cx="9" cy="10.7" r="1" fill="#7dd6ff"/><circle cx="12.6" cy="10.7" r="1" fill="#7dd6ff"/><circle cx="16.2" cy="10.7" r="1" fill="#7dd6ff"/></svg>',
+infra:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20.4V8.2M4 8.2h13.4M4.6 8.2 10 4.4l6.8 3.8" fill="none" stroke="#ffd75e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.4 8.2v4.2h-2.6v3h2.6" fill="none" stroke="#ffe6a8" stroke-width="1.4"/><path d="M3.4 20.4h13.2" stroke="#ffd75e" stroke-width="1.6" stroke-linecap="round"/><path d="M8 20.4v-4h3.4v4" fill="rgba(255,215,94,.2)" stroke="#ffd75e" stroke-width="1.2"/></svg>',
+lobby:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 20.4V5.4h8.4v15" fill="rgba(125,214,255,.14)" stroke="#7dd6ff" stroke-width="1.5" stroke-linejoin="round"/><path d="M13.9 9.4h4.6v11" fill="rgba(255,215,94,.12)" stroke="#ffd75e" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 8.6h1.6M8 11.6h1.6M8 14.6h1.6M16 12.4h1.2M16 15.4h1.2" stroke="#bfe9ff" stroke-width="1.3" stroke-linecap="round"/><path d="M3.6 20.4h16.8" stroke="#7dd6ff" stroke-width="1.6" stroke-linecap="round"/></svg>',
+army:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.2 4.8 10 14" stroke="#cfe6ff" stroke-width="2" stroke-linecap="round"/><path d="M17.6 3.4h3.2v3.2" fill="none" stroke="#ffd75e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.2 11.6l4.2 4.2" stroke="#7dd6ff" stroke-width="1.8" stroke-linecap="round"/><path d="M9.4 17.6c-1.6 1.6-3.4 1.8-4.6 1.4.4-1.2.6-3 1.4-4.6Z" fill="rgba(125,255,158,.25)" stroke="#7dff9e" stroke-width="1.3" stroke-linejoin="round"/><circle cx="4.6" cy="19.4" r="1.1" fill="#ffd75e"/></svg>',
+empire:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18.4h16" stroke="#ffd75e" stroke-width="1.5" stroke-linecap="round"/><path d="M4.6 16.4 3.6 8l4.6 3L12 5.2l3.8 5.8 4.6-3-1 8.4Z" fill="rgba(255,215,94,.22)" stroke="#ffd75e" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="12.6" r="1" fill="#ffe6a8"/></svg>',
+glory:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4.4h8v5a4 4 0 0 1-8 0Z" fill="rgba(255,215,94,.2)" stroke="#ffd75e" stroke-width="1.5"/><path d="M8 5.6H5.2a3 3 0 0 0 3 3M16 5.6h2.8a3 3 0 0 1-3 3" fill="none" stroke="#ffe6a8" stroke-width="1.3"/><path d="M12 13.4v3M9 20.4h6M10.2 20.4c0-2 .6-3 1.8-3s1.8 1 1.8 3" fill="none" stroke="#ffd75e" stroke-width="1.4" stroke-linecap="round"/></svg>',
+advisor:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#ffd75e" stroke-width="1.6"/><path d="M15.5 8.5 13.4 13.4 8.5 15.5 10.6 10.6 Z" fill="#ffd75e"/><circle cx="12" cy="12" r="1.1" fill="#0b1626"/></svg>',
+settings:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="#7dd6ff" stroke-width="1.6"/><path d="M12 3.4v2.4M12 18.2v2.4M3.4 12h2.4M18.2 12h2.4M5.9 5.9l1.7 1.7M16.4 16.4l1.7 1.7M18.1 5.9l-1.7 1.7M7.6 16.4l-1.7 1.7" stroke="#7dd6ff" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="7.6" fill="none" stroke="#ffd75e" stroke-width="1.1" opacity=".55" stroke-dasharray="2.6 3.4"/></svg>',
+logout:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.4 4.6H6.6v14.8h6.8" fill="none" stroke="#ff9db6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.4 12h8.2M16.6 8.6 20 12l-3.4 3.4" fill="none" stroke="#ffd75e" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+admin:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.4" r="2.6" fill="rgba(255,215,94,.25)" stroke="#ffd75e" stroke-width="1.4"/><path d="M5.6 19.4c.6-4 3-6 6.4-6s5.8 2 6.4 6Z" fill="rgba(255,215,94,.18)" stroke="#ffd75e" stroke-width="1.5" stroke-linejoin="round"/></svg>'
+};
+var SVG={
+sndOn:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 9.4v5.2h3.6l4.4 3.8V5.6L8.2 9.4Z" fill="rgba(125,214,255,.2)" stroke="#7dd6ff" stroke-width="1.4" stroke-linejoin="round"/><path d="M15.6 9.2a4.2 4.2 0 0 1 0 5.6M18 7a7.4 7.4 0 0 1 0 10" fill="none" stroke="#7dd6ff" stroke-width="1.5" stroke-linecap="round"/></svg>',
+sndOff:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 9.4v5.2h3.6l4.4 3.8V5.6L8.2 9.4Z" fill="rgba(125,214,255,.14)" stroke="#7dd6ff" stroke-width="1.4" stroke-linejoin="round"/><path d="m15.6 9.6 4.8 4.8M20.4 9.6l-4.8 4.8" stroke="#ff9db6" stroke-width="1.6" stroke-linecap="round"/></svg>',
+burger:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 7h14.8M4.6 12h14.8M4.6 17h14.8" stroke="#7dffec" stroke-width="2" stroke-linecap="round"/></svg>'
+};
+window.MI100=MI100;window.WD100_SVG=SVG;
+window.WD100_SND=function(m){var e=D.getElementById("hud-snd");if(!e)return;e.classList.toggle("wd100-muted",!!m);e.innerHTML=m?SVG.sndOff:SVG.sndOn};
+function boot(){var m=false;try{m=(typeof muted!=="undefined")&&!!muted}catch(e){}window.WD100_SND(m);var b=D.getElementById("wd7-btn");if(b&&!b.querySelector("svg"))b.innerHTML=SVG.burger}
+if(D.readyState==="loading")D.addEventListener("DOMContentLoaded",boot);else boot();
+})();
+</script>
+<script src="/game/social.js?v=100"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=100"></script><!-- V99 مشاور ارشد آرمان — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 </body>
 </html>
