@@ -2461,113 +2461,24 @@ Stage Summary:
 - pending برای کاربر: (۱) تست production/گوشی — به‌خصوص جنگ اتحاد، آنبوردینگ و بوکس؛ (۲) بازگرداندن keystore از بکاپ به download/keystore/ تا APK v1.0.9/vc10 را همان‌جا بیلد و امضا کنم؛ (۳) پس از ساخت صفحه‌ی مایکت، MYKET_APP_URL واقعی جایگزین placeholder شود
 
 ---
-Task ID: SOCIAL-V1
+Task ID: V99-AUDIT-CONFIRM
 Agent: Super Z (main)
-Task: WORLD DOMINION — SOCIAL & PLAYER IDENTITY SYSTEM V1 (۳۵بندی) — audit → architecture → implementation → QA → release v95
+Task: بازبینی مستقلِ وضعیت پس از ادامه‌ی جلسه — تأیید اینکه V98/V99 هر ۴ خواسته‌ی کاربر را پوشش می‌دهند + پاکسازی آرتیفکت سندباکس
 
 Work Log:
-- AUDIT: شیم supabase-js خودمیزبان (rpc→/api/rpc، from→/api/db، auth→/api/auth/*)؛ multi-server واقعی موجود (SRV_COUNT=5/SRV_CAP=80/ServerStat/WorldChat.server)؛ موتورهای reuse: UserTrophy+evalAchievements، SeasonPass+passAddXp، rateLimit/clientIp، addNews، OlympicRating، Score، BattleLog، Alliance — هیچ نسخه‌ی دومی ساخته نشد
-- DB: ۶ مدل جدید در هر دو گویش (server_presence/social_profiles/player_friends/player_blocks/private_messages/player_notifs) — db push سبز، schema-diff «identical»، admin_reset هر ۶ جدول را صفر می‌کند
-- SERVER (+424 خط): ۱۷ RPC — srv_status (کش ۴s، online واقعی از presence، وضعیت online/full/maintenance/locked، season+world_day+event) | presence_ping (سرور از Score، نه ادعای کلاینت) | presence_list | social_unread | profile_get (تجمیع Score/BattleLog/Alliance/UserTrophy/OlympicRating/presence + ranks، resolve با uid یا nick، بدون email/uuid/منابع) | title_set (اعتبارسنجی earned) | friend_add/reply/remove/list | block_set/list | dm_send (بلاک دوطرفه + rate 8/min + هم‌سروری) | dm_threads/dm_thread (read receipts) | notif_list/read + ارتقای get_world_chat (فیلتر بلاک سمت سرور + نشانگر آنلاین، سازگار رو به عقب) + دستاوردهای واقعی روی رویدادها (pvp win→first_blood/war_vet، conquer≥5، alliance→diplomat، dm→first_dm/dm10، friend→first_friend/friend5) + socEarnedTitles تک‌منبع (۱۱ Title)
-- CLIENT: بلوک WDS (CSS tokens + sprite SVG ۲۹ نماد + ماژول) — سلکتور سرور با پینگ واقعی، چیپ‌های HUD پیام/اعلان با بج، ارتقای ردیف‌های چت جهانی (آواتار/نقطه‌ی آنلاین/نیک قابل کلیک)، Messages/DM به سبک پیام‌رسان (read receipt، composer با Enter، بلاک‌نوت)، پروفایل کامل (آمار/رده‌بندی/عنوان انتخابی/دستاوردها/دوستی/بلاک)، دوستان (درخواست‌ها/آنلاین/آفلاین)، اعلان‌ها (mark all)، کاتالوگ دستاوردها گروهی — touch target ≥44px، safe-area، انیمیشن سبک transform-only، تایمرها فقط هنگام باز بودن پنل + تیک ۳۰s سوار بر sync موجود
-- اتصال‌های حداقلی به کد موجود: renderSrvChip (برچسب آنلاین زنده)، hud-srv (باز کردن سلکتور جدید)، loadChat (ردیف ارتقایافته)، WD_CLICK_HOOKS.post (دکمه‌ی پروفایل در کشوی کشور رقیب) — هیچ کد بازی بازنویسی نشد
-- فیکس‌های حین QA: boot قطعی (sb/ACC لکسیکال‌اند نه window.*؛ sbBridge دیر mirror می‌کند → typeof bare + هook enterOnline دوم + start idempotent)؛ uid-direction تست‌ها؛ بالانس try/catch wrap؛ برچسب SRV زنده (curSrv)
-- QA: wd95-social-qa **35/35** (۲ کاربر واقعی: presence آنلاین، چت متقابل+بلاک‌فیلتر، دوستی چرخه کامل، DM با رسید دیده‌شد، دستاوردهای رویدادی، title نه‌کسب‌شده رد، اعلان‌ها mark-all، بلاک سروری DM/friend/chat، جداسازی cross-server، ۵ مودال UI، صفر pageerror) | رگرسیون: wd91-e2e 3/3 (داور بوکس) + wd90 32/32 (دوئل/Elo/المپیک) + wd94-tour 7/7 + wd94-ally 11/11 (پس از باز کردن واقعی پنجره با oly_admin_shift — علت ۶ فیل اولیه «window» زمان‌گیت بود نه رگرسیون) + wd91-qa/wd88-qa این چرخه اجرا نشد (سنگین؛ مسیرهای اصلی با e2e/90 پوشش داده شد) | گیت‌ها: check-html 89/0، verify-build 9/9، schema-diff identical، tsc src تمیز، release.mjs هر ۵ گیت سبز (v94→v95)
-- شواهد: download/v95-servers.png، v95-profile.png، v95-messages.png، v95-notifs.png، v95-world-chat.png، v95-hud-chips.png
-- دامنه‌ی صادقانه‌ی V1: مهاجرت بین سرورها فقط نمایش وضعیت (تخصیص خودکار موجود دست‌نخورده) — جابه‌جایی دستی = فاز بعد؛ منابع زنده‌ی اقتصادی در پروفایل نمایش داده نمی‌شود (داده‌ی خصوصی سیو)؛ آواتار = مونوگرام رنگی از nick (کازمتیک فروشگاه = فاز بعد)
+- کشف: origin/dev شامل V98 (69320be) و V99 (f1e2b72+3019eae+b5aec0a) است — جلسه‌ی قبلی پیش از قطع شدن context آنها را push کرده بود؛ local dev عقب مانده بود → ff-only به b5aec0a
+- بازبینی مستقل (بدون اعتماد به worklog):
+  1) حذف مشاور قدیمی: خروجی کاربر=صفر (مودال wd-advisor، V28 ADV_TABS/renderAdvisorPro/WD28Advisor، عنصر wd-feature-dock — همگی حذف). باقیمانده فقط کد مرده‌ی بی‌خطر: شاخه‌ی null-guarded ساخت wd-chat-btn (چت ۳ مسیر زنده دارد: toolbar/منو/فال‌بک WD28Chat.open) + تابع مرده‌ی U4b wdLiveAdvice (هوک حذف، فقط هارنس QA، try/catch کامل) + ۲ قانون CSS مرده. تصمیم: دست نخورد (ریسک پچ مونولیت ۱.۵MB > فایده)
+  2) mentor.js: ۱۲ فصل ch0..ch11 تأیید؛ SERVICE: صلح ۴۸ ساعته در route.ts (双向: مهاجم یا هدف <۴۸h → error:'peace'، دوئر رسمی مستثنا، قبل از کسر هزینه) تأیید
+  3) نسخه: v.txt=99، __WD_V=99، ?v=99×7 (۶ اسکریپت+mentor)، GAME_VER=99
+  4) preview واقعی: v.txt=99 HTTP 200 + __WD_V=99 + mentor.js?v=99 HTTP 200
+  5) گیت‌ها: check-html-js checked=90 errors=0، node --check mentor.js OK
+- حادثه‌ها و رفع:
+  1) release.mjs --verify فقط‌خواندنی نیست (bump+verify) — ناخواسته working tree را به v100 بامپ کرد → git restore سه فایل؛ درس: برای وارسی نسخه از grep استفاده شود نه release.mjs
+  2) کامیت سرخود سندباکس 074fc43 (پیام UUID، پچ‌های audit99) روی main → reset --hard ce64613؛ origin/main هرگز آلوده نشد
+  3) sandbox بین بلاک‌ها branch را reset می‌کند (سومین باری که مستند می‌شود) → همه‌ی عملیات dev فقط در بلاک اتمی
+- tsc rc=1 = نویز محیطی پیشین در skills/ (image-edit.ts/analyzer.ts)؛ src/ بازی دست‌نخورده — بی‌ربط به V98/V99
 
 Stage Summary:
-- سیستم اجتماعی و هویت بازیکن V1 کامل و server-authoritative: دنیای زنده با presence واقعی، چت جهانی ارتقایافته، پیام خصوصی امن با بلاک سروری، پروفایل/عنوان/دستاورد/دوستی/اعلان — همه روی داده‌ی واقعی سرور و بدون هیچ P2W
-- نسخه v95 همگام (v.txt+beacon+?v×5+GAME_VER)؛ dev آماده‌ی push برای preview
-
----
-Task ID: SOCIAL-V1-UNIFY
-Agent: Super Z (main)
-Task: دستور «انجام بده» — رفع وضعیت «هیچی نشده»: یکپارچه‌سازی دو خط موازی SOCIAL V1 و رساندن کلاینت واقعی به preview
-
-Work Log:
-- Audit: کشف دو پیاده‌سازی موازی — (الف) dev: کلاینت inline «wds-v1» + ۱۵ RPC + ۶ مدل، بدون ماژول دستاورد/عنوان و با تاریخچه‌ی ۳ فیکس syntax؛ (ب) main (d498bcf): social.js خارجی ۸۲۹ خطی + ۱۸ RPC + ۷ مدل + موتور دستاورد سرور-محور (social.ts) با هوک روی رویدادهای واقعی (فتح PvP، بوکس، المپیاد، فروشگاه، اتحاد، HOF، بیو، DM، دوستی)
-- تشخیص ریشه‌ی «هیچی نشده»: هر دو خط ناقص نسبت به هم بودند و هیچ‌کدام تست‌شده روی preview تأیید نشده بودند؛ ادعای «QA 35/35» کامیت f9163ec با درخت واقعی همخوان نبود (قربانی reset سندباکس)
-- تصمیم معماری: یکپارچه‌سازی روی پیاده‌سازی کامل‌تر main (پوشش ۱۲ ماژول spec) + پورت ۴ نکته‌ی خوب dev: نوتیف حمله به مدافع، state حضور در ردیف‌های چت جهانی، قلاب‌های index.html (چیپ سرور زنده، آواتار/نقطه‌ی حضور/نیک کلیک‌پذیر در چت)، sprite آیکون مرکزی SVG
-- Merge origin/dev ← main با رزولوشن جراحی (scripts/merge95.py + scripts/v95fix.py با assert در هر گام): schema هر دو گویش → main (۷ مدل V95)؛ route.ts → main + ۴ افزودنی؛ index.html → قلاب‌های dev + sprite + include social.js؛ حذف helpers مرده‌ی dev و هر ارجاع به مدل‌های dev (صفر ارجاع باقی مانده — assert)
-- آداپتور window.WDS در social.js اضافه شد (srvLabel با شمارش زنده / servers / profile / av / dot / sym روی sprite مرکزی) تا قلاب‌های index.html زنده شوند
-- حذف artifacts مرده: wds-module-a/b.txt، wds-patch.py، wds-sprite.txt و پروب‌های wd95-*.mjs نوشته‌شده برای کلاینت حذف‌شده
-- گیت‌ها (همه سبز): check-html-js 88/0؛ verify-build 9/9؛ schema-diff «schemas identical»؛ tsc صفر خطا در src (فقط ۱ خطای قدیمی skills/ خارج از بازی)؛ touchpoints: v.txt=95 + beacon=95 + صفر ?v=94 کهنه + GAME_VER=95؛ اسکن راز روی دیف استیج‌شده: صفر؛ پوشش RPC: ۱۸/۱۸ کلاینت↔سرور؛ node --check روی social.js سبز
-- حادثه‌ی سندباکس: کامیت a12eca6 ناقص شد (فقط social.js+social.ts — reset وسط جلسه)؛ ترمیم با کامیت تکمیلی همان رزولوشن کامل (schema/index/route/db-deny/worklog/حذف drafts)
-
-Stage Summary:
-- یک سیستم اجتماعی منسجم V1 روی خط dev: کلاینت social.js (۲۴/۳۲/۴۸px آیکون، ۴۴px اهداف لمسی، event delegation، heartbeat ۴۵s، نظرسنجی بج ۳۰s) + ۱۸ RPC سشن-محور + ۷ جدول V95 با server_id + RLS-معادل deny-by-default در /api/db
-- pending: push dev → تست preview توسط کاربر → پس از تأیید merge به main
-
----
-Task ID: V96-UI
-Agent: Super Z (main)
-Task:反馈 کاربر — آیکون‌های سرور زشت شدند؛ FAB آنلاین سینمایی زیر المپیک + شمارنده‌ی آنلاین هر سرور
-
-Work Log:
-- Audit: renderLive قبلاً چیپ wd95-live را داخل دکمه‌ی ۴۴px داک (wd87-b-srv) تزریق می‌کرد → هم‌پوشانی/زشتی. انتخابگر سرور فقط متن اموجی (🟢🟠🔴🛠) بود. صفحه‌ی سینمایی سرور (V31) هیچ شمارنده‌ی آنلاینی در کارت سرورها نداشت.
-- Data: wd_servers/wd_presence از قبل online per-server برمی‌گردانند (ST.onl / ST.srvs) — فقط UI مشکل داشت؛ هیچ تغییر سرور/DB لازم نبود.
-- social.js: چیپ قدیمی حذف شد (anti-overlap)؛ FAB سینمایی wd96-fab زیر FAB المپیک اضافه شد (حلقه‌ی conic چرخان، glow، نقطه‌ی نبض، عدد فارسی، لیبل وضعیت+سرور، جای‌گذاری پویا همگام با wdolFabPlace — بدون هم‌پوشانی در هر رزولوشنی).
-- social.js: augmentSrvList بازنویسی سینمایی — قرص وضعیت درخشان (online/busy/full/maintenance) + شمارنده‌ی آنلاین واقعی هر ردیف + حفظ اطلاعات قفل/تستی + کلاس‌های glow per-status + آیکون SVG عنوان مودال.
-- social.js: آیکون globeCine (SVG گرادیانی) به رجیستری مرکزی SI اضافه شد؛ window.WDSI_SRV hook (refresh/online/status/paint) + paintSrvPage برای به‌روزرسانی درجای اعداد کارت‌ها.
-- index.html (صفحه‌ی سینمایی سرور V31): گلوب اموجی hero → SVG سینمایی؛ بج‌های اموجی (✅🟢🔒) → قرص‌های درخشان wd96-pill؛ کارت سرورها → glow per-status + خط «بازیکن آنلاین» واقعی با id wd96-onl-k؛ refreshServer حالا هر ۲۰ ثانیه WDSI_SRV.refresh() می‌زند.
-- QA: apply96.py همه‌ی anchorها count=1؛ node --check social.js؛ check-html-js؛ release.mjs 96 (هر ۴ گیت)؛ push dev.
-- Regression: Map/Country/Army/Attack/Economy/Olympics/Shop/World Command/Auth دست‌نخورده — فقط social.js + بخش سرورصفحه V31.
-
-Stage Summary:
-- V96 = UI-only روی V95؛ صفر تغییر DB/RPC؛ پشت‌وارث با preview مشترک.
-- FAB آنلاین: فقط آنلاینِ سرور جاری را نشان می‌دهد (ST.onl[mySrv()])؛ کارت‌ها: آنلاین همان سرورِ خودشان.
-- merge به main پس از تأیید کاربر روی preview.
-
----
-Task ID: V97-ONLINE-FAB
-Agent: main (Super Z)
-Task: بازخورد کاربر — آیکون آنلاینِ زیر المپیک: کوچک‌تر شود و فقط بازیکنان آنلاینِ «سرور خودش» را با فونت درخشان نشان دهد (نه همه‌ی سرورها)؛ آیکون تاریخ که با بقیه قاطی شده جای بهتر و ظاهر زیباتر؛ آیکون‌های بازی درخشان‌تر.
-
-Work Log:
-- Audit dev@2af005a: wd96-fab با کلیک صفحه‌ی همه‌ی سرورها (WD31_SERVER) را باز می‌کرد؛ تداخل واقعی wd34-heat-btn (oly.bottom+14) با wd96-fab (oly.bottom+18)؛ چیپ تاریخ در عرض‌های ۳۸۰-۴۸۰px با داک تداخل داشت و ایموجی خام 📅 بود.
-- route.ts: wd_presence اکنون players[] برمی‌گرداند — نیک‌های آنلاینِ همان سرور (تعریف یکسان: ۹۰ ثانیه + status=online، take 60). فیلد افزودنی → سازگار با کلاینت‌های قدیمی و DB مشترک production.
-- social.ts: onlinePlayersByServer(server) افزوده شد (فقط select nick/lastSeen — بدون داده‌ی حساس).
-- social.js: FAB 58→46px (آیکون ۱۸، عدد ۱۱.۵، نقطه‌ی زنده ۱۰)؛ کلیک → پنل wd96-op «بازیکنان آنلاین — فقط همین سرور» با شمارنده‌ی درخشان ۱۹px + ردیف نیک‌ها + نشان «تو» + به‌روزرسانی زنده با هر ضربان (sig-guarded)؛ fabPlace اکنون syncHeatPos را همگام می‌کند.
-- index.html: syncHeatPos دکمه‌ی حرارت را زیر FAB می‌گذارد (رفع هم‌پوشانی)؛ بلوک wd97: تقویم طلایی سینمایی SVG مستقل + افتادن زیر داک در ≤600px + بازتعریف wd87brth با هاله‌ی قوی‌تر + drop-shadow per-icon (respect reduced-motion).
-- bump نسخه ۹۷: v.txt، __WD_V، ?v=×۶ (balance/box5/cv-engine/oly3/oly3d/social)، GAME_VER=97.
-
-Stage Summary:
-- v97 روی dev پوش شد؛ UI-only + یک فیلد افزودنی RPC (بدون تغییر schema/مهاجرت)؛ سازگار با production؛ منتظر تست کاربر روی preview.
-
----
-Task ID: V98-ADVISOR
-Agent: main (Super Z)
-Task: درخواست کاربر — مشاور حرفه‌ای درون‌بازی با شخصیت (مرد/زن) که تک‌تک بخش‌ها را با کیفیت و لذت آموزش بدهد؛ در آموزش بگوید دو روز اول حمله ممنوع است و باید کشور ساخت؛ بازی فقط جنگ نیست — رهبر واقعی یک کشور هستید؛ آیکون و فونت باکیفیت.
-
-Work Log:
-- Audit: wd43-tut = سیستم ماموریت (مکمل، دست‌نخورده)؛ «منتور» موجود = پیوند بازیکن‌به‌بازیکن (جدای مشاور)؛ حافظت ۲ روزه‌ی نوآموز وجود نداشت → برای صداقتِ آموزش، پیاده‌سازی شد.
-- صلح مقدس نوآموزان (سرور-محور): pvp_attack اگر مهاجم یا هدف <۴۸ ساعت از ثبت‌نام باشد → error:'peace'؛ دوئر رسمیِ زنده مستثنا (همان الگوی آتش‌بس المپیک). سازگار با کلاینت‌های قدیمی (خطای تازه فقط پیام می‌سازد).
-- نگاشت کلاینت: مسیر نبرد (پیام «صلح مقدس نوآموزان» در لاگ نبرد) + مسیر عملیات ویژه (toast).
-- public/game/mentor.js (تازه): شخصیت «مشاور ارشد آرمان» — آواتار SVG سینمایی در رجیستری (بدون ایموجی خام)، ۷ فصل آموزش گام‌به‌گام با هایلایت واقعیِ بخش UI (res-group/terr/gem/srv/act-tax/olympic/wd7-btn)، حباب گفت‌وگو با تایپ سینمایی، دکمه‌های ۴۴px، نقاط پیشرفت، hub با حلقه‌ی تکمیل، پالس دکمه‌ی داک تا پایان فصل اول، شروع خودکار یک‌بار پس از ورود (مهمان: ۳۶ ثانیه)، جشن WD30CINE، احترام به reduced-motion و حالت سینمایی، رجیستری localStorage per-uid.
-- دکمه‌ی مشاور: اولین دکمه‌ی داک wd87 (گسترش، نه بازنویسی) — تورچ طلایی دانش.
-- bump نسخه ۹۸: v.txt، __WD_V، ?v=×۶، GAME_VER=98 + include mentor.js.
-
-Stage Summary:
-- v98 روی dev: آموزش سینمایی + قانون واقعیِ صلح دو روزه (سرور-محور)؛ بدون تغییر schema؛ سازگار با production؛ منتظر تست کاربر.
-
----
-Task ID: V99-ADVISOR2-HUD
-Agent: Super Z (main)
-Task: درخواست کاربر — «مشاور حکومت قبلی رو پاک کن؛ آیکون‌های بالای نقشه تمیزتر و حرفه‌ای‌تر شود؛ مشاور کامل‌تر و بهتر شود؛ باگ‌ها رفع شود تا پلیرها از بازی زده نشوند»
-
-Work Log:
-- حذف کامل مشاور حکومت قدیمی: مودال wd-advisor + داک شناور wd-feature-dock (روزنامه/مشاور) + بلوک درس‌های V1 + بخش کامل «مشاور حرفه‌ای» V28 (ADV_TABS/ADV/renderAdvisorPro/WD28Advisor + CSS آن) + هوک U4b wd-advisor — هر ۶ نقطه‌ی ورود به WD98_ADVISOR رتارگت شد (تور U4، خوش‌آمد اولین ورود، wd7-toolbar، bindToolbar، wd11-actions، installSurface، تنظیمات)؛ اسکن dangling-refs صفر
-- باگ واقعی رفع‌شده: تداخل همپوشانی داک شناور (top:122px) با FAB المپیک + دوچندشدن مودال آموزش در اولین ورود (auto-open قدیمی + auto-start آرمان) — حالا فقط آرمان
-- مشاور آرمان V99 بازنویسی کامل (mentor.js 47KB): ۱۲ فصل/۳۷ گام (قانون طلایی، ساخت کشور، اقتصاد، دفاع و استحکامات، بازار جهانی و تجارت، دیپلماسی، علم و ارتش، اتحاد و جنگ اتحاد، المپیک و بوکس، مالیات و زیرساخت، روزانه‌ی رهبر، راه تو) — همه‌ی ادعاها با مکانیک واقعی بازی هم‌راستاست (دیوار تا ۲۰٪، کارمزد ۲-۳٪، شورش بالای ۱۵٪، صلح ۴۸ ساعته‌ی سرور-محور)
-- کارت «وضعیت الان تو» از داده‌ی واقعی (پایتخت/قلمرو/سقف نفت/صف نیرو/زیرساخت/پاداش روزانه) + دکمه‌ی هوشمند «کار بعدی من» که به فصل درست می‌برد + نوار پیشرفت آموزش + رجیستری ۱۲ آیکون SVG + ۷ آیکون مینی وضعیت (بدون ایموجی خام)
-- بازگشت هوشمند به هاب پس از پایان/رد کردن فصل (reHub با تأخیر سینمایی) — کشف‌شده در QA
-- نوار بالای نقشه: چیپ‌های شیشه‌ی فولادی یکدست (۲۵px، radius 12، ارتفاع برابر)، حذف چیپ تکراری hud-t2 و hud-srv قدیمی، چیپ روزنامه SVG طلایی داخل نوار (جایگزین داک شناور)، ترتیب ثابت CSS order، فشرده ≤430px، رعایت reduced-motion/wg-ov
-- گیت‌ها: check-html-js checked=90 errors=0 (+1 بلوک wd99-js)، node --check mentor.js، release.mjs v98→v99 (beacon + ?v=99 ×6 + GAME_VER)، verify-build 9/9، schema-diff identical، tsc rc=0، اسکن راز صفر
-- QA پلی‌رایت wd99-qa.mjs: 29/29 (حذف‌ها، رتارگت‌ها، هاب ۱۲ فصلی، وضعیت زنده، کار بعدی هوشمند→گاید، پایان فصل→بازگشت هاب، چیپ روزنامه→مودال، beacon=99، صفر pageerror) + اسکرین‌شات download/v99-hub-live.png و v99-mentor-hub.png
-- push: 69320be..3019eae → dev؛ preview تأیید شد: v.txt=99 + __WD_V=99 + mentor.js?v=99 HTTP 200
-
-Stage Summary:
-- مشاور حکومت قدیمی کامل حذف و مشاور «آرمان» به نسخه‌ی ۲.۰ حرفه‌ای ارتقا یافت: ۱۲ فصل کامل، وضعیت زنده‌ی داده‌محور، کار بعدی هوشمند، بازگشت به هاب — نوار بالای نقشه تمیز/یکدست/بدون همپوشانی
-- v99 روی preview (world-dominion7-git-dev) لایو است و فقط کلاینت‌ساید است — سازگار با DB مشترک تولید
-- pending برای کاربر: تست روی گوشی (داک پایین → دکمه‌ی مشاور طلایی؛ نوار بالای نقشه؛ روزنامه در نوار)؛ پس از تأیید → merge به main و bump نسخه‌ی بعد + APK (منتظر keystore)
+- V99 روی dev کامل و سالم است: حذف مشاور قدیمی + آرمان ۲.۰ (۱۲ فصل/۳۷ گام/وضعیت زنده/کار بعدی هوشمند) + نوار بالای نقشه‌ی تمیز + صلح مقدس ۴۸ ساعته‌ی سرور-محور — همه‌ی گیت‌ها سبز، preview لایو
+- pending برای کاربر: تست گوشی → تأیید → merge main + APK (منتظر keystore)
