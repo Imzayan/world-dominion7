@@ -2518,3 +2518,19 @@ Stage Summary:
 - V96 = UI-only روی V95؛ صفر تغییر DB/RPC؛ پشت‌وارث با preview مشترک.
 - FAB آنلاین: فقط آنلاینِ سرور جاری را نشان می‌دهد (ST.onl[mySrv()])؛ کارت‌ها: آنلاین همان سرورِ خودشان.
 - merge به main پس از تأیید کاربر روی preview.
+
+---
+Task ID: V97-ONLINE-FAB
+Agent: main (Super Z)
+Task: بازخورد کاربر — آیکون آنلاینِ زیر المپیک: کوچک‌تر شود و فقط بازیکنان آنلاینِ «سرور خودش» را با فونت درخشان نشان دهد (نه همه‌ی سرورها)؛ آیکون تاریخ که با بقیه قاطی شده جای بهتر و ظاهر زیباتر؛ آیکون‌های بازی درخشان‌تر.
+
+Work Log:
+- Audit dev@2af005a: wd96-fab با کلیک صفحه‌ی همه‌ی سرورها (WD31_SERVER) را باز می‌کرد؛ تداخل واقعی wd34-heat-btn (oly.bottom+14) با wd96-fab (oly.bottom+18)؛ چیپ تاریخ در عرض‌های ۳۸۰-۴۸۰px با داک تداخل داشت و ایموجی خام 📅 بود.
+- route.ts: wd_presence اکنون players[] برمی‌گرداند — نیک‌های آنلاینِ همان سرور (تعریف یکسان: ۹۰ ثانیه + status=online، take 60). فیلد افزودنی → سازگار با کلاینت‌های قدیمی و DB مشترک production.
+- social.ts: onlinePlayersByServer(server) افزوده شد (فقط select nick/lastSeen — بدون داده‌ی حساس).
+- social.js: FAB 58→46px (آیکون ۱۸، عدد ۱۱.۵، نقطه‌ی زنده ۱۰)؛ کلیک → پنل wd96-op «بازیکنان آنلاین — فقط همین سرور» با شمارنده‌ی درخشان ۱۹px + ردیف نیک‌ها + نشان «تو» + به‌روزرسانی زنده با هر ضربان (sig-guarded)؛ fabPlace اکنون syncHeatPos را همگام می‌کند.
+- index.html: syncHeatPos دکمه‌ی حرارت را زیر FAB می‌گذارد (رفع هم‌پوشانی)؛ بلوک wd97: تقویم طلایی سینمایی SVG مستقل + افتادن زیر داک در ≤600px + بازتعریف wd87brth با هاله‌ی قوی‌تر + drop-shadow per-icon (respect reduced-motion).
+- bump نسخه ۹۷: v.txt، __WD_V، ?v=×۶ (balance/box5/cv-engine/oly3/oly3d/social)، GAME_VER=97.
+
+Stage Summary:
+- v97 روی dev پوش شد؛ UI-only + یک فیلد افزودنی RPC (بدون تغییر schema/مهاجرت)؛ سازگار با production؛ منتظر تست کاربر روی preview.

@@ -117,6 +117,21 @@ export async function onlineByServer(): Promise<Record<number, number>> {
   return out
 }
 
+/* V97 — فهرست نیک‌های آنلاینِ یک سرور مشخص (همان تعریف onlineByServer: ۹۰ ثانیه + status=online) */
+export async function onlinePlayersByServer(server: number): Promise<Array<{ nick: string; at: string }>> {
+  const since = new Date(Date.now() - 90_000)
+  try {
+    const rows = await db.presence.findMany({
+      where: { server, status: 'online', lastSeen: { gte: since } },
+      select: { nick: true, lastSeen: true },
+      orderBy: { lastSeen: 'desc' },
+      take: 60,
+    })
+    return rows.filter((r) => r.nick).map((r) => ({ nick: r.nick as string, at: r.lastSeen.toISOString() }))
+  } catch (e) { console.log('onlinePlayersByServer', e) }
+  return []
+}
+
 /* یافتن کاربر دیگر با uid یا nick یکتا (nickLower) */
 export async function resolveSocialTarget(p_uid: unknown, p_nick: unknown) {
   const uid = p_uid != null && p_uid !== '' ? String(p_uid).slice(0, 40) : ''

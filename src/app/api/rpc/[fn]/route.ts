@@ -14,7 +14,7 @@ import {
   type RecentScore,
 } from '@/lib/olyProfile'
 import { cvGenerateLayout, cvEnrich, cvCountryExists, type CvProvince } from '@/lib/cvGeo'
-import { ACH_CAT_FA, ACH_CATALOG, grantAch, notify, presenceSweep, onlineByServer, resolveSocialTarget, cleanBody } from '@/lib/social' /* V95 — SOCIAL & PLAYER IDENTITY */
+import { ACH_CAT_FA, ACH_CATALOG, grantAch, notify, presenceSweep, onlineByServer, onlinePlayersByServer, resolveSocialTarget, cleanBody } from '@/lib/social' /* V95 — SOCIAL & PLAYER IDENTITY */
 import { OL_REWARDS, SPECIAL_OPS, MENTOR_REWARDS, OL_PARTICIPATION_GEMS, OL_PODIUM_REWARDS, PVP_ATTACK } from '@/lib/balance' /* V72: توازن سرور متمرکز (PHASE 4) — V75: + PVP_ATTACK */
 import {
   cvDef, cvCost, cvTimeSec, cvProdPerMin, cvCatalogPublic, cvTechMults,
@@ -2275,7 +2275,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const onl = await onlineByServer()
         let total = 0
         for (const k of Object.keys(onl)) total += onl[Number(k)] || 0
-        return R({ ok: true, online: onl[server] || 0, total, servers: Object.keys(onl).map((k) => ({ server: Number(k), online: onl[Number(k)] })) })
+        /* V97 — فهرست بازیکنان آنلاینِ همین سرور (فیلد افزودنی؛ کلاینت‌های قدیمی نادیده می‌گیرند) */
+        const players = await onlinePlayersByServer(server)
+        return R({ ok: true, online: onl[server] || 0, total, players, servers: Object.keys(onl).map((k) => ({ server: Number(k), online: onl[Number(k)] })) })
       }
       /* V95 — پروفایل بازیکن: تجمیع از داده‌های واقعی سرور — بدون email/IP */
       case 'wd_profile': {

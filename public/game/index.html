@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=96;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=96"></script>
+  <script>window.__WD_V=97;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=97"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -10886,7 +10886,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=96';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=97';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -11446,7 +11446,7 @@ function renderPoster(b){
 
 /* ---------- 🔥 war heatmap — V55: دکمه‌ی مشعل/آتش زیر دکمه‌ی المپیک حذف شد (شلوغی صفحه) ---------- */
 function heatBtn(){/* V55: آیکون 🔥 برداشته شد — لایه‌ی حرارت دیگر از رابط کاربری در دسترس نیست */return null}
-function syncHeatPos(){try{const f=H('hud-olympic'),b=H('wd34-heat-btn');if(f&&b){const t=parseFloat(getComputedStyle(f).top)||142,h=f.offsetHeight||72;b.style.top=(t+h+14)+'px'}}catch(e){}}
+function syncHeatPos(){try{const f=H('hud-olympic'),b=H('wd34-heat-btn');if(f&&b){let t=(parseFloat(getComputedStyle(f).top)||142)+(f.offsetHeight||72)+14;const fb=document.getElementById('wd96-fab');if(fb){const fr=fb.getBoundingClientRect();if(fr&&fr.height)t=Math.max(t,Math.round(fr.bottom)+12)}b.style.top=Math.round(t)+'px'}}catch(e){}}
 async function toggleHeat(){
   S.heat=!S.heat;const b=H('wd34-heat-btn'),lg=H('wd34-heat-lg');
   if(b)b.classList.toggle('on',S.heat);
@@ -17456,7 +17456,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=96';
+              s.src='/game/cv-engine.js?v=97';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17467,7 +17467,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=96"></script>
+<script src="/game/oly3.js?v=97"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17481,7 +17481,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=96';
+      s.src='/game/oly3d.js?v=97';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -18245,6 +18245,46 @@ setTimeout(boot88,3000);
 <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.5 5.5l13 13"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></symbol>
 </defs></svg>
-<script src="/game/social.js?v=96"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<style id="wd97-css">
+/* ============ V97: تقویم سینمایی مستقل + درخشان‌سازی آیکون‌های بازی (همه CSS؛ صفر هزینه per-frame) ============ */
+/* ۱) آیکون تاریخ — ستاره‌ی طلایی مستقل بالا-چپ، دیگر قاطیِ داک نیست */
+#hud-info .hchip#hud-date{direction:rtl;display:inline-flex;align-items:center;gap:6px;
+  background:linear-gradient(150deg,rgba(66,44,4,.93),rgba(28,18,2,.96))!important;
+  border:1px solid rgba(255,204,64,.55)!important;border-radius:99px!important;padding:5px 11px!important;
+  box-shadow:0 6px 18px rgba(0,0,0,.5),0 0 16px rgba(255,190,40,.4),inset 0 1px 0 rgba(255,240,190,.3)!important}
+#hud-info .hchip#hud-date .wd97-dtx{font-size:10px;font-weight:900;color:#ffe9b8;letter-spacing:.2px;
+  white-space:nowrap;text-shadow:0 0 9px rgba(255,190,60,.55);font-variant-numeric:tabular-nums}
+#hud-info .hchip#hud-date svg{width:13px;height:13px;flex:0 0 auto;filter:drop-shadow(0 0 5px rgba(255,205,90,.95))}
+/* ۲) موبایل: تاریخ زیر داک می‌رود تا هیچ‌وقت روی آیکون‌های داک نیفتد (رفع «قاطی شدن») */
+@media(max-width:600px){
+  #hud-info{top:128px!important;left:8px!important}
+  #hud-info .hchip#hud-date{padding:4px 9px!important}
+  #hud-info .hchip#hud-date .wd97-dtx{font-size:9px}
+}
+/* ۳) تنفس نورانیِ پررنگ‌تر برای دکمه‌های داک — همان keyframe با هاله‌ی قوی‌تر */
+@keyframes wd87brth{0%,100%{box-shadow:0 4px 13px rgba(0,0,0,.5),0 0 15px var(--glow,rgba(90,180,255,.42)),0 0 30px var(--glow,rgba(90,180,255,.16)),inset 0 1px 0 rgba(255,255,255,.2)}
+  50%{box-shadow:0 4px 14px rgba(0,0,0,.5),0 0 26px var(--glow2,var(--glow,rgba(90,180,255,.6))),0 0 48px var(--glow2,rgba(90,180,255,.24)),inset 0 1px 0 rgba(255,255,255,.28)}}
+.wd87-ic svg{filter:drop-shadow(0 0 6px var(--icg,rgba(170,225,255,.95)))!important}
+.wd87-ic{border-color:var(--a3,rgba(124,199,255,.65))!important}
+@media(prefers-reduced-motion:reduce){.wd87-ic svg{filter:none!important}}
+</style>
+<script id="wd97-js">
+/* V97 — آیکون تاریخ: تقویم SVG سینمایی به‌جای ایموجی خام + خودکار تازه‌شود */
+(function(){
+'use strict';
+var D=document;
+function cal97(){return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.2" y="4.6" width="17.6" height="16" rx="2.6" fill="rgba(255,214,110,.16)" stroke="#ffd75e" stroke-width="1.5"/><path d="M3.2 9.4h17.6" stroke="#ffd75e" stroke-width="1.3"/><path d="M8 2.8v3.4M16 2.8v3.4" stroke="#ffe6a8" stroke-width="1.8" stroke-linecap="round"/><circle cx="8.4" cy="13.4" r="1.15" fill="#ffd75e"/><circle cx="12" cy="13.4" r="1.15" fill="#ffe6a8" opacity=".75"/></svg>'}
+var _sd97=window.showDate;
+window.showDate=function(){
+  try{_sd97()}catch(e){}
+  var e=D.getElementById('hud-date');if(!e)return;
+  var txt=(e.textContent||'').replace(/^📅\s*/,'');
+  e.innerHTML=cal97()+'<b class="wd97-dtx">'+txt+'</b>';
+};
+setTimeout(function(){try{window.showDate()}catch(e){}},700);
+setInterval(function(){if(!D.hidden){try{window.showDate()}catch(e){}}},30000);
+})();
+</script>
+<script src="/game/social.js?v=97"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
 </body>
 </html>

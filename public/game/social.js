@@ -160,20 +160,20 @@ var css=[
 '.wd95-empty{text-align:center;color:#7fa4c6;font-size:11px;padding:26px 10px;line-height:1.9}',
 '.wd95-sub{font-size:9.5px;color:#8fb4d4;line-height:1.7}',
 /* ---- V96: FAB آنلاین سینمایی زیر المپیک + قرص‌های وضعیت درخشان (جایگزین اموجی) ---- */
-'.wd96-fab{position:fixed;right:8px;width:58px;height:58px;z-index:9997;border-radius:50%;cursor:pointer;',
- 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;',
+'.wd96-fab{position:fixed;right:8px;width:46px;height:46px;z-index:9997;border-radius:50%;cursor:pointer;',
+ 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;',
  'background:radial-gradient(circle at 32% 26%,rgba(9,62,88,.98),rgba(4,30,48,.98) 46%,rgba(2,12,22,.98));',
  'border:2px solid rgba(64,220,255,.9);transition:transform .15s,box-shadow .3s;',
  'box-shadow:0 10px 26px rgba(0,0,0,.6),0 0 20px rgba(0,214,255,.42),inset 0 2px 0 rgba(185,244,255,.5),inset 0 -8px 16px rgba(0,96,140,.4)}',
-'.wd96-fab::before{content:"";position:absolute;inset:-5px;border-radius:50%;z-index:-1;',
+'.wd96-fab::before{content:"";position:absolute;inset:-4px;border-radius:50%;z-index:-1;',
  'background:conic-gradient(from 0deg,rgba(0,220,255,0) 0deg,rgba(0,220,255,.6) 40deg,rgba(0,220,255,0) 95deg);',
  'animation:wd96spin 3.6s linear infinite}',
 '.wd96-fab:active{transform:scale(.92)}',
-'.wd96-fab .wd96-num{font-size:14px;font-weight:900;color:#e6fbff;line-height:1;text-shadow:0 0 9px rgba(0,220,255,.95);font-variant-numeric:tabular-nums}',
-'.wd96-fab .wd96-flbl{position:absolute;bottom:-13px;left:50%;transform:translateX(-50%);white-space:nowrap;',
- 'font-size:9px;font-weight:900;color:#aef0ff;background:rgba(2,16,28,.95);border:1px solid rgba(0,214,255,.55);',
- 'padding:2px 8px;border-radius:99px;pointer-events:none;box-shadow:0 3px 10px rgba(0,0,0,.5)}',
-'.wd96-fab .wd96-fdot{position:absolute;top:-2px;inset-inline-end:-2px;width:13px;height:13px;border-radius:50%;',
+'.wd96-fab .wd96-num{font-size:11.5px;font-weight:900;color:#e6fbff;line-height:1;text-shadow:0 0 9px rgba(0,220,255,.95);font-variant-numeric:tabular-nums}',
+'.wd96-fab .wd96-flbl{position:absolute;bottom:-11px;left:50%;transform:translateX(-50%);white-space:nowrap;',
+ 'font-size:8px;font-weight:900;color:#aef0ff;background:rgba(2,16,28,.95);border:1px solid rgba(0,214,255,.55);',
+ 'padding:1.5px 7px;border-radius:99px;pointer-events:none;box-shadow:0 3px 10px rgba(0,0,0,.5)}',
+'.wd96-fab .wd96-fdot{position:absolute;top:-2px;inset-inline-end:-2px;width:10px;height:10px;border-radius:50%;',
  'background:#2bffb0;border:2px solid #031320;box-shadow:0 0 10px #2bffb0;animation:wd96pulse 1.8s infinite}',
 '@keyframes wd96spin{to{transform:rotate(360deg)}}',
 '@keyframes wd96pulse{0%,100%{opacity:1}50%{opacity:.5}}',
@@ -213,12 +213,37 @@ var css=[
 '.wd31-srv.wd96-glow-full{border-color:rgba(255,110,130,.5)}',
 '.wd31-srv.wd96-glow-maint{border-color:rgba(220,180,90,.45)}',
 '.wd31-srv .wd96-onl b{font-size:11.5px;color:#e6fbff;text-shadow:0 0 8px rgba(0,220,255,.8)}',
+/* ---- V97: پنل «بازیکنان آنلاینِ همین سرور» — شیشه‌ای، درخشان، فقط سرور جاری ---- */
+'.wd96-fab svg{width:17px;height:17px;filter:drop-shadow(0 0 6px rgba(150,235,255,.95))}',
+'.wd96-op{position:fixed;right:8px;z-index:9999;width:min(76vw,248px);max-height:46dvh;display:flex;flex-direction:column;',
+ 'border-radius:16px;border:1px solid rgba(64,220,255,.5);overflow:hidden;',
+ 'background:linear-gradient(165deg,rgba(8,30,50,.96),rgba(3,12,24,.97));',
+ 'box-shadow:0 14px 34px rgba(0,0,0,.65),0 0 22px rgba(0,214,255,.28),inset 0 1px 0 rgba(185,244,255,.35);',
+ 'backdrop-filter:blur(10px) saturate(1.25);-webkit-backdrop-filter:blur(10px) saturate(1.25);',
+ 'animation:wd96opin .18s ease-out}',
+'@keyframes wd96opin{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}',
+'.wd96-oph{display:flex;align-items:center;gap:7px;padding:9px 11px;border-bottom:1px solid rgba(64,220,255,.22);',
+ 'background:linear-gradient(160deg,rgba(10,44,70,.75),rgba(4,16,30,.8))}',
+'.wd96-oph .wd96-ot{font-size:10.5px;font-weight:900;color:#dff6ff;flex:1;display:flex;flex-direction:column;gap:1px}',
+'.wd96-oph .wd96-ot small{font-size:8px;font-weight:800;color:#8fd8ff}',
+'.wd96-onum{font-size:19px;font-weight:900;color:#aef4ff;line-height:1;font-variant-numeric:tabular-nums;',
+ 'text-shadow:0 0 12px rgba(0,220,255,.95),0 0 26px rgba(0,190,255,.5)}',
+'.wd96-olist{overflow-y:auto;overscroll-behavior:contain;padding:5px;display:flex;flex-direction:column;gap:3px}',
+'.wd96-orow{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:10px;',
+ 'background:rgba(10,30,54,.5);border:1px solid rgba(120,200,255,.1)}',
+'.wd96-orow b{flex:1;min-width:0;font-size:10.5px;font-weight:800;color:#eaf8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+'.wd96-orow .wd96-orb{width:7px;height:7px}',
+'.wd96-orow.me{border-color:rgba(255,205,90,.45);background:linear-gradient(160deg,rgba(60,45,8,.45),rgba(10,26,48,.55))}',
+'.wd96-orow.me b{color:#ffe9b8}',
+'.wd96-ome{font-size:7.5px;font-weight:900;color:#ffd75e;border:1px solid rgba(255,205,90,.45);border-radius:99px;padding:1px 6px;flex:0 0 auto}',
+'.wd96-oempty{font-size:10px;color:#8fb4d4;text-align:center;padding:18px 10px;line-height:1.9}',
+'.wd96-of{padding:6px 10px;border-top:1px solid rgba(64,220,255,.18);font-size:8px;color:#7fa4c6;display:flex;justify-content:space-between;align-items:center}',
 '@media(max-width:400px){.wd95-achgrid{grid-template-columns:repeat(3,1fr)}.wd95-stats{grid-template-columns:repeat(2,1fr)}}'
 ].join('');
 if(!$('wd95-css')){var st=D.createElement('style');st.id='wd95-css';st.textContent=css;D.head.appendChild(st)}
 
 /* ---------- state ---------- */
-var ST={badges:{dm:0,nt:0,fr:0},onl:{},srvs:null,blocks:{},hbT:0,profOpen:null,dmOpen:null,dmPoll:0,dmSig:''};
+var ST={badges:{dm:0,nt:0,fr:0},onl:{},srvs:null,blocks:{},hbT:0,profOpen:null,dmOpen:null,dmPoll:0,dmSig:'',players:[]};
 
 /* ---------- حضور زنده (heartbeat) ---------- */
 async function heartbeat(){
@@ -228,7 +253,7 @@ async function heartbeat(){
     var r=await rpc('wd_presence',{p_server:mySrv(),p_status:status});
     ST.onl={};
     (r.servers||[]).forEach(function(x){ST.onl[x.server]=x.online});
-    ST.myOnline=r.online||0;ST.total=r.total||0;
+    ST.myOnline=r.online||0;ST.total=r.total||0;ST.players=r.players||[];
     renderLive();
   }catch(e){/* بی‌صدا — ضربان بعدی */}
 }
@@ -270,7 +295,7 @@ function renderLive(){
   var lb=f.querySelector('.wd96-flbl');
   var txt=(sts==='maintenance'?'تعمیر':sts==='full'?'پر':sts==='busy'?'شلوغ':'آنلاین')+' • سرور '+fad(mySrv());
   if(lb&&lb.textContent!==txt)lb.textContent=txt;
-  paintSrvPage();
+  paintSrvPage();refreshOnlPanel();
 }
 var fabTries=0;
 function ensureFab(){
@@ -278,11 +303,9 @@ function ensureFab(){
   var oly=$('hud-olympic');
   if(!oly){if(++fabTries<80)setTimeout(ensureFab,500);return}
   var f=D.createElement('div');f.id='wd96-fab';f.className='wd96-fab';
-  f.title='بازیکنان آنلاین این سرور — شناسنامه‌ی سینمایی سرور';
-  f.innerHTML=WDSI_ICON('globeCine',24)+'<span class="wd96-num">—</span><span class="wd96-fdot"></span><span class="wd96-flbl">آنلاین • سرور '+fad(mySrv())+'</span>';
-  f.addEventListener('click',function(ev){ev.stopPropagation();
-    try{if(typeof WD31_SERVER==='function'){WD31_SERVER();return}}catch(e){}
-    openSrvSelector()});
+  f.title='بازیکنان آنلاین همین سرور — لیست زنده';
+  f.innerHTML=WDSI_ICON('globeCine',18)+'<span class="wd96-num">—</span><span class="wd96-fdot"></span><span class="wd96-flbl">آنلاین • سرور '+fad(mySrv())+'</span>';
+  f.addEventListener('click',function(ev){ev.stopPropagation();toggleOnlPanel()});
   D.body.appendChild(f);
   fabPlace();
 }
@@ -293,9 +316,10 @@ function fabPlace(){
   if(!oly){f.style.top='234px';return}
   var r=oly.getBoundingClientRect();
   if(!r||!r.height){f.style.top='234px';return}
-  var top=Math.round(r.bottom)+18;
-  top=Math.min(window.innerHeight-110,Math.max(96,top));
+  var top=Math.round(r.bottom)+16;
+  top=Math.min(window.innerHeight-100,Math.max(96,top));
   if(f.style.top!==top+'px')f.style.top=top+'px';
+  try{if(typeof window.syncHeatPos==='function')window.syncHeatPos()}catch(e){}
 }
 window.addEventListener('resize',fabPlace);
 setInterval(fabPlace,2500);
@@ -313,6 +337,56 @@ function openSrvSelector(){
     openModal('m-srv');
   }catch(e){}
 }
+/* ---------- V97: پنل بازیکنان آنلاینِ همین سرور — «چه کسایی آنلاین هستن؟» ---------- */
+function toggleOnlPanel(){
+  var p=$('wd96-op');
+  if(p){try{D.removeEventListener('click',opOutside)}catch(e){}p.remove();return}
+  p=D.createElement('div');p.id='wd96-op';p.className='wd96-op';
+  p.innerHTML='<div class="wd96-oph">'+WDSI_ICON('users',16)+
+    '<span class="wd96-ot">بازیکنان آنلاین<small>سرور '+fad(mySrv())+' — فقط همین سرور</small></span>'+
+    '<b class="wd96-onum">—</b></div>'+
+    '<div class="wd96-olist"><div class="wd96-oempty">در حال دریافت…</div></div>'+
+    '<div class="wd96-of"><span>به‌روزرسانی خودکار</span><span>● زنده</span></div>';
+  D.body.appendChild(p);
+  placeOnlPanel();renderOnlList();
+  setTimeout(function(){D.addEventListener('click',opOutside)},0);
+}
+function placeOnlPanel(){
+  var p=$('wd96-op');if(!p)return;
+  var f=$('wd96-fab');
+  if(f){var r=f.getBoundingClientRect();p.style.top=(Math.round(r.bottom)+26)+'px'}
+  else p.style.top='236px';
+}
+function opOutside(ev){
+  var p=$('wd96-op');if(!p){try{D.removeEventListener('click',opOutside)}catch(e){}return}
+  var f=$('wd96-fab');
+  if(p.contains(ev.target)||(f&&f.contains(ev.target)))return;
+  try{D.removeEventListener('click',opOutside)}catch(e){}
+  p.remove();
+}
+function renderOnlList(){
+  var p=$('wd96-op');if(!p)return;
+  var onl=ST.onl[mySrv()];
+  var num=p.querySelector('.wd96-onum');
+  if(num&&onl!=null&&num.textContent!==fad(onl))num.textContent=fad(onl);
+  placeOnlPanel();
+  var list=p.querySelector('.wd96-olist');if(!list)return;
+  var me=(typeof ACC!=='undefined'&&ACC&&ACC.nick)?ACC.nick:null;
+  var rows=(ST.players||[]).slice();
+  if(me){var has=false;for(var i=0;i<rows.length;i++){if(rows[i].nick===me){has=true;break}}
+    if(!has)rows.unshift({nick:me})}
+  var sig=rows.map(function(r){return r.nick}).join('|')+'#'+(onl==null?'?':onl);
+  if(list.__sig===sig)return;list.__sig=sig;
+  if(!rows.length){list.innerHTML='<div class="wd96-oempty">فعلاً کسی آنلاین نیست — تو اولین باش! ✨</div>';return}
+  var h='';
+  for(var j=0;j<rows.length;j++){
+    var isMe=me&&rows[j].nick===me;
+    h+='<div class="wd96-orow'+(isMe?' me':'')+'"><i class="wd96-orb"></i><b>'+esc(rows[j].nick)+'</b>'+
+       (isMe?'<span class="wd96-ome">تو</span>':'')+'</div>';
+  }
+  list.innerHTML=h;
+}
+function refreshOnlPanel(){if(!$('wd96-op'))return;renderOnlList()}
 
 /* ---------- غنی‌سازی انتخابگر سرور (کارت‌های ONLINE/BUSY/FULL/MAINTENANCE) ---------- */
 async function refreshSrvs(){
