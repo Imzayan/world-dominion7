@@ -2479,3 +2479,22 @@ Work Log:
 Stage Summary:
 - سیستم اجتماعی و هویت بازیکن V1 کامل و server-authoritative: دنیای زنده با presence واقعی، چت جهانی ارتقایافته، پیام خصوصی امن با بلاک سروری، پروفایل/عنوان/دستاورد/دوستی/اعلان — همه روی داده‌ی واقعی سرور و بدون هیچ P2W
 - نسخه v95 همگام (v.txt+beacon+?v×5+GAME_VER)؛ dev آماده‌ی push برای preview
+
+---
+Task ID: SOCIAL-V1-UNIFY
+Agent: Super Z (main)
+Task: دستور «انجام بده» — رفع وضعیت «هیچی نشده»: یکپارچه‌سازی دو خط موازی SOCIAL V1 و رساندن کلاینت واقعی به preview
+
+Work Log:
+- Audit: کشف دو پیاده‌سازی موازی — (الف) dev: کلاینت inline «wds-v1» + ۱۵ RPC + ۶ مدل، بدون ماژول دستاورد/عنوان و با تاریخچه‌ی ۳ فیکس syntax؛ (ب) main (d498bcf): social.js خارجی ۸۲۹ خطی + ۱۸ RPC + ۷ مدل + موتور دستاورد سرور-محور (social.ts) با هوک روی رویدادهای واقعی (فتح PvP، بوکس، المپیاد، فروشگاه، اتحاد، HOF، بیو، DM، دوستی)
+- تشخیص ریشه‌ی «هیچی نشده»: هر دو خط ناقص نسبت به هم بودند و هیچ‌کدام تست‌شده روی preview تأیید نشده بودند؛ ادعای «QA 35/35» کامیت f9163ec با درخت واقعی همخوان نبود (قربانی reset سندباکس)
+- تصمیم معماری: یکپارچه‌سازی روی پیاده‌سازی کامل‌تر main (پوشش ۱۲ ماژول spec) + پورت ۴ نکته‌ی خوب dev: نوتیف حمله به مدافع، state حضور در ردیف‌های چت جهانی، قلاب‌های index.html (چیپ سرور زنده، آواتار/نقطه‌ی حضور/نیک کلیک‌پذیر در چت)، sprite آیکون مرکزی SVG
+- Merge origin/dev ← main با رزولوشن جراحی (scripts/merge95.py + scripts/v95fix.py با assert در هر گام): schema هر دو گویش → main (۷ مدل V95)؛ route.ts → main + ۴ افزودنی؛ index.html → قلاب‌های dev + sprite + include social.js؛ حذف helpers مرده‌ی dev و هر ارجاع به مدل‌های dev (صفر ارجاع باقی مانده — assert)
+- آداپتور window.WDS در social.js اضافه شد (srvLabel با شمارش زنده / servers / profile / av / dot / sym روی sprite مرکزی) تا قلاب‌های index.html زنده شوند
+- حذف artifacts مرده: wds-module-a/b.txt، wds-patch.py، wds-sprite.txt و پروب‌های wd95-*.mjs نوشته‌شده برای کلاینت حذف‌شده
+- گیت‌ها (همه سبز): check-html-js 88/0؛ verify-build 9/9؛ schema-diff «schemas identical»؛ tsc صفر خطا در src (فقط ۱ خطای قدیمی skills/ خارج از بازی)؛ touchpoints: v.txt=95 + beacon=95 + صفر ?v=94 کهنه + GAME_VER=95؛ اسکن راز روی دیف استیج‌شده: صفر؛ پوشش RPC: ۱۸/۱۸ کلاینت↔سرور؛ node --check روی social.js سبز
+- حادثه‌ی سندباکس: کامیت a12eca6 ناقص شد (فقط social.js+social.ts — reset وسط جلسه)؛ ترمیم با کامیت تکمیلی همان رزولوشن کامل (schema/index/route/db-deny/worklog/حذف drafts)
+
+Stage Summary:
+- یک سیستم اجتماعی منسجم V1 روی خط dev: کلاینت social.js (۲۴/۳۲/۴۸px آیکون، ۴۴px اهداف لمسی، event delegation، heartbeat ۴۵s، نظرسنجی بج ۳۰s) + ۱۸ RPC سشن-محور + ۷ جدول V95 با server_id + RLS-معادل deny-by-default در /api/db
+- pending: push dev → تست preview توسط کاربر → پس از تأیید merge به main

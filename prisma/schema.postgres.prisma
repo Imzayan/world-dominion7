@@ -847,6 +847,7 @@ model UserTrophy {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
   key       String
+  category  String   @default("special") /* V95 — دسته‌بندی ۸گانه‌ی دستاوردها (military|economy|olympics|social|progress|alliance|glory|special) */
   at        DateTime @default(now())
 
   @@unique([userId, key])
@@ -854,78 +855,105 @@ model UserTrophy {
   @@map("user_trophies")
 }
 
-/* ============ SOCIAL & PLAYER IDENTITY V1 (wd-soc) — همه‌ی سطوح server-side ============ */
-model ServerPresence {
-  userId    String   @id @map("user_id")
-  server    Int
-  nick      String
-  state     String   @default("online") /* online|away */
-  lastSeen  DateTime @map("last_seen")
-  updatedAt DateTime @updatedAt @map("updated_at")
+/* ============================================================
+   V95 — SOCIAL & PLAYER IDENTITY V1
+   هویت واقعی بازیکن، حضور زنده، پیام خصوصی، دوستان، مسدودسازی و
+   اعلان‌ها. همه‌ی نوشتن‌ها فقط از مسیر RPC با سشن احراز شده —
+   این جدول‌ها عمداً در /api/db ثبت نشده‌اند (deny-by-default =
+   معادل RLS در این استک). server_id (ستون int server) روی هر
+   داده‌ی جهانی الزامی است.
+   ============================================================ */
+
+/* V95 — رجیستری سرورها: نام، وضعیت نمایشی (online|busy|maintenance) */
+model GameServer {
+  id        Int      @id
+  name      String
+  status    String   @default("online")
+  note      String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("servers")
+}
+
+/* V95 — حضور زنده: یک ردیف به‌ازای هر کاربر؛ heartbeat هر ۴۵ ثانیه.
+   آنلاین = lastSeen در ۹۰ ثانیه‌ی اخیر؛ idle = تب مخفی. شمارش آنلاین
+   فقط از همین جدول با پنجره‌ی زمانی — هیچ عدد جعلی‌ای در کار نیست. */
+model Presence {
+  userId   String   @id @map("user_id")
+  server   Int
+  nick     String
+  status   String   @default("online") /* online|idle */
+  lastSeen DateTime @map("last_seen")
 
   @@index([server, lastSeen])
   @@map("server_presence")
 }
 
-model SocialProfile {
+/* V95 — پروفایل عمومی بازیکن: بیو کوتاه. هیچ email/IP/شناسه داخلی
+   اینجا یا در خروجی RPC پروفایل نمی‌آید (حریم خصوصی §spec). */
+model PlayerProfile {
   userId    String   @id @map("user_id")
-  title     String   @default("") /* انتخاب از بین Titleهای earned — اعتبارسنجی سمت سرور */
+  server    Int      @default(1)
+  bio       String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("social_profiles")
+  @@map("player_profiles")
 }
 
-model PlayerFriend {
-  id          String   @id @default(cuid())
-  aUid        String   @map("a_uid") /* نرمال‌سازی: aUid < bUid */
-  bUid        String   @map("b_uid")
-  status      String   @default("pending") /* pending|accepted */
-  requestedBy String   @map("requested_by")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+/* V95 — دوستی: pending → accepted (پذیرش خودکار دوطرفه وقتی طرف هم درخواست داده) */
+model FriendLink {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  friendId  String   @map("friend_id")
+  status    String   @default("pending") /* pending|accepted */
+  createdAt DateTime @default(now()) @map("created_at")
 
-  @@unique([aUid, bUid])
-  @@index([bUid])
+  @@unique([userId, friendId])
+  @@index([friendId])
   @@map("player_friends")
 }
 
-model PlayerBlock {
-  id         String   @id @default(cuid())
-  uid        String
-  blockedUid String   @map("blocked_uid")
-  createdAt  DateTime @default(now()) @map("created_at")
+/* V95 — مسدودسازی سمت سرور: فرستنده/گیرنده‌ی مسدود، DM و درخواست دوستی نمی‌توانند بزنند */
+model BlockLink {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  blockedId String   @map("blocked_id")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  @@unique([uid, blockedUid])
-  @@index([blockedUid])
+  @@unique([userId, blockedId])
   @@map("player_blocks")
 }
 
-model PrivateMessage {
-  id        String    @id @default(cuid())
-  server    Int
-  fromUid   String    @map("from_uid")
-  fromNick  String    @map("from_nick")
-  toUid     String    @map("to_uid")
-  toNick    String    @map("to_nick")
-  body      String
-  readAt    DateTime? @map("read_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+/* V95 — پیام خصوصی: فقط فرستنده/گیرنده در RPC به آن دسترسی دارند.
+   مکالمه = مشتق از آخرین پیام هر طرف (جدول اضافه‌ی همگام‌سازی ندارد). */
+model PrivateMsg {
+  id         Int       @id @default(autoincrement())
+  server     Int
+  senderId   String    @map("sender_id")
+  receiverId String    @map("receiver_id")
+  body       String
+  createdAt  DateTime  @default(now()) @map("created_at")
+  readAt     DateTime? @map("read_at")
 
-  @@index([toUid, createdAt])
-  @@index([fromUid, createdAt])
+  @@index([receiverId, createdAt])
+  @@index([senderId, createdAt])
+  @@index([server])
   @@map("private_messages")
 }
 
-model PlayerNotif {
-  id        String    @id @default(cuid())
+/* V95 — اعلان کاربر: از رویدادهای واقعی سرور (دستیابی، دوستی، پیام، لقب HOF…) */
+model Notification {
+  id        Int       @id @default(autoincrement())
   userId    String    @map("user_id")
   server    Int       @default(1)
-  kind      String    /* dm|freq|freq_ok|ach|attack|oly */
+  kind      String
   title     String
   body      String    @default("")
-  readAt    DateTime? @map("read_at")
+  refId     String?   @map("ref_id")
   createdAt DateTime  @default(now()) @map("created_at")
+  readAt    DateTime? @map("read_at")
 
   @@index([userId, createdAt])
-  @@map("player_notifs")
+  @@map("notifications")
 }

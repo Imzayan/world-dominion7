@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser, type SessionUser } from '@/lib/auth'
 import { rateLimit } from '@/lib/ratelimit'
+import { grantAch } from '@/lib/social' /* V95 — SOCIAL & PLAYER IDENTITY */
 
 export const dynamic = 'force-dynamic'
 
@@ -265,6 +266,17 @@ async function recomputeScore(userId: string, nick: string, stateJson: string) {
       create: { userId, nick, ...m },
       update: { nick, ...m, server: prev?.server || 1 },
     })
+    /* V95 — دستاوردهای پیشرفت/اقتصاد از متریک واقعی clamp‌شده (کش درون-پردازه ⇒ ارزان) */
+    try {
+      const srv = prev?.server || 1
+      if (m.conquered >= 3) await grantAch(userId, nick, 'pr_c3', srv)
+      if (m.conquered >= 10) await grantAch(userId, nick, 'pr_c10', srv)
+      if (m.conquered >= 22) await grantAch(userId, nick, 'pr_c22', srv)
+      if (m.conquered >= 40) await grantAch(userId, nick, 'pr_c40', srv)
+      if (m.economy >= 10_000) await grantAch(userId, nick, 'ec_10k', srv)
+      if (m.economy >= 100_000) await grantAch(userId, nick, 'ec_100k', srv)
+      if (m.economy >= 1_000_000) await grantAch(userId, nick, 'ec_1m', srv)
+    } catch (e) { console.log('ach95', e) }
   } catch (e) { console.log('recomputeScore', e) }
 }
 
@@ -356,7 +368,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ table: str
       const row = await model[spec.model].create({ data: p })
       created.push(row)
     }
-    if (table === 'world_chat' && created.length) chatMark(user.id)
+    if (table === 'world_chat' && created.length) {
+      chatMark(user.id)
+      /* V95 — دستاورد اولین پیام چت جهانی */
+      try { await grantAch(user.id, user.nick, 'so_chat', (created[0] as { server?: number }).server || 1) } catch { /* noop */ }
+    }
     await afterWrite(table, created, user)
     const data = created.map((r) => serialize(r, spec, body.query?.select))
     if (body.query?.single) return NextResponse.json({ data: data[0] || null, error: null })
