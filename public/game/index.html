@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=102;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=102"></script>
+  <script>window.__WD_V=103;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=103"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -10741,7 +10741,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=102';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=103';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -17311,7 +17311,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=102';
+              s.src='/game/cv-engine.js?v=103';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17322,7 +17322,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=102"></script>
+<script src="/game/oly3.js?v=103"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17336,7 +17336,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=102';
+      s.src='/game/oly3d.js?v=103';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -18353,7 +18353,78 @@ function swap(){
 var iv=setInterval(function(){var ok=false;try{ok=swap()}catch(e){}if(ok||++tries>50)clearInterval(iv)},350);
 })();
 </script>
-<script src="/game/social.js?v=102"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=102"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<style id="wd103-css">
+/* ===== V103 — حذف داک مرده + مدالیون برچسب‌دار لمسی ===== */
+/* داک V87 داخل نوار pointer-events:none گیر کرده بود و هرگز فعال نمی‌شد — ۹ دکمه‌ی نمایان ولی مرده.
+   همه‌ی کارکردهایش از V101 در پنل ۴ گروه هست؛ فقط پیام/اعلان (یگانه) به پنل سامانه منتقل می‌شوند. */
+#wd87dock{display:none!important}
+#wd101b-rows3 .wd87-ic{pointer-events:auto!important;display:flex!important;width:100%!important;height:30px!important;max-width:none!important;border-radius:10px!important;padding:0 10px!important;gap:8px!important;justify-content:flex-start!important;align-items:center!important;background:linear-gradient(180deg,rgba(22,40,70,.9),rgba(10,20,40,.92))!important;border:1px solid rgba(96,160,220,.35)!important;box-shadow:inset 0 1px 0 rgba(180,220,255,.12)!important}
+#wd101b-rows3 .wd87-ic svg{width:16px!important;height:16px!important;padding:0!important;border-radius:0!important;background:none!important;border:none!important;box-shadow:none!important;filter:drop-shadow(0 0 5px rgba(125,214,255,.5))!important}
+#wd101b-rows3 .wd87-ic .wd87-b{position:static!important;transform:none!important;margin-inline-start:auto!important;min-width:22px!important;height:16px!important;line-height:14px!important;font-size:9.5px!important;border-radius:8px!important;padding:0 5px!important;background:rgba(96,160,220,.22)!important;border:1px solid rgba(96,160,220,.45)!important;color:#dff1ff!important}
+#wd101b-rows3 .wd87-ic:active{filter:brightness(1.3)}
+#wd101b-rows3 #wd95-b-msg::after{content:'پیام‌های خصوصی';color:#dceaff;font-size:11.5px;font-weight:800;white-space:nowrap}
+#wd101b-rows3 #wd95-b-nt::after{content:'اعلان‌ها';color:#dceaff;font-size:11.5px;font-weight:800;white-space:nowrap}
+/* موبایل: مدالیون عمودی با برچسب — مرتب، خوانا، بدون سرریز از کادر */
+@media(max-width:600px){
+  #hud-strip{justify-content:center!important;gap:6px!important}
+  .wd101b-lbl{display:inline!important;font-size:9px!important;line-height:1!important;font-weight:800!important}
+  .wd101b-btn{flex-direction:column!important;height:50px!important;min-width:58px!important;padding:7px 5px 6px!important;gap:4px!important;border-radius:14px!important;touch-action:manipulation}
+  .wd101b-btn svg{width:20px!important;height:20px!important}
+  .wd101b-car{display:none!important}
+}
+/* صفحه‌های خیلی باریک: ساعت/تاریخ به‌جای قبلی بالا می‌ماند (داک حذف شده) */
+@media(max-width:380px){#hud-info{top:74px!important}}
+</style>
+<script id="wd103-js">
+/* V103 — لمس واقعی دکمه‌های نوار بالا + انتقال پیام/اعلان به پنل «سامانه» */
+(function(){
+if(window.WD103)return;window.WD103=1;
+var D=document;
+/* ۱) دکمه‌های پیام/اعلان (تولید social.js در داک مرده) به ردیف‌های پنل سامانه منتقل می‌شوند */
+var tries=0;
+var mv=setInterval(function(){
+  try{
+    var rows=D.getElementById('wd101b-rows3');
+    var m=D.getElementById('wd95-b-msg'),n=D.getElementById('wd95-b-nt');
+    if(rows&&m&&n){
+      if(m.parentNode!==rows)rows.appendChild(m);
+      if(n.parentNode!==rows)rows.appendChild(n);
+      clearInterval(mv);
+    }else if(++tries>150){clearInterval(mv)}
+  }catch(e){clearInterval(mv)}
+},400);
+/* ۲) لمس واقعی: pointerdown بلافاصله پنل را باز می‌کند (حتی اگر مرورگر کلیک سنتز نکند)؛
+   کلیک بعدی تا ۷۰۰ms سرکوب می‌شود تا پنل دوباره بسته نشود */
+var last=0;
+D.addEventListener('click',function(ev){
+  if(Date.now()-last<700){
+    var t=ev.target;
+    if(t&&t.closest&&t.closest('.wd101b-btn')){ev.stopPropagation();ev.preventDefault()}
+  }
+},true);
+function arm(){
+  var bs=D.querySelectorAll('.wd101b-btn');
+  for(var i=0;i<bs.length;i++){(function(b){
+    if(b.getAttribute('data-w103'))return;
+    b.setAttribute('data-w103','1');
+    try{b.style.touchAction='manipulation'}catch(e){}
+    b.addEventListener('pointerdown',function(ev){
+      last=Date.now();
+      var g=b.parentNode;
+      if(!g)return;
+      try{ev.stopPropagation()}catch(e){}
+      var was=g.classList.contains('open');
+      if(window.WD101B&&WD101B.close)WD101B.close();
+      if(!was){g.classList.add('open');D.body.classList.add('wd101b-open')}
+    },false);
+  })(bs[i])}
+}
+arm();
+try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e){}}).observe(D.documentElement,{childList:true,subtree:true})}catch(e){}
+setInterval(function(){try{arm()}catch(e){}},2500);
+})();
+</script>
+<script src="/game/social.js?v=103"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=103"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 </body>
 </html>
