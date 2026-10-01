@@ -3001,6 +3001,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           },
         })
         if (gamesPhase().phase === 'live' && (await evOn('olympic')) && !duel) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک — با خاموشی المپیک توسط ادمین لغو می‌شود */
+        /* V98 — صلح مقدس نوآموزان: ۴۸ ساعت اول ثبت‌نام هیچ حمله‌ای (به/از) ممکن نیست؛
+           دوئر رسمیِ توافقی (duel زنده) مستثناست — همان الگوی آتش‌بس المپیک */
+        if (!duel) {
+          const ages98 = await db.user.findMany({ where: { id: { in: [user.id, t.userId] } }, select: { id: true, createdAt: true } })
+          const now98 = Date.now()
+          if (ages98.some((u) => now98 - new Date(u.createdAt).getTime() < 48 * 3600 * 1000)) return R({ ok: false, error: 'peace' })
+        }
         /* ---------------- V75 — P4: هزینه‌ی واقعی حمله + کول‌داون سرور ----------------
            تا V74 حمله برای مهاجم رایگان بود؛ حالا:
            ۱) کول‌داون ۱۰ثانیه‌ای per-user (ضد اسپم حمله)
