@@ -257,7 +257,7 @@ var LESSONS=[
 ];
 
 /* ---------- وضعیت ---------- */
-var ST={ls:null,ch:0,step:0,typing:null,mode:null,spotTarget:null,repT:0};
+var ST={ls:null,ch:0,step:0,typing:null,mode:null,spotTarget:null,repT:0,fromHub:false};
 function load(){ST.ls=lsGet('wd98adv_'+myUid())||{seen:false,done:{}}}
 function save(){lsSet('wd98adv_'+myUid(),ST.ls)}
 function isDone(id){return !!(ST.ls&&ST.ls.done&&ST.ls.done[id])}
@@ -330,10 +330,10 @@ function typeText(el,txt){
   el.onclick=function(){if(ST.typing){killTyp();el.textContent=txt}};
 }
 /* ---------- بازی روایی ---------- */
-function openGuide(chIdx,stepIdx){
+function openGuide(chIdx,stepIdx,fromHub){
   closeAll();
   var L=LESSONS[chIdx];if(!L)return;
-  ST.mode='guide';ST.ch=chIdx;ST.step=stepIdx||0;
+  ST.mode='guide';ST.ch=chIdx;ST.step=stepIdx||0;ST.fromHub=!!fromHub;
   var ov=D.createElement('div');ov.className='wd98-catch';ov.id='wd98-catch';
   var sp=D.createElement('div');sp.className='wd98-spot';sp.id='wd98-spot';
   var b=D.createElement('div');b.className='wd98-bub';b.id='wd98-bub';
@@ -349,7 +349,7 @@ function openGuide(chIdx,stepIdx){
   b.style.display='flex';
   b.querySelector('#wd98-prev').addEventListener('click',function(){goStep(ST.step-1)});
   b.querySelector('#wd98-next').addEventListener('click',function(){goStep(ST.step+1)});
-  b.querySelector('#wd98-skip').addEventListener('click',function(){closeAll()});
+  b.querySelector('#wd98-skip').addEventListener('click',function(){closeAll();reHub(0)});
   paintStep();
 }
 function paintStep(){
@@ -384,6 +384,13 @@ function finishLesson(){
       try{(typeof showToast==='function'?showToast:toast)('📜 فصل «'+L.t+'» کامل شد — آرمان افتخارش را دارد','win')}catch(e){}
     }
   }catch(e){}
+  reHub(fin?2600:1600);
+}
+/* بازگشت هوشمند به هاب پس از پایان/رد کردن فصل — زنجیره‌ی یادگیری قطع نشود */
+function reHub(delay){
+  if(!ST.fromHub)return;
+  ST.fromHub=false;
+  setTimeout(function(){if(ST.mode==null)openHub()},delay||0);
 }
 function closeAll(){
   killTyp();ST.mode=null;ST.spotTarget=null;
@@ -429,11 +436,11 @@ function openHub(autoCh){
   if(nextFix){
     var nab=ov.querySelector('#wd98-na');
     if(nab)nab.addEventListener('click',function(){
-      for(var q=0;q<LESSONS.length;q++)if(LESSONS[q].id===nextFix){openGuide(q,0);return}
+      for(var q=0;q<LESSONS.length;q++)if(LESSONS[q].id===nextFix){openGuide(q,0,true);return}
     });
   }
   ov.querySelectorAll('.wd98-chap').forEach(function(bn){
-    bn.addEventListener('click',function(){openGuide(+bn.getAttribute('data-ch'),0)});
+    bn.addEventListener('click',function(){openGuide(+bn.getAttribute('data-ch'),0,true)});
   });
   if(typeof autoCh==='number')setTimeout(function(){openGuide(autoCh,0)},140);
 }
