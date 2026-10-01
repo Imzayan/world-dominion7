@@ -18244,6 +18244,9 @@ body.wd101b-open #hud-strip{z-index:10005!important}
 .wd101b-pop #hud-srv2 .wd-srv-bar{display:none!important}
 .wd101b-pop #wd86-gift b{display:inline!important}
 #wd101b-rows0 #hud-terr{display:flex!important}
+#wd101b-rows2 #hud-doom::after{content:'ساعت آخرالزمان';color:#dceaff;font-size:11.5px;font-weight:800;margin-inline-start:7px;white-space:nowrap}
+#wd101b-rows3 #hud-anthem::after{content:'سرود امپراتوری';color:#dceaff;font-size:11.5px;font-weight:800;margin-inline-start:7px;white-space:nowrap}
+#wd101b-rows3 #hud-snd::after{content:'صدا';color:#dceaff;font-size:11.5px;font-weight:800;margin-inline-start:7px;white-space:nowrap}
 @media(max-width:600px){.wd101b-lbl{display:none!important}.wd101b-btn{padding:0 9px!important}.wd101b-pop{min-width:176px!important}}
 </style>
 <script id="wd100-js">
@@ -18268,8 +18271,8 @@ var D=document;
 var GROUPS=[
  {gid:'wd101b-g0',rid:'wd101b-rows0',lbl:'امپراتوری',title:'امپراتوری شما',home:['hud-date','hud-terr'],acc:'rgba(255,204,64,.55)',hi:'#ffd75e',glow:'rgba(255,200,60,.30)',icon:function(){return (window.MI100&&MI100.empire)||'👑'}},
  {gid:'wd101b-g1',rid:'wd101b-rows1',lbl:'خزانه',title:'خزانه و پاداش',home:['hud-gem','wd86-gift'],acc:'rgba(178,132,255,.55)',hi:'#b284ff',glow:'rgba(178,132,255,.28)',icon:function(){return (window.MI100&&MI100.gem)||'💎'}},
- {gid:'wd101b-g2',rid:'wd101b-rows2',lbl:'رویدادها',title:'رویدادهای جهانی',home:['hud-news'],acc:'rgba(255,204,64,.5)',hi:'#ffd75e',glow:'rgba(255,200,60,.28)',icon:function(){return (typeof ic99==='function'&&ic99())||((window.MI100&&MI100.glory)||'📰')}},
- {gid:'wd101b-g3',rid:'wd101b-rows3',lbl:'سامانه',title:'سامانه و سرور',home:['hud-srv2'],acc:'rgba(96,160,220,.55)',hi:'#7dd6ff',glow:'rgba(96,160,220,.28)',icon:function(){return (window.MI100&&MI100.settings)||'⚙️'}}
+ {gid:'wd101b-g2',rid:'wd101b-rows2',lbl:'رویدادها',title:'رویدادهای جهانی',home:['hud-news','hud-doom','hud-crisis'],acc:'rgba(255,204,64,.5)',hi:'#ffd75e',glow:'rgba(255,200,60,.28)',icon:function(){return (typeof ic99==='function'&&ic99())||((window.MI100&&MI100.glory)||'📰')}},
+ {gid:'wd101b-g3',rid:'wd101b-rows3',lbl:'سامانه',title:'سامانه و سرور',home:['hud-srv2','hud-anthem','hud-snd'],acc:'rgba(96,160,220,.55)',hi:'#7dd6ff',glow:'rgba(96,160,220,.28)',icon:function(){return (window.MI100&&MI100.settings)||'⚙️'}}
 ];
 var busy=false;
 function strip(){return D.getElementById('hud-strip')}
