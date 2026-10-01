@@ -1,10 +1,10 @@
 /* ==================================================================
-   V99 — مشاور ارشد «آرمان» — نسخه‌ی کامل و حرفه‌ای (Advisor System 2)
+   V102 — مشاور ارشد «علیرضا» — نسخه‌ی کامل و حرفه‌ای (Advisor System 2)
    - ۱۲ فصل کامل آموزش (از قانون طلایی تا روزانه‌ی رهبر پیروز)
    - کارت «وضعیت الان تو» از داده‌ی واقعی بازی (زنده در هر باز شدن)
    - دکمه‌ی هوشمند «کار بعدی من» — اولین قدم درست، همیشه جلوی چشم
    - نوار پیشرفت آموزش + هایلایت سینماییِ بخش واقعی UI + حباب تایپ‌شونده
-   - مشاور حکومت قدیمی (wd-advisor) کامل حذف شد — فقط آرمان
+   - مشاور حکومت قدیمی (wd-advisor) کامل حذف شد — فقط علیرضا
    - فقط CSS/JS سمت کلاینت؛ صفر تغییر دیتابیس؛ سازگار با نسخه‌های قبل
    ================================================================== */
 (function(){
@@ -133,7 +133,7 @@ var css=[
 '.wd98-close{position:absolute;top:10px;inset-inline-start:12px;width:34px;height:34px;border-radius:50%;border:1px solid rgba(140,190,240,.3);',
  'background:rgba(8,22,42,.7);color:#cfe4f8;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}',
 /* ---------- گاید (بازی روایی) ---------- */
-'.wd98-catch{position:fixed;inset:0;z-index:10040;background:transparent}',
+'.wd98-catch{position:fixed;inset:0;z-index:10040;background:transparent;pointer-events:none}',
 '.wd98-spot{position:fixed;z-index:10041;pointer-events:none;border-radius:14px;border:2px solid rgba(255,208,90,.9);',
  'box-shadow:0 0 0 2000px rgba(3,10,20,.62),0 0 22px rgba(255,196,70,.5),inset 0 0 14px rgba(255,196,70,.18);',
  'transition:top .3s cubic-bezier(.22,1,.36,1),left .3s cubic-bezier(.22,1,.36,1),width .3s,height .3s;display:none}',
@@ -183,7 +183,7 @@ if(!$('wd98-css')){var st=D.createElement('style');st.id='wd98-css';st.textConte
 var LESSONS=[
  {id:'ch0',ic:'compass',t:'قانون طلایی',d:'صلح مقدس دو روز اول + روح بازی',
   steps:[
-   {h:'سلام، فرمانده!',b:'من «آرمان» هستم — مشاور ارشد تو در WORLD DOMINION. سال‌هاست شکوه و سقوط امپراتوری‌ها را از نزدیک دیده‌ام. از امروز هر قدم را با هم برمی‌داریم؛ تو فرمان می‌دهی، من راه را نشان می‌دهم.'},
+   {h:'سلام، فرمانده!',b:'من «علیرضا» هستم — مشاور ارشد تو در WORLD DOMINION. سال‌هاست شکوه و سقوط امپراتوری‌ها را از نزدیک دیده‌ام. از امروز هر قدم را با هم برمی‌داریم؛ تو فرمان می‌دهی، من راه را نشان می‌دهم.'},
    {h:'صلح مقدسِ دو روز',b:'قانون اولِ جهان: دو روز اولِ هر رهبر تازه، صلح مقدس است. در این دو روز هیچ‌کس نمی‌تواند به تو حمله کند — و تو هم به هیچ‌کس. دست‌هایت برای ساختن آزاد است، نه برای سوزاندن.'},
    {h:'این فقط جنگ نیست',b:'WORLD DOMINION یک بازی جهانی است: اقتصاد، دیپلماسی، علم، ورزش و افتخار. چشم ببند و تصور کن واقعاً رهبر یک کشوری — هر تصمیم تو، صفحه‌ای از تاریخ آن کشور است.'},
    {h:'از رهبری لذت ببر',b:'عجله نکن. نقشه را ورق بزن، جهان را ببین، کشورت را بساز. من همیشه همین‌جام — هر وقت خواستی از دکمه‌ی مشاور در داک پایین صفحه صدایم کن.'}
@@ -338,7 +338,7 @@ function openGuide(chIdx,stepIdx,fromHub){
   var sp=D.createElement('div');sp.className='wd98-spot';sp.id='wd98-spot';
   var b=D.createElement('div');b.className='wd98-bub';b.id='wd98-bub';
   b.innerHTML='<div class="wd98-bh"><span class="wd98-bava">'+AVATAR+'</span>'+
-   '<span><span class="wd98-bname">مشاور ارشد آرمان</span><br><span class="wd98-brole">WORLD DOMINION — مشاور افتخاری تو</span></span>'+
+   '<span><span class="wd98-bname">مشاور ارشد علیرضا</span><br><span class="wd98-brole">WORLD DOMINION — مشاور افتخاری تو</span></span>'+
    '<span class="wd98-bstep"></span></div>'+
    '<div class="wd98-bmid"><div class="wd98-bh2"></div><div class="wd98-btx"></div></div>'+
    '<div class="wd98-dots"></div>'+
@@ -378,10 +378,10 @@ function finishLesson(){
   if(ST.ch===0)advPulse(false);
   try{
     if(typeof WD30CINE==='function'){
-      if(fin)WD30CINE('🎓','دانش‌آموخته‌ی کامل مشاور!','آرمان: «هر ۱۲ فصل را آموختی، فرمانده. حالا جهان مال توست — از رهبری لذت ببر»','c-gold','cheer');
-      else WD30CINE('📜','فصل «'+L.t+'» کامل شد','آرمان: «یادت ماند؟ از دکمه‌ی مشاور هر وقت خواستی دوباره می‌بینیم»','c-gold','none');
+      if(fin)WD30CINE('🎓','دانش‌آموخته‌ی کامل مشاور!','علیرضا: «هر ۱۲ فصل را آموختی، فرمانده. حالا جهان مال توست — از رهبری لذت ببر»','c-gold','cheer');
+      else WD30CINE('📜','فصل «'+L.t+'» کامل شد','علیرضا: «یادت ماند؟ از دکمه‌ی مشاور هر وقت خواستی دوباره می‌بینیم»','c-gold','none');
     }else{
-      try{(typeof showToast==='function'?showToast:toast)('📜 فصل «'+L.t+'» کامل شد — آرمان افتخارش را دارد','win')}catch(e){}
+      try{(typeof showToast==='function'?showToast:toast)('📜 فصل «'+L.t+'» کامل شد — علیرضا افتخارش را دارد','win')}catch(e){}
     }
   }catch(e){}
   reHub(fin?2600:1600);
@@ -420,7 +420,7 @@ function openHub(autoCh){
     }
   }
   ov.innerHTML='<div class="wd98-hub"><div class="wd98-hero"><span class="wd98-ava">'+AVATAR+'</span>'+
-   '<span class="wd98-ht"><span class="wd98-name">مشاور ارشد آرمان</span>'+
+   '<span class="wd98-ht"><span class="wd98-name">مشاور ارشد علیرضا</span>'+
    '<span class="wd98-role" style="display:block">مربی و مشاور افتخاری WORLD DOMINION — '+fad(LESSONS.length)+' فصل کامل</span>'+
    '<span class="wd98-quote" style="display:block">«رهبریِ خوب یعنی کشوری که حتی در صلح، رو به شکوفایی است. بزن بریم، فرمانده.»</span></span></div>'+
    '<button class="wd98-close" id="wd98-x" aria-label="بستن">✕</button>'+
@@ -457,7 +457,7 @@ function ensureDockBtn(){
   if($('wd98-b-adv')){advPulse(true);return}
   var b=D.createElement('button');
   b.type='button';b.id='wd98-b-adv';b.className='wd87-ic';
-  b.title='مشاور ارشد آرمان — آموزش کامل بازی';
+  b.title='مشاور ارشد علیرضا — آموزش کامل بازی';
   b.setAttribute('aria-label',b.title);
   b.innerHTML=CHIC.grad;
   b.addEventListener('click',function(){openHub()});

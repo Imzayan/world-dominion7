@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=101;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=101"></script>
+  <script>window.__WD_V=102;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=102"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -3676,7 +3676,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     window.restoreState=function(st){if(st&&st.infra&&st.infra.storage==null)st.infra.storage=0;return _restore(st)};
   }
 
-  // V99: مشاور حکومت قدیمی حذف شد — مشاور ارشد «آرمان» (mentor.js) جایگزین کامل است.
+  // V99: مشاور حکومت قدیمی حذف شد — مشاور ارشد «علیرضا» (mentor.js) جایگزین کامل است.
   // روزنامه از چیپ «روزنامه» در نوار بالای نقشه و مرکز فرماندهی در دسترس است.
 
   /* ================= U4 — WD_TOUR_V1: آنبوردینگ ۶۰ ثانیه‌ای + مشاور داده‌محور =================
@@ -3706,7 +3706,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     let chip=null;
     const chipText=()=>{const s=STEPS[st.i];return s.ic+' هدف بعدی: '+s.t+' ('+(st.i+1)+' از '+STEPS.length+')'};
     const mountChip=()=>{
-      chip=document.createElement('div');chip.id='wd-tour-chip';
+      if(window.WD102_TUT_UI!==true)return;chip=document.createElement('div');chip.id='wd-tour-chip';
       chip.style.cssText='position:fixed;bottom:64px;left:50%;transform:translateX(-50%);z-index:2600;background:linear-gradient(160deg,rgba(10,42,72,.95),rgba(4,16,32,.95));border:1px solid rgba(0,220,255,.4);color:#cfeaff;padding:8px 14px;border-radius:14px;font-size:11px;font-weight:900;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4);max-width:92vw;text-align:center';
       chip.textContent=chipText();
       chip.onclick=()=>{try{window.WD98_ADVISOR&&window.WD98_ADVISOR.open()}catch(e){}};
@@ -3724,7 +3724,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       while(st.i<STEPS.length){ let ok=false; try{ok=!!probe[STEPS[st.i].k]()}catch(e){}
         if(!ok)break;
         reward(st.i); st.i++; save();
-        if(st.i<STEPS.length){ T('🎯 مرحله بعدی: '+STEPS[st.i].t) }
+        if(st.i<STEPS.length&&window.WD102_TUT_UI===true){ T('🎯 مرحله بعدی: '+STEPS[st.i].t) }
       }
       if(st.i>=STEPS.length){
         if(timer){clearInterval(timer);timer=null}
@@ -3794,7 +3794,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
         b.insertAdjacentHTML('afterbegin','<div id="wd-live-advice" class="wd-card" style="border-color:rgba(0,220,255,.35)"><div style="font-size:13px;font-weight:900">🧭 وضعیت الان تو <span style="font-size:9px;color:#7d92ad">(از داده‌ی واقعی بازی)</span></div>'+L.join('')+'</div>');
       }catch(e){}
     }
-    /* V99: هوک مشاور قدیمی حذف شد — وضعیت زنده حالا داخل هاب مشاور آرمان (WD99_LIVE) است */
+    /* V99: هوک مشاور قدیمی حذف شد — وضعیت زنده حالا داخل هاب مشاور علیرضا (WD99_LIVE) است */
     window.WD_LIVE_ADVICE=wdLiveAdvice; /* هارنس QA */
   })();
 
@@ -3848,12 +3848,12 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     };
   }
 
-  // V99: خوش‌آمد مشاور — آموزش اصلی را خودِ مشاور ارشد «آرمان» شروع می‌کند (mentor.js).
+  // V99: خوش‌آمد مشاور — آموزش اصلی را خودِ مشاور ارشد «علیرضا» شروع می‌کند (mentor.js).
   setTimeout(()=>{
     try{
       if(ACC&&ACC.ready&&!localStorage.getItem('wd_advisor_seen')){
         try{localStorage.setItem('wd_advisor_seen','1')}catch(e){}
-        showToast('🎓 مشاور ارشد «آرمان» آماده‌ی همراهی توست — آموزش سینمایی بازی شروع می‌شود.','win');
+        showToast('🎓 مشاور ارشد «علیرضا» آماده‌ی همراهی توست — آموزش سینمایی بازی شروع می‌شود.','win');
       }
     }catch(e){}
   },1800);
@@ -6145,7 +6145,7 @@ function viewHome(){
   /* V65 — جهان زنده: امپراتوری و شکوه در منوی اصلی بازی */
   g.appendChild(item((window.MI100?MI100.empire:'🏛️'),'امپراتوری','جمعیت، سیاست‌ها، استان‌ها و برنامه‌ی نبرد',function(){sClose();if(window.WD65)WD65.open('empire')}));
   g.appendChild(item((window.MI100?MI100.glory:'🏆'),'شکوه','اهداف، رقیب، تالار افتخارات و تاریخچه',function(){sClose();if(window.WD65)WD65.open('glory')},1));
-  g.appendChild(item((window.MI100?MI100.advisor:'🧭'),'مشاور','آموزش کامل با آرمان',function(){sClose();try{window.WD98_ADVISOR&&window.WD98_ADVISOR.open()}catch(e){}}));
+  g.appendChild(item((window.MI100?MI100.advisor:'🧭'),'مشاور','آموزش کامل با علیرضا',function(){sClose();try{window.WD98_ADVISOR&&window.WD98_ADVISOR.open()}catch(e){}}));
   g.appendChild(item((window.MI100?MI100.settings:'⚙️'),'تنظیمات','صدا، کارایی، برچسب‌ها',function(){viewSettings()}));
   g.appendChild(item((window.MI100?MI100.logout:'🚪'),'خروج از حساب','تعویض کاربری',function(){doLogout()}));
   try{if(typeof isAdmin==='function'&&isAdmin())g.appendChild(item((window.MI100?MI100.admin:'👑'),'پنل مدیریت','اطلاعات بازیکنان',function(){try{renderAdmin();openModal('m-admin');sClose()}catch(e){}},1))}catch(e){}
@@ -7128,7 +7128,7 @@ function $$id(id){return D.getElementById(id)}
 function terr(){try{return (typeof conqueredCountries!=='undefined'?conqueredCountries.size:0)+((typeof myCountryName!=='undefined'&&myCountryName)?1:0)}catch(e){return 0}}
 function atk(){try{return (typeof calculateTotalAttack==='function')?calculateTotalAttack():0}catch(e){return 0}}
 
-/* V99: بخش «مشاور حرفه‌ای» V28 حذف شد — مشاور ارشد «آرمان» در mentor.js جایگزین کامل است */
+/* V99: بخش «مشاور حرفه‌ای» V28 حذف شد — مشاور ارشد «علیرضا» در mentor.js جایگزین کامل است */
 
 /* ================= 2) رتبه‌بندی پریمیوم ================= */
 var TITLE_BY_N=[[40,'👑 فرمانروای زمین'],[30,'🌐 سایه‌ی جهان'],[22,'👑 امپراتور'],[15,'💎 فتحگر بزرگ'],[10,'🥇 فتحگر'],[6,'🥈 سردار'],[3,'🥉 فرمانده'],[0,'🎖️ آغازگر']];
@@ -10741,7 +10741,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=101';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=102';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -13912,7 +13912,7 @@ function wd45busy(){try{if(D.querySelector('.modal.active'))return true;
  var ps=D.querySelectorAll('.wd31-page');for(var j=0;j<ps.length;j++){if(ps[j].getBoundingClientRect().height>0)return true}
  return false}catch(e){return false}}
 function wd45vis(sel){try{var e=D.querySelector(sel);return !!(e&&e.getBoundingClientRect().height>0)}catch(e){return false}}
-function tutShow(){try{if(tutState.done||tutState.skipped||tutState.i>=TUT.length){tutHide();return}
+function tutShow(){try{if(window.WD102_TUT_UI!==true){tutHide();return}if(tutState.done||tutState.skipped||tutState.i>=TUT.length){tutHide();return}
  if(wd45busy()){tutHide();return} /* V45: تا پوشش باز است مخفی — بعد از بستن خودش برمی‌گردد */
  var st=TUT[tutState.i];if(!st)return;if(st.id==='capital'&&typeof GAME==='undefined')return; /* قبل از آماده‌شدن بازی نرو */
  var t=tutEl();t.querySelector('.h').textContent='';t.querySelector('.h').append(el('span',st.ic+' '),el('span',st.fa),el('small',(faN(tutState.i+1)+' / '+faN(TUT.length))));
@@ -17311,7 +17311,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=101';
+              s.src='/game/cv-engine.js?v=102';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17322,7 +17322,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=101"></script>
+<script src="/game/oly3.js?v=102"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17336,7 +17336,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=101';
+      s.src='/game/oly3d.js?v=102';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -18311,7 +18311,49 @@ if(window.MutationObserver){var mo=new MutationObserver(function(){rec()});
 window.WD101B={rec:rec,close:closeAll};
 })();
 </script>
-<script src="/game/social.js?v=101"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=101"></script><!-- V99 مشاور ارشد آرمان — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<style id="wd102-css">
+/* ===== V102 — نوار بالای پرمیوم + مشاور غیرمسدودکننده ===== */
+.wd101b-btn{height:34px!important;padding:0 10px!important;gap:7px!important;border-radius:18px!important;background:linear-gradient(180deg,rgba(38,62,100,.95),rgba(11,21,42,.97))!important;box-shadow:0 4px 14px rgba(0,0,0,.5),inset 0 1px 0 rgba(195,228,255,.22),inset 0 -8px 14px rgba(0,0,0,.28)!important;font-size:12px!important;font-weight:900!important}
+.wd101b-btn:hover{filter:brightness(1.14)}
+.wd101b-btn svg{width:21px!important;height:21px!important;padding:2.5px!important;border-radius:8px!important;background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.2),rgba(255,255,255,.03) 62%),linear-gradient(165deg,rgba(255,255,255,.1),rgba(0,0,0,.3))!important;border:1px solid rgba(255,255,255,.16)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 2px 6px rgba(0,0,0,.4)!important}
+.wd101b-lbl{color:#f2f8ff!important;text-shadow:0 1px 3px rgba(0,0,0,.65),0 0 8px var(--glow,transparent)}
+.wd101b-car{border-top-color:var(--hi)!important}
+.wd101b-grp.open .wd101b-btn{border-color:var(--hi)!important;background:linear-gradient(180deg,rgba(48,76,120,.96),rgba(16,28,56,.98))!important;box-shadow:0 6px 20px rgba(0,0,0,.55),0 0 20px var(--glow),inset 0 1px 0 rgba(195,228,255,.28)!important}
+.wd101b-hd{color:var(--hi)!important;text-shadow:0 0 10px var(--glow,transparent)}
+.wd101b-pop{border-radius:16px!important;background:linear-gradient(175deg,rgba(21,37,66,.97),rgba(7,14,29,.99))!important;box-shadow:0 18px 46px rgba(0,0,0,.62),inset 0 1px 0 rgba(185,222,255,.15)!important}
+.wd87-ic{box-shadow:0 0 0 1px rgba(255,255,255,.05),0 3px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(195,228,255,.16)!important}
+.wd87-ic:hover{filter:brightness(1.2)}
+.wd98-catch{pointer-events:none!important}
+@media(max-width:600px){.wd101b-btn{height:32px!important}}
+</style>
+<script id="wd102-js">
+/* V102: آیکون‌های پرمیوم دکمه‌های گروهی (تاج/گنج/جام/چرخ‌دنده) */
+(function(){
+if(window.WD102)return;window.WD102=1;
+var D=document;
+var IC={
+g0:'<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="w102g0a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff7d6"/><stop offset=".42" stop-color="#ffd75e"/><stop offset="1" stop-color="#c98a0a"/></linearGradient><linearGradient id="w102g0b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#d4920a"/></linearGradient></defs><path d="M4.7 15.9 3.5 8l4.3 2.9L12 4.6l4.2 6.3L20.5 8l-1.2 7.9Z" fill="url(#w102g0a)" stroke="#8a5600" stroke-width=".8" stroke-linejoin="round"/><rect x="4.7" y="15.9" width="14.6" height="2.7" rx="1.1" fill="url(#w102g0b)" stroke="#8a5600" stroke-width=".7"/><circle cx="12" cy="4.5" r="1.1" fill="#fffbe8" stroke="#c98a0a" stroke-width=".5"/><circle cx="3.3" cy="7.8" r=".95" fill="#fffbe8" stroke="#c98a0a" stroke-width=".5"/><circle cx="20.7" cy="7.8" r=".95" fill="#fffbe8" stroke="#c98a0a" stroke-width=".5"/><circle cx="12" cy="12.4" r="1.15" fill="#ff5f8a" stroke="#a83050" stroke-width=".4"/><circle cx="7.8" cy="13.2" r=".8" fill="#7dd6ff" stroke="#2b7ab8" stroke-width=".4"/><circle cx="16.2" cy="13.2" r=".8" fill="#7dff9e" stroke="#2fbf5e" stroke-width=".4"/><path d="M6.6 10.3l.9 1.1" stroke="#fffbe8" stroke-width="1" stroke-linecap="round" opacity=".9"/></svg>',
+g1:'<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="w102g1a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0e2ff"/><stop offset=".45" stop-color="#b284ff"/><stop offset="1" stop-color="#5c34c2"/></linearGradient><linearGradient id="w102g1b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3c4"/><stop offset=".5" stop-color="#ffd75e"/><stop offset="1" stop-color="#c98a0a"/></linearGradient></defs><ellipse cx="7.4" cy="18.6" rx="4.9" ry="2" fill="url(#w102g1b)" stroke="#8a5600" stroke-width=".6"/><ellipse cx="7.4" cy="17.2" rx="4.9" ry="2" fill="#ffe9a8" stroke="#c98a0a" stroke-width=".55"/><ellipse cx="7.4" cy="17.2" rx="2.9" ry="1.1" fill="none" stroke="#c98a0a" stroke-width=".5" opacity=".7"/><path d="M11.4 2.8h7.4l3.2 4.4-6.9 8.8-6.9-8.8Z" fill="url(#w102g1a)" stroke="#3d2380" stroke-width=".8" stroke-linejoin="round"/><path d="M8.2 7.2h13.8" stroke="#fff" stroke-width=".8" opacity=".55"/><path d="M11.4 2.8 15.1 7.2l3.7-4.4M8.2 7.2l6.9 8.8 6.9-8.8" fill="none" stroke="#fff" stroke-width=".55" opacity=".4"/><path d="M12.6 4.6l1.5 1.4" stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity=".9"/></svg>',
+g2:'<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="w102g2a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff7d6"/><stop offset=".45" stop-color="#ffd75e"/><stop offset="1" stop-color="#c98a0a"/></linearGradient></defs><path d="M7.8 3.4h8.4v5.4a4.2 4.2 0 0 1-8.4 0Z" fill="url(#w102g2a)" stroke="#8a5600" stroke-width=".8"/><path d="M7.8 4.7H4.6a3.3 3.3 0 0 0 3.4 3.4M16.2 4.7h3.2a3.3 3.3 0 0 1-3.4 3.4" fill="none" stroke="#ffe9a8" stroke-width="1.3"/><path d="M12 13v3.1M8.9 20.4h6.2M9.9 20.4c0-2.4.8-3.7 2.1-3.7s2.1 1.3 2.1 3.7" fill="none" stroke="url(#w102g2a)" stroke-width="1.4" stroke-linecap="round"/><path d="M12 5.6l.75 1.55 1.7.25-1.23 1.2.3 1.7L12 9.5l-1.52.8.3-1.7-1.23-1.2 1.7-.25Z" fill="#fffbe8" stroke="#c98a0a" stroke-width=".35"/><path d="M18.9 14.6l.5 1 1.05.2-.78.72.2 1.05-.97-.5-.95.5.2-1.05-.78-.72 1.03-.2Z" fill="#ffd75e" opacity=".95"/><path d="M4.7 15.2l.42.85.9.18-.68.63.18.9-.82-.44-.8.44.16-.9-.66-.63.9-.18Z" fill="#ffd75e" opacity=".75"/></svg>',
+g3:'<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="w102g3a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef8ff"/><stop offset=".5" stop-color="#7dd6ff"/><stop offset="1" stop-color="#2874ae"/></linearGradient><radialGradient id="w102g3b" cx="50%" cy="40%" r="65%"><stop offset="0" stop-color="#f2fbff"/><stop offset="1" stop-color="#3a8ec4"/></radialGradient></defs><path d="M19.4 13c.04-.32.06-.66.06-1s-.02-.68-.06-1l2.1-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.3 7.3 0 0 0-1.73-1l-.38-2.65A.5.5 0 0 0 13.92 2h-4a.5.5 0 0 0-.5.42l-.38 2.65c-.63.26-1.2.6-1.73 1l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64L4.43 11c-.04.32-.06.66-.06 1s.02.68.06 1l-2.1 1.65a.5.5 0 0 0-.12.64l2 3.46c.13.22.39.31.61.22l2.49-1c.53.4 1.1.74 1.73 1l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65a7.3 7.3 0 0 0 1.73-1l2.49 1c.22.09.48 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64Z" fill="url(#w102g3a)" stroke="#1d5e8f" stroke-width=".7" stroke-linejoin="round"/><circle cx="11.92" cy="12" r="3.6" fill="#0b2239" opacity=".82"/><circle cx="11.92" cy="12" r="3.6" fill="none" stroke="url(#w102g3a)" stroke-width="1"/><circle cx="11.92" cy="12" r="1.4" fill="url(#w102g3b)"/></svg>'};
+var tries=0;
+function swap(){
+ var all=true;
+ for(var i=0;i<4;i++){
+  var b=D.querySelector('#wd101b-g'+i+' .wd101b-btn');
+  if(!b){all=false;continue}
+  if(b.getAttribute('data-w102'))continue;
+  var s=b.querySelector('svg');
+  if(s){var h=D.createElement('span');h.innerHTML=IC['g'+i];var nv=h.firstChild;
+   if(nv){s.parentNode.replaceChild(nv,s);b.setAttribute('data-w102','1')}}
+  else all=false;
+ }
+ return all;
+}
+var iv=setInterval(function(){var ok=false;try{ok=swap()}catch(e){}if(ok||++tries>50)clearInterval(iv)},350);
+})();
+</script>
+<script src="/game/social.js?v=102"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=102"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 </body>
 </html>
