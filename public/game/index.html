@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=95;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=95"></script>
+  <script>window.__WD_V=96;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=96"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -8878,7 +8878,7 @@ let srvT=null,srvBuiltFor=0;
 function srvShell(w,S){
   if(srvBuiltFor===S)return;srvBuiltFor=S;
   w.innerHTML=
-  '<section class="wd31-hero"><span class="wd31-globe">🌍</span>'+
+  '<section class="wd31-hero"><span class="wd31-globe">'+(window.WDSI?WDSI.icon('globeCine',56):'🌍')+'</span>'+
     '<div class="wd31-kicker">WORLD DOMINION • شناسنامه‌ی جهان</div>'+
     '<h1 class="wd31-title">جهان '+faN(S)+'</h1>'+
     '<div class="wd31-sub">دنیای مشترک زنده — لحظه‌به‌لحظه با بازیکنان واقعی</div>'+
@@ -8905,6 +8905,7 @@ function srvShell(w,S){
 async function refreshServer(){
   try{
     const w=H('wd-srvpage');if(!w||!w.classList.contains('on'))return;
+    try{window.WDSI_SRV&&window.WDSI_SRV.refresh()}catch(e){}
     const S=srvN(),CAP=CAP31();
     srvShell(w.querySelector('.wd31-wrap'),S);
     try{if(typeof loadStats==='function')await loadStats()}catch(e){}
@@ -8915,7 +8916,7 @@ async function refreshServer(){
     const cap=H('wdsp-cap');if(cap)cap.textContent=faN(tk)+' از '+faN(CAP)+' کشور تصرف شده — وقتی پر شود، جهان بعدی باز می‌شود';
     const bg=H('wdsp-badges');
     if(bg){const open=(typeof srvOpen==='function')?srvOpen(S):true,full=tk>=CAP;
-      bg.innerHTML='<span class="wd31-live"><i></i>زنده</span> '+(full?'<span class="wd31-badge full">✅ پر</span>':open?'<span class="wd31-badge open">🟢 باز — ورود آزاد</span>':'<span class="wd31-badge lock">🔒 قفل</span>')}
+      bg.innerHTML='<span class="wd31-live"><i></i>زنده</span> '+(full?'<span class="wd96-pill st-full"><i class="wd96-orb"></i>پر — ظرفیت تکمیل</span>':open?'<span class="wd96-pill st-on"><i class="wd96-orb"></i>باز — ورود آزاد</span>':'<span class="wd96-pill st-lock"><i class="wd96-orb"></i>قفل</span>')}
     const ss=(window.WD30_SEASON&&window.WD30_SEASON())||{no:1,day:1,left:0};
     countUp(H('wdsp-n-sn'),ss.no||1);
     const hh=Math.max(0,Math.floor((ss.left||0)/3600000)),mm=Math.max(0,Math.floor(((ss.left||0)%3600000)/60000));
@@ -8971,11 +8972,15 @@ async function refreshServer(){
         try{t=typeof taken==='function'?taken(k):0;p2=((typeof STATS!=='undefined'&&STATS[k])||{}).players||0}catch(e){}
         const open=(typeof srvOpen==='function')?srvOpen(k):true,full=t>=CAP;
         const c=D.createElement('div');c.className='wd31-srv'+(k===S?' me':'');
-        c.innerHTML='<div class="t"><span>🌍 جهان '+faN(k)+(k===S?' <span class="wd31-mini">(تو اینجایی)</span>':'')+'</span>'+
-          (full?'<span class="wd31-badge full">✅ پر</span>':open?'<span class="wd31-badge open">🟢 باز</span>':'<span class="wd31-badge lock">🔒 قفل</span>')+'</div>'+
-          '<div class="wd31-bar" style="height:8px;margin-top:8px"><i style="width:'+Math.min(100,t/CAP*100)+'%"></i></div>'+
+        const wst=(window.WDSI_SRV&&window.WDSI_SRV.status(k))||'online';
+        c.classList.add(wst==='maintenance'?'wd96-glow-maint':(full||wst==='full')?'wd96-glow-full':wst==='busy'?'wd96-glow-busy':'wd96-glow-on');
+        c.innerHTML='<div class="t"><span>'+(window.WDSI?WDSI.icon('globeCine',16):'🌍')+' جهان '+faN(k)+(k===S?' <span class="wd31-mini">(تو اینجایی)</span>':'')+'</span>'+
+          (full?'<span class="wd96-pill st-full"><i class="wd96-orb"></i>پر</span>':open?'<span class="wd96-pill '+(wst==='busy'?'st-busy':'st-on')+'"><i class="wd96-orb"></i>'+(wst==='busy'?'شلوغ':'باز')+'</span>':'<span class="wd96-pill st-lock"><i class="wd96-orb"></i>قفل</span>')+'</div>'+
+          '<div class="wd96-onl" style="margin-top:7px"><i class="wd96-orb"></i><b id="wd96-onl-'+k+'">…</b>&nbsp;بازیکن آنلاین</div>'+
+          '<div class="wd31-bar" style="height:8px;margin-top:7px"><i style="width:'+Math.min(100,t/CAP*100)+'%"></i></div>'+
           '<div class="wd31-mini" style="margin-top:5px">🏴 '+faN(t)+'/'+faN(CAP)+' کشور • 👥 '+faN(p2)+' بازیکن</div>';
         sg.appendChild(c)}}
+      try{window.WDSI_SRV&&window.WDSI_SRV.paint()}catch(e){}
   }catch(e){console.log('v31srv',e)}}
 window.WD31_SERVER=function(){openPage('wd-srvpage','click');refreshServer();
   if(srvT)clearInterval(srvT);srvT=setInterval(refreshServer,20000)};
@@ -10881,7 +10886,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=95';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=96';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -17451,7 +17456,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=95';
+              s.src='/game/cv-engine.js?v=96';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17462,7 +17467,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=95"></script>
+<script src="/game/oly3.js?v=96"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17476,7 +17481,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=95';
+      s.src='/game/oly3d.js?v=96';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -18240,6 +18245,6 @@ setTimeout(boot88,3000);
 <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.5 5.5l13 13"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></symbol>
 </defs></svg>
-<script src="/game/social.js?v=95"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/social.js?v=96"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
 </body>
 </html>

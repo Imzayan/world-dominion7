@@ -2498,3 +2498,23 @@ Work Log:
 Stage Summary:
 - یک سیستم اجتماعی منسجم V1 روی خط dev: کلاینت social.js (۲۴/۳۲/۴۸px آیکون، ۴۴px اهداف لمسی، event delegation، heartbeat ۴۵s، نظرسنجی بج ۳۰s) + ۱۸ RPC سشن-محور + ۷ جدول V95 با server_id + RLS-معادل deny-by-default در /api/db
 - pending: push dev → تست preview توسط کاربر → پس از تأیید merge به main
+
+---
+Task ID: V96-UI
+Agent: Super Z (main)
+Task:反馈 کاربر — آیکون‌های سرور زشت شدند؛ FAB آنلاین سینمایی زیر المپیک + شمارنده‌ی آنلاین هر سرور
+
+Work Log:
+- Audit: renderLive قبلاً چیپ wd95-live را داخل دکمه‌ی ۴۴px داک (wd87-b-srv) تزریق می‌کرد → هم‌پوشانی/زشتی. انتخابگر سرور فقط متن اموجی (🟢🟠🔴🛠) بود. صفحه‌ی سینمایی سرور (V31) هیچ شمارنده‌ی آنلاینی در کارت سرورها نداشت.
+- Data: wd_servers/wd_presence از قبل online per-server برمی‌گردانند (ST.onl / ST.srvs) — فقط UI مشکل داشت؛ هیچ تغییر سرور/DB لازم نبود.
+- social.js: چیپ قدیمی حذف شد (anti-overlap)؛ FAB سینمایی wd96-fab زیر FAB المپیک اضافه شد (حلقه‌ی conic چرخان، glow، نقطه‌ی نبض، عدد فارسی، لیبل وضعیت+سرور، جای‌گذاری پویا همگام با wdolFabPlace — بدون هم‌پوشانی در هر رزولوشنی).
+- social.js: augmentSrvList بازنویسی سینمایی — قرص وضعیت درخشان (online/busy/full/maintenance) + شمارنده‌ی آنلاین واقعی هر ردیف + حفظ اطلاعات قفل/تستی + کلاس‌های glow per-status + آیکون SVG عنوان مودال.
+- social.js: آیکون globeCine (SVG گرادیانی) به رجیستری مرکزی SI اضافه شد؛ window.WDSI_SRV hook (refresh/online/status/paint) + paintSrvPage برای به‌روزرسانی درجای اعداد کارت‌ها.
+- index.html (صفحه‌ی سینمایی سرور V31): گلوب اموجی hero → SVG سینمایی؛ بج‌های اموجی (✅🟢🔒) → قرص‌های درخشان wd96-pill؛ کارت سرورها → glow per-status + خط «بازیکن آنلاین» واقعی با id wd96-onl-k؛ refreshServer حالا هر ۲۰ ثانیه WDSI_SRV.refresh() می‌زند.
+- QA: apply96.py همه‌ی anchorها count=1؛ node --check social.js؛ check-html-js؛ release.mjs 96 (هر ۴ گیت)؛ push dev.
+- Regression: Map/Country/Army/Attack/Economy/Olympics/Shop/World Command/Auth دست‌نخورده — فقط social.js + بخش سرورصفحه V31.
+
+Stage Summary:
+- V96 = UI-only روی V95؛ صفر تغییر DB/RPC؛ پشت‌وارث با preview مشترک.
+- FAB آنلاین: فقط آنلاینِ سرور جاری را نشان می‌دهد (ST.onl[mySrv()])؛ کارت‌ها: آنلاین همان سرورِ خودشان.
+- merge به main پس از تأیید کاربر روی preview.
