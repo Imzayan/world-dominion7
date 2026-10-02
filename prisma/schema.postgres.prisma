@@ -33,6 +33,8 @@ model User {
   chatMessages WorldChat[]
   shopPurchases ShopPurchase[]
   shopInventory  ShopInventory[]
+  playerStock    PlayerStock[]
+  purchaseTxs    PurchaseTx[]
 
   @@map("users")
   perfDaily PerfDaily[]
@@ -148,6 +150,11 @@ model Wallet {
   vipUntil  DateTime? @map("vip_until")
   /* V86 — پاداش یک‌بارمصرف عضویت در کانال تلگرام (ادعای تکراری با updateMany اتمی رد می‌شود) */
   tgBonus   Boolean   @default(false) @map("tg_bonus")
+  /* V95 — EMPEROR STARTER PACK: پنجره‌ی ۴۸ ساعته سرور-محور. starterSeenAt = اولین ورودِ
+     معتبر (تک‌منبع تایمر؛ localStorage/ری‌استارت/تغییر ساعت کلاینت هیچ اثری ندارد).
+     starterBoughtAt = محدودیت یک خرید در عمر حساب (at most one per account). */
+  starterSeenAt   DateTime? @map("starter_seen_at")
+  starterBoughtAt DateTime? @map("starter_bought_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -852,4 +859,61 @@ model UserTrophy {
   @@unique([userId, key])
   @@index([userId])
   @@map("user_trophies")
+}
+
+/* V95 — MONETIZATION: انبار شمارشی (تدارکات جنگی/تسلیحات تاکتیکی/کلید پاس).
+   برخلاف ShopInventory (unique per item)، این جدول qty دارد — هر مصرف یک decrement اتمیک. */
+model PlayerStock {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  itemId    String   @map("item_id")
+  qty       Int      @default(0)
+  server    Int      @default(1)
+  meta      String   @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+  @@index([userId, itemId])
+  @@map("player_stock")
+}
+
+/* V95 — تراکنش پرداخت واقعی (Myket IAB): تک‌منبع اعتبار خریدهای پولی.
+   txId = purchase token مایکت — unique سراسری ضد replay؛ هیچ گرنتی بدون verifiedAt انجام نمی‌شود. */
+model PurchaseTx {
+  id         String    @id @default(cuid())
+  txId       String    @unique @map("tx_id")
+  userId     String    @map("user_id")
+  productId  String    @map("product_id")
+  server     Int       @default(1)
+  amount     Int       @default(0)
+  currency   String    @default("IRR")
+  status     String    @default("pending") /* pending | verified | failed | replay */
+  provider   String    @default("myket")
+  payload    String    @default("{}")
+  meta       String    @default("{}")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  verifiedAt DateTime? @map("verified_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("purchase_transactions")
+}
+
+/* V95 — تله‌متری خرید/مصرف (Section 21): فقط رویدادهای بیزینسی — هیچ داده‌ی حساس اضافه. */
+model AnalyticsEvent {
+  id     BigInt   @id @default(autoincrement())
+  userId String   @map("user_id")
+  server Int      @default(1)
+  key    String
+  meta   String   @default("{}")
+  at     DateTime @default(now())
+
+  @@index([key, at])
+  @@index([userId, at])
+  @@map("analytics_events")
 }

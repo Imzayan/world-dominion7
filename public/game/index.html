@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=94;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=94"></script>
+  <script>window.__WD_V=95;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=95"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -3597,6 +3597,14 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     if(a==='olympic_challenge_done')return '⚔️ '+(x.actor_nick||'—')+' در چالش رسمی رشته‌ی '+(window.WD33_DN?window.WD33_DN(x.country):(x.country||''))+(x.target_nick?' در برابر '+x.target_nick:'')+' به پیروزی رسید — با یک seed مشترک!';
     if(a==='season_start')return 'فصل جدید آغاز شد؛ نقشه دوباره صحنه‌ی نبرد است.';
     if(a==='trade')return who+' با '+(whom||'بازیکن دیگر')+' معامله‌ی امن انجام داد.';
+    /* V95 — اخبار تسلیحات تاکتیکی (هدف باید بداند چه کسی، چه چیزی و تا کی) */
+    if(a==='tx_emp')return '☄️ '+who+' ضربه‌ی EMP به شبکه‌ی لجستیک '+(whom||'بازیکن')+' زد — ده دقیقه بازیابی تدارک متوقف و دفاع کم‌بازده (فلج کامل نیست).';
+    if(a==='tx_jammer')return '🛰️ '+who+' جمینگ رادار را روی '+(whom||'بازیکن')+' فعال کرد — سطح اطلاعات‌اش موقتاً روی پایه قفل است.';
+    if(a==='tx_precision')return '🎯 '+who+' ضربه‌ی دقیقِ سقف‌دار به '+(fa||'نامعلوم')+' زد'+(whom?' (خاک '+whom+')':'')+' — آسیب محدود؛ ارتش و پایتخت دست‌نخورده.';
+    if(a==='tx_defbreak')return '🛡️ '+who+' دفاع '+(whom||'بازیکن')+' را شکست — ده دقیقه ۸۰٪ بازده (هرگز صفر نمی‌شود).';
+    if(a==='tx_cyber')return '💻 '+who+' اختلال سایبری به سیستم‌های غیرحیاتی '+(whom||'بازیکن')+' انداخت — سفارشات تاکتیکی‌اش موقتاً گران‌تر است؛ هیچ منبعی حذف نشد.';
+    if(a==='col_done')return '🏆 '+who+' مجموعه‌ی «'+(whom||'—')+'» را کامل کرد و نشان ویژه گرفت.';
+    if(a==='shop_mythic')return '💎 '+who+' آیتم اسطوره‌ای «'+(whom||'—')+'» را از فروشگاه گرفت.';
     if(a==='capture'||a==='conquer')return who+' کشور '+(fa||'نامعلوم')+' را فتح کرد.';
     if(a==='pvp_attack')return who+' به '+(fa||'نامعلوم')+' حمله کرد.';
     /* V34 — social layer news */
@@ -10881,7 +10889,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=94';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=95';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -14136,6 +14144,18 @@ async function passClaim(i,btn){try{if(btn){btn.textContent='…';btn.disabled=t
   if(rw.cos==='anthem'){var c= anthemChip();if(c)c.style.display='';playAnthem((window.COS&&COS.anthemK)||'hero')}
   passLoad().then(function(){if(window._w43tab==='pass')passTab(S$('w43-body'))});updateUI&&updateUI()}
  else{showToast(r&&r.error==='locked'?'❌ هنوز به این پله نرسیدی':'❌ دریافت نشد','lose');passLoad().then(function(){if(window._w43tab==='pass')passTab(S$('w43-body'))})}}catch(e){log('passClaim '+e)}}
+/* V95 — ادعای پله‌ی پریمیوم پاس فصل (همان XP، پاداش بیشتر — مسیر رایگان دست‌نخورده) */
+async function passClaimPrem(i,btn){try{if(btn){btn.textContent='…';btn.disabled=true}
+ var r=await rpc43('pass_claim',{p_tier:i,p_track:'premium'});
+ if(r&&r.ok){var rw=r.reward||{};var parts=[];
+  if(r.gems_added){parts.push(faN(r.gems_added)+' جم');walletRefresh()}
+  if(rw.ws)parts.push(faN(rw.ws)+' کاروان اضطراری (انبار)');
+  if(rw.cos){cosOwnedPush(rw.cos);markOwned66(rw.cos);parts.push('آیتم زینتی')}
+  jingle('claim'+i);showToast('👑 پله‌ی پریمیوم '+faN(i+1)+': '+(parts.join(' + ')||rw.fa),'win');saveN();
+  if(typeof PASSD!=='undefined'&&PASSD)PASSD=null;try{renderShop()}catch(e2){}}
+ else{var em=r&&r.error;showToast(em==='locked'?'🔒 اول مسیر پریمیوم را فعال کن':em==='claimed'?'✓ قبلاً گرفته شده':'❌ دریافت نشد','lose');if(typeof PASSD!=='undefined'&&PASSD)PASSD=null;try{renderShop()}catch(e2){}}}catch(e){log('passClaimPrem '+e)}}
+/* V95 — مالکیت کازمتیک grant-only را در کش کلاینت ثبت می‌کند (فقط بعد از تأیید سرور) */
+function markOwned66(id){try{if(window.WD66_SHOP&&window.WD66_SHOP.syncGrant)window.WD66_SHOP.syncGrant(id)}catch(e){}}
 
 /* ================= 7) روایت زنده‌ی جهان + کتاب تاریخ ================= */
 function dayFa(){try{return S$('hud-date')?S$('hud-date').textContent.replace('📅 ',''):''}catch(e){return''}}
@@ -16828,6 +16848,9 @@ function card(it,opts){opts=opts||{};
   if(it.kind==='limited'&&it.window&&it.window.to&&!owned)tags.append(el('span','⏳ محدود','wd66-rar rar-myth'));
   if(owned)tags.append(el('span','✓ دارید','wd66-rar rar-unc'));
   else if(it.kind==='service'&&it.days)tags.append(el('span',faN(it.days)+' روزه','wd66-rar rar-com'));
+  /* V95 — موجودی شمارشی (تدارکات/تسلیحات) از انبار سرور */
+  if(CAT66&&CAT66.stock&&CAT66.stock[it.id]>0)tags.append(el('span','📦 Owned: '+faN(CAT66.stock[it.id]),'wd66-rar rar-unc'));
+  if(it.kind==='stock')tags.append(el('span','مصرفی','wd66-rar rar-com'));
   tx.append(tags);
   r.append(ic,tx);
   var btn;
@@ -16910,7 +16933,7 @@ function vQuick(){var q=el('div',null,'wd66-quick');
   CATS.filter(function(c){return c.id!=='home'}).forEach(function(c){
     var b=el('button');b.append(el('span',c.ic),el('span',c.fa));
     b.setAttribute('data-act','cat');b.setAttribute('data-cat',c.id);q.append(b)});return q}
-function viewHome(c){c.append(vHero());
+function viewHome(c){try{if(window.WD95&&WD95.starterHero)WD95.starterHero(c)}catch(e){}c.append(vHero());
   var sm=vSmart();if(sm)c.append(sm);
   c.append(el('div','🔥 پیشنهادهای ویژه','wd66-h'));
   var s=el('div',null,'wd66-sec');
@@ -17029,7 +17052,7 @@ function viewVip(c){
   st.append(tx);c.append(st);
   c.append(el('div','🎁 مزایا','wd66-h'));
   c.append(el('div','✅ نشان 👑 کنار نام • ✅ قاب VIP در پروفایل • ✅ ۱۰ جم هدیه‌ی روزانه از سرور (علاوه بر ۳۰۰ طلای قدیمی) • ✅ بخش آیتم‌های ویژه • ✅ تم نقشه‌ی VIP • ✅ آمار ویژه','wd66-note'));
-  ['vip7','vip30'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
+  ['vip7','vip30','vip_emp'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
   c.append(el('div','🔔 خدمات کمکی','wd66-h'));
   ['radar','stats'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
   if(act){c.append(el('div','💎 ویژه‌ی اعضای VIP','wd66-h'));
@@ -17237,6 +17260,12 @@ function arm(){
     else if(act==='invf'){INVF=t.getAttribute('data-f')||'all';render()}
     else if(act==='claim'){claimCollection(t.getAttribute('data-col'),t)}
     else if(act==='passclaim'){passClaim(Number(t.getAttribute('data-tier'))||0,t)}
+    /* V95 — پاس فصل: فعال‌سازی و ادعای مسیر پریمیوم */
+    else if(act==='passprem'){var prc=(CAT66&&CAT66.pass&&CAT66.pass.price)||120;
+      var go95=function(){spendGem({k:'pass_premium',c:prc,t:'پاس فصل — مسیر پریمیوم',f:function(){showToast('👑 مسیر پریمیوم فعال شد — پله‌های پریمیوم همین فصل مال توست','win');if(typeof PASSD!=='undefined')PASSD=null;render()}})};
+      if(typeof wdConfirm==='function')wdConfirm('فعال‌سازی مسیر پریمیوم پاس فصل؟\nپاداش‌های اضافه در هر پله — مسیر رایگان سر جایش می‌ماند.','فعال‌سازی').then(function(y){if(y)go95()});
+      else go95()}
+    else if(act==='passclaim-prem'){if(typeof passClaimPrem==='function')passClaimPrem(Number(t.getAttribute('data-tier'))||0,t)}
   });
   b.addEventListener('input',function(ev){
     var t=ev.target;if(!t||!t.getAttribute)return;
@@ -17294,6 +17323,14 @@ function viewWar(c){
   c.append(el('div','ℹ️ هر سفارش هزینه‌ی منابع (طلا/نفت/غذا) و کول‌داون سمت سرور دارد. هیچ سفارشی برد آنی نمی‌دهد — سقف سخت جمع بونوس‌ها +۲۲٪ است.','wd66-note'));
   c.append(el('div','🚀 پک‌های جنگی — ارزش بیشتر از قیمت','wd66-h'));
   var s5=el('div',null,'wd66-sec');wd88ItemRow(['war_prep_pack','war_starter','war_commander','war_defender','war_imperial'],s5);c.append(s5);
+  /* V95 — WAR SUPPLY: تدارکات جنگی انباشته‌شونده */
+  c.append(el('div','📦 WAR SUPPLY — تدارکات جنگی (مصرفی — «Owned» از انبار سرور)','wd66-h'));
+  var s95a=el('div',null,'wd66-sec');wd88ItemRow(['ws_prep','ws_fuel','ws_rapid','ws_recover'],s95a);c.append(s95a);
+  c.append(el('div','ℹ️ تدارکات فقط لجستیک را راحت می‌کند — صفر قدرت حمله. مصرف از «برنامه‌ی نبرد».','wd66-note'));
+  /* V95 — TACTICAL ARSENAL: پنج سلاح مختل‌کننده با سقف سخت */
+  c.append(el('div','☢️ TACTICAL ARSENAL — تسلیحات تاکتیکی سرور-محور','wd66-h'));
+  var s95b=el('div',null,'wd66-sec');wd88ItemRow(['tx_emp','tx_jammer','tx_precision','tx_defbreak','tx_cyber'],s95b);c.append(s95b);
+  c.append(el('div','⚠️ قوانین ضد سوءاستفاده (سرور): بازده نزولی ۱۰۰٪→۶۰٪→۳۰٪→مصونیت روی همان هدف • پنجره‌ی مقاومت ۳۰ دقیقه • تازه‌کارها/غایبان مصون • کول‌داون هر سلاح. هیچ سلاحی برد آنی یا فلج کامل نمی‌دهد.','wd66-note'));
   c.append(el('div','🎖️ پرتره‌ها، اسلات فرماندهی و آموزش','wd66-h'));
   var s6=el('div',null,'wd66-sec');wd88ItemRow(['cp_iron','cp_sky','cp_admiral','cmd_training','tactical_slot','at_slash','df_shield'],s6);c.append(s6);
   c.append(el('div','🎯 عملیات حمله‌ای سروری (کول‌داون و سقف هفتگی سرور)','wd66-h'));
@@ -17349,6 +17386,28 @@ function viewPass(c){
     else if(unlocked){b=el('button','🎁 دریافت','wd66-buy alt');b.setAttribute('data-act','passclaim');b.setAttribute('data-tier',String(i))}
     else{b=el('button','🔒 '+faN(i*d.tier_xp)+' XP','wd66-buy off');b.disabled=true}
     r.append(b);c.append(r)});
+  /* V95 — مسیر پریمیوم: همان پله‌های XP، پاداش بیشتر — مسیر رایگان دست‌نخورده (Section 19) */
+  c.append(el('div','👑 مسیر پریمیوم — کازمتیک، جم و تدارکات اضافه','wd66-h'));
+  if(!d.premium){
+    var pr=el('div',null,'wd66-card rar-b-legendary');pr.append(el('div','🎟️','wd66-ico'));
+    var prt=el('div',null,'wd66-tx');prt.append(el('b','فعال‌سازی مسیر پریمیوم این فصل'));
+    prt.append(el('small','جم، تدارکات جنگی و جلوه‌های انحصاری در هر پله. مسیر رایگان سرِ جای خودش می‌ماند — پرداخت هیچ برتری رقابتی‌ای نمی‌دهد.'));
+    pr.append(prt);
+    var pb=el('button','💎 '+gemN(d.pass_price||120),'wd66-buy');pb.setAttribute('data-act','passprem');pr.append(pb);c.append(pr);
+  } else {
+    (d.premium_tiers||[]).forEach(function(rw,i){
+      var unlocked=d.tier>=i;
+      var r3=el('div',null,'wd66-card rar-b-epic');
+      r3.append(el('div',unlocked?'👑':'🔒','wd66-ico'));
+      var tx3=el('div',null,'wd66-tx');tx3.append(el('b','پله‌ی پریمیوم '+faN(i)));
+      tx3.append(el('small',rw.fa||''));
+      r3.append(tx3);
+      var b3;
+      if(rw.claimed){b3=el('button','✓ گرفته شد','wd66-buy own');b3.disabled=true}
+      else if(unlocked){b3=el('button','🎁 دریافت','wd66-buy alt');b3.setAttribute('data-act','passclaim-prem');b3.setAttribute('data-tier',String(i))}
+      else{b3=el('button','🔒 '+faN(i*d.tier_xp)+' XP','wd66-buy off');b3.disabled=true}
+      r3.append(b3);c.append(r3)});
+  }
   c.append(el('div','📡 مأموریت‌های امروز — XP فقط با انجام واقعی','wd66-h'));
   var md=d.mission_defs||{};var mc=d.missions||{};
   Object.keys(md).forEach(function(k){var m3=md[k];
@@ -17451,7 +17510,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=94';
+              s.src='/game/cv-engine.js?v=95';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17462,7 +17521,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=94"></script>
+<script src="/game/oly3.js?v=95"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17476,7 +17535,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=94';
+      s.src='/game/oly3d.js?v=95';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -17965,7 +18024,7 @@ function toast88(m,t){try{if(typeof showToast==='function')showToast(m,t||'win')
 /* آینه‌ی نمایشی پیکربندی سرور — اعتبار نهایی همیشه سمت سرور است */
 var ATKS={balanced:{fa:'⚖️ متعادل',d:'پایه — بدون بونوس',sup:5},blitz:{fa:'⚡ برق‌آسا',d:'+۱۰٪ قدرت • +۸٪ تلفات',sup:8},siege:{fa:'🏰 محاصره',d:'نفوذ استحکامات • ۲۰۰طلا',sup:12},defensive:{fa:'🛡️ تدافعی',d:'−۱۰٪ حمله • سپر ۶ساعت',sup:2},naval:{fa:'⚓ دریایی',d:'+۸٪ • ۳۰۰طلا+۱۵۰نفت',sup:10},air:{fa:'✈️ هوایی',d:'+۱۲٪ • +۱۵٪ تلفات • ۱۲۰نفت',sup:9},economic:{fa:'💰 اقتصادی',d:'دفاع هدف −۸٪ • ۵۰۰طلا',sup:4}};
 var ORDS={emsupply:{fa:'تدارک اضطراری',ic:'🚑',res:'۵۰۰نفت+۲۰۰۰غذا',tgt:0},reserve:{fa:'ذخیره‌ی استراتژیک',ic:'⚡',res:'۳۰۰۰طلا',tgt:0},convoy:{fa:'کاروان تدارکات',ic:'🚚',res:'۳۰۰۰غذا',tgt:0},mobilize:{fa:'بسیج سریع',ic:'📣',res:'۲۰۰۰طلا+۱۰۰۰غذا',tgt:0},edefense:{fa:'دفاع اضطراری',ic:'🛡️',res:'۲۵۰۰طلا+۱۵۰۰غذا',tgt:0},airrecon:{fa:'شناسایی هوایی',ic:'✈️',res:'۴۰۰نفت',tgt:0},reconsweep:{fa:'جاروی اطلاعاتی',ic:'🔍',res:'۳۰۰نفت',tgt:0},ewar:{fa:'جنگ الکترونیک',ic:'📻',res:'۱۵۰۰طلا',tgt:0},blockade:{fa:'محاصره‌ی دریایی',ic:'🚢',res:'۲۰۰۰طلا+۶۰۰نفت',tgt:1},sabotage:{fa:'خرابکاری',ic:'💣',res:'۱۵۰۰طلا+۵۰۰نفت',tgt:1}};
-var FXFA={reserve:'⚡ ذخیره‌ی استراتژیک',mobilize:'📣 بسیج سریع',emsupply:'🚑 تدارک فعال',convoy:'🚚 کاروان فعال',edef:'🛡️ سپر دفاعی',airrecon:'✈️ شناسایی هوایی',ewar:'📻 ضداطلاعات',sabotaged:'💣 تحت خرابکاری'};
+var FXFA={reserve:'⚡ ذخیره‌ی استراتژیک',mobilize:'📣 بسیج سریع',emsupply:'🚑 تدارک فعال',convoy:'🚚 کاروان فعال',edef:'🛡️ سپر دفاعی',airrecon:'✈️ شناسایی هوایی',ewar:'📻 ضداطلاعات',sabotaged:'💣 تحت خرابکاری',tx_emp:'☄️ تحت حمله EMP — لجستیک کم‌بازده',tx_jammer:'🛰️ جمینگ فعال — اطلاعات روی سطح ۱',tx_defbreak:'🛡️ دفاع شکسته (۸۰٪)',tx_cyber:'💻 اختلال سایبری — سفارشات گران‌تر',ws_fuel:'⛽ سوخت سبک — نفت حمله بعدی −۵۰٪',ws_recover:'⛑️ کیت امداد — تلفات حمله بعدی −۸٪'};
 var WD88={_ws:null,_wsAt:0,_cat:null,_troph:null,_trophAt:0};
 window.WD88=WD88;
 function sb88(){return (typeof sb!=='undefined'&&sb&&sb.rpc)?sb:null}
@@ -18005,6 +18064,10 @@ WD88.plan=function(ctx){try{
   h+='<div class="wd88-suprow"><span id="wd88-supfa">🚚 تدارک لجستیک</span><span id="wd88-supn">…</span></div><div class="wd88-sup" id="wd88-supbar"><i style="width:100%"></i></div>';
   h+='<div class="wd88-fxrow" id="wd88-fxrow"></div>';
   h+='<h4>🎛️ سفارشات تاکتیکی (شلیک واقعی با هزینه‌ی منابع)</h4><div class="wd88-ordrow" id="wd88-ordrow">⏳ …</div>';
+  /* V95 — WAR SUPPLY + TACTICAL ARSENAL (سرور-محور، کول‌داون و مقاومت سرور) */
+  h+='<h4>📦 تدارکات جنگی — مصرف فوری از انبار سرور</h4><div class="wd88-ordrow" id="wd88-sup95">⏳ …</div>';
+  h+='<h4>☢️ TACTICAL ARSENAL — تسلیحات تاکتیکی</h4><div id="wd88-ard95">⏳ …</div>';
+  h+='<div class="wd65-mut">قوانین ضد سوءاستفاده سرور: بازده نزولی روی همان هدف • پنجره‌ی مقاومت ۳۰ دقیقه • مصونیت تازه‌کار و غایب • هیچ سلاحی برد آنی یا فلج کامل نمی‌دهد.</div>';
   h+='<div class="wd65-mut">هدف سفارش‌های 🚢/💣 باید بازیکن واقعی باشد — از دکمه‌ی شناسایی هم نام دقیق دشمن را می‌گیری.</div>';
   h+='<h4>📡 اطلاعات سرور (سطح تو خودکار اعمال می‌شود)</h4><button type="button" class="wd65-btn cy" id="wd88-intel-btn" style="width:100%">🛰️ دریافت گزارش اطلاعاتی از سرور</button><div id="wd88-intel" class="wd88-intel" style="display:none"></div>';
   var tac=card.querySelector('.wd65-tactic');
@@ -18031,6 +18094,8 @@ WD88.plan=function(ctx){try{
   /* logistics + orders */
   WD88.planSupply(card);
   WD88.planOrders(card);
+  /* V95 — تدارکات + آرسنال */
+  try{if(window.WD95)WD95.warPanel(card)}catch(e){}
 }catch(e){}};
 WD88.renderIntel=function(p,rep){try{
   var h='';
@@ -18149,6 +18214,343 @@ function boot88(){try{
   }).catch(function(){})}catch(e){}}
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',boot88);else boot88();
 setTimeout(boot88,3000);
+})();
+</script>
+<script id="v95-mono">
+/* ==================== V95 — PREMIUM MONETIZATION + WAR ITEMS V1 ====================
+   ماژول WD95: پک شروع امپراتور (ساعت سرور) • پل IAB مایکت • پنل آرسنال در برنامه‌ی نبرد •
+   VFX سبک CSS (بدون حلقه‌ی rAF، بدون DOM دائمی، احترام به wd-lowfx).
+   هیچ عددی این‌جا تصمیم نمی‌گیرد — سرور مرجع است؛ این فقط آینه‌ی نمایشی است.
+   ==================== */
+(function(){
+'use strict';
+var D=document;
+if(window.WD95)return;
+function H(id){return D.getElementById(id)}
+function esc95(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function fa95(n){try{return Number(n||0).toLocaleString('fa-IR')}catch(e){return String(n==null?0:n)}}
+function sb95(){return (typeof sb!=='undefined'&&sb&&sb.rpc)?sb:null}
+function toast95(m,t){try{showToast(m,t||'win')}catch(e){}}
+
+/* ---------- CSS: پک شروع + آرسنال + VFX (همه transform/opacity — سبک) ---------- */
+var css=D.createElement('style');css.id='wd95-css';
+css.textContent=[
+/* پک شروع — هرو کارت پریمیوم */
+'.wd95-hero{position:relative;overflow:hidden;border:1px solid rgba(255,205,80,.55);border-radius:20px;padding:14px;margin:2px 0 12px;background:linear-gradient(140deg,rgba(72,40,4,.92),rgba(26,12,44,.94))}',
+'.wd95-hero::before{content:"";position:absolute;inset:-40% -20% auto auto;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,196,60,.28),transparent 65%);pointer-events:none}',
+'.wd95-hero .t{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:900;color:#ffd84d}',
+'.wd95-hero .sub{font-size:10.5px;color:#d8c9a6;line-height:1.8;margin-top:5px}',
+'.wd95-hero .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}',
+'.wd95-hero .cell{background:rgba(0,0,0,.28);border:1px solid rgba(255,216,77,.22);border-radius:12px;padding:8px 9px;font-size:11px;color:#ffe9b3;font-weight:700}',
+'.wd95-hero .price{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}',
+'.wd95-hero .price b{font-size:14px;color:#fff}',
+'.wd95-hero .cd{font-size:11px;font-weight:900;color:#ff9f43;margin-top:8px}',
+'.wd95-hero.done{border-color:rgba(62,232,165,.5)}',
+'.wd95-hero .btn95{border:0;border-radius:13px;min-height:44px;padding:10px 16px;font-family:inherit;font-weight:900;font-size:13px;cursor:pointer;color:#241500;background:linear-gradient(135deg,#ffd84d,#ff9f2e);box-shadow:0 4px 18px rgba(255,176,46,.35)}',
+'.wd95-hero .btn95.off{background:rgba(255,255,255,.08);color:#8b97ab;cursor:default;box-shadow:none}',
+/* آرسنال */
+'.wd95-ard{border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px 11px;margin-bottom:8px;background:rgba(255,255,255,.04)}',
+'.wd95-ard.epic{border-color:rgba(177,102,255,.35)}',
+'.wd95-ard .hd{display:flex;align-items:center;gap:8px}',
+'.wd95-ard .hd b{flex:1;font-size:12px;color:#fff}',
+'.wd95-ard .own{font-size:10px;font-weight:900;color:#3ee8a5;background:rgba(62,232,165,.12);border:1px solid rgba(62,232,165,.3);border-radius:99px;padding:2px 8px;white-space:nowrap}',
+'.wd95-ard .d{font-size:10px;color:#9fadc4;line-height:1.65;margin-top:4px}',
+'.wd95-ard .meta{font-size:9.5px;color:#7f9cc0;margin-top:4px}',
+'.wd95-ard .row{display:flex;gap:6px;margin-top:8px}',
+'.wd95-ard .row button{flex:1;min-height:44px;border:0;border-radius:12px;font-family:inherit;font-weight:900;font-size:12px;cursor:pointer}',
+'.wd95-use{background:linear-gradient(135deg,#ff6b6b,#c0392b);color:#fff}',
+'.wd95-use.off{background:rgba(255,255,255,.08);color:#8b97ab;cursor:default}',
+'.wd95-buy2{background:rgba(255,216,77,.14);color:#ffd84d;border:1px solid rgba(255,216,77,.4)!important}',
+'.wd95-supbtn{background:linear-gradient(135deg,#39e6d0,#2bb8ff);color:#00231f}',
+'.wd95-supbtn.off{background:rgba(255,255,255,.08);color:#8b97ab;cursor:default}',
+'.wd95-note{font-size:10px;color:#8fb0d6;line-height:1.7}',
+'@media (max-width:380px){.wd95-hero .grid{grid-template-columns:1fr}}',
+/* VFX — فقط transform/opacity؛ حذف خودکار؛ خاموش در lowfx */
+'.wd95-vfx{position:absolute;z-index:9500;pointer-events:none;width:120px;height:120px;margin:-60px 0 0 -60px;display:flex;align-items:center;justify-content:center}',
+'.wd95-vfx i{position:absolute;inset:0;border-radius:50%;font-style:normal}',
+'.wd95-vfx-emp i:nth-child(1){border:3px solid rgba(122,214,255,.9);animation:wd95emp 2.6s ease-out forwards}',
+'.wd95-vfx-emp i:nth-child(2){border:2px solid rgba(255,255,255,.8);animation:wd95emp 2.6s .35s ease-out forwards}',
+'.wd95-vfx-emp .c{font-size:34px;animation:wd95pulse .8s ease-in-out 3;z-index:2}',
+'.wd95-vfx-prec i:nth-child(1){border:2px dashed rgba(255,80,80,.9);animation:wd95spin 3s linear forwards,wd95fade 3s ease forwards}',
+'.wd95-vfx-prec .c{font-size:30px;animation:wd95drop 1.6s cubic-bezier(.3,0,.7,1) forwards}',
+'.wd95-vfx-jam i:nth-child(1){border:2px solid rgba(57,230,208,.7);animation:wd95fade 3s ease forwards}',
+'.wd95-vfx-jam .c{font-size:30px;animation:wd95pulse .5s ease-in-out 5}',
+'.wd95-vfx-def .c{font-size:36px;animation:wd95crack 1.8s ease-in forwards}',
+'.wd95-vfx-def i:nth-child(1){border:3px solid rgba(255,176,46,.85);animation:wd95fade 1.9s ease forwards}',
+'.wd95-vfx-cyb i:nth-child(1){background:linear-gradient(180deg,transparent,rgba(176,102,255,.35),transparent);animation:wd95scan 2.4s linear forwards}',
+'.wd95-vfx-cyb .c{font-size:30px;animation:wd95glitch .3s steps(2) 8}',
+'.wd95-vfx-reveal{position:fixed;inset:0;z-index:10200;display:flex;align-items:center;justify-content:center;background:rgba(4,8,16,.75);animation:wd95fade 3.2s ease forwards}',
+'.wd95-vfx-reveal .k{font-size:64px;animation:wd95pop 1.1s cubic-bezier(.2,1.4,.4,1) forwards;text-shadow:0 0 40px rgba(255,205,60,.9)}',
+'@keyframes wd95emp{0%{transform:scale(.3);opacity:1}100%{transform:scale(2.6);opacity:0}}',
+'@keyframes wd95pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}',
+'@keyframes wd95spin{to{transform:rotate(540deg)}}',
+'@keyframes wd95fade{0%{opacity:1}70%{opacity:1}100%{opacity:0}}',
+'@keyframes wd95drop{0%{transform:translateY(-90px);opacity:0}30%{opacity:1}100%{transform:translateY(26px) scale(.8);opacity:0}}',
+'@keyframes wd95crack{0%{transform:scale(1);opacity:1}60%{transform:scale(1.25) rotate(-8deg)}100%{transform:scale(.5) rotate(14deg);opacity:0}}',
+'@keyframes wd95scan{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}',
+'@keyframes wd95glitch{0%{transform:translate(0,0)}50%{transform:translate(-3px,2px)}100%{transform:translate(3px,-2px)}}',
+'@keyframes wd95pop{0%{transform:scale(.2);opacity:0}60%{transform:scale(1.25);opacity:1}80%{transform:scale(1)}100%{transform:scale(1);opacity:1}}',
+'body.wd-lowfx .wd95-vfx,body.wd-lowfx .wd95-vfx-reveal{display:none!important}',
+'@media (prefers-reduced-motion:reduce){.wd95-vfx,.wd95-vfx-reveal{display:none!important}}'
+].join('');
+D.head.appendChild(css);
+
+var VFX_KIND={tx_emp:'emp',tx_jammer:'jam',tx_precision:'prec',tx_defbreak:'def',tx_cyber:'cyb'};
+var VFX_GLYPH={emp:'⚡',jam:'🛰️',prec:'🎯',def:'🛡️',cyb:'💻'};
+
+/* ---------- VFX: اورلی کوتاه‌عمر روی کانتینر نقشه (بدون حلقه رندر) ---------- */
+function vfxShow(kind,country){
+  try{
+    if(D.body.classList.contains('wd-lowfx'))return;
+    var host=null;try{host=map.getContainer()}catch(e){}
+    if(!host){host=D.body;var o=D.createElement('div');o.className='wd95-vfx wd95-vfx-'+kind;o.style.cssText='position:fixed;left:50%;top:38%';build(o,kind);host.appendChild(o);setTimeout(function(){o.remove()},3400);return}
+    var p=null;
+    try{
+      var layer=country&&typeof layersByName!=='undefined'?layersByName[country]:null;
+      if(layer&&layer.getBounds){var c=layer.getBounds().getCenter();p=map.latLngToContainerPoint(c)}
+    }catch(e){}
+    var o=D.createElement('div');o.className='wd95-vfx wd95-vfx-'+kind;
+    if(p)o.style.cssText='left:'+p.x+'px;top:'+p.y+'px';else o.style.cssText='left:50%;top:40%';
+    build(o,kind);host.appendChild(o);
+    setTimeout(function(){o.remove()},3400);
+  }catch(e){}
+  function build(o,kind){
+    var i1=D.createElement('i');o.appendChild(i1);
+    if(kind==='emp'){var i2=D.createElement('i');o.appendChild(i2)}
+    var c=D.createElement('span');c.className='c';c.textContent=VFX_GLYPH[kind]||'✨';o.appendChild(c);
+  }
+}
+function revealFx(glyph){
+  try{
+    if(D.body.classList.contains('wd-lowfx'))return;
+    var o=D.createElement('div');o.className='wd95-vfx-reveal';
+    var k=D.createElement('div');k.className='k';k.textContent=glyph||'👑';o.appendChild(k);
+    D.body.appendChild(o);setTimeout(function(){o.remove()},3400);
+  }catch(e){}
+}
+
+/* ---------- پک شروع امپراتور — ساعت فقط سرور ---------- */
+function cat95(){try{return window.WD66_SHOP&&window.WD66_SHOP.fetchCatalog?window.WD66_SHOP.fetchCatalog():Promise.reject(new Error('nologin'))}catch(e){return Promise.reject(e)}}
+function starterHero(c){
+  cat95().then(function(cat){
+    if(!cat||!cat.starter||!c||!c.isConnected)return;
+    var s=cat.starter;
+    var hero=D.createElement('div');hero.className='wd95-hero'+(s.purchased?' done':'');
+    var h='<div class="t">👑 EMPEROR STARTER PACK</div>';
+    if(s.purchased){
+      h+='<div class="sub">✅ این پک برای حساب تو فعال شده است — محتوای آن به خزانه، انبار و کمد کازمتیک تو اضافه شده. هر حساب فقط یک‌بار.</div>';
+    }else if(s.active){
+      h+='<div class="sub">پک خوش‌آمد تازه‌واردان — فقط ۴۸ ساعت پس از اولین ورود معتبر. ساعت این پیشنهاد روی سرور است؛ پاک‌کردن مرورگر یا تغییر دستگاه آن را تازه نمی‌کند.</div>';
+      h+='<div class="grid">'
+        +'<div class="cell">💎 '+fa95(s.content.gems)+' جم</div>'
+        +'<div class="cell">🪙 '+fa95(s.content.gold)+' طلا</div>'
+        +'<div class="cell">🛢️ '+fa95(s.content.oil)+' نفت</div>'
+        +'<div class="cell">🌾 '+fa95(s.content.food)+' غذا</div>'
+        +'<div class="cell">📦 ۱۲ تدارک جنگی</div>'
+        +'<div class="cell">🎨 ۵ کازمتیک انحصاری امپراتوری</div>'
+        +'</div>';
+      h+='<div class="price"><span class="wd95-note" style="color:#c9b28a">پرداخت تومانی — فقط درون اپ اندروید (مایکت)</span><b>'+esc95(s.price_fa||'')+'</b></div>';
+      h+='<div class="cd">⏳ <span data-wd95cd>'+cdText(s.remaining_ms)+'</span></div>';
+      h+='<div class="price"><span></span><button type="button" class="btn95" data-wd95-starter>🛒 خرید و دریافت</button></div>';
+    }else{
+      h+='<div class="sub">'+(s.ends_at?'⌛ مهلت ۴۸ ساعته‌ی این پیشنهاد برای حساب تو تمام شده است.':'پک تازه‌واردان به‌زودی.')+' آیتم‌های مشابه همیشه در فروشگاه موجودند.</div>';
+    }
+    hero.innerHTML=h;
+    c.insertBefore(hero,c.firstChild);
+    var b=hero.querySelector('[data-wd95-starter]');
+    if(b)b.addEventListener('click',starterBuy);
+    var cdEl=hero.querySelector('[data-wd95cd]');
+    if(cdEl&&s.remaining_ms>0){
+      var iv=setInterval(function(){
+        var m=H('m-shop');
+        if(!m||!m.classList.contains('active')||!hero.isConnected){clearInterval(iv);return}
+        var left=s.remaining_ms-(Date.now()-cat.now);
+        cdEl.textContent=left>0?cdText(left):'⌛ تمام شد';
+        if(left<=0){clearInterval(iv);if(m&&m.classList.contains('active')&&window.WD66_SHOP)WD66_SHOP.render()}
+      },30000);
+    }
+  }).catch(function(){});
+}
+function cdText(ms){
+  if(!(ms>0))return '⌛ تمام شد';
+  var m=Math.floor(ms/60000),hh=Math.floor(m/60),mm=m%60;
+  return fa95(hh)+' ساعت و '+fa95(mm)+' دقیقه باقی مانده';
+}
+function starterBuy(){
+  var s=sb95();
+  if(!s){toast95('❌ برای خرید باید آنلاین باشی','lose');return}
+  var go=function(){
+    /* پل IAB اندروید: MainActivity باید window.WD95_IAB.purchase(sku) را صدا کند و
+       نتیجه را با WD95.onIab(txId, productId) برگرداند — بدون آن، خرید تومانی ممکن نیست */
+    if(window.WD95_IAB&&typeof window.WD95_IAB.purchase==='function'){
+      toast95('⏳ در حال باز کردن مایکت…');
+      try{window.WD95_IAB.purchase('starter_emperor')}catch(e){toast95('❌ ارتباط با مایکت برقرار نشد','lose')}
+    }else{
+      toast95('ℹ️ خرید تومانی فقط داخل اپلیکیشن اندروید (نسخه‌ی مایکت) فعال است — نسخه‌ی وب فقط جم','lose');
+    }
+  };
+  if(typeof wdConfirm==='function'){
+    wdConfirm('👑 EMPEROR STARTER PACK — ۱۴۰٬۰۰۰ تومان\n\n💎 ۱۲۰۰ جم + 🪙 ۱۰۰٬۰۰۰ طلا + نفت و غذا + ۱۲ تدارک جنگی + ۵ کازمتیک انحصاری\n\nهر حساب فقط یک‌بار. بعد از تأیید، پرداخت در مایکت انجام می‌شود.','خرید در مایکت').then(function(y){if(y)go()});
+  }else go();
+}
+/* پل نتیجه‌ی IAB: Android → WD95.onIab(txId, productId) → اعتبارسنجی سرور → تحویل اتمیک */
+function onIab(txId,productId){
+  var s=sb95();if(!s){toast95('❌ اتصال برقرار نیست','lose');return}
+  if(!txId||!productId){toast95('❌ داده‌ی خرید نامعتبر','lose');return}
+  toast95('⏳ در حال اعتبارسنجی خرید روی سرور…');
+  s.rpc('iab_verify',{p_tx_id:String(txId),p_product_id:String(productId)}).then(function(r){
+    if(r.error||!r.data||!r.data.ok){
+      var e=r.data&&r.data.error;
+      toast95(e==='unavailable'?'🔒 اعتبارسنجی مایکت هنوز فعال نشده — بعداً تلاش کن':e==='already'?'✓ این حساب قبلاً پک شروع را گرفته':e==='duplicate'?'✓ قبلاً ثبت شده':'❌ اعتبارسنجی خرید ناموفق بود','lose');
+      return}
+    revealFx('👑');
+    toast95(r.data.duplicate?'✓ این خرید قبلاً تحویل شده بود':'👑 پک شروع امپراتور تحویل شد — خزانه، انبار و کمدت را ببین!','win');
+    try{if(typeof loadWallet==='function')loadWallet()}catch(e){}
+    try{if(window.WD66_SHOP)WD66_SHOP.fetchCatalog(true).then(function(){if(window.WD66_SHOP)WD66_SHOP.render()}).catch(function(){})}catch(e){}
+  }).catch(function(){toast95('❌ اتصال برقرار نشد','lose')});
+}
+
+/* ---------- پنل آرسنال + تدارکات در «برنامه‌ی نبرد» ---------- */
+var ARD95=null;
+function warPanel(card){
+  if(!card)return;
+  var supRow=card.querySelector('#wd88-sup95');var ard=card.querySelector('#wd88-ard95');
+  if(!supRow&&!ard)return;
+  var s=sb95();if(!s){if(supRow)supRow.textContent='آفلاین';if(ard)ard.textContent='آفلاین';return}
+  /* V95 — قیمت‌ها همیشه از کاتالوگ سرور (تک‌منبع) */
+  var priceP=(window.WD66_SHOP&&window.WD66_SHOP.fetchCatalog)?WD66_SHOP.fetchCatalog().then(function(c){var m={};(c.items||[]).forEach(function(x){m[x.id]=x.price});return m}).catch(function(){return {}}):Promise.resolve({});
+  Promise.all([s.rpc('war_arsenal',{}),priceP]).then(function(arr){
+    var r=arr[0],prices=arr[1]||{};
+    if(r.error||!r.data||!r.data.ok)return;
+    ARD95=r.data;var now=Date.now();
+    /* تدارکات — ردیف دکمه‌های مصرف */
+    if(supRow){
+      var keys=['ws_prep','ws_fuel','ws_rapid','ws_recover'];
+      var fa={ws_prep:'⏱️ خنثی‌ساز',ws_fuel:'⛽ سوخت سبک',ws_rapid:'📦 کاروان',ws_recover:'⛑️ کیت امداد'};
+      var h='';
+      keys.forEach(function(k){
+        var n=(r.data.stock||{})[k]||0;var cd=(r.data.supply_cd||{})[k];
+        var off=n<=0||cd>now;
+        h+='<button type="button" class="wd88-ord'+(off?' cd':'')+'" data-ws95="'+k+'"'+(off?' disabled':'')+'>'+fa[k]
+          +(n>0?'<small>📦 '+fa95(n)+'</small>':'<small>— خالی —</small>')
+          +(cd>now?'<small>⏳ '+fa95(Math.ceil((cd-now)/60000))+' دقیقه</small>':'')+'</button>';
+      });
+      supRow.innerHTML=h;
+      supRow.querySelectorAll('[data-ws95]').forEach(function(b){b.onclick=function(){useSupply(b.getAttribute('data-ws95'),b,card)}});
+    }
+    /* آرسنال — کارت هر سلاح */
+    if(ard){
+      var TX=r.data.cfg&&r.data.cfg.tx||{};var DIM=r.data.cfg&&r.data.cfg.diminish||[1,.6,.3,0];
+      var order={tx_emp:1,tx_defbreak:2,tx_precision:3,tx_jammer:4,tx_cyber:5};
+      var html='';
+      Object.keys(order).forEach(function(k){
+        var d=TX[k];if(!d)return;
+        var n=(r.data.stock||{})[k]||0;var cd=(r.data.cd||{})[k];
+        html+='<div class="wd95-ard epic"><div class="hd"><b>'+esc95(d.fa)+'</b>'
+          +'<span class="own">📦 Owned: '+fa95(n)+'</span></div>'
+          +'<div class="d">'+esc95(d.faNote||'')+'</div>'
+          +'<div class="meta">⏱️ مدت: '+(d.dur>0?fa95(Math.round(d.dur/60000))+' دقیقه':'آنی')+' • 🕘 کول‌داون: '+fa95(Math.round(d.cd/60000))+' دقیقه • 🎯 هدف: بازیکن واقعی • 🔻 بازده نزولی: '+DIM.map(function(x){return Math.round(x*100)+'٪'}).join(' → ')+'</div>'
+          +'<div class="row">'
+          +'<button type="button" class="wd95-use'+(n<=0||cd>now?' off':'')+'" data-tx95="'+k+'"'+(n<=0||cd>now?' disabled':'')+'>[ USE ]'+(cd>now?' ⏳'+fa95(Math.ceil((cd-now)/60000))+'د':'')+'</button>'
+          +'<button type="button" class="wd95-buy2" data-txbuy95="'+k+'">[ + BUY ]'+(prices[k]?(' 💎'+fa95(prices[k])):'')+'</button>'
+          +'</div></div>';
+      });
+      ard.innerHTML=html||'<div class="wd95-note">آرسنال هنوز در دسترس نیست.</div>';
+      ard.querySelectorAll('[data-tx95]').forEach(function(b){b.onclick=function(){useTx(b.getAttribute('data-tx95'),b,card)}});
+      ard.querySelectorAll('[data-txbuy95]').forEach(function(b){b.onclick=function(){shopGo(b.getAttribute('data-txbuy95'))}});
+    }
+  }).catch(function(){});
+}
+function shopGo(id){
+  try{
+    /* باز کردن مستقیم فروشگاه روی دسته‌ی ⚔️ جنگ — خرید فقط از موتور واحد سرور */
+    if(window.WD66_SHOP){
+      var m=H('m-shop');
+      WD66_SHOP.render();
+      if(m&&!m.classList.contains('active')){try{openModal('m-shop')}catch(e){}}
+    }
+    toast95('🛒 در فروشگاه، بخش «⚔️ جنگ» — سلاح‌ها و تدارکات آن‌جاست','win');
+  }catch(e){}
+}
+function useSupply(k,btn,card){
+  var s=sb95();if(!s)return;
+  if(btn){btn.disabled=true;btn.classList.add('cd')}
+  var args={p_item:k};
+  if(k==='ws_prep'){
+    /* خنثی‌ساز: انتخاب سفارشِ در کول‌داون — از وضعیت جنگ */
+    WD88.ws(true).then(function(w){
+      var cds=(w&&w.cd)||{};var ks=Object.keys(cds);
+      if(!ks.length){toast95('ℹ️ هیچ سفارشی در کول‌داون نیست — مصرف نشد','lose');WD95.warPanel(card);return}
+      args.p_key=ks[0];
+      fire();
+    }).catch(function(){WD95.warPanel(card)});
+  }else fire();
+  function fire(){
+    s.rpc('war_supply_use',args).then(function(r){
+      if(r.error||!r.data||!r.data.ok){
+        var e=r.data&&r.data.error;
+        toast95(e==='no_stock'?'❌ از این آیتم نداری':e==='cd'?'⏳ کول‌داون مصرف فعال است':'❌ مصرف نشد','lose');
+      }else{
+        toast95('📦 تدارک مصرف شد — اثر فعال شد','win');
+        try{WD88._ws=null;WD88.planSupply(card);WD88.planOrders(card)}catch(e){}
+      }
+      WD95.warPanel(card);
+    }).catch(function(){toast95('❌ اتصال برقرار نشد','lose');if(btn){btn.disabled=false}});
+  }
+}
+function useTx(item,btn,card){
+  var s=sb95();if(!s)return;
+  var tg=card?card.querySelector('#w65-tg'):null;var target=tg?tg.value:'';
+  if(!target){toast95('❌ اول نام دقیق بازیکنِ هدف را در کادر «هدف» بنویس (یا از شناسایی بگیر)','lose');return}
+  var names={tx_emp:'ضربه‌ی EMP',tx_jammer:'جمینگ رادار',tx_precision:'ضربه‌ی دقیق',tx_defbreak:'شکستن دفاع',tx_cyber:'اختلال سایبری'};
+  var fire=function(){
+    if(btn){btn.disabled=true}
+    s.rpc('use_tactical_item',{p_item:item,p_target:target}).then(function(r){
+      if(r.error||!r.data||!r.data.ok){
+        var e=r.data&&r.data.error;
+        var msg={target:'❌ هدف باید بازیکن واقعیِ همین سرور باشد',cd:'⏳ کول‌داون این سلاح فعال است',resist:'🛡️ هدف در پنجره‌ی مقاومت است — مصونیت موقت',active:'ℹ️ همین اثر هم‌اکنون روی هدف فعال است',no_stock:'❌ از این سلاح نداری — اول بخر',newbie:'🛡️ هدف تازه‌کار محافظت‌شده است',offline_prot:'🛡️ هدف مدت‌هاست غایب — مصون',truce:'🕊️ آتش‌بس فعال است',server:'❌ هدف در سرور دیگری است'}[e]||'❌ اجرا نشد';
+        toast95(msg,'lose');
+      }else{
+        var d=r.data;
+        var kind=VFX_KIND[item];
+        vfxShow(kind,d.target_country||null);
+        if(item==='tx_precision')toast95('🎯 ضربه‌ی دقیق اصابت کرد: −'+fa95(d.dmg||0)+' امتیاز'+(d.fort_hit?' + یک سطح پدافند':'')+' (هدف: '+esc95(d.target||'')+')','win');
+        else toast95('⚡ '+names[item]+' روی '+esc95(d.target||'')+' فعال شد — '+fa95(Math.round((d.dur_ms||0)/60000))+' دقیقه','win');
+        try{WD88._ws=null;WD88.planSupply(card)}catch(e){}
+      }
+      WD95.warPanel(card);
+      if(btn)btn.disabled=false;
+    }).catch(function(){toast95('❌ اتصال برقرار نشد','lose');if(btn)btn.disabled=false});
+  };
+  if(typeof wdConfirm==='function'){
+    wdConfirm('شلیک «'+names[item]+'» به '+target+'؟\nهر شلیک مصرفی است و بازده نزولی روی همان هدف ثبت می‌شود.','شلیک').then(function(y){if(y)fire()});
+  }else fire();
+}
+
+window.WD95={starterHero:starterHero,starterBuy:starterBuy,onIab:onIab,warPanel:warPanel,vfx:vfxShow,reveal:revealFx};
+
+/* ---------- برچسب فارسی اخبار تاکتیکی (V95) ---------- */
+try{
+  D.addEventListener('DOMContentLoaded',function(){
+    /* اخبار: اکشن‌های tx_* از addNews سرور می‌آیند — برچسب در فرمتر موجود تزریق نمی‌شود
+       (فرمتر بسته است)؛ اینجا نمایشگر مستقل برای نوتیفیکیشن خودِ بازیکن است:
+       اگر war_state شامل fx تازه‌ی tx_* باشد، توست یک‌باره می‌آید. */
+    var seen={};
+    setInterval(function(){
+      try{
+        if(D.hidden)return;
+        if(!window.WD88||!WD88._ws)return;
+        (WD88._ws.fx||[]).forEach(function(f){
+          if(f.k&&f.k.indexOf('tx_')===0&&!seen[f.k]){
+            seen[f.k]=1;
+            var fa={tx_emp:'☄️ امپراتوری تو زیر حمله‌ی EMP است — بازیابی تدارک متوقف و دفاع لجستیک کم‌بازده',tx_jammer:'🛰️ جمینگ رادار فعال شده — اطلاعات تو موقتاً تار است',tx_defbreak:'🛡️ دفاع تو موقتاً شکسته شده (۸۰٪)',tx_cyber:'💻 اختلال سایبری — سفارشات تاکتیکی تا اطلاع ثانوی گران‌ترند'};
+            if(fa[f.k])toast95(fa[f.k]+' — '+fa95(Math.max(1,Math.round((f.until-Date.now())/60000)))+' دقیقه','lose');
+          }
+        });
+      }catch(e){}
+    },60000);
+  });
+}catch(e){}
 })();
 </script>
 </body>

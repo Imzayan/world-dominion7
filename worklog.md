@@ -2459,3 +2459,70 @@ Work Log:
 Stage Summary:
 - production روی https://world-dominion7.vercel.app اکنون v94 است: کمپین بوکس V5 (مسیر انحصاری box5) + المپیک V4 چهار رشته‌ی 3D + آنبوردینگ ۶۰ثانیه‌ای + مشاور داده‌محور + جنگ اتحاد هفتگی + تلومتری FPS + ابزار release — همه‌ی گیت‌ها سبز، صفر راز، بدون تغییر مخرب DB (مدل‌های جدید BoxingSave/AllianceOp/PerfDaily قبلاً روی DB مشترک push شده بودند)
 - pending برای کاربر: (۱) تست production/گوشی — به‌خصوص جنگ اتحاد، آنبوردینگ و بوکس؛ (۲) بازگرداندن keystore از بکاپ به download/keystore/ تا APK v1.0.9/vc10 را همان‌جا بیلد و امضا کنم؛ (۳) پس از ساخت صفحه‌ی مایکت، MYKET_APP_URL واقعی جایگزین placeholder شود
+
+---
+Task ID: MONO-V95-AUDIT
+Agent: Super Z (main)
+Task: Section 2 — آدیت فقط-خواندنی کامل برای Premium Monetization + War Items V1 (۲۶ سکشن)
+
+Work Log:
+- معماری RPC حل شد: supabase.js وندور در واقع شیم داخلی است — sb.rpc → POST /api/rpc/{fn} (Next.js + Prisma)، sb.from → /api/db/{t} با وایت‌لیست، sb.channel → /api/rt (SSE). هیچ داکس مستقیم کلاینت به DB نیست.
+- A. فروشگاه: تک‌منبع سرور SHOP_ITEMS (~۹۰ آیتم) در route.ts + SHOP_PACKS (۴ پک جم، url='' = غیرفعال) + SHOP_COLLECTIONS (۱۲) + SHOP_MYSTERY (۳ صندوق). رندر کلاینت: بلوک wd-shop-v2 → window.WD66_SHOP (fetchCatalog/render/onPurchase/applyOwned). ۱۶ دسته.
+- B. موتور خرید: shopBuy() = Idempotency (ShopPurchase.requestId یکتا per user) → پنجره → مالکیت → کسر اتمیک updateMany(gems gte price) → گرنت با rollback کامل → Ledger. spend_gems و shop_buy هر دو همین‌جا.
+- C. پرداخت واقعی: موجود نیست — پک‌های جم url='' («به‌زودی»)؛ Myket فقط Intent استور در APK برای آپدیت (MainActivity خط ۴۴-۴۶). IAB واقعی → باید ساخته شود (iab_verify + Myket API + PurchaseTx).
+- D. انبار: ShopInventory unique(userId,itemId) فقط غیرقابل‌انباشته → برای تسلیحات/تدارکات شمارشی (Owned: N) نیاز به جدول جدید PlayerStock با qty. SpecialUse = لاگ کول‌داون (الگوی اثبات‌شده). WarState.data JSON = {supply, atkt, cd, fx[{k,until,data}], blk, spy}.
+- E. جنگ: pvp_attack کاملاً سرور-محور (p_attack کلاینت نادیده)، کول‌داون ۱۰s، هزینه‌ی واقعی با tradeApply (تک‌نویسنده)، دکترین V88 با سقف سخت +۲۲٪ (WAR_MAX_ADD)، تدارک، fx (reserve/mobilize/emsupply/convoy/edef/sabotaged)، CV بونوس (سقف ۲۵/۳۰٪)، شانس clamp 0.2-0.85، انتقام +۲۵٪، آتش‌بس المپیک. war_order = ۱۰ سفارش با قفل فروشگاهی wo_*. use_special = ۴ عملیات جم با کول‌داون + سقف هفتگی گلوبال + opsEff (مصرف در pvp_attack). war_intel = ۴ سطح + ضداطلاعات (ewar).
+- F. الگوهای امنیتی قابل‌استفاده: updateMany شرطی اتمیک، requestId idempotency، rollback-на-grant-failure، tradeApply، rate limit 240/min، news/battleLog برای ردپا.
+- G. UI: WD88.plan() کارت برنامه‌ی نبرد (دکترین+تدارک+سفارشات+اطلاعات) — میزبان طبیعی TACTICAL ARSENAL. wdConfirm دیالوگ درون‌اپ. wd-lowfx موجود. CSS کازمتیک cos27/WD66.
+- H. VIP: vip7/vip30 موجود با جم روزانه (dailyBonus vipGranted=10/day) — EMPEROR = ارتقای برند+مزایا. پاس فصل: مسیر فصل رایگان w43 در کلاینت موجود — ترک پریمیوم جدید.
+- I. دیتابیس: Prisma دو-گویشی (schema.prisma SQLite + schema.postgres.prisma) با گیت schema-diff. مدل‌های مرتبط: Wallet/ShopPurchase/ShopInventory/SpecialUse/WarState/Territory/Score/BattleLog/WorldNews.
+- J. /api/db فقط وایت‌لیست — جداول حساس جدید اصلاً لیست نمی‌شوند (RLS-معادل).
+- K. تصمیم یکپارچه‌سازی: تسلیحات تاکتیکی به‌صورت fx روی WarState هدف (همان الگوی warFxOf) با ثبت diminishing در fx.data؛ اثر در pvp_attack/war_intel/war_order خوانده می‌شود. مسیر اختصاصی /api/war/use-tactical-item = wrapper نازک روی همان هندلر rpc use_tactical_item.
+- L. ممنوع-تکرار: موتور خرید، لجر، UI فروشگاه، سفارشات جنگ، عملیات ویژه، کول‌داون‌ها، کازمتیک‌اپلای، اخبار/هیت‌مپ.
+
+Stage Summary:
+- آدیت کامل — هیچ کدی تغییر نکرد. نقشه‌ی V95: PlayerStock+PurchaseTx+AnalyticsEvent+Wallet.starter* | MONO_CFG | iab_verify/starter_offer/war_arsenal/use_tactical_item/war_supply_use/pass_buy | اتصال افکت به pvp_attack | کلاینت: پک شروع+آرسنال+VFX CSS+EMPEROR+پاس پریمیوم | QA کامل.
+
+---
+Task ID: MONO-V95-IMPL
+Agent: Super Z (main)
+Task: پیاده‌سازی کامل Premium Monetization + War Items V1 (۲۶ سکشن) روی معماری موجود — بدون رایت سیستم
+
+Work Log:
+- DB (هر دو اسکیما SQLite/Postgres، schema-diff سبز): PlayerStock (انبار شمارشی qty) + PurchaseTx (txId unique ضد replay، وضعیت pending/verified/failed) + AnalyticsEvent (تله‌متری بیزینس) + Wallet.starterSeenAt/starterBoughtAt. db push سبز.
+- سرور route.ts:
+  • MONO = تک‌منبع پیکربندی (مدت‌ها/کول‌داون‌ها/سقف‌ها/بازده نزولی [۱٬۰.۶٬۰.۳٬۰]/پنجره مقاومت ۳۰ دقیقه/نگه‌های تازه‌کار-غایب/محتوای پک شروع/کاتالوگ IAP/قیمت پاس)
+  • ۱۷ آیتم فروشگاه جدید: ۴ تدارک جنگی + ۵ تسلیحات تاکتیکی (kind stock) + vip_emp + pass_premium + ۳ آیتم CONQUEROR محدود ۷روزه با برچسب صادقانه‌ی بازگشت + ۵ کازمتیک انحصاری پک شروع (grant-only)
+  • shopBuy: پشتیبانی kind stock (stockAdd اتمیک) + تخفیف ۱۰٪ منابع VIP امپراتور + وصله‌ی حفره‌ی امنیتی موجود: آیتم‌های cat=reward (پاداش مجموعه‌ها) با قیمت صفر مستقیم خریداری می‌شدند → رد کامل
+  • RPCهای جدید: war_arsenal، use_tactical_item (موتور واحد)، war_supply_use، iab_verify (myketVerify با env MYKET_CLIENT_ID/SECRET — بدون اعتبار → unavailable و هیچ گرنت جعلی)، starter_offer، + pass_state/pass_claim گسترش‌یافته با مسیر premium (کلید یکتا pass_prem_<season>_<tier> — مسیر رایگان دست‌نخورده)
+  • use_tactical_item: ۹ لایه اعتبارسنجی (آیتم/آتش‌بس/server_id isolation/هدف nick یا country/تازه‌کار score<600 یا حساب<۷۲ساعت/غایب>۷روز/کول‌داون مهاجم/بازده نزولی per target per weapon/اثر فعال) + اجرا با rollback انبار + news/battleLog/analytics
+  • اثرها به هسته‌ی جنگ وصل شد: pvp_attack دفاع هدف (EMP defPct، defbreak defMult 0.8 هرگز صفر) + مهاجم (ws_fuel نفت−۵۰٪، ws_recover تلفات−۸٪)؛ warStateOf بازیابی تدارک زیر EMP متوقف؛ war_intel جمینگ → سطح درخواست‌دهنده کپ ۱؛ war_order سایبر → هزینه سفارشات +۱۵٪
+  • precision: آسیب سقف‌دار min(۳٪, ۲۵۰۰) کف ۳۰۰ + یک سطح پدافند فقط در ضربه‌ی اول — ارتش/پایتخت دست‌نخورده
+  • پنجره‌ی ۴۸ساعته‌ی پک شروع: starterSeenAt در اولین get_wallet (اتمیک) — رفرش/دستگاه دوم/تغییر ساعت کلاینت بی‌اثر؛ تحویل IAB با iapGrant اتمیک ALL-OR-NOTHING + rollback کامل
+- مسیر قراردادی POST /api/war/use-tactical-item: پوشش نازک روی همان هندلر (تک‌منبع منطق) + rate limit ۳۰/دقیقه
+- کلاینت index.html:
+  • بلوک v95-mono: ماژول WD95 — هرو کارت پک شروع (تایمر سروری ۳۰s خودپاک، قیمت صادقانه ۱۴۰٬۰۰۰ تومان، بدون «قیمت قبل» جعلی)، پل IAB اندروید (window.WD95_IAB.purchase → WD95.onIab)، پنل TACTICAL ARSENAL در برنامه‌ی نبرد (Owned:N از انبار سرور، [USE]/[+BUY] با قیمت کاتالوگ، confirm قبل شلیک)، تدارکات مصرفی، VFX سبک CSS پنج‌گانه (EMP پالس آبی، Precision نشانه‌گذاری، Jammer اسکن، DefBreak شکست، Cyber اسکن خطا) — صفر rAF، حذف خودکار ۳.۴s، خاموش در wd-lowfx و prefers-reduced-motion
+  • فروشگاه: بج «Owned: N» و «مصرفی» در کارت‌ها، سکشن‌های WAR SUPPLY + TACTICAL ARSENAL در دسته جنگ، vip_emp در VIP، مسیر پریمیوم پاس در پاس (فعال‌سازی + ادعای پله)، اخبار فارسی tx_* برای اطلاع هدف
+  • دکمه‌ها ≥44px، RTL محور، بدون پولینگ جدید (فقط interval ۶۰s gaited با visibility برای نوتیف هدف)
+- release.mjs: v94→v95 (۵ ?v + beacon + GAME_VER) | گیت‌ها: check-html-js 89/0، verify-build 9/9، schema-diff identical، secret-scan پاک، tsc تمیز
+- QA (scripts/wd95-qa.mjs — ۶۵/۶۵ سبز، صفر pageerror): کاتالوگ/انبار شمارشی/پیلینگ تدارک/کول‌داون مصرف/آرسنال/۹ لایه اعتبارسنجی/بازده نزولی ۱→۰.۶→۰.۳→مصونیت/defMult 0.8/precision سقف‌دار واقعی (۵۰۰۰۰→۴۸۵۰۰)/جمینگ کپ سطح ۱ (پروب HTTP با سشن واقعی)/IAB بدون اعتبار=بدون گرنت+لجر failed/replay بلاک/پنجره ۴۹h منقضی/پاس پریمیوم ۲۰ پله+ادعای دوباره بلاک+مسیر رایگان سالم/رندر هرو و سکشن‌ها و بج‌ها
+- رگرسیون: wd88-qa ۳۵/۳۵ (جنگ عمیق دست‌نخورده) | check-html 89/0 | verify-build 9/9
+
+Stage Summary:
+- V95 آماده روی main (محلی): مونتایزیشن کامل با تمام محدودکننده‌های ضد-P2W — پک شروع تومانی سرور-محور، IAB مایکت آماده‌ی اتصال (فقط env لازم دارد)، تسلیحات تاکتیکی با سقف سخت و مقاومت هدف، تدارکات لجستیک، VIP امپراتور، پاس پریمیوم، مجموعه محدود صادقانه، تله‌متری بیزینس
+- pending برای کاربر: (۱) تست preview بعد از push (۲) اتصال IAB واقعی: MYKET_CLIENT_ID/SECRET/PACKAGE در env + پل اندروید WD95_IAB در MainActivity (۳) قیمت/محتوا در MONO قابل تنظیم است
+
+---
+Task ID: MONO-V95-COMMIT
+Agent: Super Z (main)
+Task: کامیت V95 روی برنچ صحیح + تلاش push
+
+Work Log:
+- assert برنچ قبل از کامیت: main (مطابق روال ریلیز V94 — main برنچ ریلیز است) ✅
+- کامیت 94e88a3: ۸ فایل، ۱۱۶۳ خط افزودن / ۲۹ حذف (route.ts +۵۴۹، index.html +۴۲۰، دو اسکیما +۶۴، مسیر جنگی جدید، MainActivity GAME_VER=95، v.txt=95، worklog)
+- فایل آرتیفکت سندباکس «3100» قبل از کامیت حذف شد (در کامیت نیست)
+- push: credential fail («could not read Username») — توکن جلسه‌ی قبلی ذخیره نشده بود (سیاست یک‌بارمصرف) → نیاز به توکن تازه از کاربر؛ commit لوکال سالم و آماده است
+- secret-scan گیت release: پاک (هیچ توکنی در ریپو/کامیت نیست)
+
+Stage Summary:
+- V95 لوکال آماده و gated؛ پس از توکن تازه: push origin main + تأیید v.txt=95 روی preview

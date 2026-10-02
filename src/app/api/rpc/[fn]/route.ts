@@ -48,7 +48,7 @@ const WEEKLY_CATEGORIES = ['score', 'kills', 'economy', 'recruits'] as const
            service(انقضا) | mystery(قرعه‌ی سرور) | bundle | limited(پنجره‌ی زمانی)
    - هیچ قیمتی از کلاینت پذیرفته نمی‌شود؛ فقط p_item.
    ============================================================ */
-type ShopKind = 'consumable' | 'cosmetic' | 'service' | 'mystery' | 'bundle' | 'limited'
+type ShopKind = 'consumable' | 'cosmetic' | 'service' | 'mystery' | 'bundle' | 'limited' | 'stock' | 'iap'
 type ShopItemDef = {
   id: string; fa: string; d: string; icon: string
   price: number; kind: ShopKind; cat: string; rar: string
@@ -237,6 +237,214 @@ SHOP_ITEMS.push(...V88_REWARDS)
 V88_REWARDS.forEach((x) => SHOP_ITEM_MAP.set(x.id, x))
 
 /* ============================================================
+   V95 — PREMIUM MONETIZATION + WAR ITEMS V1 (تک‌منبع پیکربندی)
+   اصول سفت: صفر P2W — هیچ سلاحی حمله/دفاع بی‌سقف نمی‌دهد؛
+   همه‌ی مدت‌ها/سقف‌ها/کول‌داون‌ها همین‌جاست؛ کلاینت فقط آینه‌ی نمایشی است.
+   ============================================================ */
+const MONO = {
+  /* ⚔️ WAR SUPPLY — تدارک جنگی (مصرفیِ راحتی؛ صفر قدرت حمله) */
+  SUPPLY: {
+    ws_prep:    { dur: 0,          cd: 20 * 60_000, desc: 'یک سفارش تاکتیکی بلافاصله دوباره آماده می‌شود' },
+    ws_fuel:    { dur: 30 * 60_000, cd: 20 * 60_000, desc: 'هزینه‌ی نفت حمله‌ی بعدی −۵۰٪' },
+    ws_rapid:   { dur: 0,          cd: 20 * 60_000, supply: 15, desc: '+۱۵ تدارک لجستیک فوری' },
+    ws_recover: { dur: 30 * 60_000, cd: 20 * 60_000, desc: 'تلفات حمله‌ی بعدی −۸٪' },
+  },
+  /* ☢️ TACTICAL ARSENAL — پنج سلاح تاکتیکی (همه مختل‌کننده، نه کشنده) */
+  TX: {
+    tx_emp:      { fa: 'ضربه‌ی EMP',        dur: 10 * 60_000, cd: 60 * 60_000, defPct: 10, faNote: 'ده دقیقه: دفاع لجستیک هدف −۱۰٪ و بازیابی تدارکش متوقف — فلج کامل نیست' },
+    tx_jammer:   { fa: 'جمینگ رادار',        dur: 10 * 60_000, cd: 45 * 60_000, faNote: 'ده دقیقه: سطح اطلاعات خودِ هدف روی ۱ قفل می‌شود — شناسایی‌هایش تار می‌شود' },
+    tx_precision:{ fa: 'ضربه‌ی دقیق',       dur: 0,           cd: 30 * 60_000, scorePct: 0.03, scoreCap: 2500, scoreFloor: 300, fortMax: 1, faNote: 'آسیب محدود و سقف‌دار: حداکثر −۳٪ امتیاز (کپ ۲۵۰۰) و یک سطح از یک پدافند؛ ارتش/پایتخت دست‌نخورده' },
+    tx_defbreak: { fa: 'شکستن دفاع',        dur: 10 * 60_000, cd: 45 * 60_000, defMult: 0.80, faNote: 'ده دقیقه: دفاع هدف ۱۰۰٪ → ۸۰٪ (هرگز صفر نمی‌شود)' },
+    tx_cyber:    { fa: 'اختلال سایبری',     dur: 15 * 60_000, cd: 60 * 60_000, costPct: 15, faNote: 'پانزده دقیقه: هزینه‌ی منابع سفارشات تاکتیکی هدف +۱۵٪ — هیچ منبعی حذف نمی‌شود' },
+  },
+  /* 🛡 ضد سوءاستفاده — بازده نزولی روی «همان هدف» برای «همان سلاح» */
+  RESIST_WINDOW: 30 * 60_000,
+  DIMINISH: [1.0, 0.6, 0.3, 0], /* ضریب اثر ضربه‌ی nام؛ بعد از سوم = مصونیت تا پایان پنجره */
+  /* 🏰 نگه‌های بازیکن (Section 13) */
+  NEWBIE_SCORE: 600,        /* زیر این امتیاز = تازه‌کار محافظت‌شده */
+  NEWBIE_AGE_MS: 3 * 86400_000, /* حساب کمتر از ۷۲ ساعت = تازه‌کار */
+  OFFLINE_PROT_MS: 7 * 86400_000, /* سیو قدیمی‌تر از این = بازیکن غایب — مصون */
+  /* 👑 EMPEROR STARTER PACK — تنها خرید تومانی V1 */
+  STARTER: {
+    sku: 'starter_emperor',
+    priceIRR: 140000,
+    priceFa: '۱۴۰٬۰۰۰ تومان',
+    windowMs: 48 * 3600_000,
+    gems: 1200, gold: 100000, oil: 3000, food: 6000,
+    wsItems: { ws_prep: 3, ws_fuel: 3, ws_rapid: 3, ws_recover: 3 },
+    cosmetics: ['emperor_frame', 'emperor_flag', 'emperor_fx', 'emperor_landmark', 'emperor_outfit'],
+  },
+  /* 💎 محصولات IAB (Myket) — تک‌منبع قیمت/محتوا */
+  IAP: {
+    gems_100:  { gems: 100,  irr: 40000 },
+    gems_300:  { gems: 300,  irr: 110000 },
+    gems_550:  { gems: 550,  irr: 200000 },
+    gems_1000: { gems: 1000, irr: 380000 },
+    starter_emperor: { starter: true, irr: 140000 },
+  },
+  /* 🎟 پاس فصل پریمیوم — قیمت مسیر پریمیوم (پله‌ها با XP واقعی؛ مسیر رایگان برای همه باز می‌ماند) */
+  PASS: { price: 120 },
+  VIP_EMP: { days: 30, dailyGems: 20, resDiscountPct: 10 },
+}
+
+/* تله‌متری بیزینس (Section 21) — fire-and-forget، هیچ داده‌ی حساس اضافه */
+async function monoEv(userId: string, key: string, meta: Record<string, unknown> = {}, server = 1) {
+  try { await db.analyticsEvent.create({ data: { userId, server, key, meta: JSON.stringify(meta).slice(0, 900) } }) } catch {}
+}
+
+/* انبار شمارشی — مالکیت و مصرف همیشه سروری */
+async function stockMap(userId: string): Promise<Record<string, number>> {
+  const rows = await db.playerStock.findMany({ where: { userId, qty: { gt: 0 } }, select: { itemId: true, qty: true } })
+  return Object.fromEntries(rows.map((r) => [r.itemId, r.qty]))
+}
+async function stockDecAtomic(userId: string, itemId: string, n = 1): Promise<boolean> {
+  const r = await db.playerStock.updateMany({ where: { userId, itemId, qty: { gte: n } }, data: { qty: { decrement: n } } })
+  return r.count > 0
+}
+async function stockAdd(userId: string, itemId: string, n: number, server = 1) {
+  const cur = await db.playerStock.findUnique({ where: { userId_itemId: { userId, itemId } } })
+  if (cur) await db.playerStock.update({ where: { userId_itemId: { userId, itemId } }, data: { qty: { increment: n } } })
+  else await db.playerStock.create({ data: { userId, itemId, qty: n, server } }).catch(async () => {
+    await db.playerStock.update({ where: { userId_itemId: { userId, itemId } }, data: { qty: { increment: n } } })
+  })
+}
+
+/* پنجره‌ی ۴۸ ساعته‌ی پک شروع — ساعت فقط همین‌جاست (اولین get_wallet پس از ورود معتبر) */
+async function starterWindow(userId: string, ensureStart = true) {
+  const w = await ensureWallet(userId)
+  let seen = w.starterSeenAt
+  if (!seen && ensureStart) {
+    const upd = await db.wallet.updateMany({ where: { userId, starterSeenAt: null }, data: { starterSeenAt: new Date() } })
+    if (upd.count > 0) { seen = new Date(); monoEv(userId, 'starter_offer_viewed', {}, 1) }
+    else { const w2 = await ensureWallet(userId); seen = w2.starterSeenAt }
+  }
+  if (!seen) return { active: false, purchased: !!w.starterBoughtAt, ends_at: null, remaining_ms: 0 }
+  const ends = seen.getTime() + MONO.STARTER.windowMs
+  const remaining = ends - Date.now()
+  return {
+    active: remaining > 0 && !w.starterBoughtAt,
+    purchased: !!w.starterBoughtAt,
+    ends_at: new Date(ends).toISOString(),
+    remaining_ms: Math.max(0, remaining),
+  }
+}
+
+/* آیتم‌های جدید فروشگاه — تدارکات + آرسنال + پک شروع + VIP EMPEROR + پاس + مجموعه‌ی فاتح */
+const V95_ITEMS: ShopItemDef[] = [
+  /* ⚔️ WAR SUPPLY — انباشته‌شونده (kind: stock) */
+  { id: 'ws_prep', fa: 'خنثی‌ساز آماده‌سازی', d: 'یک سفارش تاکتیکی بلافاصله دوباره آماده می‌شود (مصرفی).', icon: '⏱️', price: 8, kind: 'stock', cat: 'war', rar: 'uncommon' },
+  { id: 'ws_fuel', fa: 'سوخت سبک', d: 'نفت حمله‌ی بعدی −۵۰٪ (مصرفی، ۳۰ دقیقه اعتبار).', icon: '⛽', price: 8, kind: 'stock', cat: 'war', rar: 'uncommon' },
+  { id: 'ws_rapid', fa: 'کاروان اضطراری', d: '+۱۵ تدارک لجستیک فوری (مصرفی).', icon: '📦', price: 10, kind: 'stock', cat: 'war', rar: 'uncommon' },
+  { id: 'ws_recover', fa: 'کیت امداد', d: 'تلفات حمله‌ی بعدی −۸٪ (مصرفی، ۳۰ دقیقه اعتبار).', icon: '⛑️', price: 9, kind: 'stock', cat: 'war', rar: 'uncommon' },
+  /* ☢️ TACTICAL ARSENAL — مختل‌کننده با سقف سخت */
+  { id: 'tx_emp', fa: 'ضربه‌ی EMP', d: '۱۰ دقیقه: دفاع لجستیک هدف −۱۰٪ و بازیابی تدارکش متوقف. فلج کامل ممنوع.', icon: '☄️', price: 25, kind: 'stock', cat: 'war', rar: 'epic' },
+  { id: 'tx_jammer', fa: 'جمینگ رادار', d: '۱۰ دقیقه: اطلاعات خودِ هدف روی سطح ۱ قفل می‌شود.', icon: '🛰️', price: 20, kind: 'stock', cat: 'war', rar: 'rare' },
+  { id: 'tx_precision', fa: 'ضربه‌ی دقیق', d: 'آسیب سقف‌دار: حداکثر −۳٪ امتیاز (کپ ۲۵۰۰) و یک سطح پدافند. ارتش دست‌نخورده.', icon: '🎯', price: 30, kind: 'stock', cat: 'war', rar: 'epic' },
+  { id: 'tx_defbreak', fa: 'شکستن دفاع', d: '۱۰ دقیقه: دفاع هدف ۱۰۰٪ → ۸۰٪ — هرگز صفر نمی‌شود.', icon: '🛡️', price: 28, kind: 'stock', cat: 'war', rar: 'epic' },
+  { id: 'tx_cyber', fa: 'اختلال سایبری', d: '۱۵ دقیقه: هزینه‌ی سفارشات تاکتیکی هدف +۱۵٪. هیچ چیز حذف نمی‌شود.', icon: '💻', price: 22, kind: 'stock', cat: 'war', rar: 'rare' },
+  /* 👑 VIP EMPEROR — راحتی و هویت؛ صفر قدرت جنگی */
+  { id: 'vip_emp', fa: 'VIP امپراتور (۳۰ روز)', d: '۳۰ روز: جم روزانه‌ی ۲۰تایی + نشان تاج‌طلایی + قاب امپراتوری + ۱۰٪ تخفیف منابع فروشگاه.', icon: '👑', price: 200, kind: 'service', cat: 'vip', rar: 'mythic', days: 30, slot: 'vip' },
+  /* 🎟 پاس فصل پریمیوم */
+  { id: 'pass_premium', fa: 'پاس فصل — مسیر پریمیوم', d: 'پاداش‌های پریمیوم در پله‌های واقعی این فصل (جم، تدارکات، عنوان، قاب). مسیر رایگان همیشه برای همه باز است.', icon: '🎟️', price: 120, kind: 'stock', cat: 'pass', rar: 'legendary' },
+  /* 🔥 CONQUEROR COLLECTION — محدود ۷ روز؛ بازگشت آینده صادقانه اعلام می‌شود */
+  { id: 'lim_conq_crown', fa: 'تاج فاتح (محدود)', d: 'قاب طلایی فاتحانه — دسترسی محدود؛ ممکن است در ایونت‌های آینده برگردد.', icon: '👑', price: 85, kind: 'limited', cat: 'limited', rar: 'legendary', slot: 'frame', window: { from: Date.UTC(2026, 9, 3), to: Date.UTC(2026, 9, 10) } },
+  { id: 'lim_conq_wave', fa: 'افکت فتح «موج فتح» (محدود)', d: 'انیمیشن فتح اختصاصی — دسترسی محدود؛ ممکن است در ایونت‌های آینده برگردد.', icon: '🌊', price: 65, kind: 'limited', cat: 'limited', rar: 'epic', slot: 'fx', window: { from: Date.UTC(2026, 9, 3), to: Date.UTC(2026, 9, 10) } },
+  { id: 'lim_conq_title', fa: 'لقب «صاعقه‌ی جهان» (محدود)', d: 'لقب زرین کنار نام — دسترسی محدود؛ ممکن است در ایونت‌های آینده برگردد.', icon: '⚡', price: 55, kind: 'limited', cat: 'limited', rar: 'epic', slot: 'title', window: { from: Date.UTC(2026, 9, 3), to: Date.UTC(2026, 9, 10) } },
+  /* 👑 محتوای پک شروع — کازمتیک انحصاری (فقط از مسیر IAB؛ خرید جم‌محور ندارد) */
+  { id: 'emperor_frame', fa: 'قاب نام امپراتور', d: 'قاب نفیس طلایی-ارغوانی دور نامت.', icon: '🖼️', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'frame', hidden: true },
+  { id: 'emperor_flag', fa: 'پرچم امپراتوری', d: 'پرچم انحصاری تاج‌و‌تخت تازه‌واردان.', icon: '🏳️', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'banner', hidden: true },
+  { id: 'emperor_fx', fa: 'جلوه‌ی فتح امپراتوری', d: 'انیمیشن فتح انحصاری پک شروع.', icon: '✨', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'fx', hidden: true },
+  { id: 'emperor_landmark', fa: 'بنای تاج‌گذاری', d: 'بنای یادبود انحصاری کنار پایتختت.', icon: '🏛️', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'landmark', hidden: true },
+  { id: 'emperor_outfit', fa: 'جلوه‌ی پروفایل امپراتور', d: 'استایل کامل پروفایل پک شروع.', icon: '🎖️', price: 0, kind: 'cosmetic', cat: 'reward', rar: 'legendary', slot: 'frame', hidden: true },
+]
+SHOP_ITEMS.push(...V95_ITEMS)
+V95_ITEMS.forEach((x) => SHOP_ITEM_MAP.set(x.id, x))
+
+/* V95 — پله‌های پریمیوم پاس فصل (هم‌طول با PASS_TIERS موجود؛ فقط پاداش: جم/تدارکات/کازمتیک — صفر قدرت جنگی).
+   ادعا با کلید یکتا در SpecialUse: pass_prem_<season>_<tier> — ضد ریس و ضد ادعای دوباره. */
+const PASS_PREMIUM_TIERS: { gem?: number; ws?: number; cos?: string; fa: string }[] = [
+  { gem: 10, fa: '۱۰ جم' },
+  { ws: 2, fa: '۲ کاروان اضطراری' },
+  { gem: 15, fa: '۱۵ جم' },
+  { ws: 3, fa: '۳ کاروان اضطراری' },
+  { cos: 'emperor_outfit', fa: '🎁 جلوه‌ی پروفایل امپراتور' },
+  { gem: 20, fa: '۲۰ جم' },
+  { ws: 3, fa: '۳ سوخت سبک' },
+  { gem: 25, fa: '۲۵ جم' },
+  { ws: 4, fa: '۴ کیت امداد' },
+  { cos: 'emperor_fx', fa: '🎁 جلوه‌ی فتح امپراتوری' },
+  { gem: 30, fa: '۳۰ جم' },
+  { ws: 4, fa: '۴ کاروان اضطراری' },
+  { gem: 40, fa: '۴۰ جم' },
+  { ws: 5, fa: '۵ کاروان اضطراری' },
+  { cos: 'emperor_flag', fa: '🎁 پرچم امپراتوری' },
+  { gem: 50, fa: '۵۰ جم' },
+  { ws: 6, fa: '۶ کاروان اضطراری' },
+  { gem: 70, fa: '۷۰ جم' },
+  { ws: 8, fa: '۸ کاروان اضطراری' },
+  { cos: 'emperor_frame', fa: '🎁 قاب نام امپراتور + لقب پشتیبان' },
+]
+
+/* اعتبارسنجی خرید Myket IAB — فقط با اعتبار پنل توسعه‌دهنده (env).
+   بدون اعتبار: {ok:false, unavailable} — هیچ گرنت جعلی‌ای وجود ندارد. */
+async function myketVerify(txId: string, productId: string): Promise<{ ok: boolean; reason?: string; data?: Record<string, unknown> }> {
+  const clientId = process.env.MYKET_CLIENT_ID
+  const clientSecret = process.env.MYKET_CLIENT_SECRET
+  const pkg = process.env.MYKET_PACKAGE || 'com.worlddominion.game'
+  if (!clientId || !clientSecret) return { ok: false, reason: 'unavailable' }
+  try {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), 9000)
+    const res = await fetch(`https://developer.myket.ir/api/application/${pkg}/purchases/${encodeURIComponent(txId)}`, {
+      headers: { 'Authorization': 'Basic ' + Buffer.from(clientId + ':' + clientSecret).toString('base64'), 'Accept': 'application/json' },
+      signal: ctrl.signal,
+    })
+    clearTimeout(t)
+    if (!res.ok) return { ok: false, reason: 'api_' + res.status }
+    const j = await res.json() as Record<string, unknown>
+    if (Number(j.purchaseState) !== 0) return { ok: false, reason: 'state' }
+    if (String(j.productId || '') !== productId) return { ok: false, reason: 'product' }
+    return { ok: true, data: j }
+  } catch (e) {
+    return { ok: false, reason: 'network' }
+  }
+}
+
+/* تحویل اتمیک یک محصول IAB — ALL OR NOTHING (Section 10) */
+async function iapGrant(userId: string, productId: string, server: number): Promise<{ ok: boolean; error?: string; result?: Record<string, unknown> }> {
+  const def = MONO.IAP[productId]
+  if (!def) return { ok: false, error: 'product' }
+  if (productId === MONO.STARTER.sku) {
+    /* پک شروع: یک‌بار در عمر حساب (اتمیک)، سپس کل محتوا با الگوی rollback */
+    const got = await db.wallet.updateMany({ where: { userId, starterBoughtAt: null }, data: { starterBoughtAt: new Date() } })
+    if (got.count === 0) return { ok: false, error: 'already' }
+    try {
+      const w = await db.wallet.update({ where: { userId }, data: { gems: { increment: MONO.STARTER.gems } } })
+      const paid = await tradeApply(userId, (r) => {
+        r.gold = resNum(r.gold) + MONO.STARTER.gold
+        r.oil = resNum(r.oil) + MONO.STARTER.oil
+        r.food = resNum(r.food) + MONO.STARTER.food
+      })
+      if (!paid) throw new Error('res_fail')
+      for (const c of MONO.STARTER.cosmetics) await shopGrant(userId, c, 'shop', 'legendary', null, { bundle: 'starter_emperor' })
+      for (const [k, n] of Object.entries(MONO.STARTER.wsItems)) await stockAdd(userId, k, n, server)
+      return { ok: true, result: { kind: 'starter', gems: w.gems } }
+    } catch (e) {
+      /* rollback کامل — هیچ تحویل ناقصی مجاز نیست */
+      await db.wallet.updateMany({ where: { userId, starterBoughtAt: { not: null } }, data: { starterBoughtAt: null } }).catch(() => {})
+      await db.playerStock.updateMany({ where: { userId, itemId: { in: Object.keys(MONO.STARTER.wsItems) } }, data: { qty: { decrement: 0 } } }).catch(() => {})
+      return { ok: false, error: 'grant_failed' }
+    }
+  }
+  /* پک‌های جم */
+  if (def.gems) {
+    const w = await db.wallet.update({ where: { userId }, data: { gems: { increment: def.gems } } })
+    return { ok: true, result: { kind: 'gems', gems: w.gems, credited: def.gems } }
+  }
+  return { ok: false, error: 'product' }
+}
+
+/* ============================================================
    V88 — WAR DEPTH: پیکربندی جنگ (تک‌منبع سرور)
    ============================================================ */
 type AtkTypeDef = { fa: string; d: string; atk: number; loss: number; supply: number; gold: number; oil: number; defPen?: number; defDown?: number; selfDefFx?: number; blockTarget?: boolean }
@@ -284,7 +492,9 @@ async function warStateOf(userId: string): Promise<{ data: WarData; row: { data:
   const now = Date.now()
   const last = data.supplyAt || 0
   let supply = typeof data.supply === 'number' ? data.supply : SUPPLY_MAX
-  if (supply < SUPPLY_MAX && last) {
+  /* V95 — هدفِ تحت EMP بازیابی تدارک ندارد (فلج کامل ممنوع؛ فقط تعلیق بازیابی) */
+  const emp95 = (data.fx || []).some((f) => f.k === 'tx_emp' && f.until > now)
+  if (!emp95 && supply < SUPPLY_MAX && last) {
     const regen = Math.floor((now - last) / SUPPLY_REGEN_MS)
     if (regen > 0) supply = Math.min(SUPPLY_MAX, supply + regen)
   }
@@ -456,15 +666,26 @@ async function shopBuy(userId: string, p_item: string, requestId: string | null)
     if (todayN >= 3) return { ok: false, error: 'limit' as const }
   }
 
+  /* ۳.۵) V95 — تخفیف منابع VIP امپراتور (سقف‌دار؛ فقط دسته‌ی resource و فقط کازمتیکِ راحتی) */
+  const vipEmpActive = kind === 'consumable' && def.cat === 'resource'
+    ? (await db.shopInventory.findFirst({ where: { userId, itemId: 'vip_emp', OR: [{ expiresAt: null }, { expiresAt: { gt: new Date(now) } }] } })) != null
+    : false
+  const price95 = vipEmpActive ? Math.max(1, Math.round(price * (1 - MONO.VIP_EMP.resDiscountPct / 100))) : price
+
   /* ۴) کسر اتمیک — بدون read-modify-write، بدون ریس-کانديشن، بدون جم منفی */
   let dec = { count: 0 }
-  if (price > 0) {
-    dec = await db.wallet.updateMany({ where: { userId, gems: { gte: price } }, data: { gems: { decrement: price } } })
+  if (price95 > 0) {
+    dec = await db.wallet.updateMany({ where: { userId, gems: { gte: price95 } }, data: { gems: { decrement: price95 } } })
     if (dec.count === 0) {
-      await db.shopPurchase.create({ data: { userId, itemId: def.id, price, status: 'failed', provider: 'shop', meta: JSON.stringify({ reason: 'funds' }) } }).catch(() => {})
+      await db.shopPurchase.create({ data: { userId, itemId: def.id, price: price95, status: 'failed', provider: 'shop', meta: JSON.stringify({ reason: 'funds' }) } }).catch(() => {})
       return { ok: false, error: 'funds' as const }
     }
   }
+
+  /* ۴.۵) V95sec — آیتم‌های grant-only هرگز مستقیم خریداری نمی‌شوند
+     (پاداش مجموعه‌ها + محتوای پک شروع: تنها مسیر قانونی claim/هاب IAB است — وصله‌ی حفره‌ی صفر-جم) */
+  if (def.cat === 'reward') return { ok: false, error: 'item' as const }
+  if (def.kind === 'iap') return { ok: false, error: 'item' as const }
 
   /* ۵) گرنت — هر خطا = بازگشت کامل جم (الگوی اثبات‌شده‌ی use_special) */
   try {
@@ -476,8 +697,13 @@ async function shopBuy(userId: string, p_item: string, requestId: string | null)
         const until = new Date(Math.max(now, w2.boostUntil ? w2.boostUntil.getTime() : 0) + 3600_000)
         await db.wallet.update({ where: { userId }, data: { boostUntil: until } })
       }
+    } else if (kind === 'stock') {
+      /* V95 — آیتم شمارشی (تدارکات/تسلیحات): افزایش اتمیک انبار PlayerStock */
+      await stockAdd(userId, def.id, 1, await warUserServer(userId))
+      const sm = await stockMap(userId)
+      reward = { type: 'stock', item: def.id, qty: sm[def.id] || 1 }
     } else if (kind === 'cosmetic' || kind === 'limited') {
-      await shopGrant(userId, grantId, 'shop', def.rar, null, { price })
+      await shopGrant(userId, grantId, 'shop', def.rar, null, { price: price95 })
     } else if (kind === 'bundle') {
       for (const g of def.grants || []) {
         const gd = SHOP_ITEM_MAP.get(g)
@@ -531,8 +757,10 @@ async function shopBuy(userId: string, p_item: string, requestId: string | null)
 
     /* ۶) Ledger موفق */
     await db.shopPurchase.create({
-      data: { userId, itemId: grantId, price, status: 'ok', provider: kind === 'mystery' ? 'mystery' : 'shop', requestId, meta: JSON.stringify({ kind, reward }) },
+      data: { userId, itemId: grantId, price: price95, status: 'ok', provider: kind === 'mystery' ? 'mystery' : 'shop', requestId, meta: JSON.stringify({ kind, reward }) },
     })
+    /* V95 — تله‌متری خرید (Section 21) */
+    monoEv(userId, 'shop_item_purchased', { item: def.id, price: price95 }, await warUserServer(userId).catch(() => 1))
     /* V88 — اخبار جهانی برای خریدهای اسطوره‌ای (ضد اسپم: فقط mythic) */
     if (def.rar === 'mythic') {
       try {
@@ -1054,6 +1282,8 @@ async function testSrvsSet(list: number[]) {
 /** daily login bonus: +20 gems per calendar day (atomic — no double-claim race) */
 async function dailyBonus(userId: string) {
   await ensureWallet(userId)
+  /* V95 — ساعتِ پنجره‌ی ۴۸ساعته‌ی پک شروع: اولین ورود معتبر (اتمیک؛ رفرش/دستگاه دوم اثری ندارد) */
+  await db.wallet.updateMany({ where: { userId, starterSeenAt: null }, data: { starterSeenAt: new Date() } }).catch(() => {})
   const today = new Date().toISOString().slice(0, 10)
   const dayStart = new Date(today + 'T00:00:00.000Z')
   const upd = await db.wallet.updateMany({
@@ -2249,6 +2479,229 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       /* V86 — متادیتای سرورها: لیست سرورهای تستی (کلاینت درب ورود را می‌بندد؛ گارد واقعی در territory_sync/pvp_capture است) */
       case 'srv_meta':
         return R({ test_srvs: await testSrvsGet() })
+
+      /* ============================================================
+         V95 — MONETIZATION + WAR ITEMS (Section 6-13, 16-19, 21-23)
+         همه‌ی اعتبارسنجی‌ها همین‌جاست؛ کلاینت فقط intent می‌فرستد.
+         ============================================================ */
+      /* وضعیت آرسنال برای پنل TACTICAL ARSENAL (Section 9) */
+      case 'war_arsenal': {
+        const stock = await stockMap(user.id)
+        const nowA = Date.now()
+        const cds: Record<string, number> = {}
+        for (const k of Object.keys(MONO.TX)) {
+          const last = await db.specialUse.findFirst({ where: { userId: user.id, item: k }, orderBy: { usedAt: 'desc' } })
+          if (last && nowA - last.usedAt.getTime() < (MONO.TX as Record<string, { cd: number }>)[k].cd) {
+            cds[k] = last.usedAt.getTime() + (MONO.TX as Record<string, { cd: number }>)[k].cd
+          }
+        }
+        const supCds: Record<string, number> = {}
+        for (const k of Object.keys(MONO.SUPPLY)) {
+          const last = await db.specialUse.findFirst({ where: { userId: user.id, item: 'use_' + k }, orderBy: { usedAt: 'desc' } })
+          if (last && nowA - last.usedAt.getTime() < (MONO.SUPPLY as Record<string, { cd: number }>)[k].cd) {
+            supCds[k] = last.usedAt.getTime() + (MONO.SUPPLY as Record<string, { cd: number }>)[k].cd
+          }
+        }
+        const st = await warStateOf(user.id)
+        return R({
+          ok: true,
+          stock,
+          cd: Object.fromEntries(Object.entries(cds).filter(([, t]) => t > nowA)),
+          supply_cd: Object.fromEntries(Object.entries(supCds).filter(([, t]) => t > nowA)),
+          my_fx: (st.data.fx || []).filter((f) => f.until > nowA),
+          cfg: { tx: MONO.TX, supply: MONO.SUPPLY, diminish: MONO.DIMINISH, resist_window: MONO.RESIST_WINDOW },
+          now: nowA,
+        })
+      }
+      /* ☢️ USE TACTICAL ITEM — موتور واحد؛ همان هندلر توسط /api/war/use-tactical-item هم صدا زده می‌شود */
+      case 'use_tactical_item': {
+        const item = String(args.p_item || '')
+        const TXD = (MONO.TX as Record<string, { fa: string; dur: number; cd: number; defPct?: number; defMult?: number; scorePct?: number; scoreCap?: number; scoreFloor?: number; fortMax?: number }>)[item]
+        if (!TXD) return R({ ok: false, error: 'item' })
+        const nowU = Date.now()
+        const serverU = await warUserServer(user.id)
+        /* آتش‌بس المپیک — هم‌وزن با pvp_attack */
+        if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' })
+        /* سرورِ هدف باید همان سرور مهاجم باشد (Section 23: server_id isolation) */
+        const serverArg = Math.max(1, Number(args.p_server) || serverU)
+        if (serverArg !== serverU) return R({ ok: false, error: 'server' })
+        /* هدف: nick یا (country+server) — هر دو مسیر به یک userId واقعی می‌رسند */
+        let tUid: string | null = null, tNick: string | null = null, tCountry: string | null = null
+        if (args.p_target_country_id || args.p_target_player_id) {
+          const country = String(args.p_target_country_id || '')
+          if (!country) return R({ ok: false, error: 'target' })
+          const terr = await db.territory.findUnique({ where: { server_country: { server: serverU, country } } })
+          if (!terr || terr.userId === user.id) return R({ ok: false, error: 'target' })
+          tUid = terr.userId; tNick = terr.nick; tCountry = country
+        } else {
+          const tn = String(args.p_target || '').trim()
+          if (!tn) return R({ ok: false, error: 'target' })
+          const tu = await db.user.findFirst({ where: { nickLower: tn.toLowerCase() }, select: { id: true, nick: true } })
+          if (!tu || tu.id === user.id) return R({ ok: false, error: 'target' })
+          const terr = await db.territory.findFirst({ where: { server: serverU, userId: tu.id }, select: { country: true } })
+          tUid = tu.id; tNick = tu.nick; tCountry = terr?.country || null
+        }
+        if (!tUid || !tNick) return R({ ok: false, error: 'target' })
+        /* ---------- نگه‌های بازیکن (Section 13) ---------- */
+        const tScore = await db.score.findUnique({ where: { userId: tUid }, select: { score: true, server: true } })
+        if (!tScore || tScore.server !== serverU) return R({ ok: false, error: 'server' })
+        const tSave = await db.save.findUnique({ where: { userId: tUid }, select: { updatedAt: true } })
+        const tUser = await db.user.findUnique({ where: { id: tUid }, select: { createdAt: true } })
+        if (tScore.score < MONO.NEWBIE_SCORE) return R({ ok: false, error: 'newbie' })
+        if (tUser && Date.now() - tUser.createdAt.getTime() < MONO.NEWBIE_AGE_MS) return R({ ok: false, error: 'newbie' })
+        if (tSave && Date.now() - tSave.updatedAt.getTime() > MONO.OFFLINE_PROT_MS) return R({ ok: false, error: 'offline_prot' })
+        /* ---------- کول‌داون مهاجم (per item) ---------- */
+        const lastUse = await db.specialUse.findFirst({ where: { userId: user.id, item }, orderBy: { usedAt: 'desc' } })
+        if (lastUse && nowU - lastUse.usedAt.getTime() < TXD.cd) {
+          return R({ ok: false, error: 'cd', cd_ms: lastUse.usedAt.getTime() + TXD.cd - nowU })
+        }
+        /* ---------- بازده نزولی + پنجره‌ی مقاومت هدف (Section 8 - CRITICAL) ---------- */
+        const tState = await warStateOf(tUid)
+        const res = (tState.data as { res?: Record<string, { n: number; at: number }> }).res || {}
+        const rKey = item
+        const prior = res[rKey]
+        let strikeN = 0
+        if (prior && nowU - prior.at < MONO.RESIST_WINDOW) {
+          strikeN = prior.n
+          if (strikeN >= MONO.DIMINISH.length - 1) {
+            return R({ ok: false, error: 'resist', resist_until: prior.at + MONO.RESIST_WINDOW })
+          }
+        }
+        const mult = MONO.DIMINISH[strikeN] ?? 0
+        /* اثر فعال هم‌نام روی هدف = رد (ضد پیلینگ) */
+        const tFxNow = warFxOf(tState.data, nowU)
+        if (TXD.dur > 0 && tFxNow[item]) return R({ ok: false, error: 'active', until: tFxNow[item].until })
+        /* ---------- اجرا: مصرف انبار → اعمال اثر (خطا = بازگشت انبار) ---------- */
+        const had = await stockDecAtomic(user.id, item, 1)
+        if (!had) return R({ ok: false, error: 'no_stock' })
+        try {
+          const fxKey = item.replace('tx_', 'tx_')
+          if (item === 'tx_precision') {
+            /* ضربه‌ی دقیق — آسیب سقف‌دار؛ هرگز زیر کف؛ ارتش/پایتخت دست‌نخورده */
+            const s0 = Math.max(0, tScore.score)
+            let dmg = Math.round(Math.min(s0 * (TXD.scorePct || 0.03), TXD.scoreCap || 2500) * mult)
+            if (s0 - dmg < (TXD.scoreFloor || 300)) dmg = Math.max(0, s0 - (TXD.scoreFloor || 300))
+            if (dmg > 0) await db.score.updateMany({ where: { userId: tUid, score: { gte: (TXD.scoreFloor || 300) + dmg } }, data: { score: { decrement: dmg } } })
+            let fortHit: Record<string, unknown> | null = null
+            if (strikeN === 0 && tCountry) {
+              const fort = await db.cvBuilding.findFirst({ where: { userId: tUid, country: tCountry, type: 'fort', status: 'active', level: { gte: 2 } }, orderBy: { level: 'desc' } })
+              if (fort) {
+                await db.cvBuilding.update({ where: { id: fort.id }, data: { level: { decrement: 1 } } })
+                fortHit = { fort_id: fort.id, level_after: fort.level - 1 }
+              }
+            }
+            try { await db.battleLog.create({ data: { server: serverU, kind: 'tx_precision', country: tCountry || '—', attacker: user.nick, defender: tNick, win: true } }) } catch (e) {}
+            try { await addNews(serverU, 'tx_precision', tCountry, user.nick, tNick) } catch (e) {}
+            monoEv(user.id, 'precision_used', { target: tNick, dmg, mult }, serverU)
+            await db.specialUse.create({ data: { userId: user.id, item, usedAt: new Date(nowU) } })
+            return R({ ok: true, kind: 'instant', dmg, fort_hit: fortHit, mult, target: tNick, stock_left: (await stockMap(user.id))[item] || 0 })
+          }
+          /* اثرهای زمان‌دار — مدتِ مرتبط هم با mult مقیاس می‌شود (ضد پیلینگ + بازده نزولی) */
+          const dur95 = Math.round(TXD.dur * (item === 'tx_emp' || item === 'tx_defbreak' ? 1 : mult))
+          const until = nowU + dur95
+          let data95: Record<string, unknown> = { by: user.nick, at: nowU, mult }
+          if (item === 'tx_emp') data95.defPct = Math.round((TXD.defPct || 10) * mult * 10) / 10
+          if (item === 'tx_defbreak') data95.defMult = 1 - (1 - (TXD.defMult || 0.8)) * mult /* ۱→۰٫۸ | ضربه‌ی دوم ≈ ۰٫۸۸ | هرگز صفر */
+          tState.data.fx = (tState.data.fx || []).filter((f) => f.k !== fxKey)
+          tState.data.fx.push({ k: fxKey, until, data: data95 })
+          res[rKey] = { n: strikeN + 1, at: nowU }
+          ;(tState.data as { res?: Record<string, { n: number; at: number }> }).res = res
+          await warStateSave(tUid, tState.data)
+          await db.specialUse.create({ data: { userId: user.id, item, usedAt: new Date(nowU) } })
+          try { await addNews(serverU, item, tCountry, user.nick, tNick) } catch (e) {}
+          try { await db.battleLog.create({ data: { server: serverU, kind: item, country: tCountry || '—', attacker: user.nick, defender: tNick, win: true } }) } catch (e) {}
+          monoEv(user.id, 'tactical_item_used', { item, target: tNick, mult, strike: strikeN + 1 }, serverU)
+          monoEv(user.id, item + '_used', { target: tNick, mult }, serverU)
+          return R({ ok: true, kind: 'fx', item, until, dur_ms: dur95, mult, target: tNick, target_country: tCountry, stock_left: (await stockMap(user.id))[item] || 0 })
+        } catch (e) {
+          /* rollback انبار — مصرف بدون اثر ممنوع */
+          await stockAdd(user.id, item, 1, serverU)
+          console.log('tx95', e)
+          return R({ ok: false, error: 'failed' })
+        }
+      }
+      /* ⚔️ WAR SUPPLY — مصرف تدارک جنگی (Section 6) */
+      case 'war_supply_use': {
+        const item = String(args.p_item || '')
+        const SD = (MONO.SUPPLY as Record<string, { dur: number; cd: number; supply?: number; desc: string }>)[item]
+        if (!SD) return R({ ok: false, error: 'item' })
+        const nowS = Date.now()
+        const serverS = await warUserServer(user.id)
+        /* کول‌داون مصرف per item */
+        const lastS = await db.specialUse.findFirst({ where: { userId: user.id, item: 'use_' + item }, orderBy: { usedAt: 'desc' } })
+        if (lastS && nowS - lastS.usedAt.getTime() < SD.cd) return R({ ok: false, error: 'cd', cd_ms: lastS.usedAt.getTime() + SD.cd - nowS })
+        const had = await stockDecAtomic(user.id, item, 1)
+        if (!had) return R({ ok: false, error: 'no_stock' })
+        try {
+          if (item === 'ws_prep') {
+            /* خنثی‌ساز آماده‌سازی: یک سفارش بلافاصله دوباره آماده — p_key الزامی و باید سفارش واقعی باشد */
+            const key = String(args.p_key || '')
+            if (!WAR_ORDERS[key]) throw new Error('bad_order')
+            const stP = await warStateOf(user.id)
+            stP.data.cd = { ...(stP.data.cd || {}) }
+            delete stP.data.cd[key]
+            await warStateSave(user.id, stP.data)
+          } else if (item === 'ws_rapid') {
+            const stR = await warStateOf(user.id)
+            stR.data.supply = Math.min(SUPPLY_MAX, (stR.data.supply || 0) + (SD.supply || 15))
+            await warStateSave(user.id, stR.data)
+          } else {
+            /* ws_fuel / ws_recover — fx شخصی تا حمله‌ی بعدی (مصرف در pvp_attack) */
+            const stF = await warStateOf(user.id)
+            stF.data.fx = (stF.data.fx || []).filter((f) => f.k !== item)
+            stF.data.fx.push({ k: item, until: nowS + SD.dur, data: {} })
+            await warStateSave(user.id, stF.data)
+          }
+          await db.specialUse.create({ data: { userId: user.id, item: 'use_' + item, usedAt: new Date(nowS) } })
+          monoEv(user.id, 'war_supply_used', { item }, serverS)
+          return R({ ok: true, item, stock_left: (await stockMap(user.id))[item] || 0, supply: item === 'ws_rapid' ? null : undefined })
+        } catch (e) {
+          await stockAdd(user.id, item, 1, serverS)
+          console.log('ws95', e)
+          return R({ ok: false, error: 'failed' })
+        }
+      }
+      /* 💳 IAB VERIFY — اعتبارسنجی خرید مایکت سمت سرور (Section 10-11)؛ هیچ خریدی بدون این مسیر تحویل نمی‌شود */
+      case 'iab_verify': {
+        const txId = String(args.p_tx_id || '').trim()
+        const productId = String(args.p_product_id || '').trim()
+        const serverI = await warUserServer(user.id)
+        if (txId.length < 8 || txId.length > 200 || !/^[\w.\-:]+$/.test(txId)) return R({ ok: false, error: 'bad_tx' })
+        if (!MONO.IAP[productId]) return R({ ok: false, error: 'product' })
+        /* Idempotency سخت: همان txId همیشه همان پاسخ — ضد replay */
+        const prior = await db.purchaseTx.findUnique({ where: { txId } })
+        if (prior) {
+          if (prior.userId !== user.id) return R({ ok: false, error: 'tx_owner' })
+          if (prior.status === 'verified') {
+            return R({ ok: true, duplicate: true, product: prior.productId, result: JSON.parse(prior.meta || '{}').result || { kind: 'gems' }, gems: (await ensureWallet(user.id)).gems })
+          }
+          return R({ ok: false, error: 'tx_' + prior.status })
+        }
+        const row = await db.purchaseTx.create({ data: { txId, userId: user.id, productId, server: serverI, amount: MONO.IAP[productId].irr || 0, currency: 'IRR', status: 'pending', payload: JSON.stringify({ via: 'rpc' }) } })
+        const v = await myketVerify(txId, productId)
+        if (!v.ok) {
+          await db.purchaseTx.update({ where: { txId }, data: { status: 'failed', payload: JSON.stringify({ via: 'rpc', reason: v.reason }) } })
+          monoEv(user.id, 'iab_failed', { reason: v.reason, product: productId }, serverI)
+          return R({ ok: false, error: v.reason === 'unavailable' ? 'unavailable' : 'verify_failed' })
+        }
+        const g = await iapGrant(user.id, productId, serverI)
+        if (!g.ok) {
+          await db.purchaseTx.update({ where: { txId }, data: { status: 'failed', payload: JSON.stringify({ via: 'rpc', reason: 'grant_' + g.error }) } })
+          return R({ ok: false, error: g.error })
+        }
+        await db.purchaseTx.update({ where: { txId }, data: { status: 'verified', verifiedAt: new Date(), meta: JSON.stringify({ result: g.result }) } })
+        await db.shopPurchase.create({ data: { userId: user.id, itemId: productId, price: MONO.IAP[productId].irr || 0, currency: 'IRR', status: 'ok', provider: 'myket', requestId: 'iab_' + txId.slice(-40), meta: JSON.stringify({ kind: 'iap', tx: txId.slice(0, 64) }) } }).catch(() => {})
+        monoEv(user.id, 'iab_verified', { product: productId }, serverI)
+        if (productId === MONO.STARTER.sku) monoEv(user.id, 'starter_purchased', {}, serverI)
+        const nw = await ensureWallet(user.id)
+        return R({ ok: true, product: productId, result: g.result, gems: nw.gems })
+      }
+      /* 👑 STARTER OFFER — وضعیت پنجره (ساعت فقط سرور) */
+      case 'starter_offer': {
+        const stw = await starterWindow(user.id, true)
+        return R({ ok: true, ...stw, price_fa: MONO.STARTER.priceFa, price_irr: MONO.STARTER.priceIRR, sku: MONO.STARTER.sku })
+      }
+
       case 'spend_gems':
       case 'shop_buy': {
         /* V66: موتور واحد خرید — هر دو مسیر RPC همین‌جا می‌روند.
@@ -2263,6 +2716,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const { w } = await dailyBonus(user.id)
         const inv = await shopOwnedRows(user.id)
         const nowC = Date.now()
+        /* V95 — انبار شمارشی + وضعیت پک شروع (پله‌های پاس از pass_state می‌آیند) */
+        const stock = await stockMap(user.id)
+        const stw = await starterWindow(user.id, true)
         return R({
           ok: true,
           items: SHOP_ITEMS.filter((x) => !x.hidden).map((x) => ({
@@ -2281,6 +2737,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           season: shopSeasonSlug(),
           now: nowC,
           owned: inv.map((r) => ({ item_id: r.itemId, source: r.source, rarity: r.rarity, expires_at: r.expiresAt ? r.expiresAt.toISOString() : null, created_at: r.createdAt.toISOString() })),
+          /* V95 — MONETIZATION */
+          stock,
+          starter: {
+            sku: MONO.STARTER.sku,
+            price_fa: MONO.STARTER.priceFa,
+            price_irr: MONO.STARTER.priceIRR,
+            active: stw.active,
+            purchased: stw.purchased,
+            ends_at: stw.ends_at,
+            remaining_ms: stw.remaining_ms,
+            content: {
+              gems: MONO.STARTER.gems, gold: MONO.STARTER.gold, oil: MONO.STARTER.oil, food: MONO.STARTER.food,
+              ws: MONO.STARTER.wsItems, cosmetics: MONO.STARTER.cosmetics,
+            },
+          },
+          iap: Object.fromEntries(Object.entries(MONO.IAP).map(([k, v]) => [k, { irr: v.irr, gems: (v as { gems?: number }).gems || null, starter: !!(v as { starter?: boolean }).starter }])),
+          pass: { price: MONO.PASS.price, owned: (stock['pass_premium'] || 0) > 0 },
         })
       }
       case 'shop_inventory': {
@@ -2368,12 +2841,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             if (warFxOf(def.data, now).ewar) return R({ ok: false, error: 'counterintel' }) /* قابل دفاع — هزینه‌ای پرداخت نمی‌شود */
           }
         }
-        /* هزینه‌ی منابع از خزانه‌ی واقعی (تک‌نویسنده tradeApply) */
+        /* هزینه‌ی منابع از خزانه‌ی واقعی (تک‌نویسنده tradeApply) — V95: اختلال سایبری فعال روی خودِ فرمانده = +۱۵٪ هزینه (هیچ حذفی؛ فقط کندی) */
         if (od.gold || od.oil || od.food) {
+          const cyber95 = warFxOf(data, now).tx_cyber ? 1 + (MONO.TX.tx_cyber.costPct || 15) / 100 : 1
           const paid = await tradeApply(user.id, (r) => {
-            if (od.gold) r.gold = resNum(r.gold) - od.gold
-            if (od.oil) r.oil = resNum(r.oil) - od.oil
-            if (od.food) r.food = resNum(r.food) - od.food
+            if (od.gold) r.gold = resNum(r.gold) - Math.ceil(od.gold * cyber95)
+            if (od.oil) r.oil = resNum(r.oil) - Math.ceil(od.oil * cyber95)
+            if (od.food) r.food = resNum(r.food) - Math.ceil(od.food * cyber95)
           })
           if (!paid) return R({ ok: false, error: 'res' })
         }
@@ -2418,6 +2892,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (ownedIntel.has('intel_l2')) level++
         if (mfx.airrecon) level++
         level = Math.min(4, level)
+        /* V95 — جمینگ رادار: اگر خودِ درخواست‌دهنده تحت tx_jammer باشد، شناسایی‌اش روی سطح ۱ قفل می‌شود */
+        if (mfx.tx_jammer) level = 1
         /* ضداطلاعات مدافع → دقت کمتر و پنهان‌شدن آمادگی */
         const def = await warStateOf(tu.id)
         const dfx = warFxOf(def.data, now)
@@ -2709,11 +3185,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (rawAtk88) {
           atk88 = ATK_TYPES[rawAtk88] ? rawAtk88 : 'balanced'
           const AT = ATK_TYPES[atk88]
+          /* ۱.۵) V95 — fx مهاجم قبل از هزینه: سوخت سبک (نفت −۵۰٪) */
+          const pre88 = await warStateOf(user.id)
+          const preFx88 = warFxOf(pre88.data, Date.now())
+          const oilDue95 = preFx88.ws_fuel ? Math.ceil(AT.oil / 2) : AT.oil
           /* ۱) هزینه‌ی لجستیک دکترین از خزانه‌ی واقعی */
-          if (AT.gold || AT.oil) {
+          if (AT.gold || oilDue95) {
             const paid88 = await tradeApply(user.id, (r) => {
               if (AT.gold) r.gold = resNum(r.gold) - AT.gold
-              if (AT.oil) r.oil = resNum(r.oil) - AT.oil
+              if (oilDue95) r.oil = resNum(r.oil) - oilDue95
             })
             if (!paid88) return R({ ok: false, error: 'res' })
           }
@@ -2735,6 +3215,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           lossMult88 = AT.loss
           if (fx88.emsupply) { lossMult88 *= 0.93; fxUsed88.push('emsupply') }
           if (fx88.convoy) { lossMult88 *= 0.96; fxUsed88.push('convoy') }
+          if (fx88.ws_recover) { lossMult88 *= 0.92; fxUsed88.push('ws_recover') } /* V95 — کیت امداد: تلفات −۸٪ */
           if (supply88 < 30) { a = Math.round(a * 0.90); lossMult88 *= 1.10 } /* لجستیک بحرانی */
           /* ۴) دکترین تدافعی → سپر ۶ساعته برای خودم | هوایی → شناسایی ۶ساعته */
           if (AT.selfDefFx) {
@@ -2749,6 +3230,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             const dfx88 = warFxOf(dState.data, now88)
             if (dfx88.edef) { const pct = Number((dfx88.edef.data || {}).pct) || 15; d = Math.max(1, Math.round(d * (1 + pct / 100))); fxUsed88.push('def_edef') }
             if (dfx88.sabotaged) { d = Math.max(1, Math.round(d * 0.94)); fxUsed88.push('def_sabotaged') }
+            /* V95 — تسلیحات تاکتیکی روی مدافع: EMP (کاهش درصدی) + شکستن دفاع (۱۰۰٪→۸۰٪؛ هرگز صفر) */
+            if (dfx88.tx_emp) { const pct = Number((dfx88.tx_emp.data || {}).defPct) || 10; d = Math.max(1, Math.round(d * (1 - pct / 100))); fxUsed88.push('def_emp') }
+            if (dfx88.tx_defbreak) { const dm = Number((dfx88.tx_defbreak.data || {}).defMult) || 0.8; d = Math.max(1, Math.round(d * dm)); fxUsed88.push('def_defbreak') }
           } catch (e) { console.log('war88def', e) }
           if (AT.defDown) { d = Math.max(1, Math.round(d * (1 - AT.defDown))); fxUsed88.push('eco_pressure') }
           if (AT.blockTarget) {
@@ -4538,9 +5022,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         try { dlog = JSON.parse(row.dlog || '{}') || {} } catch { dlog = {} }
         const today = new Date().toISOString().slice(0, 10)
         const counts = dlog.d === today ? (dlog.c || {}) : {}
+        /* V95 — وضعیت مسیر پریمیوم + پله‌های گرفته‌شده‌ی پریمیوم (کلید یکتا per season+tier) */
+        const stockP = await stockMap(user.id)
+        const premOwned = (stockP['pass_premium'] || 0) > 0
+        const slugP = seasonKey()
+        const premRows = await db.specialUse.findMany({ where: { userId: user.id, item: { startsWith: 'pass_prem_' + slugP + '_' } }, select: { item: true } })
+        const premSet = new Set(premRows.map((r) => r.item))
+        const premTiers = PASS_PREMIUM_TIERS.map((t, i) => ({ ...t, claimed: premSet.has('pass_prem_' + slugP + '_' + i) }))
         return R({
           ok: true, season: row.season, xp: row.xp, tier: Math.floor(row.xp / PASS_TIER_XP),
           tier_xp: PASS_TIER_XP, claimed: row.claimed, missions: counts, mission_defs: PASS_MISSIONS, tiers: PASS_TIERS,
+          premium: premOwned, premium_tiers: premTiers, pass_price: MONO.PASS.price,
         })
       }
 
@@ -4556,14 +5048,35 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       }
 
       case 'pass_claim': {
-        const tier = Math.max(0, Math.min(PASS_TIERS.length - 1, Number(args.p_tier) || 0))
+        /* V95 — دو مسیر: رایگان (bitmask موجود) و پریمیوم (کلید یکتا per season+tier).
+           مسیر رایگان هرگز قفل نمی‌شود — پرداخت فقط پاداش بیشتر می‌دهد (Section 19). */
+        const track = String(args.p_track || 'free')
+        const tier = Math.max(0, Number(args.p_tier) || 0)
         const row = await ensurePass(user.id)
         const myTier = Math.floor(row.xp / PASS_TIER_XP)
         if (tier > myTier) return R({ ok: false, error: 'locked' })
-        const bit = 1 << tier
-        if (row.claimed & bit) return R({ ok: false, error: 'claimed' })
+        if (track === 'premium') {
+          if (!PASS_PREMIUM_TIERS[tier]) return R({ ok: false, error: 'tier' })
+          const stockC = await stockMap(user.id)
+          if (!((stockC['pass_premium'] || 0) > 0)) return R({ ok: false, error: 'locked' })
+          const claimKey = 'pass_prem_' + seasonKey() + '_' + tier
+          const already = await db.specialUse.findFirst({ where: { userId: user.id, item: claimKey } })
+          if (already) return R({ ok: false, error: 'claimed' })
+          await db.specialUse.create({ data: { userId: user.id, item: claimKey } })
+          const rw = PASS_PREMIUM_TIERS[tier]
+          let gems = 0
+          if (rw.gem) {
+            await db.wallet.updateMany({ where: { userId: user.id }, data: { gems: { increment: rw.gem } } })
+            gems = rw.gem
+          }
+          if (rw.ws) await stockAdd(user.id, 'ws_rapid', rw.ws, await warUserServer(user.id))
+          if (rw.cos) await shopGrant(user.id, rw.cos, 'pass', 'legendary', null, { tier })
+          monoEv(user.id, 'pass_premium_claimed', { tier }, await warUserServer(user.id))
+          return R({ ok: true, tier, track, reward: rw, gems_added: gems })
+        }
+        if (row.claimed & (1 << tier)) return R({ ok: false, error: 'claimed' })
         /* atomic: only one claimer wins the bit flip */
-        const upd = await db.seasonPass.updateMany({ where: { userId: user.id, season: seasonKey(), claimed: row.claimed }, data: { claimed: row.claimed | bit } })
+        const upd = await db.seasonPass.updateMany({ where: { userId: user.id, season: seasonKey(), claimed: row.claimed }, data: { claimed: row.claimed | (1 << tier) } })
         if (upd.count === 0) return R({ ok: false, error: 'race' })
         const rw = PASS_TIERS[tier]
         let gems = 0
@@ -4578,7 +5091,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             if (rw.f) r2.food = resNum(r2.food) + rw.f
           }).catch(() => {})
         }
-        return R({ ok: true, tier, reward: rw, gems_added: gems })
+        return R({ ok: true, tier, track: 'free', reward: rw, gems_added: gems })
       }
 
       case 'abuse_report': {
