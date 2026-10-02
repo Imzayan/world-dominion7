@@ -2711,3 +2711,20 @@ Work Log:
 
 Stage Summary:
 - V105B کامل روی dev (کامیت تازه) — آماده smoke → گیت‌ها → push با توکن کاربر
+
+---
+Task ID: V105B-REBUILD+VERIFY
+Agent: Super Z (main)
+Task: بازسازی V105B (حرفه‌ای‌سازی فاز ۱) + push با توکن کاربر + E2E پریویو زنده
+
+Work Log:
+- push موفق: 76ee52c..7a9aa6a dev→dev با توکن کاربر؛ Vercel deploy ~۴۵ثانیه؛ v.txt 105→106 روی پریویو زنده تأیید شد
+- smoke کامل سبز: WG-FIELDS-OK (ab/ab_cd/unit_xp/unit_badges) + ATK-ABILITY-OK (gen_ab یورش مفرغی، tri armor-vs-air win=false از ذخیره‌ی واقعی، badge_a=2، career سازگار xp/share) + CD-OK (۴۲۰ث) + UNOWNED-OK + UNITXP-EXACT-OK (۲۳۲=۱۶۰+۷۲؛ استخر ۳۰ برد/۱۲ باخت از سه نبرد واقعی وزن‌دهی‌شده با سهم قدرت کلاس دکترین)
+- گیت‌های release.mjs سبز: check-html 95/0، verify-build 9/9، schema-diff identical، secret-scan پاک — bump v106 (v.txt+beacon+۷×?v+GAME_VER)
+- E2E مرورگر واقعی روی پریویو زنده (v106، حساب qa105live): ۱۱ کارت یگان، جاودانگان (نخبه، ۵۵قدرت، ۴۰۰/۶۰، وزن ۸=۵۴ثانیه/یگان، قفل «با فتح ۵ کشور (0/5)» دکمه‌ی disable)، ۱۱ ردیف ۴ستونه (🛡⚡📦)، ۱۱ مداللیون SVG هخامنشی، کارنامه با شمارنده‌ها + ۵ نوار کلاس + نوار مثلث تسلط (+۵٪) + ۶ ژنرال با پرتره SVG و دکمه‌های «پرچم به‌دست آور ۶۰..۱۶۰» (disable در افتخار صفر — صحیح)، کارت توان به‌درستی پنهان وقتی ژنرال گمارده نیست، مربی فصل ۱۳ «سپاه حرفه‌ای» روی mentor.js?v=106 لایو (۳ رخداد متن)
+- یادداشت: بخش «فرماندهان» داخل m-army از V28 ارتش ۲.۰ است (پیش‌موجود — تداخلی با فتح‌نامه ندارد)
+- اسکرین‌شات‌ها: download/v105b-live-army.png + download/v105b-live-career.png
+
+Stage Summary:
+- فاز ۱ فتح‌نامه حالا حرفه‌ای کامل است: سپاه حرفه‌ای (جاودانگان + جدول ۴ستونه + آیچن‌ست SVG)، ژنرال‌ها (توان فعال داوری‌شده با کول‌داون صادقانه)، نشان لشکر (XP/نشان یگان با قاب b1..b4 و اثر واقعی تا +۵٪) — همه server-authoritative و افزودنی محض
+- پریویو زنده: https://world-dominion7-git-dev-world-dominion.vercel.app/game/index.html?v=106
