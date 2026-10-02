@@ -2526,3 +2526,21 @@ Work Log:
 
 Stage Summary:
 - V95 لوکال آماده و gated؛ پس از توکن تازه: push origin main + تأیید v.txt=95 روی preview
+
+---
+Task ID: MONO-V95-PUSH
+Agent: Super Z (main)
+Task: ذخیره‌ی PAT تازه‌ی کاربر + push نهایی V95 به GitHub
+
+Work Log:
+- PAT کاربر در فایل local-github-token.txt ذخیره شد (gitignore شده با الگوی local-* — هرگز commit نمی‌شود)
+- credential.helper=store تنظیم و credential برای github.com/Imzayan ذخیره شد → push های بعدی بدون نیاز به توکن جدید
+- تأیید پات با git ls-remote (دسترسی read/write به Imzayan/world-dominion7 سبز)
+- وضعیت چک شد: main لوکال = fbc6d11 (کامیت V95)، working tree تمیز، ۱ کامیت جلوتر از origin
+- push origin main موفق: ce64613..fbc6d11 main -> main
+- تأیید نهایی: origin/main = fbc6d11 (== لوکال)، v.txt=95
+
+Stage Summary:
+- V95 (Premium Monetization + War Items V1) رسماً روی GitHub main پوش شد — کاربر می‌تواند preview/deploi را تست کند
+- پات ذخیره شد: فایل محلی + credential store (نشتی به ریپو: صفر، secret-scan قبلاً هم پاک بود)
+- باقی‌مانده برای کاربر: تست preview، اتصال IAB واقعی (MYKET_CLIENT_ID/SECRET/PACKAGE در env + پل اندروید WD95_IAB)، تنظیم قیمت/محتوا در MONO
