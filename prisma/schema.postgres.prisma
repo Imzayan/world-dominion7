@@ -745,6 +745,7 @@ model WarCareer {
   wins      Int      @default(0)
   losses    Int      @default(0)
   classXp   String   @default("{}") @map("class_xp") /* JSON {infantry|armor|arty|air|navy: n} */
+  unitXp    String   @default("{}") @map("unit_xp") /* JSON {unit: xp} — V105B نشان یگان */
   generals  String   @default("{}") @map("generals") /* JSON {owned:[],atk,def} */
   updatedAt DateTime @updatedAt @map("updated_at")
 

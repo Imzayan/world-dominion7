@@ -309,16 +309,31 @@ async function warUserServer(userId: string): Promise<number> {
 
 /* ================= V105 — فتح‌نامه: کارنامه‌ی لشکر + ژنرال‌های سرور-محور =================
    همه‌ی اعداد فقط همین‌جا؛ کلاینت فقط نمایش. افزودنی محض — صفر تغییر در مدل‌ها/منطق موجود. */
-type WarCareerGen = { owned?: string[]; atk?: string | null; def?: string | null }
-const WAR_GENERALS: Record<string, { fa: string; lore: string; cost: number; atk: number; def: number; sup: number; mor: number }> = {
-  aryob:  { fa: 'آریوبرزن',   lore: 'شیر کوه‌های زاگرس — مدافع افسانه‌ای', cost: 60,  atk: 1, def: 3, sup: 1, mor: 2 },
-  surena: { fa: 'سورنا',      lore: 'سردار مفرغی که روم را لرزاند',        cost: 90,  atk: 3, def: 1, sup: 2, mor: 1 },
-  bartar: { fa: 'پرویز بتار', lore: 'چشم تیزبین آسمان — استاد یورش پرنده', cost: 90,  atk: 2, def: 1, sup: 3, mor: 1 },
-  rostam: { fa: 'رستم دستان', lore: 'پهلوان زابل — دیوار زنده‌ی سپاه',      cost: 120, atk: 2, def: 2, sup: 1, mor: 3 },
-  garin:  { fa: 'گارین',      lore: 'مهندس محاصره — شکننده‌ی دیوارها',      cost: 120, atk: 1, def: 2, sup: 3, mor: 1 },
-  kaveh:  { fa: 'کاوه آهنگر', lore: 'درفش‌دار قیام — شور سپاه را می‌جوشاند', cost: 160, atk: 2, def: 1, sup: 1, mor: 3 },
+type WarCareerGen = { owned?: string[]; atk?: string | null; def?: string | null; ab_at?: number }
+type WarGenAb = { fa: string; kind: 'atk' | 'refund' | 'glory' }
+const WAR_GENERALS: Record<string, { fa: string; lore: string; cost: number; atk: number; def: number; sup: number; mor: number; ab: WarGenAb }> = {
+  aryob:  { fa: 'آریوبرزن',   lore: 'شیر کوه‌های زاگرس — مدافع افسانه‌ای', cost: 60,  atk: 1, def: 3, sup: 1, mor: 2, ab: { fa: 'سپر زاگرس',      kind: 'glory' } },
+  surena: { fa: 'سورنا',      lore: 'سردار مفرغی که روم را لرزاند',        cost: 90,  atk: 3, def: 1, sup: 2, mor: 1, ab: { fa: 'یورش مفرغی',     kind: 'atk' } },
+  bartar: { fa: 'پرویز بتار', lore: 'چشم تیزبین آسمان — استاد یورش پرنده', cost: 90,  atk: 2, def: 1, sup: 3, mor: 1, ab: { fa: 'بال‌های بتار',   kind: 'atk' } },
+  rostam: { fa: 'رستم دستان', lore: 'پهلوان زابل — دیوار زنده‌ی سپاه',      cost: 120, atk: 2, def: 2, sup: 1, mor: 3, ab: { fa: 'پهلوانِ زابل',   kind: 'refund' } },
+  garin:  { fa: 'گارین',      lore: 'مهندس محاصره — شکننده‌ی دیوارها',      cost: 120, atk: 1, def: 2, sup: 3, mor: 1, ab: { fa: 'شکن‌دیوار',      kind: 'atk' } },
+  kaveh:  { fa: 'کاوه آهنگر', lore: 'درفش‌دار قیام — شور سپاه را می‌جوشاند', cost: 160, atk: 2, def: 1, sup: 1, mor: 3, ab: { fa: 'درفش کاویانی',  kind: 'glory' } },
 }
 const WAR_GEN_MAX_BONUS = 0.09 /* سقف سخت بونوس ژنرال در هر سمت */
+/* ================= V105B — حرفه‌ای‌سازی فاز ۱ (همه‌ی اعداد همین‌جا) =================
+   توان فعال: مالکیت + گمارده‌نِ حمله + کول‌داون ۴۲۰ث — اثر داوری‌شده: ضرب حمله/بازگشت هزینه/دون‌برافتخار
+   مثلث کلاسی: پیاده>پرنده>زره‌پوش>توپخانه>پیاده — دریایی/نخبه بی‌طرف — سقف +۵٪
+   نشان یگان: هر یگانِ نشان‌دار +۱٪ قدرت همان سمت با سقف +۵٪ */
+const WAR_AB_COOLDOWN_MS = 420_000
+const WAR_AB_ATK_MULT = 1.08
+const WAR_TRI_BONUS = 0.05
+const WAR_BADGE_STEP = 0.01
+const WAR_BADGE_BONUS_CAP = 0.05
+const WAR_UNIT_POOL = { win: 30, loss: 12 } /* استخر XP یگان در هر نبرد — فقط از نبرد واقعی */
+const TRI_BEATS: Record<string, string> = { infantry: 'air', air: 'armor', armor: 'arty', arty: 'infantry' }
+/* آینه‌ی ARMY_ATK/UNIT_CAPS سمت ذخیره (db/[table]) برای محاسبه‌ی سلطه‌ی کلاس */
+const UNIT_ATK_SRV: Record<string, number> = { infantry: 4, tank: 40, bomber: 300, fighter: 120, heli: 65, missile: 250, drone: 35, transport: 15, destroyer: 180, carrier: 600, immortal: 55 }
+const UNIT_CLS_SRV: Record<string, string> = { infantry: 'infantry', tank: 'armor', transport: 'armor', missile: 'arty', destroyer: 'navy', carrier: 'navy', bomber: 'air', fighter: 'air', heli: 'air', drone: 'air', immortal: 'elite' }
 const CLS_OF_ATK: Record<string, string> = { balanced: 'infantry', blitz: 'air', siege: 'arty', defensive: 'armor', naval: 'navy', air: 'air', economic: 'infantry' }
 const CLS_FA: Record<string, string> = { infantry: 'پیاده', armor: 'زره‌پوش', arty: 'توپخانه', air: 'پرنده', navy: 'دریایی' }
 const WAR_BADGES = [
@@ -338,6 +353,75 @@ async function careerParse(userId: string) {
   let gen: WarCareerGen = {}
   try { gen = JSON.parse(row.generals || '{}') || {} } catch { gen = {} }
   return { row, cx, gen }
+}
+/* ترکیب واقعی سپاه از ذخیره‌ی سرور (تنها منبع حقیقت) */
+async function unitsOf105(userId: string): Promise<Record<string, number>> {
+  try {
+    const r = await db.save.findUnique({ where: { userId }, select: { state: true } })
+    if (!r) return {}
+    const st = JSON.parse(r.state || '{}') || {}
+    return (st.units && typeof st.units === 'object' && !Array.isArray(st.units)) ? st.units : {}
+  } catch { return {} }
+}
+/* کلاسِ مسلط = بیشترین قدرتِ جمع‌شده (شمارش × آینه‌ی ARMY_ATK) — دریایی/نخبه در سلطه بی‌طرفند */
+function dominantCls105(units: Record<string, number>): string {
+  const pw: Record<string, number> = {}
+  Object.keys(units).forEach((k) => {
+    const c = UNIT_CLS_SRV[k]
+    if (!c || c === 'navy' || c === 'elite') return
+    pw[c] = (pw[c] || 0) + (Number(units[k]) || 0) * (UNIT_ATK_SRV[k] || 0)
+  })
+  let best = '', bv = 0
+  Object.keys(pw).forEach((c) => { if (pw[c] > bv) { bv = pw[c]; best = c } })
+  return best
+}
+function badgeBonus105(n: number): number { return Math.min(WAR_BADGE_BONUS_CAP, n * WAR_BADGE_STEP) }
+/* شمار نشان‌های یگان (رزم‌آور به بالا) از unit_xp فعلی — قبل از رشد این نبرد */
+async function badgeN105(userId: string): Promise<number> {
+  try {
+    const row = await ensureCareer(userId)
+    let ux: Record<string, number> = {}
+    try { ux = JSON.parse((row as unknown as { unitXp?: string }).unitXp || '{}') || {} } catch { ux = {} }
+    let n = 0
+    Object.keys(ux).forEach((k) => { if (Number(ux[k]) >= WAR_BADGES[1].min) n++ })
+    return n
+  } catch { return 0 }
+}
+/* رشد XP یگان‌ها: استخرِ نبرد به کلاسِ دکترینِ همان سمت، وزن‌دهی با سهم قدرت واقعی */
+function unitXpCalc105(ux: Record<string, number>, units: Record<string, number>, cls: string, pool: number): { add: Record<string, number>; share: number; up: string[] } {
+  const share: Record<string, number> = {}
+  let tot = 0
+  Object.keys(units).forEach((k) => {
+    if (UNIT_CLS_SRV[k] !== cls) return
+    const p = (Number(units[k]) || 0) * (UNIT_ATK_SRV[k] || 0)
+    if (p > 0) { share[k] = p; tot += p }
+  })
+  const add: Record<string, number> = {}
+  let top = 0
+  Object.keys(share).forEach((k) => {
+    const g = Math.round(pool * share[k] / (tot || 1))
+    if (g > 0) { add[k] = g; if (g > top) top = g }
+  })
+  const up: string[] = []
+  Object.keys(add).forEach((k) => { if (badgeOf(ux[k] || 0) !== badgeOf((ux[k] || 0) + add[k])) up.push(k) })
+  return { add, share: top, up }
+}
+async function careerUnits105(userId: string, win: boolean, cls: string) {
+  try {
+    const row = await ensureCareer(userId)
+    let ux: Record<string, number> = {}
+    try { ux = JSON.parse((row as unknown as { unitXp?: string }).unitXp || '{}') || {} } catch { ux = {} }
+    const units = await unitsOf105(userId)
+    const pool = win ? WAR_UNIT_POOL.win : WAR_UNIT_POOL.loss
+    const r = unitXpCalc105(ux, units, cls, pool)
+    const merged: Record<string, number> = { ...ux }
+    Object.keys(r.add).forEach((k) => { merged[k] = (merged[k] || 0) + r.add[k] })
+    const badges: Record<string, string> = {}
+    let bn = 0
+    Object.keys(merged).forEach((k) => { badges[k] = badgeOf(merged[k]); if (merged[k] >= WAR_BADGES[1].min) bn++ })
+    await db.warCareer.update({ where: { userId }, data: { unitXp: JSON.stringify(merged) } })
+    return { unit_xp: merged, unit_badges: badges, badge_n: bn, share: r.share, up: r.up }
+  } catch (e) { console.log('cu105', e); return null }
 }
 /* بونوس ژنرال گمارده‌شده — مهارتِ همان سمت ×۳٪ با سقف ۹٪ (هم‌خانواده‌ی بونوس‌های موجود) */
 async function generalBonus(userId: string, slot: 'atk' | 'def'): Promise<{ pct: number; id: string | null }> {
@@ -3134,6 +3218,41 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           const gd105 = await generalBonus(t.userId, 'def')
           if (gd105.pct > 0) { d = Math.max(1, Math.round(d * (1 + gd105.pct))); genDefId105 = gd105.id }
         } catch (e) { console.log('gen105', e) }
+        /* ================= V105B — توان فعال ژنرال + مثلث کلاسی + نشان یگان‌ها ================= */
+        let genAb105: { id: string; fa: string; kind: string } | null = null
+        let tri105: { a: string; d: string; win: boolean } | null = null
+        let genGloryX2105 = false
+        try {
+          const pGen105 = String(args.p_gen || '')
+          if (pGen105) {
+            const cb = await careerParse(user.id)
+            const gidB = cb.gen.atk
+            if (gidB && gidB === pGen105 && (cb.gen.owned || []).includes(gidB)) {
+              const gB = WAR_GENERALS[gidB]
+              if (gB && gB.ab && Date.now() - Number(cb.gen.ab_at || 0) >= WAR_AB_COOLDOWN_MS) {
+                genAb105 = { id: gidB, fa: gB.ab.fa, kind: gB.ab.kind }
+                await db.warCareer.update({ where: { userId: user.id }, data: { generals: JSON.stringify({ ...cb.gen, ab_at: Date.now() }) } })
+                if (gB.ab.kind === 'atk') a = Math.round(a * WAR_AB_ATK_MULT)
+                if (gB.ab.kind === 'glory') genGloryX2105 = true
+              }
+            }
+          }
+          /* مثلث تسلط از ترکیب واقعی هر دو سپاه — سقف +۵٪، دریایی/نخبه بی‌طرف */
+          const uaB = await unitsOf105(user.id), udB = await unitsOf105(t.userId)
+          const caB = dominantCls105(uaB), cdB = dominantCls105(udB)
+          if (caB && cdB) {
+            const atkWinsB = TRI_BEATS[caB] === cdB
+            tri105 = { a: caB, d: cdB, win: atkWinsB }
+            if (atkWinsB) a = Math.round(a * (1 + WAR_TRI_BONUS))
+            else if (TRI_BEATS[cdB] === caB) d = Math.max(1, Math.round(d * (1 + WAR_TRI_BONUS)))
+          }
+          /* نشان یگان‌ها — تا +۵٪ هر سمت (از unit_xp قبل از رشد این نبرد) */
+          const bnaB = await badgeN105(user.id)
+          if (bnaB > 0) a = Math.round(a * (1 + badgeBonus105(bnaB)))
+          const bndB = await badgeN105(t.userId)
+          if (bndB > 0) d = Math.max(1, Math.round(d * (1 + badgeBonus105(bndB))))
+        } catch (e) { console.log('wd105b', e) }
+        /* ================= پایان V105B ================= */
         /* ================= V88 — WAR DEPTH (فقط وقتی کلاینت جدید p_atk_type بفرستد) =================
            دکترین حمله جای تاکتیک را می‌گیرد (تک‌منبع — بدون دوبار جمع‌شدن بونوس).
            همه‌ی اعداد سمت سرور؛ سقف سخت بونوس جم‌محور = +۲۲٪ کل. صفر instant-win. */
@@ -3220,24 +3339,46 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* V34: battle log feeds the 48h war-heatmap layer */
         try { await db.battleLog.create({ data: { server, kind: 'attack', country, attacker: user.nick, defender: t.nick, win } }) } catch (e) { console.log('blog', e) }
         /* V105 فتح‌نامه: کارنامه‌ی لشکر — XP/افتخار/XP کلاس برای مهاجم و مدافع */
-        let career105: { xp: number; glory: number; cls: string } | null = null
-        try { career105 = await careerAward(user.id, win, atk88) } catch (e) { console.log('caw105', e) }
-        try { await careerAward(t.userId, !win, null) } catch (e) { console.log('caw105d', e) }
+        let career105: { xp: number; glory: number; cls: string; share?: number; up?: string[]; badge_a?: number } | null = null
+        try {
+          career105 = await careerAward(user.id, win, atk88)
+          const clsU = (career105 && career105.cls) || 'infantry'
+          const cuA = await careerUnits105(user.id, win, clsU)
+          if (cuA && career105) career105 = { ...career105, share: cuA.share, up: cuA.up, badge_a: cuA.badge_n }
+          const dDom = tri105 ? tri105.d : 'infantry'
+          try { await careerUnits105(t.userId, !win, dDom) } catch (e) { console.log('cu105d', e) }
+          /* دون‌بر شدن افتخار با توان «شکوه» — فقط یک‌بار، صادقانه در payload */
+          if (genGloryX2105 && career105 && win) {
+            try { await db.warCareer.update({ where: { userId: user.id }, data: { glory: { increment: career105.glory } } }) } catch (e) { console.log('glx2', e) }
+            career105 = { ...career105, glory: career105.glory * 2 }
+          }
+          /* بازگشت هزینه‌ی حمله با توان «پهلوان» — بعد از داوری، برد یا باخت */
+          if (genAb105 && genAb105.kind === 'refund') {
+            try { await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) + PVP_ATTACK.costGold; r.oil = resNum(r.oil) + PVP_ATTACK.costOil }) } catch (e) { console.log('ref105', e) }
+          }
+        } catch (e) { console.log('caw105', e) }
         /* SOCIAL V1 — نوتیف حمله به مدافع (رویداد واقعی) + دستاوردهای جنگی fire-and-forget */
         try { notify(t.userId, server, 'attack', win ? ('⚔️ کشور ' + country + ' سقوط کرد') : ('🛡️ دفاع موفق در ' + country), win ? (user.nick + ' کشور تو را تصرف کرد') : (user.nick + ' به ' + country + ' حمله کرد و شکست خورد')) } catch (e) { console.log('soc-att', e) }
         /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
            defense/captured — before this it always computed 0% and 60% losses and
            syncTerr deleted the just-won territory */
-        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88, career: career105, gen_atk: genAtkId105, gen_def: genDefId105 })
+        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88, career: career105, gen_atk: genAtkId105, gen_def: genDefId105, gen_ab: genAb105, tri: tri105 })
       }
       /* ================= V105 فتح‌نامه: ژنرال‌ها + کارنامه ================= */
       case 'war_generals': {
         const c105 = await careerParse(user.id)
         const badges105: Record<string, string> = {}
         for (const k of Object.keys(CLS_FA)) badges105[k] = badgeOf(c105.cx[k] || 0)
+        let uxW: Record<string, number> = {}
+        try { uxW = JSON.parse((c105.row as unknown as { unitXp?: string }).unitXp || '{}') || {} } catch { uxW = {} }
+        const ubW: Record<string, string> = {}
+        let bnW = 0
+        Object.keys(uxW).forEach((k) => { ubW[k] = badgeOf(uxW[k]); if (uxW[k] >= WAR_BADGES[1].min) bnW++ })
         return R({
           ok: true, glory: c105.row.glory, xp: c105.row.xp, wins: c105.row.wins, losses: c105.row.losses,
           class_xp: c105.cx, class_fa: CLS_FA, badges: badges105,
+          unit_xp: uxW, unit_badges: ubW, badge_n: bnW,
+          ab_cd: { at: Number(c105.gen.ab_at || 0), ms: WAR_AB_COOLDOWN_MS },
           generals: WAR_GENERALS, owned: c105.gen.owned || [], assigned: { atk: c105.gen.atk || null, def: c105.gen.def || null },
         })
       }

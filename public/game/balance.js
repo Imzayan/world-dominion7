@@ -72,16 +72,18 @@
     /* ============ army — هزینه/قدرت یگان‌ها (جداول محتوایی از این تغذیه می‌شوند) ============ */
     army: {
       units: {
-        infantry:  { attack: 4,   costGold: 25,   costOil: 1,   air: false },
-        tank:      { attack: 40,  costGold: 150,  costOil: 30,  air: false },
-        bomber:    { attack: 300, costGold: 900,  costOil: 220, air: true },
-        fighter:   { attack: 120, costGold: 400,  costOil: 100, air: true },
-        heli:      { attack: 65,  costGold: 220,  costOil: 50,  air: true },
-        missile:   { attack: 250, costGold: 700,  costOil: 180, air: false },
-        drone:     { attack: 35,  costGold: 90,   costOil: 20,  air: true },
-        transport: { attack: 15,  costGold: 80,   costOil: 20,  air: false },
-        destroyer: { attack: 180, costGold: 850,  costOil: 200, air: false },
-        carrier:   { attack: 600, costGold: 2500, costOil: 600, air: false }
+        /* V105B: جدول حرفه‌ای ۴ستونه — attack/def/spd/log (مقیاس ۱-۱۰) + جاودانگان (نخبه، وزن آموزش ۸) */
+        infantry:  { attack: 4,   def: 3, spd: 2, log: 5, costGold: 25,   costOil: 1,   air: false },
+        tank:      { attack: 40,  def: 6, spd: 4, log: 4, costGold: 150,  costOil: 30,  air: false },
+        bomber:    { attack: 300, def: 2, spd: 7, log: 2, costGold: 900,  costOil: 220, air: true },
+        fighter:   { attack: 120, def: 3, spd: 9, log: 3, costGold: 400,  costOil: 100, air: true },
+        heli:      { attack: 65,  def: 4, spd: 6, log: 4, costGold: 220,  costOil: 50,  air: true },
+        missile:   { attack: 250, def: 1, spd: 8, log: 1, costGold: 700,  costOil: 180, air: false },
+        drone:     { attack: 35,  def: 1, spd: 8, log: 2, costGold: 90,   costOil: 20,  air: true },
+        transport: { attack: 15,  def: 4, spd: 3, log: 9, costGold: 80,   costOil: 20,  air: false },
+        destroyer: { attack: 180, def: 6, spd: 5, log: 6, costGold: 850,  costOil: 200, air: false },
+        carrier:   { attack: 600, def: 7, spd: 3, log: 8, costGold: 2500, costOil: 600, air: false },
+        immortal:  { attack: 55,  def: 9, spd: 2, log: 7, costGold: 400,  costOil: 60,  air: false, elite: true, weight: 8 }
       },
       /* تخفیف کارخانه‌ی تسلیحات روی استخدام */
       armsDiscountPerLevel: 0.05, armsDiscountCap: 0.35,

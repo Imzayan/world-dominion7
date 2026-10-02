@@ -139,7 +139,7 @@ function serialize(row: Record<string, unknown>, spec: TableSpec, select?: strin
 
 /* ---------- hooks ---------- */
 
-const ARMY_ATK: Record<string, number> = { infantry: 4, tank: 40, bomber: 300, fighter: 120, heli: 65, missile: 250, drone: 35, transport: 15, destroyer: 180, carrier: 600 }
+const ARMY_ATK: Record<string, number> = { infantry: 4, tank: 40, bomber: 300, fighter: 120, heli: 65, missile: 250, drone: 35, transport: 15, destroyer: 180, carrier: 600, immortal: 55 }
 const AIR_UNITS = new Set(['bomber', 'fighter', 'heli', 'drone'])
 
 /* ============================================================
@@ -161,7 +161,7 @@ const AIR_UNITS = new Set(['bomber', 'fighter', 'heli', 'drone'])
    شمارنده‌ی قلمرو/انبار CV با کش ۳۰ثانیه‌ای — سیو ۸ثانیه‌ای بدون
    فشار اضافه‌ی DB.
    ============================================================ */
-const UNIT_CAPS: Record<string, number> = { infantry: 50000, tank: 2500, bomber: 1200, fighter: 1800, heli: 1800, missile: 1000, drone: 2500, transport: 1200, destroyer: 1000, carrier: 500 }
+const UNIT_CAPS: Record<string, number> = { infantry: 50000, tank: 2500, bomber: 1200, fighter: 1800, heli: 1800, missile: 1000, drone: 2500, transport: 1200, destroyer: 1000, carrier: 500, immortal: 300 }
 const MAX_UNIT_ATK = 1_000_000
 const GOLD_CAP_BASE = 20_000_000
 const GOLD_CAP_PER_TERR = 2_000_000

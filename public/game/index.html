@@ -1024,13 +1024,47 @@ const ARMY_UNITS = {
   drone:     Object.assign({ name: "پهپاد انتحاری",     icon: "🛸", count: 0 }, BALANCE.army.units.drone),
   transport: Object.assign({ name: "نیروبر زرهی",       icon: "🚚", count: 0 }, BALANCE.army.units.transport),
   destroyer: Object.assign({ name: "ناوشکن",            icon: "⛴️", count: 0 }, BALANCE.army.units.destroyer),
-  carrier:   Object.assign({ name: "ناو هواپیمابر",     icon: "🚢", count: 0 }, BALANCE.army.units.carrier)
+  carrier:   Object.assign({ name: "ناو هواپیمابر",     icon: "🚢", count: 0 }, BALANCE.army.units.carrier),
+  immortal:  Object.assign({ name: "جاودانگان — سپاه نخبه", icon: "🦅", count: 0 }, BALANCE.army.units.immortal)
 };
-const BATTLE_UNIT_ORDER = ["infantry", "tank", "bomber", "fighter", "heli", "missile", "drone", "transport", "destroyer", "carrier"];
+const BATTLE_UNIT_ORDER = ["infantry", "tank", "bomber", "fighter", "heli", "missile", "drone", "transport", "destroyer", "carrier", "immortal"];
 /* ===== V105 فتح‌نامه: رده‌یگان‌ها + کارنامه‌ی سرور-محور (همه‌ی اعداد از سرور) ===== */
-const WD105_CLASS = { infantry:'infantry', tank:'armor', transport:'armor', missile:'arty', destroyer:'navy', carrier:'navy', bomber:'air', fighter:'air', heli:'air', drone:'air' };
-const WD105_CLS_FA = { infantry:'پیاده', armor:'زره‌پوش', arty:'توپخانه', air:'پرنده', navy:'دریایی' };
+const WD105_CLASS = { infantry:'infantry', tank:'armor', transport:'armor', missile:'arty', destroyer:'navy', carrier:'navy', bomber:'air', fighter:'air', heli:'air', drone:'air', immortal:'elite' };
+const WD105_CLS_FA = { infantry:'پیاده', armor:'زره‌پوش', arty:'توپخانه', air:'پرنده', navy:'دریایی', elite:'نخبه' };
 window.WD105 = { cache: null, at: 0 };
+window.WD105_ARM = (function(){try{return localStorage.getItem('wd105_arm')||'0'}catch(e){return '0'}})();
+/* V105B — آیچن‌ست هم‌خانواده (خطی، طلای هخامنشی) برای ۱۱ یگان */
+window.WD105_ICONS = {
+ infantry:'<svg viewBox="0 0 24 24"><path d="M6 15a6 6 0 0 1 12 0v4H6z"/><path d="M12 4l1.8 3-1.8 2.2L10.2 7z"/><path d="M9 19h6"/><path d="M6 15h12"/></svg>',
+ tank:'<svg viewBox="0 0 24 24"><rect x="4" y="12" width="16" height="6" rx="3"/><path d="M8 12V9h6l2 3"/><path d="M11 9V6h4"/><circle cx="9" cy="15" r="1"/><circle cx="14" cy="15" r="1"/></svg>',
+ bomber:'<svg viewBox="0 0 24 24"><path d="M3 13h18l-4 4H7z"/><path d="M12 13V6"/><path d="M8 8l4-2 4 2"/></svg>',
+ fighter:'<svg viewBox="0 0 24 24"><path d="M12 3l2 8 6 3-6 2-2 5-2-5-6-2 6-3z"/></svg>',
+ heli:'<svg viewBox="0 0 24 24"><path d="M5 5h14"/><path d="M12 5v3"/><rect x="8" y="8" width="9" height="7" rx="2"/><path d="M17 12h4"/><path d="M9 15l-2 4"/></svg>',
+ missile:'<svg viewBox="0 0 24 24"><path d="M12 3c2 3 3 6 3 9l-3 3-3-3c0-3 1-6 3-9z"/><path d="M9 15l-2 4 3-1"/><path d="M15 15l2 4-3-1"/></svg>',
+ drone:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="6" height="6" rx="1.5"/><path d="M4 4l5 5M20 4l-5 5M4 20l5-5M20 20l-5-5"/><circle cx="4" cy="4" r="1.4"/><circle cx="20" cy="4" r="1.4"/><circle cx="4" cy="20" r="1.4"/><circle cx="20" cy="20" r="1.4"/></svg>',
+ transport:'<svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="8"/><path d="M15 10h4l2 3v2h-6"/><circle cx="7" cy="17" r="1.6"/><circle cx="17" cy="17" r="1.6"/></svg>',
+ destroyer:'<svg viewBox="0 0 24 24"><path d="M4 15h16l-3 4H7z"/><path d="M8 15V9h8v6"/><path d="M12 9V5"/></svg>',
+ carrier:'<svg viewBox="0 0 24 24"><path d="M3 15h18l-4 5H6z"/><rect x="8" y="10" width="8" height="5"/><path d="M10 10V7h4v3"/></svg>',
+ immortal:'<svg viewBox="0 0 24 24"><path d="M12 3v18"/><circle cx="12" cy="6" r="2.2"/><path d="M6 9c0 4 2 7 6 9 4-2 6-5 6-9"/><path d="M8 21h8"/></svg>'
+};
+function wd105UnitBadgesHtml(d) {
+  const ux = d.unit_xp || {}, ub = d.unit_badges || {};
+  const keys = Object.keys(ux); if (!keys.length) return '';
+  let h = '<div class="wd105-ubs">';
+  keys.forEach(function(k) { h += '<span class="u"><i>' + ((window.WD105_ICONS||{})[k] || '') + '</i><b>' + (ux[k] || 0) + '</b>' + (ub[k] || 'تازه‌کار') + '</span>'; });
+  return h + '</div>';
+}
+function wd105AbilityHtml(d) {
+  const asg = (d.assigned || {}).atk, own = d.owned || [];
+  if (!asg || own.indexOf(asg) < 0 || !d.generals[asg] || !d.generals[asg].ab) return '';
+  const g = d.generals[asg], cd = d.ab_cd || { at: 0, ms: 420000 };
+  const left = Math.max(0, Math.ceil(((cd.at || 0) + (cd.ms || 420000) - Date.now()) / 1000));
+  const armed = (window.WD105_ARM || '') === '1';
+  const ready = left <= 0;
+  const eff = g.ab.kind === 'atk' ? 'حمله +۸٪' : g.ab.kind === 'refund' ? 'بازگشت هزینه‌ی حمله' : 'افتخار دون‌بر';
+  return '<div class="wd105-ab' + (armed ? ' on' : '') + '"><div class="l"><b>✨ توان فعال: ' + g.ab.fa + '</b><small>' + g.fa + ' · ' + eff + ' · بازیابی ۷ دقیقه</small></div>'
+    + '<button id="wd105-arm-btn"' + (ready ? '' : ' disabled') + '>' + (armed ? 'آماده برای نبرد بعدی ✓' : ready ? 'آماده‌سازی توان' : ('بازیابی ' + Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2))) + '</button></div>';
+}
 function wd105PtSvg(c1, c2) {
   return '<svg viewBox="0 0 24 24"><path d="M5 13a7 7 0 0 1 14 0v6H5z" fill="' + c1 + '"/><path d="M12 3l2 3.4L12 8.6 10 6.4z" fill="' + c2 + '"/><circle cx="12" cy="13.4" r="3.1" fill="#f3d8a0"/><path d="M8.6 19h6.8l-.9 2.2H9.5z" fill="' + c2 + '"/></svg>';
 }
@@ -1067,8 +1101,17 @@ window.WD105_render = async function() {
   host.innerHTML = '<div class="wd105-h">⚔️ فتح‌نامه — کارنامه‌ی لشکر<small>اثر ژنرال: تا ۹٪ در نبرد · آموزش فقط از علیرضا</small></div>'
     + '<div class="wd105-glory"><div class="g"><b>' + (d.glory || 0) + '</b>افتخار</div><div class="g"><b>' + (d.xp || 0) + '</b>XP لشکر</div><div class="g"><b>' + (d.wins || 0) + '</b>پیروزی</div><div class="g"><b>' + (d.losses || 0) + '</b>شکست</div></div>'
     + '<div class="wd105-cls">' + cls + '</div>'
+    + '<div class="wd105-tri"><b>مثلث تسلط</b> — پیاده ▸ پرنده ▸ زره‌پوش ▸ توپخانه ▸ پیاده · دریایی/نخبه بی‌طرف · برنده‌ی مثلث تا <b>+۵٪</b> و نشان یگان‌ها تا <b>+۵٪</b> قدرت همان سمت</div>'
+    + wd105UnitBadgesHtml(d)
+    + wd105AbilityHtml(d)
     + '<div class="wd105-h" style="font-size:10px;color:#7dd6ff">🎖️ ژنرال‌های فتح‌نامه<small>جذب با افتخار · گمارده‌ن = بونوس واقعی</small></div>'
     + '<div class="wd105-gen">' + gens + '</div>';
+  const abBtn = host.querySelector('#wd105-arm-btn');
+  if (abBtn) abBtn.addEventListener('click', function() {
+    try { const v = (window.WD105_ARM === '1') ? '0' : '1'; window.WD105_ARM = v; localStorage.setItem('wd105_arm', v); } catch (e) {}
+    showToast(v === '1' ? '✨ توان برای نبرد بعدی آماده شد — فقط یک بار مصرف می‌شود' : 'آماده‌سازی توان لغو شد', 'win');
+    window.WD105_render();
+  });
   host.querySelectorAll('.ac button').forEach(function(b) {
     b.addEventListener('click', async function() {
       const op = b.dataset.op, id = b.dataset.id, slot = b.dataset.slot || 'atk';
@@ -3202,7 +3245,7 @@ async function rankOnlineBy(box,cat){
    <script>
     /* ===== Recruitment: units are trained in a queue; speed depends on the population you control ===== */
 (function(){
-const W={infantry:.4,tank:2,bomber:6,fighter:4,heli:3,missile:4,drone:1,transport:1.5,destroyer:10,carrier:25}; // training work per unit
+const W={infantry:.4,tank:2,bomber:6,fighter:4,heli:3,missile:4,drone:1,transport:1.5,destroyer:10,carrier:25,immortal:8}; // training work per unit (V105B: جاودانگان ۸)
 window.totalRecruits=window.totalRecruits||0;
 let Q=[],lastT=Date.now();
 const MAXQ=200;
@@ -3218,6 +3261,7 @@ const infUsed=()=>ARMY_UNITS.infantry.count+Q.filter(x=>x.k==='infantry').reduce
 
 window.buyUnit=function(key,qty){qty=qty||1;const u=ARMY_UNITS[key];
   if(!myCountryName){showToast('❌ اول باید یک پایتخت انتخاب کنید!','lose');return}
+  if(key==='immortal'&&conqueredCountries.size<5){showToast('🔒 جاودانگان با فتح ۵ کشور به سپاه تو می‌پیوندند ('+conqueredCountries.size+'/5)','lose');return}
   if(key==='infantry'){const room=infCap()-infUsed();
     if(room<=0){showToast('❌ جمعیت کافی برای سرباز جدید نداری؛ کشور بیشتری تصرف کن','lose');return}
     if(qty>room)qty=room}
@@ -3250,13 +3294,21 @@ window.renderUnits=function(){
   const disc=armsDiscount(),r=rate();let html='';
   Object.keys(ARMY_UNITS).forEach(k=>{const u=ARMY_UNITS[k],cg=Math.round(u.costGold*(1-disc)),ok=playerRes.gold>=cg&&playerRes.oil>=u.costOil,ok10=playerRes.gold>=cg*10&&playerRes.oil>=u.costOil*10,ok100=playerRes.gold>=cg*100&&playerRes.oil>=u.costOil*100;
     const q=Q.filter(x=>x.k===k).reduce((s,x)=>s+x.n,0);
-    html+=`<div class="unit-card">
-      <div class="unit-head"><span class="unit-title">${u.icon} ${u.name}</span><span class="unit-count">${u.count} عدد</span></div>
+    const _ux=(window.WD105&&window.WD105.cache&&window.WD105.cache.unit_xp&&(window.WD105.cache.unit_xp[k]||0))||0;
+    const _tier=_ux>=2500?4:_ux>=1200?3:_ux>=500?2:_ux>=150?1:0;
+    const _lock=k==='immortal'&&conqueredCountries.size<5;
+    const _ic=(window.WD105_ICONS&&window.WD105_ICONS[k])||'';
+    const _st4=(u.def!=null)?`<div class="unit-stats wd105-st4"><span>🛡️ ${u.def}</span><span>⚡ ${u.spd}</span><span>📦 ${u.log}</span>${u.elite?'<span class="wd105-elite">نخبه</span>':''}</div>`:'';
+    const _bdg=(_tier&&window.WD105&&window.WD105.cache)?`<span>🎖️ نشان: <b>${(window.WD105.cache.unit_badges||{})[k]||''}</b></span>`:'';
+    html+=`<div class="unit-card${_tier?' wd105-b'+_tier:''}">
+      <div class="unit-head"><span class="unit-title">${_ic?`<span class="wd105-uic">${_ic}</span>`:u.icon} ${u.name}</span><span class="unit-count">${u.count} عدد</span></div>
       <div class="unit-stats"><span>🏷 ${(WD105_CLS_FA[WD105_CLASS[k]]||"—")}</span><span>⚔️ قدرت: ${Math.round(u.attack*(u.air?airBonus():1))}</span><span>💰 ${cg} | 🛢️ ${u.costOil}</span></div>
-      <div class="unit-stats"><span>⏱ ${fmtT((W[k]||2)/r)} / یگان</span><span>${q?'📥 در صف: '+q:''}</span></div>
+      ${_st4}
+      <div class="unit-stats"><span>⏱ ${fmtT((W[k]||2)/r)} / یگان</span><span>${q?'📥 در صف: '+q:''}</span>${_bdg}</div>
       ${k==='infantry'?`<div class="unit-stats"><span>👥 ظرفیت جمعیت: ${infUsed().toLocaleString()} / ${infCap().toLocaleString()}</span></div>`:''}
-      <button class="buy-btn" data-key="${k}" ${ok?'':'disabled'}>ساخت یگان</button>
-      <button class="buy-btn buy10" data-key="${k}" style="margin-top:4px" ${ok10?'':'disabled'}>ساخت ×۱۰</button>${k==='infantry'?`<button class="buy-btn buy100" data-key="${k}" style="margin-top:4px" ${ok100?'':'disabled'}>ساخت ×۱۰۰</button>`:''}</div>`});
+      ${_lock?`<button class="buy-btn" disabled>🔒 جاودانگان با فتح ۵ کشور (${conqueredCountries.size}/5)</button>`
+      :`<button class="buy-btn" data-key="${k}" ${ok?'':'disabled'}>ساخت یگان</button>
+      <button class="buy-btn buy10" data-key="${k}" style="margin-top:4px" ${ok10?'':'disabled'}>ساخت ×۱۰</button>${k==='infantry'?`<button class="buy-btn buy100" data-key="${k}" style="margin-top:4px" ${ok100?'':'disabled'}>ساخت ×۱۰۰</button>`:''}`}</div>`});
   if(c._h2!==html){c._h2=html;c.innerHTML=html;
     c.querySelectorAll('.buy-btn').forEach(btn=>btn.addEventListener('click',()=>buyUnit(btn.dataset.key,btn.classList.contains('buy100')?100:btn.classList.contains('buy10')?10:1)))}
   renderRecruitPanel()};
@@ -4124,13 +4176,16 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       /* V50: ضد قفل‌شدن — اگر پاسخ سرور ۱۵ ثانیه نیامد (اینترنت کند)، نبرد با پیام خطا آزاد می‌شود */
       const result=await Promise.race([
         sb.rpc('pvp_attack',{
-        p_server:SRV,p_country:country,p_attack:Math.round(calculateTotalAttack()),p_tactic:(window.WD65TACTIC||null),p_atk_type:(window.WD88_ATK||null)
+        p_server:SRV,p_country:country,p_attack:Math.round(calculateTotalAttack()),p_tactic:(window.WD65TACTIC||null),p_atk_type:(window.WD88_ATK||null),p_gen:(((window.WD105_ARM||'')==='1')&&window.WD105&&window.WD105.cache&&window.WD105.cache.assigned&&window.WD105.cache.assigned.atk)||null
       }),
         new Promise((_,rej)=>setTimeout(()=>rej(new Error('اتصال سرور کند بود — دوباره تلاش کن')),15000))
       ]);
       if(result.error)throw result.error;
       const x=result.data||{};
       try{if(window.WD88&&WD88.onPvpResult)WD88.onPvpResult(x)}catch(e){}
+      try{if(x.gen_ab){showToast('✨ توان «'+x.gen_ab.fa+'» در این نبرد فعال شد','win');window.WD105_ARM='0';try{localStorage.setItem('wd105_arm','0')}catch(e){}}
+      else if((window.WD105_ARM||'')==='1'&&window.WD105&&window.WD105.cache&&window.WD105.cache.assigned&&window.WD105.cache.assigned.atk){const _cd=window.WD105.cache.ab_cd||{};const _l=Math.max(0,Math.ceil(((_cd.at||0)+(_cd.ms||420000)-Date.now())/1000));if(_l>0)showToast('⏳ توان ژنرال در بازیابی — '+fmtT(_l),'lose')}}catch(e){}
+      try{if(x.career&&window.WD105_load)window.WD105_load(true).then(function(){if(window.WD105_render)window.WD105_render()})}catch(e){}
       if(x.busy)throw new Error('این جبهه هم‌اکنون درگیر است.');
       if(x.error==='cap'){
         /* V59 wave-2 §8: سقف کشورها — پیام صادقانه با عدد دقیق */
@@ -18300,6 +18355,28 @@ body.wd101b-open #hud-strip{z-index:10005!important}
 #wd105-career{margin-top:10px;border:1px solid rgba(255,204,64,.35);border-radius:14px;background:linear-gradient(175deg,rgba(21,37,66,.97),rgba(7,14,29,.99));padding:10px;direction:rtl;text-align:right}
 #wd105-career .wd105-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:#ffd75e;margin-bottom:6px}
 #wd105-career .wd105-h small{margin-inline-start:auto;font-size:9px;color:#8fb4d4;font-weight:700;text-align:left}
+/* ===== V105B: قاب نشان یگان b1..b4 + آیچن‌ست SVG + مثلث + کارت توان ===== */
+.wd105-uic{display:inline-flex;vertical-align:-4px;margin-inline-end:4px}
+.wd105-uic svg{width:22px;height:22px;stroke:#ffd75e;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 3px rgba(255,215,94,.35))}
+.unit-card.wd105-b1{border-color:rgba(255,215,94,.55)}
+.unit-card.wd105-b2{border-color:rgba(255,184,64,.8);box-shadow:0 0 10px rgba(255,184,64,.2)}
+.unit-card.wd105-b3{border-color:#ffb840;box-shadow:0 0 14px rgba(255,184,64,.32), inset 0 0 14px rgba(255,184,64,.07)}
+.unit-card.wd105-b4{border-color:#ffe08a;box-shadow:0 0 20px rgba(255,224,138,.45), inset 0 0 18px rgba(255,184,64,.12)}
+.wd105-st4 span{color:#bcd6ef}
+.wd105-elite{color:#ffe08a!important;font-weight:900}
+.wd105-tri{margin-top:8px;font-size:9.5px;color:#9fc3e8;background:rgba(255,255,255,.04);border:1px solid rgba(255,215,94,.18);border-radius:10px;padding:6px 8px;line-height:1.9;text-align:right}
+.wd105-tri b{color:#ffd75e}
+.wd105-ubs{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.wd105-ubs .u{display:inline-flex;align-items:center;gap:3px;font-size:9px;color:#cfe2f7;background:rgba(255,215,94,.08);border:1px solid rgba(255,215,94,.25);border-radius:8px;padding:2px 6px}
+.wd105-ubs .u i{display:inline-flex}
+.wd105-ubs .u i svg{width:13px;height:13px;stroke:#ffd75e;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.wd105-ubs .u b{color:#ffe08a}
+.wd105-ab{display:flex;align-items:center;gap:8px;margin-top:8px;border:1px solid rgba(125,214,255,.35);background:linear-gradient(135deg,rgba(125,214,255,.1),rgba(125,214,255,.02));border-radius:12px;padding:7px 9px;direction:rtl;text-align:right}
+.wd105-ab.on{border-color:#ffd75e;box-shadow:0 0 12px rgba(255,215,94,.25)}
+.wd105-ab .l{flex:1;display:flex;flex-direction:column}
+.wd105-ab .l small{color:#8fb4d4;font-size:8.5px}
+.wd105-ab button{font-size:10.5px;font-weight:900;padding:7px 10px;border-radius:9px;border:1px solid rgba(255,215,94,.5);background:linear-gradient(135deg,#3a2f14,#241c08);color:#ffd75e;cursor:pointer}
+.wd105-ab button:disabled{opacity:.55;cursor:not-allowed}
 .wd105-glory{display:flex;gap:6px;margin-bottom:8px}
 .wd105-glory .g{flex:1;background:rgba(10,22,44,.9);border:1px solid rgba(112,162,222,.3);border-radius:10px;padding:5px 7px;font-size:9.5px;color:#dceaff}
 .wd105-glory .g b{display:block;font-size:13px;color:#ffd75e}
