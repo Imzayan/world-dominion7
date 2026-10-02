@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=108;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=108"></script>
+  <script>window.__WD_V=110;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=110"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -10862,7 +10862,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=108';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=110';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -17589,7 +17589,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=108';
+              s.src='/game/cv-engine.js?v=110';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17600,7 +17600,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=108"></script>
+<script src="/game/oly3.js?v=110"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17614,7 +17614,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=108';
+      s.src='/game/oly3d.js?v=110';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -18854,8 +18854,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=108"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=108"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=110"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=110"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -19016,5 +19016,108 @@ try{
 })();
 </script>
 
+<style id="v110-css">
+/* ============ V110 (port از V96 اصلی + V109): آیکون مستقل سینمایی تلگرام + ستون چپ مرتب + رفع زوم دفن‌شده ============
+   تطبیق‌یافته برای لایه‌ی dev: هشدار — نوار بالای dev (hud-strip چهاردکمه‌ای V101) و المپیک/شیرجه عمداً دست‌نخورده می‌مانند */
+/* 1) آیکون مستقل تلگرام — بالا-چپ، دقیقاً بالای دکمه‌ی خروج */
+#wd-tg-fab{position:fixed;top:72px;left:10px;width:46px;height:46px;z-index:9996;border-radius:50%;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent;
+  border:1px solid rgba(140,210,255,.6);
+  background:radial-gradient(circle at 30% 24%,rgba(255,255,255,.22),transparent 55%),linear-gradient(160deg,#2ea6e8,#1160a8 58%,#0a3f78);
+  box-shadow:0 5px 16px rgba(0,0,0,.5),0 0 16px rgba(60,170,255,.4),inset 0 1px 0 rgba(255,255,255,.28);
+  transition:transform .2s cubic-bezier(.22,1,.36,1),box-shadow .25s,filter .25s}
+#wd-tg-fab svg{width:23px;height:23px;pointer-events:none;filter:drop-shadow(0 0 7px rgba(255,255,255,.55))}
+#wd-tg-fab:hover{filter:brightness(1.15)}
+#wd-tg-fab:active{transform:scale(.88)}
+#wd-tg-fab::after{content:'';position:absolute;top:-2px;bottom:-2px;width:40%;left:-55%;pointer-events:none;border-radius:50%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.4),transparent);animation:wd110shine 3.8s ease-in-out 1s infinite}
+@keyframes wd110shine{0%{left:-55%}55%,100%{left:135%}}
+#wd-tg-fab .wd110-b{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);min-width:26px;height:15px;line-height:14px;
+  padding:0 5px;border-radius:99px;font-size:9px;font-weight:950;color:#2a1c02;font-style:normal;
+  background:linear-gradient(180deg,#ffe08a,#ffb02e);border:1px solid rgba(255,220,120,.9);
+  box-shadow:0 2px 8px rgba(0,0,0,.5),0 0 9px rgba(255,190,50,.45);pointer-events:none;font-variant-numeric:tabular-nums}
+#wd-tg-fab.wd110-live{animation:wd110pulse 2.6s ease-in-out infinite}
+@keyframes wd110pulse{0%,100%{box-shadow:0 5px 16px rgba(0,0,0,.5),0 0 14px rgba(60,170,255,.38),inset 0 1px 0 rgba(255,255,255,.28)}
+  50%{box-shadow:0 5px 16px rgba(0,0,0,.5),0 0 26px rgba(80,190,255,.75),inset 0 1px 0 rgba(255,255,255,.34)}}
+#wd-tg-fab.wd110-done{filter:saturate(.35) brightness(.8)}
+#wd-tg-fab.wd110-done::after{display:none}
+#wd-tg-fab.wd110-done .wd110-b{display:none}
+/* 2) ستون چپ مرتب در همه‌ی بریک‌پوینت‌ها: تلگرام ← خروج ← ساعت/تنش */
+#acc-chip{top:126px!important}
+#hud-info{top:172px!important}
+@media(max-width:640px){
+  #wd-tg-fab{top:106px;left:8px;width:40px;height:40px}
+  #wd-tg-fab svg{width:20px;height:20px}
+  #acc-chip{top:154px!important}
+  #hud-info{top:196px!important}
+}
+@media(max-width:380px){
+  #wd-tg-fab{top:100px;width:36px;height:36px}
+  #wd-tg-fab svg{width:18px;height:18px}
+  #wd-tg-fab .wd110-b{min-width:22px;height:13px;line-height:12px;font-size:8px;bottom:-5px}
+  #acc-chip{top:144px!important}
+  #hud-info{top:186px!important}
+}
+/* 3) گیت آموزش دیگر هیچ‌وقت آیکون‌ها را نامرئی نمی‌کند؛ کارت آموزش روی موبایل به نیمه‌ی پایین می‌رود */
+body.wd45-tutshow #hud-info,body.wd45-tutshow #hud-strip,body.wd45-tutshow #hud-gem,body.wd45-tutshow #hud-terr,body.wd45-tutshow #wd34-heat-btn{opacity:1!important;pointer-events:auto!important}
+@media(max-width:640px){
+  #wd43-tut{top:auto!important;bottom:158px!important;transform:translate(-50%,10px)!important}
+  #wd43-tut.on{transform:translate(-50%,0)!important}
+}
+/* 4) دکمه‌های +/− زوم Leaflet زیر نوار بالا دفن شده بودند (پروب V110) — دسکتاپ: پایین-چپ؛ موبایل: مخفی (زوم لمسی) */
+.leaflet-top.leaflet-left .leaflet-control-zoom{position:fixed!important;left:10px!important;bottom:70px!important;top:auto!important;margin:0!important;pointer-events:auto!important;z-index:9990!important}
+.leaflet-top.leaflet-left .leaflet-control-zoom{border:1px solid rgba(0,246,233,.22)!important;border-radius:12px!important;overflow:hidden!important;background:rgba(3,7,16,.8)!important;box-shadow:0 8px 20px rgba(0,0,0,.45)!important}
+.leaflet-top.leaflet-left .leaflet-control-zoom a{background:rgba(5,14,28,.92)!important;color:#aefcff!important;border:0!important;font:bold 17px system-ui!important}
+.leaflet-top.leaflet-left .leaflet-control-zoom a:hover{background:rgba(10,34,54,.98)!important;color:#dfffff!important}
+.leaflet-top.leaflet-left .leaflet-control-zoom a+a{border-top:1px solid rgba(0,246,233,.18)!important}
+@media(max-width:640px){
+  .leaflet-control-zoom{display:none!important}
+}
+@media(prefers-reduced-motion:reduce){
+  #wd-tg-fab,#wd-tg-fab::after,.leaflet-top.leaflet-left .leaflet-control-zoom{animation:none!important;transition:none!important}
+}
+</style>
+<script id="v110-js">
+/* ============ V110: آیکون مستقل تلگرام — بالا-چپ بالای خروج (منطق پاداش همان V86 کانال رسمی) ============ */
+(function(){
+'use strict';
+var D=document;
+function S(id){return D.getElementById(id)}
+var fa=function(n){return String(Math.max(0,Number(n)||0)).replace(/\d/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[d]})};
+var TG_GEMS=20;
+var PLANE='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.6 3.2 2.9 10.4c-1 .4-1 1.8.1 2.1l4.6 1.4 1.7 5.3c.3.9 1.4 1.1 2 .4l2.5-2.6 4.7 3.4c.8.6 1.9.2 2.1-.8l2.6-15.1c.2-1-.8-1.7-1.6-1.3ZM9.3 13.5l8.8-5.6c.3-.2.6.2.4.4l-7.2 6.7-.3 3-1.7-4.5Z" fill="#fff"/></svg>';
+var fab=null,tries=0;
+function sync(){
+  if(!fab)return;
+  var done=window.WD86_TG===true;
+  try{var g=S('wd86-gift');if(g&&g.classList.contains('wd86-done'))done=true}catch(e){}
+  fab.classList.toggle('wd110-done',done);
+  fab.classList.toggle('wd110-live',!done);
+}
+function build(){
+  if(S('wd-tg-fab')){fab=S('wd-tg-fab');sync();return true}
+  var g=S('wd86-gift');
+  if(!g){
+    if(tries>=25){ /* fallback: حتی بدون لنگر V86 هم آیکون ساخته می‌شود — کلیک مستقیم کانال */
+      fab=D.createElement('button');fab.type='button';fab.id='wd-tg-fab';
+      fab.title='کانال رسمی تلگرام — اخبار فصل و پاداش';fab.setAttribute('aria-label',fab.title);fab.innerHTML=PLANE;
+      fab.addEventListener('click',function(){try{var w=window.open('https://t.me/worlddaminion','_blank');if(w)w.opener=null}catch(e){}});
+      D.body.appendChild(fab);return true}
+    return false;
+  }
+  fab=D.createElement('button');fab.type='button';fab.id='wd-tg-fab';
+  fab.title='کانال رسمی تلگرام — اخبار فصل و '+fa(TG_GEMS)+' جم هدیه';
+  fab.setAttribute('aria-label',fab.title);
+  fab.innerHTML=PLANE+'<b class="wd110-b">+'+fa(TG_GEMS)+'</b>';
+  fab.addEventListener('click',function(){try{var c=S('wd86-gift');if(c){c.click();return}var w=window.open('https://t.me/worlddaminion','_blank');if(w)w.opener=null}catch(e){}});
+  D.body.appendChild(fab);
+  sync();
+  return true;
+}
+function boot(){tries++;if(build())return;if(tries<30)setTimeout(boot,500)}
+if(D.readyState==='complete'||D.readyState==='interactive')boot();else D.addEventListener('DOMContentLoaded',boot);
+setInterval(sync,1500);
+})();
+</script>
 </body>
 </html>

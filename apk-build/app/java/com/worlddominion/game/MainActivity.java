@@ -30,7 +30,7 @@ public class MainActivity extends Activity {
 
     /* V91: آپدیت فقط از طریق مایکت (Myket Intent) — بدون دانلود/نصب مستقیم APK
        WebView هرگز HTML قدیمی کش‌شده را سرو نمی‌کند (پارامتر نسخه) */
-    private static final int GAME_VER = 108;
+    private static final int GAME_VER = 110;
     private static final String GAME_URL = "https://world-dominion7.vercel.app/game/index.html?v=" + GAME_VER;
     private static final String GAME_HOST = "world-dominion7.vercel.app";
     private static final String ERROR_URL = "file:///android_asset/error.html";
