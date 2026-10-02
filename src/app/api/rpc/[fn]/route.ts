@@ -14,8 +14,8 @@ import {
   type RecentScore,
 } from '@/lib/olyProfile'
 import { cvGenerateLayout, cvEnrich, cvCountryExists, type CvProvince } from '@/lib/cvGeo'
-import { ACH_CAT_FA, ACH_CATALOG, grantAch, notify, presenceSweep, onlineByServer, onlinePlayersByServer, resolveSocialTarget, cleanBody } from '@/lib/social' /* V95 — SOCIAL & PLAYER IDENTITY */
 import { OL_REWARDS, SPECIAL_OPS, MENTOR_REWARDS, OL_PARTICIPATION_GEMS, OL_PODIUM_REWARDS, PVP_ATTACK } from '@/lib/balance' /* V72: توازن سرور متمرکز (PHASE 4) — V75: + PVP_ATTACK */
+import { WAR_ITEMS, STARTER_PACK, WAR_RESIST_WINDOW_MS, WAR_RESIST_STEPS, PROTECTION_MIN_AGE_MS } from '@/lib/balance' /* V108: تدارک جنگی + زرادخانه تاکتیکی + پک شروع */
 import {
   cvDef, cvCost, cvTimeSec, cvProdPerMin, cvCatalogPublic, cvTechMults,
   CV_TECH, CV_MAX_LEVEL, CV_OFFLINE_CAP_MS, CV_FOCUS, type CvTechLine, type CvFocus,
@@ -49,7 +49,7 @@ const WEEKLY_CATEGORIES = ['score', 'kills', 'economy', 'recruits'] as const
            service(انقضا) | mystery(قرعه‌ی سرور) | bundle | limited(پنجره‌ی زمانی)
    - هیچ قیمتی از کلاینت پذیرفته نمی‌شود؛ فقط p_item.
    ============================================================ */
-type ShopKind = 'consumable' | 'cosmetic' | 'service' | 'mystery' | 'bundle' | 'limited'
+type ShopKind = 'consumable' | 'cosmetic' | 'service' | 'mystery' | 'bundle' | 'limited' | 'stock'
 type ShopItemDef = {
   id: string; fa: string; d: string; icon: string
   price: number; kind: ShopKind; cat: string; rar: string
@@ -60,6 +60,7 @@ type ShopItemDef = {
   grants?: string[]
   slot?: string
   hidden?: boolean
+  qty?: number /* V108: برای kind:'stock' — مقدار افزوده به انبار در هر خرید */
 }
 const RAR_FA: Record<string, string> = { common: 'معمولی', uncommon: 'غیرمعمولی', rare: 'کمیاب', epic: 'حماسی', legendary: 'افسانه‌ای', mythic: 'اسطوره‌ای' }
 const SHOP_ITEMS: ShopItemDef[] = [
@@ -238,6 +239,58 @@ SHOP_ITEMS.push(...V88_REWARDS)
 V88_REWARDS.forEach((x) => SHOP_ITEM_MAP.set(x.id, x))
 
 /* ============================================================
+   V108 — WAR ITEMS V1: تدارک جنگی + زرادخانه تاکتیکی (kind:'stock')
+   مصرفیِ شمارشی — انبار در WarState.data.stock (سمت سرور).
+   قیمت/اثر/مدت/کول‌داون از balance.ts (تک‌منبع) — این‌جا فقط def فروشگاه.
+   + کازمتیک‌های انحصاری پک شروع (hidden — فقط از مسیر starter_claim).
+   ============================================================ */
+const WAR_STOCK_ITEMS: ShopItemDef[] = Object.entries(WAR_ITEMS).map(([id, w]) => ({
+  id,
+  fa: w.fa,
+  d: w.d,
+  icon: w.ic,
+  price: w.price,
+  kind: 'stock' as ShopKind,
+  cat: 'war',
+  rar: id === 'war_supply' ? 'rare' : id === 'tactical_precision' ? 'epic' : id === 'tactical_defbreak' ? 'epic' : 'rare',
+  qty: w.add,
+}))
+SHOP_ITEMS.push(...WAR_STOCK_ITEMS)
+WAR_STOCK_ITEMS.forEach((x) => SHOP_ITEM_MAP.set(x.id, x))
+
+const STARTER_COSMETICS: ShopItemDef[] = STARTER_PACK.grants.map((g) => ({
+  id: g.id,
+  fa: g.fa,
+  d: 'انحصاری پک شروع امپراتور — از هیچ مسیر دیگری دریافت نمی‌شود.',
+  icon: g.ic,
+  price: 0,
+  kind: 'cosmetic' as ShopKind,
+  cat: 'reward',
+  rar: 'legendary',
+  slot: g.slot,
+  hidden: true,
+}))
+SHOP_ITEMS.push(...STARTER_COSMETICS)
+STARTER_COSMETICS.forEach((x) => SHOP_ITEM_MAP.set(x.id, x))
+
+/* افزودن/کسر شمارشی انبار WarState با قفل خوش‌بینانه (string-guard روی raw JSON).
+   موفق = true؛ تلاش مجدد در برخورد هم‌زمان (دو دستگاه/دبل‌تپ) با خواندن تازه. */
+async function warStockAdjust(userId: string, id: string, delta: number, cap = 999): Promise<{ ok: boolean; now: number }> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const row = await warStateRow(userId)
+    const raw = row.data
+    const data = warParse(raw)
+    const stock = { ...(data.stock || {}) }
+    const next = Math.max(0, Math.min(cap, (stock[id] || 0) + delta))
+    stock[id] = next
+    data.stock = stock
+    const upd = await db.warState.updateMany({ where: { userId, data: raw }, data: { data: JSON.stringify(data) } })
+    if (upd.count === 1) return { ok: true, now: next }
+  }
+  return { ok: false, now: 0 }
+}
+
+/* ============================================================
    V88 — WAR DEPTH: پیکربندی جنگ (تک‌منبع سرور)
    ============================================================ */
 type AtkTypeDef = { fa: string; d: string; atk: number; loss: number; supply: number; gold: number; oil: number; defPen?: number; defDown?: number; selfDefFx?: number; blockTarget?: boolean }
@@ -270,7 +323,7 @@ const SUPPLY_REGEN_MS = 6 * 60_000 /* +۱ تدارک هر ۶ دقیقه */
 const SUPPLY_MAX = 100
 
 type WarFx = { k: string; until: number; data?: Record<string, unknown> }
-type WarData = { supply?: number; supplyAt?: number; cd?: Record<string, number>; fx?: WarFx[]; blk?: Record<string, number>; atkt?: string }
+type WarData = { supply?: number; supplyAt?: number; cd?: Record<string, number>; fx?: WarFx[]; blk?: Record<string, number>; atkt?: string; stock?: Record<string, number>; res?: Record<string, { n: number; until: number }> }
 
 function warStateRow(userId: string) {
   return db.warState.upsert({ where: { userId }, update: {}, create: { userId } })
@@ -278,15 +331,19 @@ function warStateRow(userId: string) {
 function warParse(raw: string): WarData {
   try { return (JSON.parse(raw) || {}) as WarData } catch { return {} }
 }
-/* بازیابی تنبل تدارک — بدون تایمر؛ در هر خواندن محاسبه و ذخیره می‌شود */
+/* بازیابی تنبل تدارک — بدون تایمر؛ در هر خواندن محاسبه و ذخیره می‌شود.
+   V108: حین افکت EMP فعال، بازیابی تدارک متوقف می‌شود (زیرساخت مختل) —
+   زمانِ توقف نه برگردانده می‌شود نه جبران؛ بازیابی از پایان EMP ادامه می‌یابد. */
 async function warStateOf(userId: string): Promise<{ data: WarData; row: { data: string } }> {
   const row = await warStateRow(userId)
   const data = warParse(row.data)
   const now = Date.now()
+  const empUntil = ((data.fx || []).find((f) => f.k === 'emp') || {}).until || 0
   const last = data.supplyAt || 0
   let supply = typeof data.supply === 'number' ? data.supply : SUPPLY_MAX
   if (supply < SUPPLY_MAX && last) {
-    const regen = Math.floor((now - last) / SUPPLY_REGEN_MS)
+    const effFrom = empUntil > last ? empUntil : last
+    const regen = Math.floor((now - effFrom) / SUPPLY_REGEN_MS)
     if (regen > 0) supply = Math.min(SUPPLY_MAX, supply + regen)
   }
   data.supply = supply
@@ -306,155 +363,6 @@ function warFxOf(data: WarData, now: number): Record<string, WarFx> {
 async function warUserServer(userId: string): Promise<number> {
   try { const s = await db.score.findUnique({ where: { userId }, select: { server: true } }); return Math.max(1, s?.server || 1) } catch { return 1 }
 }
-
-/* ================= V105 — فتح‌نامه: کارنامه‌ی لشکر + ژنرال‌های سرور-محور =================
-   همه‌ی اعداد فقط همین‌جا؛ کلاینت فقط نمایش. افزودنی محض — صفر تغییر در مدل‌ها/منطق موجود. */
-type WarCareerGen = { owned?: string[]; atk?: string | null; def?: string | null; ab_at?: number }
-type WarGenAb = { fa: string; kind: 'atk' | 'refund' | 'glory' }
-const WAR_GENERALS: Record<string, { fa: string; lore: string; cost: number; atk: number; def: number; sup: number; mor: number; ab: WarGenAb }> = {
-  aryob:  { fa: 'آریوبرزن',   lore: 'شیر کوه‌های زاگرس — مدافع افسانه‌ای', cost: 60,  atk: 1, def: 3, sup: 1, mor: 2, ab: { fa: 'سپر زاگرس',      kind: 'glory' } },
-  surena: { fa: 'سورنا',      lore: 'سردار مفرغی که روم را لرزاند',        cost: 90,  atk: 3, def: 1, sup: 2, mor: 1, ab: { fa: 'یورش مفرغی',     kind: 'atk' } },
-  bartar: { fa: 'پرویز بتار', lore: 'چشم تیزبین آسمان — استاد یورش پرنده', cost: 90,  atk: 2, def: 1, sup: 3, mor: 1, ab: { fa: 'بال‌های بتار',   kind: 'atk' } },
-  rostam: { fa: 'رستم دستان', lore: 'پهلوان زابل — دیوار زنده‌ی سپاه',      cost: 120, atk: 2, def: 2, sup: 1, mor: 3, ab: { fa: 'پهلوانِ زابل',   kind: 'refund' } },
-  garin:  { fa: 'گارین',      lore: 'مهندس محاصره — شکننده‌ی دیوارها',      cost: 120, atk: 1, def: 2, sup: 3, mor: 1, ab: { fa: 'شکن‌دیوار',      kind: 'atk' } },
-  kaveh:  { fa: 'کاوه آهنگر', lore: 'درفش‌دار قیام — شور سپاه را می‌جوشاند', cost: 160, atk: 2, def: 1, sup: 1, mor: 3, ab: { fa: 'درفش کاویانی',  kind: 'glory' } },
-}
-const WAR_GEN_MAX_BONUS = 0.09 /* سقف سخت بونوس ژنرال در هر سمت */
-/* ================= V105B — حرفه‌ای‌سازی فاز ۱ (همه‌ی اعداد همین‌جا) =================
-   توان فعال: مالکیت + گمارده‌نِ حمله + کول‌داون ۴۲۰ث — اثر داوری‌شده: ضرب حمله/بازگشت هزینه/دون‌برافتخار
-   مثلث کلاسی: پیاده>پرنده>زره‌پوش>توپخانه>پیاده — دریایی/نخبه بی‌طرف — سقف +۵٪
-   نشان یگان: هر یگانِ نشان‌دار +۱٪ قدرت همان سمت با سقف +۵٪ */
-const WAR_AB_COOLDOWN_MS = 420_000
-const WAR_AB_ATK_MULT = 1.08
-const WAR_TRI_BONUS = 0.05
-const WAR_BADGE_STEP = 0.01
-const WAR_BADGE_BONUS_CAP = 0.05
-const WAR_UNIT_POOL = { win: 30, loss: 12 } /* استخر XP یگان در هر نبرد — فقط از نبرد واقعی */
-const TRI_BEATS: Record<string, string> = { infantry: 'air', air: 'armor', armor: 'arty', arty: 'infantry' }
-/* آینه‌ی ARMY_ATK/UNIT_CAPS سمت ذخیره (db/[table]) برای محاسبه‌ی سلطه‌ی کلاس */
-const UNIT_ATK_SRV: Record<string, number> = { infantry: 4, tank: 40, bomber: 300, fighter: 120, heli: 65, missile: 250, drone: 35, transport: 15, destroyer: 180, carrier: 600, immortal: 55 }
-const UNIT_CLS_SRV: Record<string, string> = { infantry: 'infantry', tank: 'armor', transport: 'armor', missile: 'arty', destroyer: 'navy', carrier: 'navy', bomber: 'air', fighter: 'air', heli: 'air', drone: 'air', immortal: 'elite' }
-const CLS_OF_ATK: Record<string, string> = { balanced: 'infantry', blitz: 'air', siege: 'arty', defensive: 'armor', naval: 'navy', air: 'air', economic: 'infantry' }
-const CLS_FA: Record<string, string> = { infantry: 'پیاده', armor: 'زره‌پوش', arty: 'توپخانه', air: 'پرنده', navy: 'دریایی' }
-const WAR_BADGES = [
-  { k: 'novice', fa: 'تازه‌کار', min: 0 },
-  { k: 'vet', fa: 'رزم‌آور', min: 150 },
-  { k: 'elder', fa: 'کهن‌سوار', min: 500 },
-  { k: 'legend', fa: 'افسانه', min: 1200 },
-]
-function badgeOf(xp: number): string { let b = WAR_BADGES[0].fa; for (const x of WAR_BADGES) if (xp >= x.min) b = x.fa; return b }
-async function ensureCareer(userId: string) {
-  return db.warCareer.upsert({ where: { userId }, update: {}, create: { userId } })
-}
-async function careerParse(userId: string) {
-  const row = await ensureCareer(userId)
-  let cx: Record<string, number> = {}
-  try { cx = JSON.parse(row.classXp || '{}') || {} } catch { cx = {} }
-  let gen: WarCareerGen = {}
-  try { gen = JSON.parse(row.generals || '{}') || {} } catch { gen = {} }
-  return { row, cx, gen }
-}
-/* ترکیب واقعی سپاه از ذخیره‌ی سرور (تنها منبع حقیقت) */
-async function unitsOf105(userId: string): Promise<Record<string, number>> {
-  try {
-    const r = await db.save.findUnique({ where: { userId }, select: { state: true } })
-    if (!r) return {}
-    const st = JSON.parse(r.state || '{}') || {}
-    return (st.units && typeof st.units === 'object' && !Array.isArray(st.units)) ? st.units : {}
-  } catch { return {} }
-}
-/* کلاسِ مسلط = بیشترین قدرتِ جمع‌شده (شمارش × آینه‌ی ARMY_ATK) — دریایی/نخبه در سلطه بی‌طرفند */
-function dominantCls105(units: Record<string, number>): string {
-  const pw: Record<string, number> = {}
-  Object.keys(units).forEach((k) => {
-    const c = UNIT_CLS_SRV[k]
-    if (!c || c === 'navy' || c === 'elite') return
-    pw[c] = (pw[c] || 0) + (Number(units[k]) || 0) * (UNIT_ATK_SRV[k] || 0)
-  })
-  let best = '', bv = 0
-  Object.keys(pw).forEach((c) => { if (pw[c] > bv) { bv = pw[c]; best = c } })
-  return best
-}
-function badgeBonus105(n: number): number { return Math.min(WAR_BADGE_BONUS_CAP, n * WAR_BADGE_STEP) }
-/* شمار نشان‌های یگان (رزم‌آور به بالا) از unit_xp فعلی — قبل از رشد این نبرد */
-async function badgeN105(userId: string): Promise<number> {
-  try {
-    const row = await ensureCareer(userId)
-    let ux: Record<string, number> = {}
-    try { ux = JSON.parse((row as unknown as { unitXp?: string }).unitXp || '{}') || {} } catch { ux = {} }
-    let n = 0
-    Object.keys(ux).forEach((k) => { if (Number(ux[k]) >= WAR_BADGES[1].min) n++ })
-    return n
-  } catch { return 0 }
-}
-/* رشد XP یگان‌ها: استخرِ نبرد به کلاسِ دکترینِ همان سمت، وزن‌دهی با سهم قدرت واقعی */
-function unitXpCalc105(ux: Record<string, number>, units: Record<string, number>, cls: string, pool: number): { add: Record<string, number>; share: number; up: string[] } {
-  const share: Record<string, number> = {}
-  let tot = 0
-  Object.keys(units).forEach((k) => {
-    if (UNIT_CLS_SRV[k] !== cls) return
-    const p = (Number(units[k]) || 0) * (UNIT_ATK_SRV[k] || 0)
-    if (p > 0) { share[k] = p; tot += p }
-  })
-  const add: Record<string, number> = {}
-  let top = 0
-  Object.keys(share).forEach((k) => {
-    const g = Math.round(pool * share[k] / (tot || 1))
-    if (g > 0) { add[k] = g; if (g > top) top = g }
-  })
-  const up: string[] = []
-  Object.keys(add).forEach((k) => { if (badgeOf(ux[k] || 0) !== badgeOf((ux[k] || 0) + add[k])) up.push(k) })
-  return { add, share: top, up }
-}
-async function careerUnits105(userId: string, win: boolean, cls: string) {
-  try {
-    const row = await ensureCareer(userId)
-    let ux: Record<string, number> = {}
-    try { ux = JSON.parse((row as unknown as { unitXp?: string }).unitXp || '{}') || {} } catch { ux = {} }
-    const units = await unitsOf105(userId)
-    const pool = win ? WAR_UNIT_POOL.win : WAR_UNIT_POOL.loss
-    const r = unitXpCalc105(ux, units, cls, pool)
-    const merged: Record<string, number> = { ...ux }
-    Object.keys(r.add).forEach((k) => { merged[k] = (merged[k] || 0) + r.add[k] })
-    const badges: Record<string, string> = {}
-    let bn = 0
-    Object.keys(merged).forEach((k) => { badges[k] = badgeOf(merged[k]); if (merged[k] >= WAR_BADGES[1].min) bn++ })
-    await db.warCareer.update({ where: { userId }, data: { unitXp: JSON.stringify(merged) } })
-    return { unit_xp: merged, unit_badges: badges, badge_n: bn, share: r.share, up: r.up }
-  } catch (e) { console.log('cu105', e); return null }
-}
-/* بونوس ژنرال گمارده‌شده — مهارتِ همان سمت ×۳٪ با سقف ۹٪ (هم‌خانواده‌ی بونوس‌های موجود) */
-async function generalBonus(userId: string, slot: 'atk' | 'def'): Promise<{ pct: number; id: string | null }> {
-  try {
-    const c = await careerParse(userId)
-    const gid = slot === 'atk' ? c.gen.atk : c.gen.def
-    if (!gid || !(c.gen.owned || []).includes(gid)) return { pct: 0, id: null }
-    const g = WAR_GENERALS[gid]
-    if (!g) return { pct: 0, id: null }
-    const skill = slot === 'atk' ? g.atk : g.def
-    return { pct: Math.min(WAR_GEN_MAX_BONUS, skill * 0.03), id: gid }
-  } catch { return { pct: 0, id: null } }
-}
-/* پاداش پایان نبرد — فقط از این مسیر؛ XP کلاس بر اساس دکترین انتخابی مهاجم */
-async function careerAward(userId: string, win: boolean, atkType: string | null) {
-  try {
-    const c = await careerParse(userId)
-    const xp = win ? 15 : 6
-    const glory = win ? 12 : 4
-    const cls = (atkType && CLS_OF_ATK[atkType]) || 'infantry'
-    c.cx[cls] = (c.cx[cls] || 0) + (win ? 18 : 8)
-    await db.warCareer.update({
-      where: { userId },
-      data: {
-        xp: c.row.xp + xp, glory: c.row.glory + glory,
-        wins: c.row.wins + (win ? 1 : 0), losses: c.row.losses + (win ? 0 : 1),
-        classXp: JSON.stringify(c.cx),
-      },
-    })
-    return { xp, glory, cls }
-  } catch (e) { console.log('career105', e); return null }
-}
-/* ================= پایان V105 ================= */
 
 /* بسته‌های جم — تنها بخشی که پرداخت واقعی دارد؛ url خالی یعنی «به‌زودی» (هیچ قیمتی سمت کلاینت اعمال نمی‌شود) */
 const SHOP_PACKS = [
@@ -647,6 +555,13 @@ async function shopBuy(userId: string, p_item: string, requestId: string | null)
       } else {
         await shopGrant(userId, def.id, 'shop', def.rar, null, {})
       }
+    } else if (kind === 'stock') {
+      /* V108 — مصرفیِ شمارشی: انبار در WarState.data.stock سمت سرور؛ اثر فقط با war_use_item */
+      const wdef = WAR_ITEMS[def.id]
+      const qty = wdef ? wdef.add : (def.qty || 1)
+      const add = await warStockAdjust(userId, def.id, qty)
+      if (!add.ok) throw new Error('stock_race')
+      reward = { type: 'stock', item: def.id, fa: def.fa, count: add.now }
     } else if (kind === 'mystery') {
       const mdef = SHOP_MYSTERY[def.id]
       if (!mdef) throw new Error('mystery_def_missing')
@@ -683,6 +598,13 @@ async function shopBuy(userId: string, p_item: string, requestId: string | null)
     await db.shopPurchase.create({
       data: { userId, itemId: grantId, price, status: 'ok', provider: kind === 'mystery' ? 'mystery' : 'shop', requestId, meta: JSON.stringify({ kind, reward }) },
     })
+    /* V108 §21 — تله‌متری خرید (fire-and-forget) */
+    {
+      const srv = await warUserServer(userId).catch(() => 1)
+      void telem('shop_item_purchased', userId, srv, def.id, { price, kind })
+      if (def.id === 'war_supply') void telem('war_supply_purchased', userId, srv, def.id, { price })
+      if (def.id.indexOf('tactical_') === 0) void telem('tactical_item_purchased', userId, srv, def.id, { price })
+    }
     /* V88 — اخبار جهانی برای خریدهای اسطوره‌ای (ضد اسپم: فقط mythic) */
     if (def.rar === 'mythic') {
       try {
@@ -706,6 +628,99 @@ async function shopBuy(userId: string, p_item: string, requestId: string | null)
 async function shopServiceExpiry(userId: string, itemId: string): Promise<string | null> {
   const inv = await db.shopInventory.findUnique({ where: { userId_itemId: { userId, itemId } }, select: { expiresAt: true } })
   return inv?.expiresAt ? inv.expiresAt.toISOString() : null
+}
+
+/* ============================================================
+   V108 — پک شروع امپراتور: تایمر/شرایط فقط از سرور.
+   لنگر ۴۸ ساعته = createdAt حساب (زمان ثبت‌نام روی سرور) —
+   پاک‌کردن حافظه/نصب مجدد/تغییر دستگاه/دستکاری ساعتِ دستگاه اثری ندارد.
+   حساب‌های قدیمی = expired از همان ابتدا (پک فقط برای بازیکن تازه).
+   ============================================================ */
+async function starterStateOf(userId: string) {
+  let row = await db.starterOffer.findUnique({ where: { userId } })
+  if (!row) {
+    const u = await db.user.findUnique({ where: { id: userId }, select: { createdAt: true } })
+    try {
+      row = await db.starterOffer.create({ data: { userId, startedAt: u?.createdAt || new Date() } })
+    } catch {
+      row = (await db.starterOffer.findUnique({ where: { userId } }))!
+    }
+  }
+  const endsAt = row.startedAt.getTime() + STARTER_PACK.windowMs
+  const purchasedAt = row.purchasedAt
+  const phase: 'offer' | 'expired' | 'purchased' = purchasedAt ? 'purchased' : Date.now() <= endsAt ? 'offer' : 'expired'
+  return { row, startedAt: row.startedAt, endsAt, purchasedAt, phase }
+}
+
+function starterContents() {
+  return {
+    gems: STARTER_PACK.gems,
+    gold: STARTER_PACK.gold,
+    oil: STARTER_PACK.oil,
+    food: STARTER_PACK.food,
+    boost_min: Math.round(STARTER_PACK.boostMs / 60_000),
+    war_supply: STARTER_PACK.warSupply,
+    tax_instant: STARTER_PACK.taxInstant,
+    cosmetics: STARTER_PACK.grants.map((g) => ({ id: g.id, fa: g.fa, ic: g.ic })),
+  }
+}
+
+/* V108 §11 — درزِ راستی‌آزمایی پرداخت واقعی.
+   - myket:  فعال با MYKET_CLIENT_ID/MYKET_CLIENT_SECRET (+MYKET_PACKAGE) — IAB v2 verify.
+   - zarinpal: فعال با ZARINPAL_MERCHANT_ID — verify با authority.
+   - sandbox: فقط سرور تستی/ادمین (QA) — روی سرور واقعی هرگز گرنت نمی‌دهد.
+   بدون اعتبار محیط، پاسخ صادقانه‌ی provider_unavailable است — هیچ خرید فیک اتفاق نمی‌افتد. */
+async function verifyProviderReceipt(provider: string, receipt: string, user: { id: string; isAdmin: boolean }): Promise<{ ok: true; txId: string } | { ok: false; error: string }> {
+  if (!provider) return { ok: false, error: 'provider' }
+  if (!receipt) return { ok: false, error: 'receipt' }
+  if (provider === 'sandbox') {
+    const srv = await warUserServer(user.id).catch(() => 1)
+    const tests = await testSrvsGet()
+    if (!user.isAdmin && !tests.includes(srv)) return { ok: false, error: 'provider_unavailable' }
+    if (!/^SBX-[A-Za-z0-9-]{6,80}$/.test(receipt)) return { ok: false, error: 'receipt' }
+    return { ok: true, txId: receipt }
+  }
+  if (provider === 'myket') {
+    const cid = process.env.MYKET_CLIENT_ID
+    const sec = process.env.MYKET_CLIENT_SECRET
+    if (!cid || !sec) return { ok: false, error: 'provider_unavailable' }
+    const pkg = process.env.MYKET_PACKAGE || 'ir.worlddominion.game'
+    try {
+      const auth = 'Basic ' + Buffer.from(cid + ':' + sec).toString('base64')
+      const sku = 'emperor_starter'
+      const res = await fetch(`https://developer.myket.ir/api/application/${encodeURIComponent(pkg)}/purchases/${sku}/tokens/${encodeURIComponent(receipt)}`, {
+        headers: { Authorization: auth },
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!res.ok) return { ok: false, error: res.status === 404 ? 'receipt' : 'provider_error' }
+      const j = (await res.json()) as { purchaseState?: number; consumptionState?: number; orderId?: string }
+      if (j.purchaseState !== 0) return { ok: false, error: 'receipt_state' }
+      if (j.consumptionState === 1) return { ok: false, error: 'receipt_consumed' }
+      return { ok: true, txId: 'MYK-' + (j.orderId || receipt) }
+    } catch {
+      return { ok: false, error: 'provider_error' }
+    }
+  }
+  if (provider === 'zarinpal') {
+    const mid = process.env.ZARINPAL_MERCHANT_ID
+    if (!mid) return { ok: false, error: 'provider_unavailable' }
+    try {
+      const res = await fetch('https://payment.zarinpal.com/pg/v4/payment/verify.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ merchant_id: mid, amount: STARTER_PACK.priceToman * 10, authority: receipt }),
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!res.ok) return { ok: false, error: 'provider_error' }
+      const j = (await res.json()) as { data?: { code?: number; ref_id?: number } }
+      const code = j?.data?.code
+      if (code !== 100 && code !== 101) return { ok: false, error: code === 101 ? 'receipt_consumed' : 'receipt' }
+      return { ok: true, txId: 'ZAR-' + (j.data?.ref_id || receipt) }
+    } catch {
+      return { ok: false, error: 'provider_error' }
+    }
+  }
+  return { ok: false, error: 'provider' }
 }
 
 
@@ -1173,6 +1188,15 @@ async function addNews(server: number, action: string, country: string | null, a
       if (old.length) await db.worldNews.deleteMany({ where: { id: { in: old.map((r) => r.id) } } })
     }
   } catch (e) { console.log('addNews', e) }
+}
+
+/* V108 §21 — رصد/مشاهده‌پذیری: رویدادهای سرور (نمایش/خرید/استفاده) با فراخوانی
+   fire-and-forget و try/catch — هیچ‌وقت مسیر اصلی خرید/جنگ را نمی‌شکند.
+   کلیدهای مجاز بسته‌اند؛ هیچ داده‌ی حساس شخصی ذخیره نمی‌شود. */
+async function telem(key: string, userId: string | null, server: number, itemId: string | null, meta: Record<string, unknown> = {}) {
+  try {
+    await db.telemEvent.create({ data: { key, userId, server, itemId, meta: JSON.stringify(meta) } })
+  } catch (e) { console.log('telem', key, e) }
 }
 
 async function ensureWallet(userId: string) {
@@ -1769,8 +1793,6 @@ async function freezeDiscipline(edition: number, key: string) {
     for (let i = 0; i < finals.length; i++) {
       try {
         await db.olympicResult.create({ data: { edition, discipline: key, rank: i + 1, userId: finals[i].userId, nick: finals[i].nick, country: null, countryFa: finals[i].countryFa, score: finals[i].score } })
-        /* V95 — دستاورد المپیاد از سکوی واقعی */
-        try { await grantAch(finals[i].userId, finals[i].nick, i === 0 ? 'oly_gold' : 'oly_medal', 0) } catch { /* noop */ }
       } catch (e) {
         const c = (e as { code?: string })?.code
         if (c !== 'P2002') console.log('freeze', e)
@@ -1785,8 +1807,6 @@ async function freezeDiscipline(edition: number, key: string) {
   for (let i = 0; i < rows.length; i++) {
     try {
       await db.olympicResult.create({ data: { edition, discipline: key, rank: i + 1, userId: rows[i].userId, nick: rows[i].nick, country: rows[i].country, countryFa: rows[i].countryFa, score: rows[i].best } })
-      /* V95 — دستاورد المپیاد از سکوی واقعی */
-      try { await grantAch(rows[i].userId, rows[i].nick, i === 0 ? 'oly_gold' : 'oly_medal', 0) } catch { /* noop */ }
     } catch (e) {
       const c = (e as { code?: string })?.code
       if (c !== 'P2002') console.log('freeze', e)
@@ -2380,352 +2400,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         return R({ ok: true, days: Object.entries(byDay).map(([day, v]) => ({ day, users: v.n, avg: Math.round(v.sum / v.n), min: v.min, worst: v.eng })).sort((a, b) => a.day.localeCompare(b.day)) })
       }
-
-      /* ================================================================
-         V95 — SOCIAL & PLAYER IDENTITY V1
-         presence زنده / رجیستری سرور / پروفایل / دوستان / مسدودسازی /
-         پیام خصوصی / اعلان‌ها / دستاوردها. همه‌ی مسیرها سشن‌محورند؛
-         هیچ فیلد هویتی حساسی (email/IP) در خروجی نیست.
-         ================================================================ */
-      /* V95 — رجیستری سرورها + وضعیت زنده (کارت‌های انتخاب سرور) */
-      case 'wd_servers': {
-        let srvs = await db.gameServer.findMany({ orderBy: { id: 'asc' } })
-        if (srvs.length < 5) {
-          const DEF = ['سرور ۱', 'سرور ۲', 'سرور ۳', 'سرور ۴', 'سرور ۵']
-          for (let i = 1; i <= 5; i++) {
-            if (!srvs.find((s) => s.id === i)) { try { await db.gameServer.create({ data: { id: i, name: DEF[i - 1], status: 'online' } }) } catch { /* race-safe */ } }
-          }
-          srvs = await db.gameServer.findMany({ orderBy: { id: 'asc' } })
-        }
-        const stats = await db.serverStat.findMany()
-        const stMap: Record<number, { taken: number; players: number }> = {}
-        for (const s of stats) stMap[s.server] = { taken: s.taken, players: s.players }
-        const onl = await onlineByServer()
-        const SRV_CAPV = 80
-        const out = srvs.slice(0, 12).map((s) => {
-          const st = stMap[s.id] || { taken: 0, players: 0 }
-          const online = onl[s.id] || 0
-          let status = s.status === 'maintenance' ? 'maintenance' : (st.players >= SRV_CAPV || online >= SRV_CAPV ? 'full' : (online >= 15 || st.players >= Math.round(SRV_CAPV * 0.7) ? 'busy' : 'online'))
-          return { server: s.id, name: s.name, status, online, players: st.players, taken: st.taken, cap: SRV_CAPV }
-        })
-        return R({ ok: true, servers: out })
-      }
-      /* V95 — ضربان حضور: هر ۴۵ ثانیه از کلاینت؛ خروجی = شمارش آنلاین واقعی */
-      case 'wd_presence': {
-        const server = Math.max(1, Math.min(50, Number(args.p_server) || 1))
-        const status = String(args.p_status) === 'idle' ? 'idle' : 'online'
-        const now = new Date()
-        await db.presence.upsert({
-          where: { userId: user.id },
-          create: { userId: user.id, server, nick: user.nick, status, lastSeen: now },
-          update: { server, nick: user.nick, status, lastSeen: now },
-        })
-        presenceSweep()
-        const onl = await onlineByServer()
-        let total = 0
-        for (const k of Object.keys(onl)) total += onl[Number(k)] || 0
-        /* V97 — فهرست بازیکنان آنلاینِ همین سرور (فیلد افزودنی؛ کلاینت‌های قدیمی نادیده می‌گیرند) */
-        const players = await onlinePlayersByServer(server)
-        return R({ ok: true, online: onl[server] || 0, total, players, servers: Object.keys(onl).map((k) => ({ server: Number(k), online: onl[Number(k)] })) })
-      }
-      /* V95 — پروفایل بازیکن: تجمیع از داده‌های واقعی سرور — بدون email/IP */
-      case 'wd_profile': {
-        const hasArgs = (args.p_uid != null && String(args.p_uid).trim() !== '') || (args.p_nick != null && String(args.p_nick).trim() !== '')
-        /* V95fix: سشن فقط id/nick دارد — برای self هم رکورد کامل کاربر از DB (createdAt لازم است) */
-        const tu = hasArgs ? await resolveSocialTarget(args.p_uid, args.p_nick) : await db.user.findUnique({ where: { id: user.id } })
-        if (!tu) return R({ ok: false, error: 'no_user' })
-        const server = Math.max(1, Math.min(50, Number(args.p_server) || 1))
-        const [prof, score, pres, hof, ally, achs, terrs] = await Promise.all([
-          db.playerProfile.findUnique({ where: { userId: tu.id } }),
-          db.score.findUnique({ where: { userId: tu.id } }),
-          db.presence.findUnique({ where: { userId: tu.id } }),
-          db.hofTitle.findMany({ where: { userId: tu.id }, orderBy: { earnedAt: 'desc' } }),
-          db.allianceMember.findUnique({ where: { userId: tu.id } }),
-          db.userTrophy.findMany({ where: { userId: tu.id }, orderBy: { at: 'desc' } }),
-          db.territory.findMany({ where: { userId: tu.id, server }, orderBy: [{ isCapital: 'desc' }], take: 20 }),
-        ])
-        /* رتبه‌های سه‌گانه — هر سه فقط از داده‌ی سرور */
-        let mRank: number | null = null, eRank: number | null = null
-        if (score) {
-          const sc = Math.max(1, score.server || 1)
-          mRank = (await db.score.count({ where: { server: sc, score: { gt: score.score } } })) + 1
-          eRank = (await db.score.count({ where: { server: sc, economy: { gt: score.economy } } })) + 1
-        }
-        const mAll = await db.olympicResult.count({ where: { userId: tu.id } })
-        const mGold = await db.olympicResult.count({ where: { userId: tu.id, rank: 1 } })
-        let oRank: number | null = null
-        const champAgg = await db.olympicChampion.aggregate({ where: { userId: tu.id, server }, _sum: { golds: true } })
-        const myChampGolds = champAgg._sum.golds || 0
-        if (myChampGolds > 0) {
-          const champs = await db.olympicChampion.groupBy({ by: ['userId'], where: { server, userId: { not: tu.id } }, _sum: { golds: true } })
-          oRank = champs.filter((c) => (c._sum.golds || 0) > myChampGolds).length + 1
-        }
-        /* حضور: 🟢 آنلاین / 🟡 بی‌کار / 🔴 آفلاین */
-        let pstate: 'online' | 'idle' | 'offline' = 'offline'
-        if (pres) {
-          const age = Date.now() - new Date(pres.lastSeen).getTime()
-          if (age <= 90_000 && pres.status === 'online') pstate = 'online'
-          else if (age <= 600_000) pstate = 'idle'
-        }
-        /* نردبان لقب — همان آستانه‌های کلاینت، این‌بار سمت سرور */
-        const LADDER: Array<[number, string]> = [[0, '🎖️ آغازگر'], [3, '🥉 فرمانده'], [6, '🥈 سردار'], [10, '🥇 فتحگر'], [15, '💎 فتحگر بزرگ'], [22, '👑 امپراتور'], [30, '🌐 سایه‌ی جهان'], [40, '👑 فرمانروای زمین']]
-        const conq = score ? score.conquered : 0
-        const ladder = LADDER[0]
-        for (const l of LADDER) if (conq >= l[0]) { ladder[0] = l[0]; ladder[1] = l[1] }
-        const nextL = LADDER.find((l) => l[0] > conq) || null
-        /* اتحاد */
-        let alliance: { name: string; tag: string; role: string } | null = null
-        if (ally) {
-          const a = await db.alliance.findUnique({ where: { id: ally.allianceId } })
-          if (a) alliance = { name: a.name, tag: a.tag, role: ally.role }
-        }
-        /* رابطه با من (فقط برای پروفایل دیگران) */
-        let relation: Record<string, unknown> | null = null
-        if (tu.id !== user.id) {
-          const [f1, f2, b1, b2] = await Promise.all([
-            db.friendLink.findUnique({ where: { userId_friendId: { userId: user.id, friendId: tu.id } } }),
-            db.friendLink.findUnique({ where: { userId_friendId: { userId: tu.id, friendId: user.id } } }),
-            db.blockLink.findUnique({ where: { userId_blockedId: { userId: user.id, blockedId: tu.id } } }),
-            db.blockLink.findUnique({ where: { userId_blockedId: { userId: tu.id, blockedId: user.id } } }),
-          ])
-          relation = {
-            friend: f1?.status === 'accepted' || f2?.status === 'accepted' ? 'accepted' : (f1?.status === 'pending' ? 'pending_out' : (f2?.status === 'pending' ? 'pending_in' : 'none')),
-            blocked: !!b1,
-            blocked_me: !!b2,
-          }
-        }
-        return R({
-          ok: true,
-          self: tu.id === user.id,
-          uid: tu.id,
-          nick: tu.nick,
-          joined: tu.createdAt.toISOString(),
-          bio: prof ? prof.bio : '',
-          presence: { state: pstate, at: pres ? pres.lastSeen.toISOString() : null },
-          server: score ? Math.max(1, score.server || 1) : server,
-          stats: score ? { conquered: score.conquered, score: score.score, kills: score.kills, economy: score.economy, recruits: score.recruits } : { conquered: 0, score: 0, kills: 0, economy: 0, recruits: 0 },
-          ranks: { military: mRank, economy: eRank, olympics: oRank },
-          olympics: { medals: mAll, golds: mGold },
-          ladder: { title: ladder[1], next: nextL ? { at: nextL[0], title: nextL[1] } : null },
-          hof: hof.map((h) => ({ category: h.category, fa: h.detail, value: h.value, earned_at: h.earnedAt.toISOString() })),
-          alliance,
-          relation,
-          achievements: achs.map((a) => ({ key: a.key, cat: a.category || 'special', at: a.at.toISOString() })),
-          countries: terrs.map((t) => ({ country: t.country, capital: t.isCapital })),
-        })
-      }
-      /* V95 — ویرایش پروفایل خودم (فقط بیو؛ بدون هیچ فیلد جعلی دیگر) */
-      case 'wd_profile_set': {
-        const bio = cleanBody(args.p_bio, 160)
-        await db.playerProfile.upsert({
-          where: { userId: user.id },
-          create: { userId: user.id, bio, server: Math.max(1, Number(args.p_server) || 1) },
-          update: { bio },
-        })
-        grantAch(user.id, user.nick, 'so_profile', 1)
-        return R({ ok: true })
-      }
-      /* ---------------- V95 — دوستان ---------------- */
-      case 'wd_friend_add': {
-        const tu = await resolveSocialTarget(args.p_uid, args.p_nick)
-        if (!tu) return R({ ok: false, error: 'no_user' })
-        if (tu.id === user.id) return R({ ok: false, error: 'self' })
-        const fc = await db.friendLink.count({ where: { userId: user.id, status: 'accepted' } })
-        if (fc >= 100) return R({ ok: false, error: 'cap' })
-        const [b1, b2] = await Promise.all([
-          db.blockLink.findUnique({ where: { userId_blockedId: { userId: tu.id, blockedId: user.id } } }),
-          db.blockLink.findUnique({ where: { userId_blockedId: { userId: user.id, blockedId: tu.id } } }),
-        ])
-        if (b1 || b2) return R({ ok: false, error: 'blocked' })
-        const mine = await db.friendLink.findUnique({ where: { userId_friendId: { userId: user.id, friendId: tu.id } } })
-        if (mine?.status === 'accepted') return R({ ok: true, status: 'accepted' })
-        if (mine?.status === 'pending') return R({ ok: true, status: 'pending' })
-        const theirs = await db.friendLink.findUnique({ where: { userId_friendId: { userId: tu.id, friendId: user.id } } })
-        if (theirs?.status === 'pending') {
-          /* دوطرفه — درخواست متقابل = دوستی برقرار */
-          await db.$transaction([
-            db.friendLink.update({ where: { id: theirs.id }, data: { status: 'accepted' } }),
-            db.friendLink.upsert({ where: { userId_friendId: { userId: user.id, friendId: tu.id } }, create: { userId: user.id, friendId: tu.id, status: 'accepted' }, update: { status: 'accepted' } }),
-          ])
-          await notify(tu.id, 1, 'friend', '🤝 دوستی برقرار شد', user.nick + ' اکنون دوست توست.', user.id)
-          grantAch(user.id, user.nick, 'so_friend', 1)
-          grantAch(tu.id, tu.nick, 'so_friend', 1)
-          return R({ ok: true, status: 'accepted' })
-        }
-        await db.friendLink.create({ data: { userId: user.id, friendId: tu.id, status: 'pending' } })
-        await notify(tu.id, 1, 'friend', '🤝 درخواست دوستی', user.nick + ' درخواست دوستی فرستاد.', user.id)
-        return R({ ok: true, status: 'pending' })
-      }
-      case 'wd_friend_ok': {
-        const wid = String(args.p_uid || '')
-        const theirs = await db.friendLink.findUnique({ where: { userId_friendId: { userId: wid, friendId: user.id } } })
-        if (!theirs || theirs.status !== 'pending') return R({ ok: false, error: 'no_req' })
-        const tu = await db.user.findUnique({ where: { id: wid } })
-        if (!tu) return R({ ok: false, error: 'no_user' })
-        await db.$transaction([
-          db.friendLink.update({ where: { id: theirs.id }, data: { status: 'accepted' } }),
-          db.friendLink.upsert({ where: { userId_friendId: { userId: user.id, friendId: wid } }, create: { userId: user.id, friendId: wid, status: 'accepted' }, update: { status: 'accepted' } }),
-        ])
-        await notify(wid, 1, 'friend', '🤝 دوستی برقرار شد', user.nick + ' درخواست تو را پذیرفت.', user.id)
-        grantAch(user.id, user.nick, 'so_friend', 1)
-        grantAch(wid, tu.nick, 'so_friend', 1)
-        return R({ ok: true })
-      }
-      case 'wd_friend_del': {
-        const wid = String(args.p_uid || '')
-        await db.friendLink.deleteMany({ where: { OR: [{ userId: user.id, friendId: wid }, { userId: wid, friendId: user.id }] } })
-        return R({ ok: true })
-      }
-      case 'wd_friends': {
-        const [rows, reqs] = await Promise.all([
-          db.friendLink.findMany({ where: { userId: user.id, status: 'accepted' }, orderBy: { createdAt: 'asc' }, take: 100 }),
-          db.friendLink.findMany({ where: { friendId: user.id, status: 'pending' }, orderBy: { createdAt: 'desc' }, take: 50 }),
-        ])
-        const ids = [...new Set([...rows.map((r) => r.friendId), ...reqs.map((r) => r.userId)])]
-        const [us, pres, scores] = await Promise.all([
-          ids.length ? db.user.findMany({ where: { id: { in: ids } }, select: { id: true, nick: true } }) : Promise.resolve([]),
-          ids.length ? db.presence.findMany({ where: { userId: { in: ids } } }) : Promise.resolve([]),
-          ids.length ? db.score.findMany({ where: { userId: { in: ids } }, select: { userId: true, conquered: true, server: true } }) : Promise.resolve([]),
-        ])
-        const nickOf: Record<string, string> = {}
-        for (const u of us) nickOf[u.id] = u.nick
-        const stOf: Record<string, { state: string }> = {}
-        for (const p of pres) {
-          const age = Date.now() - new Date(p.lastSeen).getTime()
-          stOf[p.userId] = { state: age <= 90_000 && p.status === 'online' ? 'online' : (age <= 600_000 ? 'idle' : 'offline') }
-        }
-        const cOf: Record<string, { conquered: number; server: number }> = {}
-        for (const s of scores) cOf[s.userId] = { conquered: s.conquered, server: Math.max(1, s.server || 1) }
-        return R({
-          ok: true,
-          friends: rows.map((r) => ({ uid: r.friendId, nick: nickOf[r.friendId] || '—', presence: (stOf[r.friendId] || { state: 'offline' }).state, conquered: (cOf[r.friendId] || { conquered: 0 }).conquered, server: (cOf[r.friendId] || { server: 1 }).server })),
-          requests: reqs.map((r) => ({ uid: r.userId, nick: nickOf[r.userId] || '—', at: r.createdAt.toISOString() })),
-        })
-      }
-      /* ---------------- V95 — مسدودسازی (اجرا در سرور) ---------------- */
-      case 'wd_block_add': {
-        const tu = await resolveSocialTarget(args.p_uid, args.p_nick)
-        if (!tu) return R({ ok: false, error: 'no_user' })
-        if (tu.id === user.id) return R({ ok: false, error: 'self' })
-        await db.blockLink.upsert({ where: { userId_blockedId: { userId: user.id, blockedId: tu.id } }, create: { userId: user.id, blockedId: tu.id }, update: {} })
-        await db.friendLink.deleteMany({ where: { OR: [{ userId: user.id, friendId: tu.id }, { userId: tu.id, friendId: user.id }] } })
-        return R({ ok: true })
-      }
-      case 'wd_block_del': {
-        const wid = String(args.p_uid || '')
-        await db.blockLink.deleteMany({ where: { userId: user.id, blockedId: wid } })
-        return R({ ok: true })
-      }
-      case 'wd_blocks': {
-        const rows = await db.blockLink.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 100 })
-        const ids = rows.map((r) => r.blockedId)
-        const us = ids.length ? await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, nick: true } }) : []
-        const nickOf: Record<string, string> = {}
-        for (const u of us) nickOf[u.id] = u.nick
-        return R({ ok: true, blocks: rows.map((r) => ({ uid: r.blockedId, nick: nickOf[r.blockedId] || '—' })) })
-      }
-      /* ---------------- V95 — پیام خصوصی ---------------- */
-      case 'wd_dm_send': {
-        const tu = await resolveSocialTarget(args.p_to, args.p_to_nick)
-        if (!tu) return R({ ok: false, error: 'no_user' })
-        if (tu.id === user.id) return R({ ok: false, error: 'self' })
-        const body = cleanBody(args.p_body, 500)
-        if (!body) return R({ ok: false, error: 'empty' })
-        const [b1, b2] = await Promise.all([
-          db.blockLink.findUnique({ where: { userId_blockedId: { userId: tu.id, blockedId: user.id } } }),
-          db.blockLink.findUnique({ where: { userId_blockedId: { userId: user.id, blockedId: tu.id } } }),
-        ])
-        if (b1) return R({ ok: false, error: 'blocked' })
-        if (b2) return R({ ok: false, error: 'you_blocked' })
-        const server = Math.max(1, Math.min(50, Number(args.p_server) || 1))
-        const row = await db.privateMsg.create({ data: { server, senderId: user.id, receiverId: tu.id, body } })
-        await notify(tu.id, server, 'dm', '✉️ پیام از ' + user.nick, body.slice(0, 80), user.id, true)
-        grantAch(user.id, user.nick, 'so_dm', server)
-        return R({ ok: true, id: row.id, at: row.createdAt.toISOString() })
-      }
-      case 'wd_dm_threads': {
-        const mine = await db.privateMsg.findMany({ where: { OR: [{ senderId: user.id }, { receiverId: user.id }] }, orderBy: { createdAt: 'desc' }, take: 400 })
-        const lastBy: Record<string, { body: string; at: string }> = {}
-        const unreadBy: Record<string, number> = {}
-        for (const m of mine) {
-          const partner = m.senderId === user.id ? m.receiverId : m.senderId
-          if (!lastBy[partner]) lastBy[partner] = { body: m.body, at: m.createdAt.toISOString() }
-          if (m.senderId !== user.id && !m.readAt) unreadBy[partner] = (unreadBy[partner] || 0) + 1
-        }
-        const ids = Object.keys(lastBy).slice(0, 30)
-        if (!ids.length) return R({ ok: true, threads: [] })
-        const [us, pres] = await Promise.all([
-          db.user.findMany({ where: { id: { in: ids } }, select: { id: true, nick: true } }),
-          db.presence.findMany({ where: { userId: { in: ids } } }),
-        ])
-        const nickOf: Record<string, string> = {}
-        for (const u of us) nickOf[u.id] = u.nick
-        const stOf: Record<string, string> = {}
-        for (const p of pres) {
-          const age = Date.now() - new Date(p.lastSeen).getTime()
-          stOf[p.userId] = age <= 90_000 && p.status === 'online' ? 'online' : (age <= 600_000 ? 'idle' : 'offline')
-        }
-        const threads = ids.map((uid) => ({ uid, nick: nickOf[uid] || '—', last: lastBy[uid].body, at: lastBy[uid].at, unread: unreadBy[uid] || 0, presence: stOf[uid] || 'offline' }))
-        threads.sort((a, b) => (a.at < b.at ? 1 : -1))
-        return R({ ok: true, threads })
-      }
-      case 'wd_dm_thread': {
-        const wid = String(args.p_with || '')
-        if (!wid) return R({ ok: false, error: 'no_user' })
-        const tu = await db.user.findUnique({ where: { id: wid }, select: { id: true, nick: true } })
-        if (!tu) return R({ ok: false, error: 'no_user' })
-        const rows = await db.privateMsg.findMany({
-          where: { OR: [{ senderId: user.id, receiverId: wid }, { senderId: wid, receiverId: user.id }] },
-          orderBy: { createdAt: 'desc' },
-          take: Math.min(80, Math.max(10, Number(args.p_limit) || 60)),
-        })
-        rows.reverse()
-        await db.privateMsg.updateMany({ where: { senderId: wid, receiverId: user.id, readAt: null }, data: { readAt: new Date() } })
-        const pres = await db.presence.findUnique({ where: { userId: wid } })
-        let pstate: string = 'offline'
-        if (pres) {
-          const age = Date.now() - new Date(pres.lastSeen).getTime()
-          pstate = age <= 90_000 && pres.status === 'online' ? 'online' : (age <= 600_000 ? 'idle' : 'offline')
-        }
-        return R({ ok: true, nick: tu.nick, presence: pstate, messages: rows.map((m) => ({ id: m.id, out: m.senderId === user.id, body: m.body, at: m.createdAt.toISOString(), /* V95: دریافتی‌ها با همین فراخوانی خوانده شدند؛ ارسالی = گیرنده خوانده؟ */ read: m.senderId === user.id ? !!m.readAt : true })) })
-      }
-      /* ---------------- V95 — اعلان‌ها ---------------- */
-      case 'wd_notify': {
-        const [rows, unread] = await Promise.all([
-          db.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 40 }),
-          db.notification.count({ where: { userId: user.id, readAt: null } }),
-        ])
-        return R({ ok: true, unread, items: rows.map((n) => ({ id: n.id, kind: n.kind, title: n.title, body: n.body, ref: n.refId, at: n.createdAt.toISOString(), read: !!n.readAt })) })
-      }
-      case 'wd_notify_read': {
-        if (args.p_id != null && String(args.p_id) !== '') {
-          await db.notification.updateMany({ where: { id: Math.round(Number(args.p_id) || 0), userId: user.id, readAt: null }, data: { readAt: new Date() } })
-        } else {
-          await db.notification.updateMany({ where: { userId: user.id, readAt: null }, data: { readAt: new Date() } })
-        }
-        return R({ ok: true })
-      }
-      /* V95 — بج‌ها در یک فراخوان (نظرسنجی ۳۰ثانیه‌ای واحد) */
-      case 'wd_badges': {
-        const [dm, nt, fr] = await Promise.all([
-          db.privateMsg.count({ where: { receiverId: user.id, readAt: null } }),
-          db.notification.count({ where: { userId: user.id, readAt: null } }),
-          db.friendLink.count({ where: { friendId: user.id, status: 'pending' } }),
-        ])
-        return R({ ok: true, dm, nt, fr })
-      }
-      /* V95 — کاتالوگ دستاوردها + وضعیت من (کاملاً سمت سرور) */
-      case 'wd_achievements': {
-        const mine = await db.userTrophy.findMany({ where: { userId: user.id } })
-        const earned: Record<string, string> = {}
-        for (const t of mine) earned[t.key] = t.at.toISOString()
-        return R({
-          ok: true,
-          cats: ACH_CAT_FA,
-          catalog: ACH_CATALOG.map((a) => ({ key: a.key, fa: a.fa, d: a.d, cat: a.cat, ico: a.ico })),
-          earned,
-        })
-      }
       case 'get_wallet': {
         const serverW = Math.max(1, Number(args.p_server) || 1)
         const { w, granted, vipGranted } = await dailyBonus(user.id)
@@ -2755,8 +2429,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
            قیمت/موجودیت/مالکیت/پنجره/قرعه فقط سمت سرور؛ کلاینت فقط p_item می‌فرستد.
            p_request_id اختیاری: Idempotency ضد دبل-پرداخت (کلاینت UUID یک‌بارمصرف می‌سازد). */
         const rb = await shopBuy(user.id, String(args.p_item || ''), args.p_request_id ? String(args.p_request_id).slice(0, 80) : null)
-        /* V95 — دستاورد اولین خرید (فقط خرید واقعی موفق، نه پاسخ تکراری idempotency) */
-        if (rb && rb.ok && !(rb as { duplicate?: boolean }).duplicate) { try { await grantAch(user.id, user.nick, 'sp_shop', 1) } catch { /* noop */ } }
         return R(rb)
       }
 
@@ -2765,6 +2437,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const { w } = await dailyBonus(user.id)
         const inv = await shopOwnedRows(user.id)
         const nowC = Date.now()
+        /* V108 — وضعیت پک شروع (فقط برای حساب‌های تازه‌ی در پنجره فعال می‌شود) */
+        const stC = await starterStateOf(user.id)
+        const starterBlock = {
+          phase: stC.phase,
+          ends_in_ms: stC.phase === 'offer' ? Math.max(0, stC.endsAt - nowC) : 0,
+          price_fa: STARTER_PACK.priceFa,
+          price_toman: STARTER_PACK.priceToman,
+          contents: starterContents(),
+        }
         return R({
           ok: true,
           items: SHOP_ITEMS.filter((x) => !x.hidden).map((x) => ({
@@ -2779,7 +2460,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             odds: m.tiers.map((t) => ({ pct: Math.round((t.w / m.tiers.reduce((a, q) => a + q.w, 0)) * 100), kind: t.kind, min: t.min || null, max: t.max || null, fa: t.fa, items: t.ids || [] })),
           }])),
           wallet: { gems: w.gems, boost_until: w.boostUntil ? w.boostUntil.toISOString() : null, vip_until: w.vipUntil ? w.vipUntil.toISOString() : null },
-          war_cfg: { atk_types: ATK_TYPES, orders: WAR_ORDERS, intel_fa: WAR_INTEL_FA, supply_max: SUPPLY_MAX, regen_ms: SUPPLY_REGEN_MS },
+          war_cfg: { atk_types: ATK_TYPES, orders: WAR_ORDERS, intel_fa: WAR_INTEL_FA, supply_max: SUPPLY_MAX, regen_ms: SUPPLY_REGEN_MS, war_items: WAR_ITEMS },
+          /* V108 — پک شروع امپراتور: وضعیت فقط از سرور */
+          starter: starterBlock,
           season: shopSeasonSlug(),
           now: nowC,
           owned: inv.map((r) => ({ item_id: r.itemId, source: r.source, rarity: r.rarity, expires_at: r.expiresAt ? r.expiresAt.toISOString() : null, created_at: r.createdAt.toISOString() })),
@@ -2838,10 +2521,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           supply: Math.max(0, Math.min(SUPPLY_MAX, Math.round(data.supply || SUPPLY_MAX))),
           supply_max: SUPPLY_MAX,
           atk_type: data.atkt || 'balanced',
-          fx: (data.fx || []).filter((f) => f.until > now).map((f) => ({ k: f.k, until: f.until })),
+          fx: (data.fx || []).filter((f) => f.until > now).map((f) => ({ k: f.k, until: f.until, data: f.data || null })),
           cd: Object.fromEntries(Object.entries(data.cd || {}).filter(([, t]) => t > now)),
           blk: Object.fromEntries(Object.entries(data.blk || {}).filter(([, t]) => t > now)),
           slots: inv.length ? 2 : 1,
+          /* V108 — انبار شمارشی + پیکربندی نمایشی (عدد واقعی همیشه سرور) */
+          stock: Object.fromEntries(Object.entries(data.stock || {}).filter(([, n]) => n > 0)),
+          war_items: WAR_ITEMS,
           cfg: { atk_types: ATK_TYPES, orders: WAR_ORDERS, intel_fa: WAR_INTEL_FA },
         })
       }
@@ -2965,6 +2651,251 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         await db.specialUse.create({ data: { userId: user.id, item: suKey } }).catch(() => {})
         return R({ ok: true, report: rep })
       }
+      /* ---------------- V108 — WAR ITEMS V1: استفاده‌ی سرور-مأخذ از انبار ----------------
+         کلاینت فقط p_item/p_target می‌فرستد؛ مالکیت/موجودی/هدف/کول‌داون/سقف/مقاومت/
+         افکت/اخبار — همه سمت سرور. هیچ کسری از کلاینت قابل اعتماد نیست. */
+      case 'war_use_item': {
+        if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' })
+        const item = String(args.p_item || '')
+        const wdef = WAR_ITEMS[item]
+        if (!wdef) return R({ ok: false, error: 'item' })
+        const nowU = Date.now()
+
+        /* ۱) هدف و حفاظت‌ها — قبل از هر کسری */
+        let targetUid: string | null = null
+        let targetNick = ''
+        if (wdef.target) {
+          targetNick = String(args.p_target || '').trim()
+          if (!targetNick) return R({ ok: false, error: 'target' })
+          const tu = await db.user.findFirst({ where: { nickLower: targetNick.toLowerCase() }, select: { id: true, nick: true, createdAt: true } })
+          if (!tu || tu.id === user.id) return R({ ok: false, error: 'target' })
+          targetUid = tu.id
+          targetNick = tu.nick
+          if (Date.now() - tu.createdAt.getTime() < PROTECTION_MIN_AGE_MS) return R({ ok: false, error: 'protected' })
+          /* ضد سوءاستفاده‌ی اتحاد: عضو همان اتحاد هدف نمی‌شود */
+          try {
+            const myAl = await db.allianceMember.findFirst({ where: { userId: user.id }, select: { allianceId: true } })
+            if (myAl) {
+              const tgAl = await db.allianceMember.findFirst({ where: { userId: tu.id, allianceId: myAl.allianceId }, select: { id: true } })
+              if (tgAl) return R({ ok: false, error: 'alliance' })
+            }
+          } catch (e) { console.log('wi_all', e) }
+        }
+
+        /* ۲) موجودی انبار سرور */
+        const myRow = await warStateRow(user.id)
+        const myData = warParse(myRow.data)
+        if (((myData.stock || {})[item] || 0) < 1) return R({ ok: false, error: 'stock' })
+
+        /* ۳) کول‌داون استفاده */
+        const cdAt = (myData.cd || {})[item] || 0
+        if (nowU < cdAt) return R({ ok: false, error: 'cd', cd_ms: cdAt - nowU })
+
+        /* ۴) سقف روزانه (ضد آزار هدف — حتی با انبار پر) */
+        const dayStartU = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z')
+        const usedToday = await db.specialUse.count({ where: { userId: user.id, item: 'wi_' + item, usedAt: { gte: dayStartU } } })
+        if (usedToday >= wdef.dailyCap) return R({ ok: false, error: 'cap', cap: wdef.dailyCap })
+
+        /* ۵) مقاومت پلکانی هدف (§8) — ضربه‌ی ۴ به بعد تا پایان پنجره بی‌اثر و رد می‌شود */
+        let step = 0
+        let mult = 1
+        if (wdef.resist && targetUid) {
+          const tRow0 = await warStateRow(targetUid)
+          const tData0 = warParse(tRow0.data)
+          const r0 = (tData0.res || {})[item]
+          const inWindow = r0 && r0.until > nowU
+          const n = inWindow ? Math.min(r0.n, WAR_RESIST_STEPS.length - 1) : 0
+          mult = WAR_RESIST_STEPS[n]
+          step = n
+          if (mult === 0) return R({ ok: false, error: 'resistant', until: r0.until })
+        }
+
+        /* ۶) مصرف اتمیک از انبار (قفل خوش‌بینانه) */
+        const take = await warStockAdjust(user.id, item, -1)
+        if (!take.ok || take.now < 0) return R({ ok: false, error: 'stock' })
+
+        /* ۷) اعمال افکت — خطا = بازگشت کامل موجودی (rollback) */
+        try {
+          const effKey = wdef.fxKey || item
+          const untilU = nowU + Math.max(30_000, Math.round(wdef.dur * mult))
+          const pct = wdef.defPct ? Math.round(wdef.defPct * mult * 10) / 10 : 0
+          if (targetUid) {
+            /* نوشتن محافظت‌شده روی WarState هدف: fx + res در یک تراکنش JSON */
+            let applied = false
+            for (let attempt = 0; attempt < 4 && !applied; attempt++) {
+              const tRow = await warStateRow(targetUid)
+              const raw = tRow.data
+              const tData = warParse(raw)
+              tData.fx = (tData.fx || []).filter((f) => f.k !== effKey)
+              tData.fx.push({ k: effKey, until: untilU, data: pct ? { pct, by: user.nick, step } : { by: user.nick, step } })
+              if (wdef.resist) {
+                const rPrev = (tData.res || {})[item]
+                const rN = rPrev && rPrev.until > nowU ? rPrev.n + 1 : 1
+                tData.res = { ...(tData.res || {}), [item]: { n: Math.min(rN, WAR_RESIST_STEPS.length), until: nowU + WAR_RESIST_WINDOW_MS } }
+              }
+              const upd = await db.warState.updateMany({ where: { userId: targetUid, data: raw }, data: { data: JSON.stringify(tData) } })
+              if (upd.count === 1) applied = true
+            }
+            if (!applied) throw new Error('fx_race')
+          } else {
+            /* خود-افکت (جمر) — روی WarState خودم؛ بدون مقاومت */
+            const mine = await warStateOf(user.id)
+            mine.data.fx = (mine.data.fx || []).filter((f) => f.k !== effKey)
+            mine.data.fx.push({ k: effKey, until: untilU, data: { by: user.nick } })
+            await warStateSave(user.id, mine.data)
+          }
+
+          /* ۷الف) ضربه‌ی دقیق: سطح یک استحکامات فعال هدف −۱ (هرگز زیر ۱ — سقف آسیب) */
+          let fortHit: { name: string; level: number } | null = null
+          if (item === 'tactical_precision' && targetUid && mult > 0) {
+            try {
+              const fort = await db.cvBuilding.findFirst({ where: { userId: targetUid, type: 'fort', status: 'active', level: { gt: 1 } }, orderBy: { level: 'desc' } })
+              if (fort) {
+                const upd = await db.cvBuilding.updateMany({ where: { id: fort.id, level: { gt: 1 } }, data: { level: { decrement: 1 } } })
+                if (upd.count === 1) fortHit = { name: String(fort.province ?? '') || String(fort.slot ?? ''), level: fort.level - 1 }
+              }
+            } catch (e) { console.log('wi_fort', e) }
+          }
+
+          /* ۸) کول‌داون + مصرف روزانه + اخبار + دفتر نبرد + تله‌متری */
+          const mine2 = await warStateRow(user.id)
+          const md = warParse(mine2.data)
+          md.cd = { ...(md.cd || {}), [item]: nowU + wdef.cd }
+          await warStateSave(user.id, md)
+          await db.specialUse.create({ data: { userId: user.id, item: 'wi_' + item } }).catch(() => {})
+          const newsAct = { tactical_emp: 'war_emp', tactical_jammer: 'war_jam', tactical_precision: 'war_precision', tactical_defbreak: 'war_defbreak', tactical_cyber: 'war_cyber' }[item] || 'war_item'
+          const srvU = await warUserServer(user.id).catch(() => 1)
+          try { await addNews(srvU, newsAct, null, user.nick, targetNick || user.nick) } catch (e) {}
+          try { await db.battleLog.create({ data: { server: srvU, kind: item, country: '', attacker: user.nick, defender: targetNick || user.nick, win: true } }) } catch (e) {}
+          void telem('tactical_item_used', user.id, srvU, item, { target: targetNick || null, step, mult })
+          if (item === 'tactical_emp') void telem('emp_used', user.id, srvU, item, { step })
+          if (item === 'tactical_jammer') void telem('jammer_used', user.id, srvU, item, {})
+          if (item === 'tactical_precision') void telem('precision_used', user.id, srvU, item, { step, fort: !!fortHit })
+          if (item === 'tactical_defbreak') void telem('defense_breaker_used', user.id, srvU, item, { step })
+          if (item === 'tactical_cyber') void telem('cyber_disruption_used', user.id, srvU, item, { step })
+
+          return R({
+            ok: true, item, stock: take.now,
+            target: targetNick || null, fx: effKey, dur_ms: Math.round(wdef.dur * mult),
+            step, mult, pct, fort_hit: fortHit,
+            cd_until: nowU + wdef.cd, next_ok: new Date(nowU + wdef.cd).toISOString(),
+          })
+        } catch (e) {
+          /* rollback: افکت ثبت نشد → موجودی برمی‌گردد */
+          await warStockAdjust(user.id, item, 1).catch(() => {})
+          return R({ ok: false, error: 'race' })
+        }
+      }
+
+      /* V108 — استفاده از تدارک جنگی: تبدیل انبار → لجستیک زنده (سقف ۱۰۰ سرور) */
+      case 'war_supply_use': {
+        const rowS = await warStateRow(user.id)
+        const dS = warParse(rowS.data)
+        const haveStock = (dS.stock || {}).war_supply || 0
+        if (haveStock < 1) return R({ ok: false, error: 'stock' })
+        const live = await warStateOf(user.id)
+        const room = Math.max(0, Math.floor(SUPPLY_MAX - (live.data.supply || 0)))
+        if (room < 1) return R({ ok: false, error: 'full', supply: Math.round(live.data.supply || 0) })
+        const useN = Math.min(haveStock, room)
+        const take = await warStockAdjust(user.id, 'war_supply', -useN)
+        if (!take.ok) return R({ ok: false, error: 'race' })
+        const after = await warStateOf(user.id)
+        after.data.supply = Math.min(SUPPLY_MAX, (after.data.supply || 0) + useN)
+        await warStateSave(user.id, after.data)
+        const srvS = await warUserServer(user.id).catch(() => 1)
+        void telem('war_supply_used', user.id, srvS, 'war_supply', { used: useN })
+        return R({ ok: true, used: useN, supply: Math.round(after.data.supply), stock: take.now, supply_max: SUPPLY_MAX })
+      }
+
+      /* ---------------- V108 — پک شروع امپراتور (سرور-مأخذ) ---------------- */
+      case 'starter_state': {
+        const st = await starterStateOf(user.id)
+        /* تله‌متری نمایش — فقط وقتی پیشنهاد واقعاً فعال است و حداقل ۱۰ دقیقه از آخرین نمایش گذشته باشد */
+        if (st.phase === 'offer') {
+          const rowV = await db.starterOffer.findUnique({ where: { userId: user.id }, select: { lastViewAt: true, viewCount: true } })
+          if (!rowV?.lastViewAt || Date.now() - rowV.lastViewAt.getTime() > 10 * 60_000) {
+            await db.starterOffer.update({ where: { userId: user.id }, data: { viewCount: { increment: 1 }, lastViewAt: new Date() } }).catch(() => {})
+            const srvV = await warUserServer(user.id).catch(() => 1)
+            void telem('starter_offer_viewed', user.id, srvV, 'emperor_starter', {})
+          }
+        }
+        return R({
+          ok: true, phase: st.phase,
+          ends_in_ms: st.phase === 'offer' ? Math.max(0, st.endsAt - Date.now()) : 0,
+          purchased_at: st.purchasedAt ? st.purchasedAt.toISOString() : null,
+          price_fa: STARTER_PACK.priceFa,
+          price_toman: STARTER_PACK.priceToman,
+          contents: starterContents(),
+          /* ارزش نمایشی فقط از قیمت واقعی پک‌های جم محاسبه می‌شود (ضد قیمت جعلی) */
+          value_note: STARTER_PACK.gems + ' جم — ارزش جم بر اساس نرخ بهترین بسته‌ی واقعی فروشگاه',
+        })
+      }
+
+      case 'starter_claim': {
+        const provider = String(args.p_provider || '')
+        const receipt = String(args.p_receipt || '').slice(0, 200)
+        const requestId = args.p_request_id ? String(args.p_request_id).slice(0, 80) : null
+        /* ۱) Idempotency — همان درخواست = همان پاسخ، بدون گرنت دوباره */
+        if (requestId) {
+          const prior = await db.shopPurchase.findFirst({ where: { userId: user.id, requestId, status: 'ok' }, orderBy: { createdAt: 'desc' } })
+          if (prior) return R({ ok: true, duplicate: true, item_id: 'emperor_starter', gems: (await ensureWallet(user.id)).gems })
+        }
+        /* ۲) راستی‌آزمایی پرداخت واقعی (مایکت/زارین‌پال) — بدون اعتبار محیط، صادقانه رد می‌شود */
+        const ver = await verifyProviderReceipt(provider, receipt, user)
+        if (!ver.ok) return R({ ok: false, error: ver.error })
+        const txId = ver.txId
+        /* ۳) ضد پخش مجدد رسید — requestId = شناسه‌ی تراکنش (یکتا به‌ازای هر کاربر)؛
+              پخش مجدد رسیدِ مصرف‌شده = duplicate:true (نه خرید دوم، نه خطای مبهم) */
+        const finalReq = txId || requestId
+        if (finalReq) {
+          const dup = await db.shopPurchase.findFirst({ where: { userId: user.id, requestId: finalReq, status: 'ok' } })
+          if (dup) return R({ ok: true, duplicate: true, item_id: 'emperor_starter', gems: (await ensureWallet(user.id)).gems })
+        }
+        /* ۴) شرایط — تایمر و وضعیت فقط از StarterOffer سرور */
+        const st = await starterStateOf(user.id)
+        if (st.purchasedAt) return R({ ok: false, error: 'purchased' })
+        if (st.phase !== 'offer') return R({ ok: false, error: 'expired' })
+        /* ۵) گرنت اتمیک همه‌ی محتویات — هر خطا = هیچ */
+        try {
+          const nowC = Date.now()
+          await ensureWallet(user.id)
+          await warStateRow(user.id)
+          const out = await db.$transaction(async (tx) => {
+            const claim = await tx.starterOffer.updateMany({ where: { userId: user.id, purchasedAt: null }, data: { purchasedAt: new Date(), provider, txId } })
+            if (claim.count === 0) return { fail: 'purchased' as const }
+            const w0 = await tx.wallet.findUnique({ where: { userId: user.id }, select: { boostUntil: true } })
+            const baseB = w0?.boostUntil && w0.boostUntil.getTime() > nowC ? w0.boostUntil.getTime() : nowC
+            await tx.wallet.update({ where: { userId: user.id }, data: { gems: { increment: STARTER_PACK.gems }, boostUntil: new Date(baseB + STARTER_PACK.boostMs) } })
+            for (const g of STARTER_PACK.grants) {
+              await tx.shopInventory.upsert({ where: { userId_itemId: { userId: user.id, itemId: g.id } }, update: {}, create: { userId: user.id, itemId: g.id, source: 'starter', rarity: 'legendary', meta: JSON.stringify({ from: 'emperor_starter' }) } })
+            }
+            /* تدارک جنگی پک — داخل همان تراکنش (خواندن/نوشتن JSON گارد‌شده) */
+            const wRow = await tx.warState.findUnique({ where: { userId: user.id }, select: { data: true } })
+            const wd = warParse(wRow?.data || '{}')
+            wd.stock = { ...(wd.stock || {}), war_supply: ((wd.stock || {}).war_supply || 0) + STARTER_PACK.warSupply }
+            await tx.warState.upsert({ where: { userId: user.id }, update: { data: JSON.stringify(wd) }, create: { userId: user.id, data: JSON.stringify(wd) } })
+            await tx.shopPurchase.create({ data: { userId: user.id, itemId: 'emperor_starter', price: 0, currency: 'toman', status: 'ok', provider, requestId: finalReq, meta: JSON.stringify({ kind: 'starter', resources: { gold: STARTER_PACK.gold, oil: STARTER_PACK.oil, food: STARTER_PACK.food }, war_supply: STARTER_PACK.warSupply, boost_ms: STARTER_PACK.boostMs }) } })
+            return { ok: true as const }
+          })
+          if ('fail' in out) return R({ ok: false, error: out.fail })
+          const nw = await ensureWallet(user.id)
+          const srvC = await warUserServer(user.id).catch(() => 1)
+          void telem('starter_offer_purchased', user.id, srvC, 'emperor_starter', { provider })
+          try { await addNews(srvC, 'starter_purchased', null, user.nick, 'پک شروع امپراتور') } catch (e) {}
+          return R({
+            ok: true, item_id: 'emperor_starter', gems: nw.gems,
+            boost_until: nw.boostUntil ? nw.boostUntil.toISOString() : null,
+            resources: { gold: STARTER_PACK.gold, oil: STARTER_PACK.oil, food: STARTER_PACK.food },
+            tax_instant: STARTER_PACK.taxInstant,
+            war_supply: STARTER_PACK.warSupply,
+            grants: STARTER_PACK.grants.map((g) => ({ id: g.id, fa: g.fa, ic: g.ic })),
+          })
+        } catch (e) {
+          console.log('starter_claim', e)
+          return R({ ok: false, error: 'grant_failed' })
+        }
+      }
+
       case 'trophy_list': {
         /* تروفی فقط از داده‌ی واقعی سرور — هیچ ورودی کلاینت پذیرفته نمی‌شود */
         const defs: { key: string; fa: string; ic: string; d: string }[] = [
@@ -3150,13 +3081,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           },
         })
         if (gamesPhase().phase === 'live' && (await evOn('olympic')) && !duel) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک — با خاموشی المپیک توسط ادمین لغو می‌شود */
-        /* V98 — صلح مقدس نوآموزان: ۴۸ ساعت اول ثبت‌نام هیچ حمله‌ای (به/از) ممکن نیست؛
-           دوئر رسمیِ توافقی (duel زنده) مستثناست — همان الگوی آتش‌بس المپیک */
-        if (!duel) {
-          const ages98 = await db.user.findMany({ where: { id: { in: [user.id, t.userId] } }, select: { id: true, createdAt: true } })
-          const now98 = Date.now()
-          if (ages98.some((u) => now98 - new Date(u.createdAt).getTime() < 48 * 3600 * 1000)) return R({ ok: false, error: 'peace' })
-        }
         /* ---------------- V75 — P4: هزینه‌ی واقعی حمله + کول‌داون سرور ----------------
            تا V74 حمله برای مهاجم رایگان بود؛ حالا:
            ۱) کول‌داون ۱۰ثانیه‌ای per-user (ضد اسپم حمله)
@@ -3210,52 +3134,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           cvDefPct = (await cvMilBonus(t.userId, country)).defPct
           if (cvDefPct > 0) d = Math.max(1, Math.round(d * (1 + cvDefPct / 100)))
         } catch (e) { console.log('cvmil', e) }
-        /* V105 فتح‌نامه: بونوس ژنرال‌های گمارده‌شده (سرور-محور، سقف ۹٪ هر سمت) */
-        let genAtkId105: string | null = null, genDefId105: string | null = null
-        try {
-          const ga105 = await generalBonus(user.id, 'atk')
-          if (ga105.pct > 0) { a = Math.round(a * (1 + ga105.pct)); genAtkId105 = ga105.id }
-          const gd105 = await generalBonus(t.userId, 'def')
-          if (gd105.pct > 0) { d = Math.max(1, Math.round(d * (1 + gd105.pct))); genDefId105 = gd105.id }
-        } catch (e) { console.log('gen105', e) }
-        /* ================= V105B — توان فعال ژنرال + مثلث کلاسی + نشان یگان‌ها ================= */
-        let genAb105: { id: string; fa: string; kind: string } | null = null
-        let tri105: { a: string; d: string; win: boolean } | null = null
-        let genGloryX2105 = false
-        let badgeA105 = 0, badgeD105 = 0
-        try {
-          const pGen105 = String(args.p_gen || '')
-          if (pGen105) {
-            const cb = await careerParse(user.id)
-            const gidB = cb.gen.atk
-            if (gidB && gidB === pGen105 && (cb.gen.owned || []).includes(gidB)) {
-              const gB = WAR_GENERALS[gidB]
-              if (gB && gB.ab && Date.now() - Number(cb.gen.ab_at || 0) >= WAR_AB_COOLDOWN_MS) {
-                genAb105 = { id: gidB, fa: gB.ab.fa, kind: gB.ab.kind }
-                await db.warCareer.update({ where: { userId: user.id }, data: { generals: JSON.stringify({ ...cb.gen, ab_at: Date.now() }) } })
-                if (gB.ab.kind === 'atk') a = Math.round(a * WAR_AB_ATK_MULT)
-                if (gB.ab.kind === 'glory') genGloryX2105 = true
-              }
-            }
-          }
-          /* مثلث تسلط از ترکیب واقعی هر دو سپاه — سقف +۵٪، دریایی/نخبه بی‌طرف */
-          const uaB = await unitsOf105(user.id), udB = await unitsOf105(t.userId)
-          const caB = dominantCls105(uaB), cdB = dominantCls105(udB)
-          if (caB && cdB) {
-            const atkWinsB = TRI_BEATS[caB] === cdB
-            tri105 = { a: caB, d: cdB, win: atkWinsB }
-            if (atkWinsB) a = Math.round(a * (1 + WAR_TRI_BONUS))
-            else if (TRI_BEATS[cdB] === caB) d = Math.max(1, Math.round(d * (1 + WAR_TRI_BONUS)))
-          }
-          /* نشان یگان‌ها — تا +۵٪ هر سمت (از unit_xp قبل از رشد این نبرد) */
-          const bnaB = await badgeN105(user.id)
-          if (bnaB > 0) a = Math.round(a * (1 + badgeBonus105(bnaB)))
-          badgeA105 = bnaB
-          const bndB = await badgeN105(t.userId)
-          if (bndB > 0) d = Math.max(1, Math.round(d * (1 + badgeBonus105(bndB))))
-          badgeD105 = bndB
-        } catch (e) { console.log('wd105b', e) }
-        /* ================= پایان V105B ================= */
         /* ================= V88 — WAR DEPTH (فقط وقتی کلاینت جدید p_atk_type بفرستد) =================
            دکترین حمله جای تاکتیک را می‌گیرد (تک‌منبع — بدون دوبار جمع‌شدن بونوس).
            همه‌ی اعداد سمت سرور؛ سقف سخت بونوس جم‌محور = +۲۲٪ کل. صفر instant-win. */
@@ -3304,6 +3182,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             const dfx88 = warFxOf(dState.data, now88)
             if (dfx88.edef) { const pct = Number((dfx88.edef.data || {}).pct) || 15; d = Math.max(1, Math.round(d * (1 + pct / 100))); fxUsed88.push('def_edef') }
             if (dfx88.sabotaged) { d = Math.max(1, Math.round(d * 0.94)); fxUsed88.push('def_sabotaged') }
+            /* V108 — سلاح‌های تاکتیکی روی مدافع: EMP (آمادگی −۱۵٪ سقف‌دار پلکانی) + شکستن دفاع (۱۰۰٪→۸۰٪).
+               هرگز صفر نمی‌شوند؛ مقاومت پلکانی هدف در war_use_item اعمال شده و این‌جا فقط اثر خوانده می‌شود. */
+            if (dfx88.emp) { const ep = Math.min(15, Number((dfx88.emp.data || {}).pct) || 0); if (ep > 0) { d = Math.max(1, Math.round(d * (1 - ep / 100))); fxUsed88.push('def_emp') } }
+            if (dfx88.defbreak) { const dp = Math.min(20, Number((dfx88.defbreak.data || {}).pct) || 0); if (dp > 0) { d = Math.max(1, Math.round(d * (1 - dp / 100))); fxUsed88.push('def_defbreak') } }
           } catch (e) { console.log('war88def', e) }
           if (AT.defDown) { d = Math.max(1, Math.round(d * (1 - AT.defDown))); fxUsed88.push('eco_pressure') }
           if (AT.blockTarget) {
@@ -3341,72 +3223,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         /* V34: battle log feeds the 48h war-heatmap layer */
         try { await db.battleLog.create({ data: { server, kind: 'attack', country, attacker: user.nick, defender: t.nick, win } }) } catch (e) { console.log('blog', e) }
-        /* V105 فتح‌نامه: کارنامه‌ی لشکر — XP/افتخار/XP کلاس برای مهاجم و مدافع */
-        let career105: { xp: number; glory: number; cls: string; share?: number; up?: string[]; badge_a?: number } | null = null
-        try {
-          career105 = await careerAward(user.id, win, atk88)
-          const clsU = (career105 && career105.cls) || 'infantry'
-          const cuA = await careerUnits105(user.id, win, clsU)
-          if (cuA && career105) career105 = { ...career105, share: cuA.share, up: cuA.up, badge_a: cuA.badge_n }
-          const dDom = tri105 ? tri105.d : 'infantry'
-          try { await careerUnits105(t.userId, !win, dDom) } catch (e) { console.log('cu105d', e) }
-          /* دون‌بر شدن افتخار با توان «شکوه» — فقط یک‌بار، صادقانه در payload */
-          if (genGloryX2105 && career105 && win) {
-            try { await db.warCareer.update({ where: { userId: user.id }, data: { glory: { increment: career105.glory } } }) } catch (e) { console.log('glx2', e) }
-            career105 = { ...career105, glory: career105.glory * 2 }
-          }
-          /* بازگشت هزینه‌ی حمله با توان «پهلوان» — بعد از داوری، برد یا باخت */
-          if (genAb105 && genAb105.kind === 'refund') {
-            try { await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) + PVP_ATTACK.costGold; r.oil = resNum(r.oil) + PVP_ATTACK.costOil }) } catch (e) { console.log('ref105', e) }
-          }
-        } catch (e) { console.log('caw105', e) }
-        /* SOCIAL V1 — نوتیف حمله به مدافع (رویداد واقعی) + دستاوردهای جنگی fire-and-forget */
-        try { notify(t.userId, server, 'attack', win ? ('⚔️ کشور ' + country + ' سقوط کرد') : ('🛡️ دفاع موفق در ' + country), win ? (user.nick + ' کشور تو را تصرف کرد') : (user.nick + ' به ' + country + ' حمله کرد و شکست خورد')) } catch (e) { console.log('soc-att', e) }
         /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
            defense/captured — before this it always computed 0% and 60% losses and
            syncTerr deleted the just-won territory */
-        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88, career: career105, gen_atk: genAtkId105, gen_def: genDefId105, gen_ab: genAb105, tri: tri105, badge_a: badgeA105, badge_d: badgeD105 })
-      }
-      /* ================= V105 فتح‌نامه: ژنرال‌ها + کارنامه ================= */
-      case 'war_generals': {
-        const c105 = await careerParse(user.id)
-        const badges105: Record<string, string> = {}
-        for (const k of Object.keys(CLS_FA)) badges105[k] = badgeOf(c105.cx[k] || 0)
-        let uxW: Record<string, number> = {}
-        try { uxW = JSON.parse((c105.row as unknown as { unitXp?: string }).unitXp || '{}') || {} } catch { uxW = {} }
-        const ubW: Record<string, string> = {}
-        let bnW = 0
-        Object.keys(uxW).forEach((k) => { ubW[k] = badgeOf(uxW[k]); if (uxW[k] >= WAR_BADGES[1].min) bnW++ })
-        return R({
-          ok: true, glory: c105.row.glory, xp: c105.row.xp, wins: c105.row.wins, losses: c105.row.losses,
-          class_xp: c105.cx, class_fa: CLS_FA, badges: badges105,
-          unit_xp: uxW, unit_badges: ubW, badge_n: bnW,
-          ab_cd: { at: Number(c105.gen.ab_at || 0), ms: WAR_AB_COOLDOWN_MS },
-          generals: WAR_GENERALS, owned: c105.gen.owned || [], assigned: { atk: c105.gen.atk || null, def: c105.gen.def || null },
-        })
-      }
-      case 'war_general_op': {
-        const op105 = String(args.p_op || '')
-        const gid105 = String(args.p_id || '')
-        const g105 = WAR_GENERALS[gid105]
-        if (!g105) return R({ ok: false, error: 'id' })
-        const c105 = await careerParse(user.id)
-        const owned105 = c105.gen.owned || []
-        if (op105 === 'hire') {
-          if (owned105.includes(gid105)) return R({ ok: false, error: 'owned' })
-          if (c105.row.glory < g105.cost) return R({ ok: false, error: 'glory', need: g105.cost, have: c105.row.glory })
-          owned105.push(gid105)
-          await db.warCareer.update({ where: { userId: user.id }, data: { glory: c105.row.glory - g105.cost, generals: JSON.stringify({ ...c105.gen, owned: owned105 }) } })
-          return R({ ok: true, hired: gid105, glory_left: c105.row.glory - g105.cost })
-        }
-        if (op105 === 'assign' || op105 === 'unassign') {
-          const slot105 = String(args.p_slot || '') === 'def' ? 'def' : 'atk'
-          if (op105 === 'assign' && !owned105.includes(gid105)) return R({ ok: false, error: 'not_owned' })
-          const gen105next: WarCareerGen = { ...c105.gen, owned: owned105, [slot105]: op105 === 'assign' ? gid105 : null }
-          await db.warCareer.update({ where: { userId: user.id }, data: { generals: JSON.stringify(gen105next) } })
-          return R({ ok: true, [op105 === 'assign' ? 'assigned' : 'unassigned']: slot105, id: gid105 })
-        }
-        return R({ ok: false, error: 'op' })
+        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88 })
       }
       case 'pvp_capture_territory': {
         if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
@@ -3427,17 +3247,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         lastCapture.set(user.id, now)
         const r = await transferTerritory(server, country, user.id, user.nick)
         /* V58: تصرف سرزمین آزاد هم فوراً در رتبه‌بندی دیده شود */
-        if (r.ok) {
-          try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: 1000 } } }) } catch (e) { console.log('capscore', e) }
-          /* V95 — دستاوردهای نظامی از شمارش واقعی قلمرو */
-          try {
-            const c95 = await territoryCount(user.id, server)
-            if (c95 >= 1) await grantAch(user.id, user.nick, 'm_cap1', server)
-            if (c95 >= 10) await grantAch(user.id, user.nick, 'm_cap10', server)
-            if (c95 >= 25) await grantAch(user.id, user.nick, 'm_cap25', server)
-            if (c95 >= 50) await grantAch(user.id, user.nick, 'm_cap50', server)
-          } catch (e) { console.log('capach', e) }
-        }
+        if (r.ok) { try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: 1000 } } }) } catch (e) { console.log('capscore', e) } }
         return R(r.ok)
       }
 
@@ -3534,14 +3344,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           ['electionWinner', () => db.electionWinner.deleteMany({})],
           ['mentorOffer', () => db.mentorOffer.deleteMany({})],
           ['mentorLink', () => db.mentorLink.deleteMany({})],
-          /* SOCIAL V1 — جداول اجتماعی هم در ریست کامل صفر می‌شوند */
-          ['presence', () => db.presence.deleteMany({})],
-          ['playerProfile', () => db.playerProfile.deleteMany({})],
-          ['friendLink', () => db.friendLink.deleteMany({})],
-          ['blockLink', () => db.blockLink.deleteMany({})],
-          ['privateMsg', () => db.privateMsg.deleteMany({})],
-          ['notification', () => db.notification.deleteMany({})],
-          ['gameServer', () => db.gameServer.deleteMany({})],
           ['allianceMember', () => db.allianceMember.deleteMany({})],
           ['alliance', () => db.alliance.deleteMany({})],
           ['hofTitle', () => db.hofTitle.deleteMany({})],
@@ -3693,6 +3495,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       case 'trade_offer_create': {
         const server = Math.max(1, Number(args.p_server) || 1)
         const giveRes = String(args.p_give_res || ''), wantRes = String(args.p_want_res || '')
+        /* V108 — اختلال سایبری: یک عملیات اقتصادی (ساخت پیشنهاد بازار) موقتاً کند/مسدود می‌شود.
+           هیچ منبعی حذف/دزدیده نمی‌شود — فقط توقف موقت سمت سرور. */
+        try {
+          const myW = await warStateOf(user.id)
+          if (warFxOf(myW.data, Date.now()).cyberdis) return R({ ok: false, reason: 'cyber_disrupted' })
+        } catch (e) { console.log('wi_cyber', e) }
         const giveQty = Math.round(Number(args.p_give_qty) || 0), wantQty = Math.round(Number(args.p_want_qty) || 0)
         if (!TRADE_RES.has(giveRes) || !TRADE_RES.has(wantRes) || giveRes === wantRes || giveQty < 10 || wantQty < 10)
           return R({ ok: false, reason: 'bad' })
@@ -4296,8 +4104,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
               actClear: actClear.join(','),
             },
           })
-          /* V95 — دستاورد بوکس از بردِ واقعی اعتبارسنجی‌شده */
-          if (win) { try { await grantAch(user.id, user.nick, 'oly_boxer', 0) } catch { /* noop */ } }
         } else if (kindB === 'train') {
           const type = String(pB.type || '')
           if (['reaction', 'power', 'stamina', 'defense'].indexOf(type) < 0) return R({ ok: false, reason: 'type' })
@@ -5016,8 +4822,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         try {
           const a = await db.alliance.create({ data: { server, name, tag, ownerUid: user.id, ownerNick: user.nick } })
           await db.allianceMember.create({ data: { allianceId: a.id, userId: user.id, nick: user.nick, role: 'owner' } })
-          /* V95 — دستاورد ساختن اتحاد */
-          try { await grantAch(user.id, user.nick, 'al_join', 1) } catch { /* noop */ }
           await addNews(server, 'alliance_new', null, name + ' [' + tag + ']', user.nick)
           return R({ ok: true, id: a.id, tag })
         } catch (e) {
@@ -5069,8 +4873,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           if (c === 'P2002') return R({ ok: false, error: 'member' })
           throw e
         }
-        /* V95 — دستاورد پیوستن به اتحاد */
-        try { await grantAch(user.id, user.nick, 'al_join', 1) } catch { /* noop */ }
         await addNews(server, 'alliance_join', null, user.nick, a.tag)
         return R({ ok: true, tag: a.tag })
       }
@@ -5106,26 +4908,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       case 'get_world_chat': {
         const server = Number(args.p_server || 1)
         const limit = Math.min(200, Math.max(1, Number(args.p_limit || 100)))
-        /* V95 — مسدودسازی سمت سرور در چت جهانی: پیام‌های افرادِ مسدودشده‌ی من حذف می‌شوند */
-        let blk95: string[] = []
-        const blockof95 = args.p_blockof ? String(args.p_blockof) : ''
-        if (blockof95) {
-          try { blk95 = (await db.blockLink.findMany({ where: { userId: blockof95 }, select: { blockedId: true } })).map((b) => b.blockedId) } catch { /* noop */ }
-        }
-        const rows = await db.worldChat.findMany({ where: blk95.length ? { server, userId: { notIn: blk95 } } : { server }, orderBy: { createdAt: 'desc' }, take: limit })
-        /* V95 unif — نشانگر حضور زنده‌ی فرستنده‌ها (online|idle|offline) برای ردیف‌های چت */
-        const st95: Record<string, string> = {}
-        if (rows.length) {
-          const pres95 = await db.presence.findMany({ where: { userId: { in: Array.from(new Set(rows.map((r) => r.userId))) }, lastSeen: { gt: new Date(Date.now() - 600_000) } }, select: { userId: true, status: true, lastSeen: true } })
-          const now95 = Date.now()
-          for (const pp of pres95) st95[pp.userId] = now95 - new Date(pp.lastSeen).getTime() <= 90_000 && pp.status === 'online' ? 'online' : 'idle'
-        }
+        const rows = await db.worldChat.findMany({ where: { server }, orderBy: { createdAt: 'desc' }, take: limit })
         return R(rows.map((r) => ({
           user_id: r.userId,
           nick: r.nick,
           message: r.message,
           created_at: r.createdAt.toISOString(),
-          state: st95[r.userId] || 'offline',
         })))
       }
 
@@ -5405,8 +5193,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
                 create: { server, category: d.cat, userId: d.w.uid, nick: d.w.nick, value: d.w.v, detail: d.fa, earnedAt: new Date() },
                 update: { userId: d.w.uid, nick: d.w.nick, value: d.w.v, detail: d.fa, earnedAt: new Date() },
               })
-              /* V95 — دستاورد لقب تالار افتخارات */
-              try { await grantAch(d.w.uid, d.w.nick, 'gl_hof', server) } catch { /* noop */ }
               if (prev) await addNews(server, 'hof_new', d.cat, d.w.nick, prev.nick)
               else await addNews(server, 'hof_new', d.cat, d.w.nick, null)
             }

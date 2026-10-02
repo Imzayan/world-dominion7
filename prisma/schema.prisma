@@ -21,22 +21,22 @@ model User {
   isAdmin      Boolean  @default(false) @map("is_admin")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  save        Save?
-  score       Score?
-  wallet      Wallet?
-  sessions    Session[]
-  territories Territory[]
-  grants      AdminGrant[]
-  weeklyClaims WeeklyClaim[]
-  chatMessages WorldChat[]
-  passes       SeasonPass[]
-  abuseReports AbuseReport[] @relation("AbuseReports")
+  save          Save?
+  score         Score?
+  wallet        Wallet?
+  sessions      Session[]
+  territories   Territory[]
+  grants        AdminGrant[]
+  weeklyClaims  WeeklyClaim[]
+  chatMessages  WorldChat[]
+  passes        SeasonPass[]
+  abuseReports  AbuseReport[]   @relation("AbuseReports")
   shopPurchases ShopPurchase[]
-  shopInventory  ShopInventory[]
+  shopInventory ShopInventory[]
+  perfDaily     PerfDaily[]
+  starterOffer  StarterOffer?
 
   @@map("users")
-  perfDaily PerfDaily[]
-  warCareer WarCareer?
 }
 
 model Session {
@@ -87,9 +87,9 @@ model ServerStat {
 model Territory {
   server    Int
   country   String
-  userId    String  @map("user_id")
+  userId    String   @map("user_id")
   nick      String
-  isCapital Boolean @default(false) @map("is_capital")
+  isCapital Boolean  @default(false) @map("is_capital")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -128,35 +128,41 @@ model WorldChat {
 }
 
 model WorldNews {
-  id        Int      @id @default(autoincrement())
-  server    Int
-  action    String
-  country   String?
-  actorNick String?  @map("actor_nick")
-  targetNick String? @map("target_nick")
-  createdAt DateTime @default(now()) @map("created_at")
+  id         Int      @id @default(autoincrement())
+  server     Int
+  action     String
+  country    String?
+  actorNick  String?  @map("actor_nick")
+  targetNick String?  @map("target_nick")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([server, createdAt])
   @@map("world_news")
 }
 
 model Wallet {
-  userId    String    @id @map("user_id")
-  gems      Int       @default(0)
+  userId     String    @id @map("user_id")
+  gems       Int       @default(0)
   boostUntil DateTime? @map("boost_until")
-  lastDaily DateTime? @map("last_daily")
-  /* V66 Shop V2 — VIP سمت سرور (تک‌منبع اعتبار VIP) */
-  vipUntil  DateTime? @map("vip_until")
-  /* V86 — پاداش یک‌بارمصرف عضویت در کانال تلگرام (ادعای تکراری با updateMany اتمی رد می‌شود) */
-  tgBonus   Boolean   @default(false) @map("tg_bonus")
+  lastDaily  DateTime? @map("last_daily")
+  /**
+   * V66 Shop V2 — VIP سمت سرور (تک‌منبع اعتبار VIP)
+   */
+  vipUntil   DateTime? @map("vip_until")
+  /**
+   * V86 — پاداش یک‌بارمصرف عضویت در کانال تلگرام (ادعای تکراری با updateMany اتمی رد می‌شود)
+   */
+  tgBonus    Boolean   @default(false) @map("tg_bonus")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("wallets")
 }
 
-/* V66 Shop V2 — دفتر تراکنش خرید: هر خرید یک ردیف با Idempotency (requestId یکتا به‌ازای هر کاربر).
-   هیچ خریدی بدون ردیف تراکنش انجام نمی‌شود؛ خرید تکراریِ همان requestId دوباره کسر نمی‌شود. */
+/**
+ * V66 Shop V2 — دفتر تراکنش خرید: هر خرید یک ردیف با Idempotency (requestId یکتا به‌ازای هر کاربر).
+ * هیچ خریدی بدون ردیف تراکنش انجام نمی‌شود؛ خرید تکراریِ همان requestId دوباره کسر نمی‌شود.
+ */
 model ShopPurchase {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
@@ -176,18 +182,20 @@ model ShopPurchase {
   @@map("shop_purchases")
 }
 
-/* V66 Shop V2 — انباری سمت سرور: تک‌منبع مالکیت آیتم‌های غیرمصرفی (کازمتیک/خدمات/محدود).
-   آیتم خدماتی (VIP/رادار) expiresAt دارد؛ آیتم‌های فصلی با شناسه‌ی فصل (@slug) ذخیره می‌شوند. */
+/**
+ * V66 Shop V2 — انباری سمت سرور: تک‌منبع مالکیت آیتم‌های غیرمصرفی (کازمتیک/خدمات/محدود).
+ * آیتم خدماتی (VIP/رادار) expiresAt دارد؛ آیتم‌های فصلی با شناسه‌ی فصل (@slug) ذخیره می‌شوند.
+ */
 model ShopInventory {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  itemId    String   @map("item_id")
-  source    String   @default("shop") /* shop | mystery | collection | legacy */
-  rarity    String   @default("common")
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  itemId    String    @map("item_id")
+  source    String    @default("shop") /* shop | mystery | collection | legacy */
+  rarity    String    @default("common")
   expiresAt DateTime? @map("expires_at")
-  meta      String   @default("{}")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  meta      String    @default("{}")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -211,16 +219,16 @@ model WeeklyClaim {
 }
 
 model TradeOffer {
-  id         String   @id @default(cuid())
-  server     Int
-  ownerUid   String   @map("owner_uid")
-  ownerNick  String   @map("owner_nick")
-  giveRes    String   @map("give_res")
-  giveQty    Int      @map("give_qty")
-  wantRes    String   @map("want_res")
-  wantQty    Int      @map("want_qty")
-  status     String   @default("open")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id        String   @id @default(cuid())
+  server    Int
+  ownerUid  String   @map("owner_uid")
+  ownerNick String   @map("owner_nick")
+  giveRes   String   @map("give_res")
+  giveQty   Int      @map("give_qty")
+  wantRes   String   @map("want_res")
+  wantQty   Int      @map("want_qty")
+  status    String   @default("open")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([server, status, createdAt])
   @@map("trade_offers")
@@ -236,7 +244,9 @@ model SpecialUse {
   @@map("special_uses")
 }
 
-/* V32 — Olympic champion of each 7-day cycle (weekly crowning + real rewards) */
+/**
+ * V32 — Olympic champion of each 7-day cycle (weekly crowning + real rewards)
+ */
 model OlympicChampion {
   id         String   @id @default(cuid())
   server     Int
@@ -254,7 +264,9 @@ model OlympicChampion {
   @@map("olympic_champions")
 }
 
-/* V33 — Olympic Games (10 mini-game disciplines, country medal table, records, archive) */
+/**
+ * V33 — Olympic Games (10 mini-game disciplines, country medal table, records, archive)
+ */
 model OlympicEntry {
   id         String   @id @default(cuid())
   edition    Int
@@ -266,7 +278,9 @@ model OlympicEntry {
   best       Int      @default(0)
   attempts   Int      @default(0)
   lastAt     DateTime @default(now()) @map("last_at")
-  /* V89 — Olympics V2: مرحله‌ی مقدماتی/فینال — روز ۵ = شب فینال؛ ۱۶ نفر برتر هر رشته */
+  /**
+   * V89 — Olympics V2: مرحله‌ی مقدماتی/فینال — روز ۵ = شب فینال؛ ۱۶ نفر برتر هر رشته
+   */
   qualBest   Int      @default(0) @map("qual_best") /* بهترین امتیاز روزهای ۱ تا ۴ */
   finalist   Boolean  @default(false) /* واجد شرایط فینال */
 
@@ -276,7 +290,9 @@ model OlympicEntry {
   @@map("olympic_entries")
 }
 
-/* O1 — آنتی‌چیت L1/L5/L6: نشست هر مسابقه (seed سرور + nonce + وضعیت) + بازپخش رکوردها */
+/**
+ * O1 — آنتی‌چیت L1/L5/L6: نشست هر مسابقه (seed سرور + nonce + وضعیت) + بازپخش رکوردها
+ */
 model OlympicMatch {
   id          String    @id @default(cuid())
   edition     Int
@@ -297,7 +313,9 @@ model OlympicMatch {
   @@map("olympic_matches")
 }
 
-/* O1 — آنتی‌چیت L9 / PHASE 29: رکوردهای مشکوک تا تأیید ادمین وارد رتبه رسمی نمی‌شوند */
+/**
+ * O1 — آنتی‌چیت L9 / PHASE 29: رکوردهای مشکوک تا تأیید ادمین وارد رتبه رسمی نمی‌شوند
+ */
 model OlympicSuspicious {
   id         String   @id @default(cuid())
   matchId    String   @map("match_id")
@@ -344,9 +362,11 @@ model OlympicRecord {
   @@map("olympic_records")
 }
 
-/* O2 — PHASE 3/4/49/50: پروفایل مهارت هر رشته (فقط مسابقه‌ی رسمی) —
-   Skill از رینگ ۱۰ رکورد اخیر + میانگین بلندمدت، Consistency از پراکندگی،
-   Potential از روند صعودی. هیچ عدد ثابت دستی ذخیره نمی‌شود. */
+/**
+ * O2 — PHASE 3/4/49/50: پروفایل مهارت هر رشته (فقط مسابقه‌ی رسمی) —
+ * Skill از رینگ ۱۰ رکورد اخیر + میانگین بلندمدت، Consistency از پراکندگی،
+ * Potential از روند صعودی. هیچ عدد ثابت دستی ذخیره نمی‌شود.
+ */
 model OlympicProfile {
   id          String   @id @default(cuid())
   userId      String   @map("user_id")
@@ -364,7 +384,9 @@ model OlympicProfile {
   @@map("olympic_profiles")
 }
 
-/* O2 — PHASE 27: دستاوردهای واقعی (از داده‌ی واقعی مسابقه‌ها، نه دستی) */
+/**
+ * O2 — PHASE 27: دستاوردهای واقعی (از داده‌ی واقعی مسابقه‌ها، نه دستی)
+ */
 model OlympicAchieve {
   id      String   @id @default(cuid())
   userId  String   @map("user_id")
@@ -394,10 +416,12 @@ model OlympicArchive {
   @@map("olympic_archives")
 }
 
-/* O4-final / PHASE 10: دفتر رقابت شخصی ماندگار — رقیب = نفر دقیقاً بالای سرت در
-   رتبه‌ی همان رشته‌ی همان دوره. هر «پیشی‌گرفتن» واقعی (با امتیاز رسمی داور) یک
-   رویداد pass/fall ثبت می‌کند؛ سری W-L از همین رویدادها ساخته می‌شود.
-   کل داده از مسابقه‌ی رسمی می‌آید — تمرین و دستکاری کلاینت اثری ندارد. */
+/**
+ * O4-final / PHASE 10: دفتر رقابت شخصی ماندگار — رقیب = نفر دقیقاً بالای سرت در
+ * رتبه‌ی همان رشته‌ی همان دوره. هر «پیشی‌گرفتن» واقعی (با امتیاز رسمی داور) یک
+ * رویداد pass/fall ثبت می‌کند؛ سری W-L از همین رویدادها ساخته می‌شود.
+ * کل داده از مسابقه‌ی رسمی می‌آید — تمرین و دستکاری کلاینت اثری ندارد.
+ */
 model OlympicRivalry {
   id          String   @id @default(cuid())
   edition     Int
@@ -418,10 +442,14 @@ model OlympicRivalry {
   @@map("olympic_rivalries")
 }
 
-/* ============ V89 — OLYMPICS V2: اکوسیستم رقابتی ============ */
+/**
+ * ============ V89 — OLYMPICS V2: اکوسیستم رقابتی ============
+ */
 
-/* شناسنامه‌ی ورزشکار — همه‌ی ویژگی‌ها فقط از مسابقه‌ی رسمی بازمحاسبه می‌شوند
-   (ضد P2W: با جم نمی‌شود ویژگی/نتایج خرید؛ توکن فقط خرج زینتی می‌شود) */
+/**
+ * شناسنامه‌ی ورزشکار — همه‌ی ویژگی‌ها فقط از مسابقه‌ی رسمی بازمحاسبه می‌شوند
+ * (ضد P2W: با جم نمی‌شود ویژگی/نتایج خرید؛ توکن فقط خرج زینتی می‌شود)
+ */
 model OlympicAthlete {
   userId    String   @id @map("user_id")
   attrsJson String   @default("{}") @map("attrs_json") /* {speed,reaction,precision,endurance,power,balance,tactical} 0..100 */
@@ -430,10 +458,13 @@ model OlympicAthlete {
   ownedJson String   @default("[]") @map("owned_json") /* آیتم‌های خریداری‌شده [{k,at}] */
   xp        Int      @default(0)
   updatedAt DateTime @updatedAt @map("updated_at")
+
   @@map("olympic_athletes")
 }
 
-/* V91 — BOX5: پروفایل دائمی بوکس (کمپین سینمایی «دور آخر») — سرور مرجع مطلق */
+/**
+ * V91 — BOX5: پروفایل دائمی بوکس (کمپین سینمایی «دور آخر») — سرور مرجع مطلق
+ */
 model BoxingSave {
   userId        String   @id @map("user_id")
   name          String   @default("")
@@ -452,10 +483,13 @@ model BoxingSave {
   trainJson     String   @default("{}") /* {act:{type:best}} */
   choiceJson    String   @default("{}") /* {act:choice} */
   updatedAt     DateTime @updatedAt @map("updated_at")
+
   @@map("boxing_saves")
 }
 
-/* ماموریت‌های المپیک هر دوره — پیشرفت فقط از رویدادهای رسمی سرور */
+/**
+ * ماموریت‌های المپیک هر دوره — پیشرفت فقط از رویدادهای رسمی سرور
+ */
 model OlympicMission {
   id         String  @id @default(cuid())
   edition    Int
@@ -466,12 +500,15 @@ model OlympicMission {
   done       Boolean @default(false)
   claimed    Boolean @default(false)
   rewardJson String  @default("{}") @map("reward_json") /* {token,xp} */
+
   @@unique([edition, userId, key])
   @@index([userId, edition])
   @@map("olympic_missions")
 }
 
-/* تلاش‌های شب فینال (روز ۵) — فقط ۱۶ واجد شرایط هر رشته؛ رتبه‌ی نهایی مدال از همین */
+/**
+ * تلاش‌های شب فینال (روز ۵) — فقط ۱۶ واجد شرایط هر رشته؛ رتبه‌ی نهایی مدال از همین
+ */
 model OlympicFinalAttempt {
   id         String   @id @default(cuid())
   edition    Int
@@ -482,12 +519,15 @@ model OlympicFinalAttempt {
   score      Int
   matchId    String   @map("match_id")
   at         DateTime @default(now())
+
   @@unique([matchId])
   @@index([edition, discipline, score])
   @@map("olympic_final_attempts")
 }
 
-/* تالار افتخارات دائمی — هیچ دوره‌ای این ردیف‌ها را پاک نمی‌کند */
+/**
+ * تالار افتخارات دائمی — هیچ دوره‌ای این ردیف‌ها را پاک نمی‌کند
+ */
 model OlympicHof {
   id        String   @id @default(cuid())
   key       String /* golds|medals|record|finals|multisport|rivalry|defense */
@@ -499,36 +539,42 @@ model OlympicHof {
   detail    String   @default("")
   edition   Int
   at        DateTime @default(now())
+
   @@unique([key, userId])
   @@index([key, value])
   @@map("olympic_hof")
 }
 
-/* چالش رقیب — دوئل رسمی با seed مشترک؛ داوری کامل سمت سرور، کلاینت اثری ندارد */
+/**
+ * چالش رقیب — دوئل رسمی با seed مشترک؛ داوری کامل سمت سرور، کلاینت اثری ندارد
+ */
 model OlympicChallenge {
-  id        String   @id @default(cuid())
-  edition   Int
+  id         String   @id @default(cuid())
+  edition    Int
   discipline String
-  seed      String
-  fromUid   String   @map("from_uid")
-  fromNick  String   @map("from_nick")
-  toUid     String   @map("to_uid")
-  toNick    String   @map("to_nick")
-  status    String   @default("open") /* open|done|declined|expired */
-  fromScore Int      @default(0)
-  toScore   Int      @default(0)
-  winnerUid String?  @map("winner_uid")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  seed       String
+  fromUid    String   @map("from_uid")
+  fromNick   String   @map("from_nick")
+  toUid      String   @map("to_uid")
+  toNick     String   @map("to_nick")
+  status     String   @default("open") /* open|done|declined|expired */
+  fromScore  Int      @default(0)
+  toScore    Int      @default(0)
+  winnerUid  String?  @map("winner_uid")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
   @@index([toUid, status])
   @@index([fromUid, status])
   @@map("olympic_challenges")
 }
 
-/* ============ V90 — OLYMPICS V2 §34-36: رده‌بندی المپیکی ============
-   امتیاز Elo هر رشته — فقط از نتیجه‌ی رسمی داوری‌شده تغذیه می‌شود:
-   نوجه‌ی عملکرد در olympic_submit + دوئل سرور-داوری‌شده + پاداش سکو.
-   هیچ مسیر خرید/کلاینت ندارد (ضد P2W مطلق — §22/§34/§36). */
+/**
+ * ============ V90 — OLYMPICS V2 §34-36: رده‌بندی المپیکی ============
+ * امتیاز Elo هر رشته — فقط از نتیجه‌ی رسمی داوری‌شده تغذیه می‌شود:
+ * نوجه‌ی عملکرد در olympic_submit + دوئل سرور-داوری‌شده + پاداش سکو.
+ * هیچ مسیر خرید/کلاینت ندارد (ضد P2W مطلق — §22/§34/§36).
+ */
 model OlympicRating {
   userId     String   @map("user_id")
   discipline String
@@ -537,14 +583,19 @@ model OlympicRating {
   games      Int      @default(0) /* تعداد رویداد رسمی مؤثر */
   wins       Int      @default(0) /* برد دوئل/سکو */
   updatedAt  DateTime @updatedAt @map("updated_at")
+
   @@unique([userId, discipline])
   @@index([discipline, rating])
   @@map("olympic_ratings")
 }
 
-/* ============ V34 — social & competitive layer ============ */
+/**
+ * ============ V34 — social & competitive layer ============
+ */
 
-/* استریک روزانه — consecutive daily login rewards (server-authoritative) */
+/**
+ * استریک روزانه — consecutive daily login rewards (server-authoritative)
+ */
 model DailyStreak {
   userId      String   @id @map("user_id")
   server      Int      @default(1)
@@ -553,10 +604,13 @@ model DailyStreak {
   lastDay     String   @map("last_day")
   totalClaims Int      @default(0) @map("total_claims")
   updatedAt   DateTime @updatedAt @map("updated_at")
+
   @@map("daily_streaks")
 }
 
-/* دعوت دوطرفه — mutual PvP challenge with a 2h war window */
+/**
+ * دعوت دوطرفه — mutual PvP challenge with a 2h war window
+ */
 model Duel {
   id         String   @id @default(cuid())
   server     Int
@@ -571,11 +625,14 @@ model Duel {
   prizeGold  Int      @default(0) @map("prize_gold")
   expiresAt  DateTime @map("expires_at")
   createdAt  DateTime @default(now()) @map("created_at")
+
   @@index([server, status, createdAt])
   @@map("duels")
 }
 
-/* شرط‌بندی روی دوئل‌ها — gold escrowed into the duel pot, proportional payout */
+/**
+ * شرط‌بندی روی دوئل‌ها — gold escrowed into the duel pot, proportional payout
+ */
 model DuelBet {
   id      String  @id @default(cuid())
   duelId  String  @map("duel_id")
@@ -585,12 +642,15 @@ model DuelBet {
   amount  Int
   paid    Int     @default(0)
   settled Boolean @default(false)
+
   @@unique([duelId, userId])
   @@index([duelId])
   @@map("duel_bets")
 }
 
-/* انتقام — one-shot +25% strike right against the player who took your land (72h) */
+/**
+ * انتقام — one-shot +25% strike right against the player who took your land (72h)
+ */
 model RevengeMark {
   id         String   @id @default(cuid())
   server     Int
@@ -600,11 +660,14 @@ model RevengeMark {
   used       Boolean  @default(false)
   expiresAt  DateTime @map("expires_at")
   createdAt  DateTime @default(now()) @map("created_at")
+
   @@index([userId, used, expiresAt])
   @@map("revenge_marks")
 }
 
-/* Heatmap — battle activity per country for the 48h war-intensity map layer */
+/**
+ * Heatmap — battle activity per country for the 48h war-intensity map layer
+ */
 model BattleLog {
   id        String   @id @default(cuid())
   server    Int
@@ -614,11 +677,14 @@ model BattleLog {
   defender  String?
   win       Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
+
   @@index([server, createdAt])
   @@map("battle_logs")
 }
 
-/* انتخابات جهانی — 10-day cycles: candidacy+voting, winner = world president */
+/**
+ * انتخابات جهانی — 10-day cycles: candidacy+voting, winner = world president
+ */
 model ElectionCandidate {
   id     String @id @default(cuid())
   server Int
@@ -626,18 +692,22 @@ model ElectionCandidate {
   userId String @map("user_id")
   nick   String
   slogan String @default("")
+
   @@unique([server, cycle, userId])
   @@map("election_candidates")
 }
+
 model ElectionVote {
   id     String @id @default(cuid())
   server Int
   cycle  Int
   userId String @map("user_id")
   toUid  String @map("to_uid")
+
   @@unique([server, cycle, userId])
   @@map("election_votes")
 }
+
 model ElectionWinner {
   id     String @id @default(cuid())
   server Int
@@ -645,11 +715,14 @@ model ElectionWinner {
   userId String @map("user_id")
   nick   String
   votes  Int    @default(0)
+
   @@unique([server, cycle])
   @@map("election_winners")
 }
 
-/* منتور — veterans guide newcomers, both earn daily while bonded */
+/**
+ * منتور — veterans guide newcomers, both earn daily while bonded
+ */
 model MentorLink {
   id         String   @id @default(cuid())
   server     Int
@@ -661,21 +734,28 @@ model MentorLink {
   days       Int      @default(0)
   lastDay    String?  @map("last_day")
   createdAt  DateTime @default(now()) @map("created_at")
+
   @@index([mentorUid, status])
   @@index([menteeUid, status])
   @@map("mentor_links")
 }
-/* open mentor offers by veterans */
+
+/**
+ * open mentor offers by veterans
+ */
 model MentorOffer {
   userId    String   @id @map("user_id")
   server    Int
   nick      String
   bio       String   @default("")
   createdAt DateTime @default(now()) @map("created_at")
+
   @@map("mentor_offers")
 }
 
-/* اتحادها — real multiplayer alliances with tag, member cap and collective power */
+/**
+ * اتحادها — real multiplayer alliances with tag, member cap and collective power
+ */
 model Alliance {
   id        String   @id @default(cuid())
   server    Int
@@ -686,11 +766,12 @@ model Alliance {
   createdAt DateTime @default(now()) @map("created_at")
 
   members AllianceMember[]
-  ops      AllianceOp[]
+  ops     AllianceOp[]
 
   @@unique([server, tag])
   @@map("alliances")
 }
+
 model AllianceMember {
   id         String   @id @default(cuid())
   allianceId String   @map("alliance_id")
@@ -706,7 +787,10 @@ model AllianceMember {
   @@index([allianceId])
   @@map("alliance_members")
 }
-/* U7 — عملیات هفتگی اتحاد (جنگ اتحاد): امتیاز فقط از رویدادهای واقعی سرور — فتح PvP/برد دوئل/المپیک رسمی */
+
+/**
+ * U7 — عملیات هفتگی اتحاد (جنگ اتحاد): امتیاز فقط از رویدادهای واقعی سرور — فتح PvP/برد دوئل/المپیک رسمی
+ */
 model AllianceOp {
   id         String    @id @default(cuid())
   allianceId String    @map("alliance_id")
@@ -725,7 +809,10 @@ model AllianceOp {
   @@index([weekKey])
   @@map("alliance_ops")
 }
-/* U8 — تلومتری پرفورمنس واقعی-دستگاه: یک ردیف per user/day — نمونه‌های FPS فقط اندازه‌گیری، صفر اثر گیم‌پلی */
+
+/**
+ * U8 — تلومتری پرفورمنس واقعی-دستگاه: یک ردیف per user/day — نمونه‌های FPS فقط اندازه‌گیری، صفر اثر گیم‌پلی
+ */
 model PerfDaily {
   id          String   @id @default(cuid())
   userId      String   @map("user_id")
@@ -744,25 +831,9 @@ model PerfDaily {
   @@map("perf_daily")
 }
 
-/* V105 فتح‌نامه: کارنامه‌ی نظامی سرور-محور (XP/افتخار/ژنرال‌ها) — افزودنی محض */
-model WarCareer {
-  userId    String   @id @map("user_id")
-  glory     Int      @default(0)
-  xp        Int      @default(0)
-  wins      Int      @default(0)
-  losses    Int      @default(0)
-  classXp   String   @default("{}") @map("class_xp") /* JSON {infantry|armor|arty|air|navy: n} */
-  unitXp    String   @default("{}") @map("unit_xp") /* JSON {unit: xp} — V105B نشان یگان */
-  generals  String   @default("{}") @map("generals") /* JSON {owned:[],atk,def} */
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("war_careers")
-}
-
-
-/* V36: admin-controlled global switches (KV) — the owner turns events on/off manually */
+/**
+ * V36: admin-controlled global switches (KV) — the owner turns events on/off manually
+ */
 model GameSetting {
   key       String   @id
   value     String
@@ -771,13 +842,15 @@ model GameSetting {
   @@map("game_settings")
 }
 
-/* V43 — مسیر فصلی (Battle Pass اخلاقی): XP با بازی کردن جمع می‌شود، پله‌ها جایزه می‌دهند */
+/**
+ * V43 — مسیر فصلی (Battle Pass اخلاقی): XP با بازی کردن جمع می‌شود، پله‌ها جایزه می‌دهند
+ */
 model SeasonPass {
   id        Int      @id @default(autoincrement())
   userId    String   @map("user_id")
-  season    String   /* 'S2026-09' — ماه میلادی */
+  season    String /* 'S2026-09' — ماه میلادی */
   xp        Int      @default(0)
-  claimed   Int      @default(0)    /* bitmask پله‌های گرفته‌شده */
+  claimed   Int      @default(0) /* bitmask پله‌های گرفته‌شده */
   dlog      String   @default("{}") /* شمارنده‌ی روزانه‌ی ماموریت‌ها {date:{key:count}} */
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -787,7 +860,9 @@ model SeasonPass {
   @@map("season_pass")
 }
 
-/* V43 — ضدتقلب: گزارش تخلف توسط بازیکن‌ها + بررسی ادمین */
+/**
+ * V43 — ضدتقلب: گزارش تخلف توسط بازیکن‌ها + بررسی ادمین
+ */
 model AbuseReport {
   id         Int      @id @default(autoincrement())
   server     Int      @default(1)
@@ -804,9 +879,11 @@ model AbuseReport {
   @@map("abuse_reports")
 }
 
-/* V65 — تالار افتخارات دائمی: هر عنوان فقط از داده‌ی واقعی سرور صادر می‌شود
-   (scores / territories / olympic / alliances). نگهدارنده‌ی عنوان + زمان صدور ثبت
-   می‌شود تا بخشی از هویت بازیکن باشد؛ تغییر نگهدارنده => خبر hof_new در world_news */
+/**
+ * V65 — تالار افتخارات دائمی: هر عنوان فقط از داده‌ی واقعی سرور صادر می‌شود
+ * (scores / territories / olympic / alliances). نگهدارنده‌ی عنوان + زمان صدور ثبت
+ * می‌شود تا بخشی از هویت بازیکن باشد؛ تغییر نگهدارنده => خبر hof_new در world_news
+ */
 model HofTitle {
   id        String   @id @default(cuid())
   server    Int
@@ -822,15 +899,17 @@ model HofTitle {
   @@map("hof_titles")
 }
 
-/* ============ V67 — COUNTRY VIEW ENGINE (Server-Authoritative) ============
-   ساخت‌وساز داخل کشور. قواعد سخت:
-   - Layout استان‌ها سمت سرور از هندسه‌ی واقعی کشور (GeoJSON) با seed قطعی صادر و ذخیره می‌شود.
-   - هیچ هزینه/سطح/زمان/نوعی از کلاینت پذیرفته نمی‌شود — کلاینت فقط رندر می‌کند.
-   - تولید lazy-at-read است: در هر cv_state/اقدام، درآمد انباشته‌شده از lastTick
-     (سقف ۸ ساعت آفلاین) محاسبه و به استخراج منابع بازی (saves.state.res) اضافه می‌شود.
-   - مالکیت کشور پیش از هر اقدام با جدول territories بررسی می‌شود.
-   - کشورِ باخته ساختمان‌هایش را نگه می‌دارد (فریز: تولید صفر، مدیریت قفل)؛
-     با بازپس‌گیری دوباره فعال می‌شود — هیچ داده‌ای حذف نمی‌شود. */
+/**
+ * ============ V67 — COUNTRY VIEW ENGINE (Server-Authoritative) ============
+ * ساخت‌وساز داخل کشور. قواعد سخت:
+ * - Layout استان‌ها سمت سرور از هندسه‌ی واقعی کشور (GeoJSON) با seed قطعی صادر و ذخیره می‌شود.
+ * - هیچ هزینه/سطح/زمان/نوعی از کلاینت پذیرفته نمی‌شود — کلاینت فقط رندر می‌کند.
+ * - تولید lazy-at-read است: در هر cv_state/اقدام، درآمد انباشته‌شده از lastTick
+ * (سقف ۸ ساعت آفلاین) محاسبه و به استخراج منابع بازی (saves.state.res) اضافه می‌شود.
+ * - مالکیت کشور پیش از هر اقدام با جدول territories بررسی می‌شود.
+ * - کشورِ باخته ساختمان‌هایش را نگه می‌دارد (فریز: تولید صفر، مدیریت قفل)؛
+ * با بازپس‌گیری دوباره فعال می‌شود — هیچ داده‌ای حذف نمی‌شود.
+ */
 model CvCountry {
   userId    String   @map("user_id")
   country   String /* English geo name — همان کلید territories.country */
@@ -869,10 +948,12 @@ model CvBuilding {
   @@map("cv_buildings")
 }
 
-/* ============ V88 — SHOP V3 + WAR DEPTH ============
-   WarState: وضعیت جنگ هر بازیکن (تک‌ردیف JSON) — لجستیک/اثرات فعال/کول‌داون سفارشات.
-   هیچ عدد جنگی از کلاینت پذیرفته نمی‌شود؛ این جدول فقط توسط RPC های سرور نوشته می‌شود.
-   supply با tick تنبل در هر خواندن بازیابی می‌شود (بدون تایمر). */
+/**
+ * ============ V88 — SHOP V3 + WAR DEPTH ============
+ * WarState: وضعیت جنگ هر بازیکن (تک‌ردیف JSON) — لجستیک/اثرات فعال/کول‌داون سفارشات.
+ * هیچ عدد جنگی از کلاینت پذیرفته نمی‌شود؛ این جدول فقط توسط RPC های سرور نوشته می‌شود.
+ * supply با tick تنبل در هر خواندن بازیابی می‌شود (بدون تایمر).
+ */
 model WarState {
   userId    String   @id @map("user_id")
   data      String   @default("{}") /* JSON: {supply,atkt,fx:[{k,until,data}],cd:{k:ts},blk:{nick:until},spy:{at,nick}} */
@@ -881,119 +962,55 @@ model WarState {
   @@map("war_states")
 }
 
-/* V88 — تروفی‌های شخصی: فقط از داده‌ی واقعی سرور صادر می‌شوند (score/olympic/alliance/inventory).
-   یکتا به‌ازای هر کاربر+کلید؛ صادرشدن اولین بار خبر trophy در world_news می‌سازد (ضد اسپم). */
+/**
+ * V88 — تروفی‌های شخصی: فقط از داده‌ی واقعی سرور صادر می‌شوند (score/olympic/alliance/inventory).
+ * یکتا به‌ازای هر کاربر+کلید؛ صادرشدن اولین بار خبر trophy در world_news می‌سازد (ضد اسپم).
+ */
 model UserTrophy {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  key       String
-  category  String   @default("special") /* V95 — دسته‌بندی ۸گانه‌ی دستاوردها (military|economy|olympics|social|progress|alliance|glory|special) */
-  at        DateTime @default(now())
+  id     String   @id @default(cuid())
+  userId String   @map("user_id")
+  key    String
+  at     DateTime @default(now())
 
   @@unique([userId, key])
   @@index([userId])
   @@map("user_trophies")
 }
 
-/* ============================================================
-   V95 — SOCIAL & PLAYER IDENTITY V1
-   هویت واقعی بازیکن، حضور زنده، پیام خصوصی، دوستان، مسدودسازی و
-   اعلان‌ها. همه‌ی نوشتن‌ها فقط از مسیر RPC با سشن احراز شده —
-   این جدول‌ها عمداً در /api/db ثبت نشده‌اند (deny-by-default =
-   معادل RLS در این استک). server_id (ستون int server) روی هر
-   داده‌ی جهانی الزامی است.
-   ============================================================ */
+/**
+ * V108 — پک شروع امپراتور: تایمر ۴۸ساعته فقط سمت سرور.
+ * startedAt = لنگر سرور (اولین مشاهده/ایجاد ردیف)، purchasedAt = مصرف‌شده.
+ * هیچ تایمر کلاینت/localStorage قابل اعتماد نیست.
+ */
+model StarterOffer {
+  userId      String    @id @map("user_id")
+  startedAt   DateTime  @default(now()) @map("started_at")
+  purchasedAt DateTime? @map("purchased_at")
+  provider    String    @default("")
+  txId        String?   @map("tx_id")
+  viewCount   Int       @default(0) @map("view_count")
+  lastViewAt  DateTime? @map("last_view_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-/* V95 — رجیستری سرورها: نام، وضعیت نمایشی (online|busy|maintenance) */
-model GameServer {
-  id        Int      @id
-  name      String
-  status    String   @default("online")
-  note      String   @default("")
-  createdAt DateTime @default(now()) @map("created_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("servers")
+  @@map("starter_offers")
 }
 
-/* V95 — حضور زنده: یک ردیف به‌ازای هر کاربر؛ heartbeat هر ۴۵ ثانیه.
-   آنلاین = lastSeen در ۹۰ ثانیه‌ی اخیر؛ idle = تب مخفی. شمارش آنلاین
-   فقط از همین جدول با پنجره‌ی زمانی — هیچ عدد جعلی‌ای در کار نیست. */
-model Presence {
-  userId   String   @id @map("user_id")
-  server   Int
-  nick     String
-  status   String   @default("online") /* online|idle */
-  lastSeen DateTime @map("last_seen")
+/**
+ * V108 — رصد و مشاهده‌پذیری (§21): رویدادهای خرید/استفاده/نمایش سمت سرور.
+ * سبک و فقط با کلیدهای مشخص — هیچ داده‌ی حساس شخصی ثبت نمی‌شود.
+ */
+model TelemEvent {
+  id     Int      @id @default(autoincrement())
+  key    String
+  userId String?  @map("user_id")
+  server Int      @default(1)
+  itemId String?  @map("item_id")
+  meta   String   @default("{}")
+  at     DateTime @default(now())
 
-  @@index([server, lastSeen])
-  @@map("server_presence")
-}
-
-/* V95 — پروفایل عمومی بازیکن: بیو کوتاه. هیچ email/IP/شناسه داخلی
-   اینجا یا در خروجی RPC پروفایل نمی‌آید (حریم خصوصی §spec). */
-model PlayerProfile {
-  userId    String   @id @map("user_id")
-  server    Int      @default(1)
-  bio       String   @default("")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("player_profiles")
-}
-
-/* V95 — دوستی: pending → accepted (پذیرش خودکار دوطرفه وقتی طرف هم درخواست داده) */
-model FriendLink {
-  id        Int      @id @default(autoincrement())
-  userId    String   @map("user_id")
-  friendId  String   @map("friend_id")
-  status    String   @default("pending") /* pending|accepted */
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@unique([userId, friendId])
-  @@index([friendId])
-  @@map("player_friends")
-}
-
-/* V95 — مسدودسازی سمت سرور: فرستنده/گیرنده‌ی مسدود، DM و درخواست دوستی نمی‌توانند بزنند */
-model BlockLink {
-  id        Int      @id @default(autoincrement())
-  userId    String   @map("user_id")
-  blockedId String   @map("blocked_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@unique([userId, blockedId])
-  @@map("player_blocks")
-}
-
-/* V95 — پیام خصوصی: فقط فرستنده/گیرنده در RPC به آن دسترسی دارند.
-   مکالمه = مشتق از آخرین پیام هر طرف (جدول اضافه‌ی همگام‌سازی ندارد). */
-model PrivateMsg {
-  id         Int       @id @default(autoincrement())
-  server     Int
-  senderId   String    @map("sender_id")
-  receiverId String    @map("receiver_id")
-  body       String
-  createdAt  DateTime  @default(now()) @map("created_at")
-  readAt     DateTime? @map("read_at")
-
-  @@index([receiverId, createdAt])
-  @@index([senderId, createdAt])
-  @@index([server])
-  @@map("private_messages")
-}
-
-/* V95 — اعلان کاربر: از رویدادهای واقعی سرور (دستیابی، دوستی، پیام، لقب HOF…) */
-model Notification {
-  id        Int       @id @default(autoincrement())
-  userId    String    @map("user_id")
-  server    Int       @default(1)
-  kind      String
-  title     String
-  body      String    @default("")
-  refId     String?   @map("ref_id")
-  createdAt DateTime  @default(now()) @map("created_at")
-  readAt    DateTime? @map("read_at")
-
-  @@index([userId, createdAt])
-  @@map("notifications")
+  @@index([key, at])
+  @@index([userId, at])
+  @@map("telem_events")
 }
