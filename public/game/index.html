@@ -18600,6 +18600,7 @@ try{Object.defineProperty(window,"WD_ERRS",{get:function(){try{return JSON.parse
 </script>
 
 
+
 <style id="v107-css">
 /* ============ V107 — شناسنامه/پیوی در کشوی کشور + ورود سینمایی به کشور ============ */
 /* ۱) ردیف دکمه‌های بازیکن در کشوی کشور */
@@ -18654,7 +18655,9 @@ try{Object.defineProperty(window,"WD_ERRS",{get:function(){try{return JSON.parse
 'use strict';
 var D=document;
 function $(id){return D.getElementById(id)}
-function cfa(n){try{if(typeof faName==='function'){var f=faName(n);if(f&&f!==n)return f}}catch(e){}
+function cfa(n){
+  try{var U=window.WD_ULT;if(U&&typeof U.faName==='function'){var f=U.faName(n);if(f&&f!==n)return f}}catch(e){}
+  try{if(typeof faName==='function'){var f2=faName(n);if(f2&&f2!==n)return f2}}catch(e){}
   try{var c=getCountryData(n);if(c&&c.fa&&c.fa!==n)return c.fa}catch(e){}
   return n}
 function WDS(){return (typeof window.WDS!=='undefined'&&window.WDS)?window.WDS:null}
