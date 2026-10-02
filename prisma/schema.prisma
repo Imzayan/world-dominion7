@@ -36,6 +36,7 @@ model User {
 
   @@map("users")
   perfDaily PerfDaily[]
+  warCareer WarCareer?
 }
 
 model Session {
@@ -741,6 +742,22 @@ model PerfDaily {
   @@unique([userId, dayKey])
   @@index([dayKey])
   @@map("perf_daily")
+}
+
+/* V105 فتح‌نامه: کارنامه‌ی نظامی سرور-محور (XP/افتخار/ژنرال‌ها) — افزودنی محض */
+model WarCareer {
+  userId    String   @id @map("user_id")
+  glory     Int      @default(0)
+  xp        Int      @default(0)
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  classXp   String   @default("{}") @map("class_xp") /* JSON {infantry|armor|arty|air|navy: n} */
+  generals  String   @default("{}") @map("generals") /* JSON {owned:[],atk,def} */
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("war_careers")
 }
 
 

@@ -307,6 +307,71 @@ async function warUserServer(userId: string): Promise<number> {
   try { const s = await db.score.findUnique({ where: { userId }, select: { server: true } }); return Math.max(1, s?.server || 1) } catch { return 1 }
 }
 
+/* ================= V105 — فتح‌نامه: کارنامه‌ی لشکر + ژنرال‌های سرور-محور =================
+   همه‌ی اعداد فقط همین‌جا؛ کلاینت فقط نمایش. افزودنی محض — صفر تغییر در مدل‌ها/منطق موجود. */
+type WarCareerGen = { owned?: string[]; atk?: string | null; def?: string | null }
+const WAR_GENERALS: Record<string, { fa: string; lore: string; cost: number; atk: number; def: number; sup: number; mor: number }> = {
+  aryob:  { fa: 'آریوبرزن',   lore: 'شیر کوه‌های زاگرس — مدافع افسانه‌ای', cost: 60,  atk: 1, def: 3, sup: 1, mor: 2 },
+  surena: { fa: 'سورنا',      lore: 'سردار مفرغی که روم را لرزاند',        cost: 90,  atk: 3, def: 1, sup: 2, mor: 1 },
+  bartar: { fa: 'پرویز بتار', lore: 'چشم تیزبین آسمان — استاد یورش پرنده', cost: 90,  atk: 2, def: 1, sup: 3, mor: 1 },
+  rostam: { fa: 'رستم دستان', lore: 'پهلوان زابل — دیوار زنده‌ی سپاه',      cost: 120, atk: 2, def: 2, sup: 1, mor: 3 },
+  garin:  { fa: 'گارین',      lore: 'مهندس محاصره — شکننده‌ی دیوارها',      cost: 120, atk: 1, def: 2, sup: 3, mor: 1 },
+  kaveh:  { fa: 'کاوه آهنگر', lore: 'درفش‌دار قیام — شور سپاه را می‌جوشاند', cost: 160, atk: 2, def: 1, sup: 1, mor: 3 },
+}
+const WAR_GEN_MAX_BONUS = 0.09 /* سقف سخت بونوس ژنرال در هر سمت */
+const CLS_OF_ATK: Record<string, string> = { balanced: 'infantry', blitz: 'air', siege: 'arty', defensive: 'armor', naval: 'navy', air: 'air', economic: 'infantry' }
+const CLS_FA: Record<string, string> = { infantry: 'پیاده', armor: 'زره‌پوش', arty: 'توپخانه', air: 'پرنده', navy: 'دریایی' }
+const WAR_BADGES = [
+  { k: 'novice', fa: 'تازه‌کار', min: 0 },
+  { k: 'vet', fa: 'رزم‌آور', min: 150 },
+  { k: 'elder', fa: 'کهن‌سوار', min: 500 },
+  { k: 'legend', fa: 'افسانه', min: 1200 },
+]
+function badgeOf(xp: number): string { let b = WAR_BADGES[0].fa; for (const x of WAR_BADGES) if (xp >= x.min) b = x.fa; return b }
+async function ensureCareer(userId: string) {
+  return db.warCareer.upsert({ where: { userId }, update: {}, create: { userId } })
+}
+async function careerParse(userId: string) {
+  const row = await ensureCareer(userId)
+  let cx: Record<string, number> = {}
+  try { cx = JSON.parse(row.classXp || '{}') || {} } catch { cx = {} }
+  let gen: WarCareerGen = {}
+  try { gen = JSON.parse(row.generals || '{}') || {} } catch { gen = {} }
+  return { row, cx, gen }
+}
+/* بونوس ژنرال گمارده‌شده — مهارتِ همان سمت ×۳٪ با سقف ۹٪ (هم‌خانواده‌ی بونوس‌های موجود) */
+async function generalBonus(userId: string, slot: 'atk' | 'def'): Promise<{ pct: number; id: string | null }> {
+  try {
+    const c = await careerParse(userId)
+    const gid = slot === 'atk' ? c.gen.atk : c.gen.def
+    if (!gid || !(c.gen.owned || []).includes(gid)) return { pct: 0, id: null }
+    const g = WAR_GENERALS[gid]
+    if (!g) return { pct: 0, id: null }
+    const skill = slot === 'atk' ? g.atk : g.def
+    return { pct: Math.min(WAR_GEN_MAX_BONUS, skill * 0.03), id: gid }
+  } catch { return { pct: 0, id: null } }
+}
+/* پاداش پایان نبرد — فقط از این مسیر؛ XP کلاس بر اساس دکترین انتخابی مهاجم */
+async function careerAward(userId: string, win: boolean, atkType: string | null) {
+  try {
+    const c = await careerParse(userId)
+    const xp = win ? 15 : 6
+    const glory = win ? 12 : 4
+    const cls = (atkType && CLS_OF_ATK[atkType]) || 'infantry'
+    c.cx[cls] = (c.cx[cls] || 0) + (win ? 18 : 8)
+    await db.warCareer.update({
+      where: { userId },
+      data: {
+        xp: c.row.xp + xp, glory: c.row.glory + glory,
+        wins: c.row.wins + (win ? 1 : 0), losses: c.row.losses + (win ? 0 : 1),
+        classXp: JSON.stringify(c.cx),
+      },
+    })
+    return { xp, glory, cls }
+  } catch (e) { console.log('career105', e); return null }
+}
+/* ================= پایان V105 ================= */
+
 /* بسته‌های جم — تنها بخشی که پرداخت واقعی دارد؛ url خالی یعنی «به‌زودی» (هیچ قیمتی سمت کلاینت اعمال نمی‌شود) */
 const SHOP_PACKS = [
   /* PriceSync-v3 (V85): قیمت‌های جدید پنل مایکت — ۱۰۰جم=۴۰٬۰۰۰ / ۳۰۰جم=۱۱۰٬۰۰۰ / ۵۵۰جم=۲۰۰٬۰۰۰ / ۱۰۰۰جم=۳۸۰٬۰۰۰ تومان.
@@ -3061,6 +3126,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           cvDefPct = (await cvMilBonus(t.userId, country)).defPct
           if (cvDefPct > 0) d = Math.max(1, Math.round(d * (1 + cvDefPct / 100)))
         } catch (e) { console.log('cvmil', e) }
+        /* V105 فتح‌نامه: بونوس ژنرال‌های گمارده‌شده (سرور-محور، سقف ۹٪ هر سمت) */
+        let genAtkId105: string | null = null, genDefId105: string | null = null
+        try {
+          const ga105 = await generalBonus(user.id, 'atk')
+          if (ga105.pct > 0) { a = Math.round(a * (1 + ga105.pct)); genAtkId105 = ga105.id }
+          const gd105 = await generalBonus(t.userId, 'def')
+          if (gd105.pct > 0) { d = Math.max(1, Math.round(d * (1 + gd105.pct))); genDefId105 = gd105.id }
+        } catch (e) { console.log('gen105', e) }
         /* ================= V88 — WAR DEPTH (فقط وقتی کلاینت جدید p_atk_type بفرستد) =================
            دکترین حمله جای تاکتیک را می‌گیرد (تک‌منبع — بدون دوبار جمع‌شدن بونوس).
            همه‌ی اعداد سمت سرور؛ سقف سخت بونوس جم‌محور = +۲۲٪ کل. صفر instant-win. */
@@ -3146,12 +3219,50 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         /* V34: battle log feeds the 48h war-heatmap layer */
         try { await db.battleLog.create({ data: { server, kind: 'attack', country, attacker: user.nick, defender: t.nick, win } }) } catch (e) { console.log('blog', e) }
+        /* V105 فتح‌نامه: کارنامه‌ی لشکر — XP/افتخار/XP کلاس برای مهاجم و مدافع */
+        let career105: { xp: number; glory: number; cls: string } | null = null
+        try { career105 = await careerAward(user.id, win, atk88) } catch (e) { console.log('caw105', e) }
+        try { await careerAward(t.userId, !win, null) } catch (e) { console.log('caw105d', e) }
         /* SOCIAL V1 — نوتیف حمله به مدافع (رویداد واقعی) + دستاوردهای جنگی fire-and-forget */
         try { notify(t.userId, server, 'attack', win ? ('⚔️ کشور ' + country + ' سقوط کرد') : ('🛡️ دفاع موفق در ' + country), win ? (user.nick + ' کشور تو را تصرف کرد') : (user.nick + ' به ' + country + ' حمله کرد و شکست خورد')) } catch (e) { console.log('soc-att', e) }
         /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
            defense/captured — before this it always computed 0% and 60% losses and
            syncTerr deleted the just-won territory */
-        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88 })
+        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88, career: career105, gen_atk: genAtkId105, gen_def: genDefId105 })
+      }
+      /* ================= V105 فتح‌نامه: ژنرال‌ها + کارنامه ================= */
+      case 'war_generals': {
+        const c105 = await careerParse(user.id)
+        const badges105: Record<string, string> = {}
+        for (const k of Object.keys(CLS_FA)) badges105[k] = badgeOf(c105.cx[k] || 0)
+        return R({
+          ok: true, glory: c105.row.glory, xp: c105.row.xp, wins: c105.row.wins, losses: c105.row.losses,
+          class_xp: c105.cx, class_fa: CLS_FA, badges: badges105,
+          generals: WAR_GENERALS, owned: c105.gen.owned || [], assigned: { atk: c105.gen.atk || null, def: c105.gen.def || null },
+        })
+      }
+      case 'war_general_op': {
+        const op105 = String(args.p_op || '')
+        const gid105 = String(args.p_id || '')
+        const g105 = WAR_GENERALS[gid105]
+        if (!g105) return R({ ok: false, error: 'id' })
+        const c105 = await careerParse(user.id)
+        const owned105 = c105.gen.owned || []
+        if (op105 === 'hire') {
+          if (owned105.includes(gid105)) return R({ ok: false, error: 'owned' })
+          if (c105.row.glory < g105.cost) return R({ ok: false, error: 'glory', need: g105.cost, have: c105.row.glory })
+          owned105.push(gid105)
+          await db.warCareer.update({ where: { userId: user.id }, data: { glory: c105.row.glory - g105.cost, generals: JSON.stringify({ ...c105.gen, owned: owned105 }) } })
+          return R({ ok: true, hired: gid105, glory_left: c105.row.glory - g105.cost })
+        }
+        if (op105 === 'assign' || op105 === 'unassign') {
+          const slot105 = String(args.p_slot || '') === 'def' ? 'def' : 'atk'
+          if (op105 === 'assign' && !owned105.includes(gid105)) return R({ ok: false, error: 'not_owned' })
+          const gen105next: WarCareerGen = { ...c105.gen, owned: owned105, [slot105]: op105 === 'assign' ? gid105 : null }
+          await db.warCareer.update({ where: { userId: user.id }, data: { generals: JSON.stringify(gen105next) } })
+          return R({ ok: true, [op105 === 'assign' ? 'assigned' : 'unassigned']: slot105, id: gid105 })
+        }
+        return R({ ok: false, error: 'op' })
       }
       case 'pvp_capture_territory': {
         if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */

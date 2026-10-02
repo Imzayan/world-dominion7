@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=104;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=104"></script>
+  <script>window.__WD_V=105;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=105"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1027,6 +1027,61 @@ const ARMY_UNITS = {
   carrier:   Object.assign({ name: "ناو هواپیمابر",     icon: "🚢", count: 0 }, BALANCE.army.units.carrier)
 };
 const BATTLE_UNIT_ORDER = ["infantry", "tank", "bomber", "fighter", "heli", "missile", "drone", "transport", "destroyer", "carrier"];
+/* ===== V105 فتح‌نامه: رده‌یگان‌ها + کارنامه‌ی سرور-محور (همه‌ی اعداد از سرور) ===== */
+const WD105_CLASS = { infantry:'infantry', tank:'armor', transport:'armor', missile:'arty', destroyer:'navy', carrier:'navy', bomber:'air', fighter:'air', heli:'air', drone:'air' };
+const WD105_CLS_FA = { infantry:'پیاده', armor:'زره‌پوش', arty:'توپخانه', air:'پرنده', navy:'دریایی' };
+window.WD105 = { cache: null, at: 0 };
+function wd105PtSvg(c1, c2) {
+  return '<svg viewBox="0 0 24 24"><path d="M5 13a7 7 0 0 1 14 0v6H5z" fill="' + c1 + '"/><path d="M12 3l2 3.4L12 8.6 10 6.4z" fill="' + c2 + '"/><circle cx="12" cy="13.4" r="3.1" fill="#f3d8a0"/><path d="M8.6 19h6.8l-.9 2.2H9.5z" fill="' + c2 + '"/></svg>';
+}
+window.WD105_PT = { aryob: wd105PtSvg('#2f5d8a','#ffd75e'), surena: wd105PtSvg('#8a2f3b','#ff9d3c'), bartar: wd105PtSvg('#2f6a5a','#7dffec'), rostam: wd105PtSvg('#5a3a7a','#b284ff'), garin: wd105PtSvg('#7a5a2f','#ffe08a'), kaveh: wd105PtSvg('#8a4a2f','#ff6a4d') };
+window.WD105_load = async function(force) {
+  const n = Date.now();
+  if (!force && window.WD105.cache && n - window.WD105.at < 20000) return window.WD105.cache;
+  try { const r = await sb.rpc('war_generals', {}); if (r && r.data && r.data.ok) { window.WD105.cache = r.data; window.WD105.at = n; } } catch (e) {}
+  return window.WD105.cache;
+};
+window.WD105_render = async function() {
+  let host = document.getElementById('wd105-career');
+  if (!host) { const c = document.getElementById('units-container'); if (!c) return; host = document.createElement('div'); host.id = 'wd105-career'; c.parentNode.appendChild(host); }
+  host.innerHTML = '<div class="wd105-h">⚔️ فتح‌نامه — کارنامه‌ی لشکر<small>سرور-محور · فقط از نبردهای واقعی</small></div><div style="font-size:9px;color:#8fb4d4">در حال دریافت...</div>';
+  const d = await window.WD105_load(true);
+  if (!d || !d.ok) { host.innerHTML = '<div class="wd105-h">⚔️ فتح‌نامه</div><div style="font-size:9px;color:#ff8ba0">اتصال برقرار نشد — مودال را دوباره باز کن.</div>'; return; }
+  const gs = d.generals || {}, owned = d.owned || [], asg = d.assigned || {};
+  let cls = '';
+  Object.keys(WD105_CLS_FA).forEach(function(k) {
+    const xpv = (d.class_xp || {})[k] || 0, bd = (d.badges && d.badges[k]) || 'تازه‌کار';
+    const pct = Math.min(100, Math.round(xpv / 1200 * 100));
+    cls += '<div class="c"><b>' + xpv + '</b>' + WD105_CLS_FA[k] + '<i><b style="width:' + pct + '%"></b></i><u style="text-decoration:none;color:#ffd75e">' + bd + '</u></div>';
+  });
+  let gens = '';
+  Object.keys(gs).forEach(function(id) {
+    const g = gs[id], isOwn = owned.indexOf(id) > -1, isA = asg.atk === id, isD = asg.def === id;
+    const sk = '<span>⚔ ' + g.atk + '</span><span>🛡 ' + g.def + '</span><span>📦 ' + g.sup + '</span><span>🔥 ' + g.mor + '</span>';
+    let btns = '';
+    if (!isOwn) btns = '<button data-op="hire" data-id="' + id + '"' + (d.glory >= g.cost ? '' : ' disabled') + '>پرچم به‌دست آور · ' + g.cost + '</button>';
+    else btns = (isA ? '<button class="ghost" data-op="unassign" data-id="' + id + '" data-slot="atk">حمله ✕</button>' : '<button data-op="assign" data-id="' + id + '" data-slot="atk">حمله</button>')
+      + (isD ? '<button class="ghost" data-op="unassign" data-id="' + id + '" data-slot="def">دفاع ✕</button>' : '<button data-op="assign" data-id="' + id + '" data-slot="def">دفاع</button>');
+    gens += '<div class="wd105-g' + (isA || isD ? ' on' : '') + '"><div class="pt">' + (window.WD105_PT[id] || '') + '</div><div class="bd"><b>' + g.fa + '</b><small>' + g.lore + '</small><div class="sk">' + sk + '</div></div><div class="ac">' + btns + '</div></div>';
+  });
+  host.innerHTML = '<div class="wd105-h">⚔️ فتح‌نامه — کارنامه‌ی لشکر<small>اثر ژنرال: تا ۹٪ در نبرد · آموزش فقط از علیرضا</small></div>'
+    + '<div class="wd105-glory"><div class="g"><b>' + (d.glory || 0) + '</b>افتخار</div><div class="g"><b>' + (d.xp || 0) + '</b>XP لشکر</div><div class="g"><b>' + (d.wins || 0) + '</b>پیروزی</div><div class="g"><b>' + (d.losses || 0) + '</b>شکست</div></div>'
+    + '<div class="wd105-cls">' + cls + '</div>'
+    + '<div class="wd105-h" style="font-size:10px;color:#7dd6ff">🎖️ ژنرال‌های فتح‌نامه<small>جذب با افتخار · گمارده‌ن = بونوس واقعی</small></div>'
+    + '<div class="wd105-gen">' + gens + '</div>';
+  host.querySelectorAll('.ac button').forEach(function(b) {
+    b.addEventListener('click', async function() {
+      const op = b.dataset.op, id = b.dataset.id, slot = b.dataset.slot || 'atk';
+      try {
+        const r = await sb.rpc('war_general_op', { p_op: op, p_id: id, p_slot: slot });
+        const x = (r && r.data) || {};
+        if (x.ok) { showToast(op === 'hire' ? '🎖️ ژنرال به سپاه تو پیوست!' : (op === 'assign' ? ('⚔️ گمارده‌ن در سمت ' + (slot === 'def' ? 'دفاع' : 'حمله')) : 'گمارده‌ن لغو شد'), 'win'); window.WD105_render(); }
+        else if (x.error === 'glory') showToast('❌ افتخار کافی نیست — با نبردهای واقعی افتخار جمع کن', 'lose');
+        else showToast('❌ انجام نشد — دوباره تلاش کن', 'lose');
+      } catch (e) { showToast('❌ خطای اتصال', 'lose'); }
+    });
+  });
+};
 
 let myCountryName = null;
 let conqueredCountries = new Set();
@@ -3197,7 +3252,7 @@ window.renderUnits=function(){
     const q=Q.filter(x=>x.k===k).reduce((s,x)=>s+x.n,0);
     html+=`<div class="unit-card">
       <div class="unit-head"><span class="unit-title">${u.icon} ${u.name}</span><span class="unit-count">${u.count} عدد</span></div>
-      <div class="unit-stats"><span>⚔️ قدرت: ${Math.round(u.attack*(u.air?airBonus():1))}</span><span>💰 ${cg} | 🛢️ ${u.costOil}</span></div>
+      <div class="unit-stats"><span>🏷 ${(WD105_CLS_FA[WD105_CLASS[k]]||"—")}</span><span>⚔️ قدرت: ${Math.round(u.attack*(u.air?airBonus():1))}</span><span>💰 ${cg} | 🛢️ ${u.costOil}</span></div>
       <div class="unit-stats"><span>⏱ ${fmtT((W[k]||2)/r)} / یگان</span><span>${q?'📥 در صف: '+q:''}</span></div>
       ${k==='infantry'?`<div class="unit-stats"><span>👥 ظرفیت جمعیت: ${infUsed().toLocaleString()} / ${infCap().toLocaleString()}</span></div>`:''}
       <button class="buy-btn" data-key="${k}" ${ok?'':'disabled'}>ساخت یگان</button>
@@ -4197,7 +4252,8 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
             '🏆 <b style="color:var(--green-glow)">خط دفاعی '+escB(o.nick||'دشمن')+' شکست!</b><br>'+
             '🗺️ خاک <b>'+escB(target.fa)+'</b> به‌طور کامل تصرف شد.<br>'+
             '🪖 تلفات خودی: '+Math.round(lossFraction*100)+'٪';
-          if(x.duel_won)showToast('🥇 دوئر را بردی — ۱۵٬۰۰۰ طلا + ۲ جم واریز شد','win');
+          try{if(x.career&&x.career.glory)showToast('⚔️ فتح‌نامه: XP +'+x.career.xp+' · افتخار +'+x.career.glory,'win')}catch(e){}
+      if(x.duel_won)showToast('🥇 دوئر را بردی — ۱۵٬۰۰۰ طلا + ۲ جم واریز شد','win');
           showToast('🏆 '+target.fa+' به قلمرو تو پیوست!','win');
           if(typeof news==='function')news('🏆 '+target.fa+' در نبرد PvP سقوط کرد');
           const cb=document.getElementById("battle-close-btn");
@@ -7942,7 +7998,7 @@ window.renderArmy28=renderArmy28;
 try{
   var btnAr=$$id('btn-m-army');
   if(btnAr)btnAr.addEventListener('click',function(){setTimeout(renderArmy28,60)},true);
-  wdModalHook('m-army',function(){setTimeout(renderArmy28,60)}); /* V59 */
+  wdModalHook('m-army',function(){setTimeout(renderArmy28,60);setTimeout(window.WD105_render,140)}); /* V59 */
 }catch(e){}
 
 /* ---------- دکمه «افزودن به صف حمله» در کشوی کشور ---------- */
@@ -10741,7 +10797,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=104';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=105';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -17311,7 +17367,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=104';
+              s.src='/game/cv-engine.js?v=105';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17322,7 +17378,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=104"></script>
+<script src="/game/oly3.js?v=105"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17336,7 +17392,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=104';
+      s.src='/game/oly3d.js?v=105';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -18240,6 +18296,33 @@ body.wd101b-open #hud-strip{z-index:10005!important}
 #hud-strip .wd101b-pop .hchip:not(#hud-crisis){background-image:linear-gradient(180deg,rgba(32,56,98,.5),rgba(9,18,36,.62))!important;border:1px solid rgba(112,162,222,.34)!important;box-shadow:inset 0 1px 0 rgba(185,222,255,.15),0 2px 10px rgba(0,0,0,.3)!important;transition:transform .12s ease,filter .12s ease!important}
 #hud-strip .wd101b-pop .hchip:active{transform:scale(.97)!important;filter:brightness(1.35)!important}
 #hud-strip .wd101b-pop .hchip:not(#hud-crisis):active{box-shadow:inset 0 1px 0 rgba(185,222,255,.22),0 0 0 2px rgba(255,215,94,.25),0 2px 10px rgba(0,0,0,.3)!important}
+/* ===== V105 فتح‌نامه: کارنامه‌ی لشکر + ژنرال‌ها ===== */
+#wd105-career{margin-top:10px;border:1px solid rgba(255,204,64,.35);border-radius:14px;background:linear-gradient(175deg,rgba(21,37,66,.97),rgba(7,14,29,.99));padding:10px;direction:rtl;text-align:right}
+#wd105-career .wd105-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:#ffd75e;margin-bottom:6px}
+#wd105-career .wd105-h small{margin-inline-start:auto;font-size:9px;color:#8fb4d4;font-weight:700;text-align:left}
+.wd105-glory{display:flex;gap:6px;margin-bottom:8px}
+.wd105-glory .g{flex:1;background:rgba(10,22,44,.9);border:1px solid rgba(112,162,222,.3);border-radius:10px;padding:5px 7px;font-size:9.5px;color:#dceaff}
+.wd105-glory .g b{display:block;font-size:13px;color:#ffd75e}
+.wd105-cls{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px}
+.wd105-cls .c{background:rgba(10,22,44,.9);border:1px solid rgba(112,162,222,.28);border-radius:9px;padding:4px;text-align:center;font-size:8.5px;color:#dceaff}
+.wd105-cls .c b{display:block;font-size:10px;color:#7dd6ff}
+.wd105-cls .c i{display:block;height:3px;border-radius:2px;background:rgba(120,160,210,.25);margin-top:3px;overflow:hidden}
+.wd105-cls .c i b{display:block;height:100%;background:linear-gradient(90deg,#ffd75e,#ff9d3c);border-radius:2px}
+.wd105-gen{display:flex;flex-direction:column;gap:6px}
+.wd105-g{display:flex;gap:8px;align-items:center;background:linear-gradient(180deg,rgba(24,42,74,.92),rgba(11,22,42,.94));border:1px solid rgba(112,162,222,.34);border-radius:11px;padding:6px 8px}
+.wd105-g .pt{width:38px;height:38px;flex:0 0 38px;border-radius:50%;border:2px solid rgba(255,204,64,.5);background:radial-gradient(circle at 35% 30%,rgba(255,204,64,.25),rgba(10,22,44,.95));display:flex;align-items:center;justify-content:center}
+.wd105-g .pt svg{width:24px;height:24px}
+.wd105-g .bd{flex:1;min-width:0}
+.wd105-g .bd b{font-size:11px;color:#ffe9a8}
+.wd105-g .bd small{display:block;font-size:8.5px;color:#9db8d8;margin-top:1px}
+.wd105-g .bd .sk{display:flex;gap:3px;margin-top:3px;font-size:8px;color:#7dd6ff;flex-wrap:wrap}
+.wd105-g .bd .sk span{border:1px solid rgba(96,160,220,.35);border-radius:6px;padding:1px 4px;background:rgba(96,160,220,.12)}
+.wd105-g .ac{display:flex;flex-direction:column;gap:3px}
+.wd105-g .ac button{border:none;border-radius:8px;padding:4px 9px;font-size:9px;font-weight:900;cursor:pointer;background:linear-gradient(180deg,#ffd75e,#e0a63a);color:#231a05}
+.wd105-g .ac button.ghost{background:rgba(96,160,220,.18);color:#dff1ff;border:1px solid rgba(96,160,220,.4)}
+.wd105-g .ac button:disabled{background:#33475e;color:#7c93ab;cursor:not-allowed}
+.wd105-g.on{border-color:rgba(255,204,64,.6);box-shadow:0 0 10px rgba(255,200,60,.25)}
+.wd105-g.on .pt{border-color:#ffd75e}
 .wd101b-pop #hud-date{direction:rtl!important;cursor:default!important}
 .wd101b-pop #hud-news .wd99-ntx{display:inline!important}
 .wd101b-pop #hud-srv2 .wd-srv-t{display:inline-flex!important}
@@ -18427,8 +18510,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=104"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=104"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=105"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=105"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
