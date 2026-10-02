@@ -3222,6 +3222,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         let genAb105: { id: string; fa: string; kind: string } | null = null
         let tri105: { a: string; d: string; win: boolean } | null = null
         let genGloryX2105 = false
+        let badgeA105 = 0, badgeD105 = 0
         try {
           const pGen105 = String(args.p_gen || '')
           if (pGen105) {
@@ -3249,8 +3250,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           /* نشان یگان‌ها — تا +۵٪ هر سمت (از unit_xp قبل از رشد این نبرد) */
           const bnaB = await badgeN105(user.id)
           if (bnaB > 0) a = Math.round(a * (1 + badgeBonus105(bnaB)))
+          badgeA105 = bnaB
           const bndB = await badgeN105(t.userId)
           if (bndB > 0) d = Math.max(1, Math.round(d * (1 + badgeBonus105(bndB))))
+          badgeD105 = bndB
         } catch (e) { console.log('wd105b', e) }
         /* ================= پایان V105B ================= */
         /* ================= V88 — WAR DEPTH (فقط وقتی کلاینت جدید p_atk_type بفرستد) =================
@@ -3362,7 +3365,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
            defense/captured — before this it always computed 0% and 60% losses and
            syncTerr deleted the just-won territory */
-        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88, career: career105, gen_atk: genAtkId105, gen_def: genDefId105, gen_ab: genAb105, tri: tri105 })
+        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88, career: career105, gen_atk: genAtkId105, gen_def: genDefId105, gen_ab: genAb105, tri: tri105, badge_a: badgeA105, badge_d: badgeD105 })
       }
       /* ================= V105 فتح‌نامه: ژنرال‌ها + کارنامه ================= */
       case 'war_generals': {
