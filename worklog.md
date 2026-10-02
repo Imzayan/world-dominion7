@@ -2763,3 +2763,22 @@ Work Log:
 
 Stage Summary:
 - V107 روی پیش‌نمایش dev کاملاً لایو و راستی‌آزمایی‌شده است؛ اسکرین‌شات‌های نهایی در download/
+
+---
+Task ID: V108-MONETIZATION-WAR-ITEMS
+Agent: Super Z (main)
+Task: WORLD DOMINION — PREMIUM MONETIZATION + WAR ITEMS V1 (audit-first integration into existing Shop/Gem/War architecture)
+
+Work Log:
+- AUDIT (§2، بدون تغییر کد): گزارش A–M در download/WD-V108-AUDIT.md — تک‌فروشگاه wd-shop-v2، Wallet/ShopInventory/ShopPurchase با Idempotency requestId، WarState JSON، war_order/war_intel/pvp_attack سرور-مأخذ، SeasonPass موجود، SHOP_PACKS مایکت «به‌زودی» (بدون ریل پرداخت)
+- DB (هر دو گویش، db push سبز، schema-diff identical): StarterOffer (تایمر ۴۸ساعته سرور — لنگر createdAt حساب؛ ضد رینستال/تغییر دستگاه/دستکاری ساعت) + TelemEvent (§21)
+- سرور: kind 'stock' در shopBuy (انبار WarState.data.stock قفل خوش‌بینانه + rollback) | starter_state/starter_claim (idempotency requestId + ضد پخش txId + verifyProviderReceipt: myket/zarinpal env-gated، sandbox فقط ادمین/سرور تستی، بدون creds پاسخ صادقانه) | war_use_item/war_supply_use (موجودی/کول‌داون/سقف روزانه/حفاظت ۷روزه/اتحاد/آتش‌بس/مقاومت ۱۰۰→۶۰→۳۰→مقاومت ۳۰دقیقه) | pvp_attack مصرف def_emp/def_defbreak | trade_offer_create گیت cyberdis | war_state stock+war_items | shop_catalog starter | telem()
+- محتویات پک شروع: ۱۲۰۰جم + ۱۰۰k طلا + نفت/غذا + بوست ۱ساعت سرور + تدارک×۲۵ + مالیات فوری + ۵ کازمتیک انحصاری | ارزش نمایشی فقط از نرخ واقعی پک‌های جم
+- کلاینت: کارت EMPEROR STARTER PACK با شمارش خودپاک سرور-مأخذ + مودال تأیید + رونمایی جایزه | زرادخانه در فروشگاه و کشو حمله (شلیک + برق one-shot lowfx) | چیکس‌های fx | اخبار اعلان هدف | اعداد از balance.ts
+- حادثه محیطی: برگرداندن index.html به main وسط کار + فلیپ مکرر branch (فیکس با بکاپ/checkout -f/plumbing) | فیکس QA: تداخل نام WD88 محلی در IIFE فروشگاه → window.WD88
+- QA: wd108-smoke ۳۹/۳۹ + wd108-look ۱۲/۱۲ + wd94-tour-smoke ۷/۷ + check-html 96/0 + verify-build 9/9 + schema-diff identical | v108 همه‌ی نقاط
+
+Stage Summary:
+- V108 روی dev: PAYMENT = VALUE + CONVENIENCE + PRESTIGE + STRATEGIC OPTIONS — بدون راستی‌آزمایی سرور هیچ گرنتی نیست، هیچ سلاحی برد آنی نمی‌دهد، بازیکن رایگان دست‌نخورده
+- ریل پرداخت واقعی: با MYKET_CLIENT_ID/SECRET یا ZARINPAL_MERCHANT_ID فعال می‌شود؛ مسیر QA فقط ادمین/سرور تستی
+- pending: تست preview + ارائه کلیدهای پرداخت + در صورت تأیید merge به main
