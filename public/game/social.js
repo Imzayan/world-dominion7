@@ -634,7 +634,7 @@ function fetchThread(force){
   rpc('wd_dm_thread',{p_with:ST.dmOpen.uid,p_limit:60}).then(function(r){
     if(!r||!r.ok)return;
     var th=$('wd-dm');if(!th||!th.classList.contains('active'))return;
-    stTxt.textContent=r.presence==='online'?'🟢 آنلاین':r.presence==='idle'?'🟡 دور از تبع':'🔴 آفلاین';
+    var stEl=th.querySelector('.wd95-mid small');if(stEl)stEl.textContent=r.presence==='online'?'🟢 آنلاین':r.presence==='idle'?'🟡 دور از تبع':'🔴 آفلاین'; /* V107 فیکس: stTxt محلیِ openDm بود و این‌جا ReferenceError می‌داد */
     var sig='';(r.messages||[]).forEach(function(x){sig+=x.id+'|'});
     if(sig===ST.dmSig&&!force){applyBadges();return}
     ST.dmSig=sig;
@@ -1017,6 +1017,9 @@ window.WDS={
   srvLabel:function(){var onl=ST.onl[mySrv()]||0;return '🖥️ سرور '+mySrv()+' • '+fad(onl)+' آنلاین'},
   servers:function(){openSrvSelector()},
   profile:function(uid,nick){openProfile(null,uid,nick)},
+  dm:function(uid,nick){openDm(uid,nick)}, /* V107: پیوی از کشوی کشور */
+  dm:function(uid,nick){openDm(uid,nick)}, /* V107: پیوی از کشوی کشور */
+  dm:function(uid,nick){openDm(uid,nick)}, /* V107: پیوی از کشوی کشور */
   av:function(nick,cls){var hh=avColor(nick);return '<span class="wds-av '+(cls||'wds-av-s')+'" style="background:linear-gradient(135deg,hsl('+hh+',65%,45%),hsl('+((hh+50)%360)+',70%,35%))">'+String(nick||'؟').charAt(0).toUpperCase()+'</span>'},
   dot:function(st){return '<i class="wds-dot'+(st==='online'?' wds-dot-online':st==='idle'?' wds-dot-away':'')+'"'+(st==='online'||st==='idle'?'':' style="background:#5a6b80"')+'></i>'},
   sym:function(name,size){var px=size||20;return '<svg class="wds-ic" width="'+px+'" height="'+px+'" aria-hidden="true"><use href="#i-'+name+'"/></svg>'}

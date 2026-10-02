@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=106;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=106"></script>
+  <script>window.__WD_V=107;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=107"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2741,7 +2741,7 @@ const srvOpen=k=>!isTst(k)&&(k===1||isTst(k-1)||taken(k-1)>=SRV_CAP);
 function pickServer(){for(let k=1;k<=SRV_COUNT;k++)if(srvOpen(k)&&taken(k)<SRV_CAP)return k;return SRV_COUNT}
 async function loadStats(){try{const r=await sb.from('server_stats').select('server,taken,players');if(r.error)throw r.error;STATS={};(r.data||[]).forEach(x=>STATS[x.server]=x);MP_OK=true}catch(e){MP_OK=false;console.log(e)}}
 async function fetchTerr(){const r=await sb.from('territories').select('country,user_id,nick,is_capital').eq('server',SRV).limit(400);if(r.error)throw r.error;
-  const oth={},mine=new Set();(r.data||[]).forEach(x=>{if(x.user_id===ACC.uid)mine.add(x.country);else oth[x.country]={nick:x.nick,cap:x.is_capital}});return{oth,mine}}
+  const oth={},mine=new Set();(r.data||[]).forEach(x=>{if(x.user_id===ACC.uid)mine.add(x.country);else oth[x.country]={nick:x.nick,cap:x.is_capital,uid:x.user_id}});return{oth,mine}} /* V107: uid برای شناسنامه/پیوی */
 /* labels + colors for other players' countries */
 const OL2={};
 /* V57: اسم بازیکن دیگر هم فقط روی پایتختش — نه روی هر کشوری که گرفته */
@@ -3831,7 +3831,8 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       while(st.i<STEPS.length){ let ok=false; try{ok=!!probe[STEPS[st.i].k]()}catch(e){}
         if(!ok)break;
         reward(st.i); st.i++; save();
-        if(st.i<STEPS.length&&window.WD102_TUT_UI===true){ T('🎯 مرحله بعدی: '+STEPS[st.i].t) }
+        /* V107 ضداسپم: توست «مرحله بعدی» حذف — چیپ آموزش خودش به‌روز می‌شود */
+        if(false&&st.i<STEPS.length&&window.WD102_TUT_UI===true){ T('🎯 مرحله بعدی: '+STEPS[st.i].t) }
       }
       if(st.i>=STEPS.length){
         if(timer){clearInterval(timer);timer=null}
@@ -3960,7 +3961,8 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     try{
       if(ACC&&ACC.ready&&!localStorage.getItem('wd_advisor_seen')){
         try{localStorage.setItem('wd_advisor_seen','1')}catch(e){}
-        showToast('🎓 مشاور ارشد «علیرضا» آماده‌ی همراهی توست — آموزش سینمایی بازی شروع می‌شود.','win');
+        /* V107 ضداسپم: پیام «مشاور ارشد علیرضا» بعد از ورود دیگر نشان داده نمی‌شود —
+           مشاور همیشه از دکمه‌ی 🧭 داک در دسترس است؛ هیچ پیام/پنجره‌ی خودکاری بعد از ورود نمی‌آید */
       }
     }catch(e){}
   },1800);
@@ -8298,7 +8300,8 @@ function handleCine(p){if(!p||!p.type)return;if(p.uid===MY30())return;
   else if(p.type==='meteor')WD30CINE('☄️','رگبار شهاب‌سنگ!','🔥 آسمان '+p.country+' آتش گرفت — دفاعش برای ۳۰ دقیقه زخمی است','','meteor');
   else if(p.type==='season')WD30CINE('🏆','فصل جدید آغاز شد!','👑 قهرمان فصل قبل: '+(p.champ||'—'),'c-gold','cheer');
   else if(p.type==='olympic'){try{localStorage.setItem('wd32cycle_'+(window.SRV||1),String(p.cycle||0))}catch(e){}
-    WD30CINE('🏅','تاج‌گذاری قهرمان المپیک!','👑 '+p.nick+' با '+(p.medals||0)+' مدال قهرمان جهان شد — 💎 ۴ جم + 🪙 ۱۰۰٬۰۰۰ سکه جایزه گرفت','c-gold','cheer')}}
+    /* V107 ضداسپم: تاج‌گذاری المپیک دیگر برای همه‌ی پلیرها پاپ‌آپ نمی‌زند — خبر در روزنامه/اعلان‌ها می‌ماند؛
+       سینمای تاج‌گذاری فقط برای خودِ قهرمان در مسیر رسمی همان‌جا اجرا می‌شود */}}
 try{if(typeof sb!=='undefined'&&sb&&sb.channel){sb.channel('wd30-cinema-'+SRV30)
   .on('broadcast',{event:'wd30'},m=>{try{handleCine(m&&m.payload)}catch(e){}}).subscribe()}}catch(e){}
 
@@ -10852,7 +10855,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=106';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=107';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -17422,7 +17425,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=106';
+              s.src='/game/cv-engine.js?v=107';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17433,7 +17436,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=106"></script>
+<script src="/game/oly3.js?v=107"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17447,7 +17450,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=106';
+      s.src='/game/oly3d.js?v=107';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -18587,13 +18590,161 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=106"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=106"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=107"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=107"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
 window.addEventListener("unhandledrejection",function(e){try{var r=e&&e.reason;wdePush("rej",(r&&(r.message||r))||"rejection")}catch(x){}});
 try{Object.defineProperty(window,"WD_ERRS",{get:function(){try{return JSON.parse(localStorage.getItem("wd_errs")||"[]")}catch(e){return[]}}})}catch(e){}})();
 </script>
+
+<style id="v107-css">
+/* ============ V107 — شناسنامه/پیوی در کشوی کشور + ورود سینمایی به کشور ============ */
+/* ۱) ردیف دکمه‌های بازیکن در کشوی کشور */
+#w107-row{display:flex;gap:8px;width:100%;margin-top:2px}
+.w107-pbtn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;min-height:46px;border-radius:14px;
+  font-family:inherit;font-size:12px;font-weight:1000;cursor:pointer;position:relative;overflow:hidden;
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.w107-pbtn:active{transform:scale(.96)}
+.w107-pbtn.dm{color:#062018;border:1px solid rgba(62,232,140,.65);
+  background:linear-gradient(165deg,#3ee86e,#0f9d58);
+  box-shadow:0 6px 18px rgba(30,200,110,.28),inset 0 1px 0 rgba(255,255,255,.35)}
+.w107-pbtn.dm:hover{box-shadow:0 9px 24px rgba(30,200,110,.42),0 0 16px rgba(62,232,140,.28)}
+.w107-pbtn.card{color:#1d1502;border:1px solid rgba(255,204,64,.6);
+  background:linear-gradient(165deg,#ffe08a,#ffb62e);
+  box-shadow:0 6px 18px rgba(255,170,30,.24),inset 0 1px 0 rgba(255,255,255,.4)}
+/* ۲) دکمه‌ی «ورود به کشور» پریمیوم */
+.w107-enter{position:relative;
+  background:linear-gradient(160deg,#20365a 0%,#0d1d33 60%,#0a1526 100%)!important;
+  border:1px solid rgba(255,204,64,.55)!important;color:#ffe9a8!important;font-weight:1000!important;
+  box-shadow:0 6px 20px rgba(0,0,0,.45),0 0 16px rgba(255,190,40,.14),inset 0 1px 0 rgba(255,255,255,.14)!important;
+  letter-spacing:.2px}
+.w107-enter:hover{border-color:rgba(255,204,64,.9)!important;
+  box-shadow:0 9px 26px rgba(0,0,0,.5),0 0 24px rgba(255,190,40,.3),inset 0 1px 0 rgba(255,255,255,.2)!important}
+.w107-enter .w107-door{width:16px;height:16px;flex:0 0 auto;filter:drop-shadow(0 0 6px rgba(255,200,60,.7))}
+.w107-enter::after{content:'';position:absolute;top:0;bottom:0;width:34%;left:-46%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.32),transparent);animation:w107shine 3.4s ease-in-out infinite}
+@keyframes w107shine{0%{left:-46%}55%,100%{left:130%}}
+/* ۳) شیرجه‌ی سینمایی ورود به کشور */
+#wd107-dive{position:fixed;inset:0;z-index:100400;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;
+  background:radial-gradient(circle at 50% 45%,rgba(8,26,48,.55) 0%,rgba(2,6,12,.93) 68%),rgba(2,6,12,.6);
+  backdrop-filter:blur(3px)}
+#wd107-dive.on{display:flex}
+#wd107-dive .ring{width:130px;height:130px;border-radius:50%;border:2.5px solid rgba(255,204,64,.75);
+  box-shadow:0 0 34px rgba(255,190,40,.4),inset 0 0 24px rgba(255,190,40,.25);
+  animation:w107zoom .95s cubic-bezier(.3,.75,.3,1) infinite}
+@keyframes w107zoom{0%{transform:scale(.35);opacity:0}35%{opacity:1}100%{transform:scale(1.65);opacity:0}}
+#wd107-dive .nm{font-size:21px;font-weight:1000;color:#ffe9a8;text-shadow:0 2px 18px rgba(255,190,40,.5)}
+#wd107-dive .sb{font-size:10.5px;color:#9fd8ff;font-weight:800;letter-spacing:1px}
+@media(prefers-reduced-motion:reduce){#wd107-dive .ring{animation:none}.w107-enter::after{animation:none}}
+/* ۴) پالیش نوار بالای نمای کشور */
+#wdcv-top{background:linear-gradient(180deg,rgba(4,12,24,.88),rgba(4,12,24,.55))!important;
+  backdrop-filter:blur(9px);border-bottom:1px solid rgba(255,204,64,.14)!important}
+#wdcv-exit{border-radius:999px!important;font-weight:1000!important;
+  border:1px solid rgba(255,204,64,.45)!important;background:linear-gradient(160deg,rgba(64,44,8,.9),rgba(26,16,2,.9))!important;
+  color:#ffe9a8!important;box-shadow:0 3px 14px rgba(0,0,0,.4)!important}
+</style>
+<script id="v107-social">
+/* ============ V107 — WD107_MARK ============
+   شناسنامه و پیویِ بازیکن از کشوی کشور (روی UI رسمی V95 در social.js سوار می‌شود — بدون دوباره‌سازی)
+   + دکمه‌ی «ورود به کشور» پریمیوم و شیرجه‌ی سینمایی. فقط افزودنی؛ هیچ مسیر موجودی بازنویسی نمی‌شود. */
+;(function(){
+'use strict';
+var D=document;
+function $(id){return D.getElementById(id)}
+function cfa(n){try{var c=getCountryData(n);return (c&&c.fa)||n}catch(e){return n}}
+function WDS(){return (typeof window.WDS!=='undefined'&&window.WDS)?window.WDS:null}
+function toast(m,k){try{showToast(m,k||'win')}catch(e){}}
+
+/* ---------- ۱) کشوی کشورِ بازیکن‌ها: [🪪 شناسنامه] [✉️ پیام خصوصی] ----------
+   کشوی کشور چند مسیر بازسازی دارد (واتچ‌داگ‌ها/هوک‌های دیرهنگام)؛ پس علاوه بر
+   هوک کلیک، یک MutationObserver هم ردیف را همیشه پایدار نگه می‌دارد. */
+var hintShown=false;
+function appendPlayerRow(){
+  var d=$('drawer-actions');if(!d)return;
+  if(d.querySelector('#w107-row'))return;
+  var n=(typeof activeEngName!=='undefined')?activeEngName:null;if(!n)return;
+  var o=(typeof OTH!=='undefined'&&OTH)?OTH[n]:null;if(!o||!o.nick)return;
+  var row=D.createElement('div');row.id='w107-row';
+  var b1=D.createElement('button');b1.id='w107-card-btn';b1.className='w107-pbtn card';
+  b1.innerHTML='🪪 شناسنامه'+(o.cap?' ⭐':'');
+  b1.addEventListener('click',function(ev){ev.stopPropagation();
+    var W=WDS();if(W&&W.profile){W.profile(o.uid,o.nick)}
+    else toast('⛔ بخش اجتماعی هنوز بارگذاری نشده — چند لحظه بعد دوباره بزن','lose')});
+  var b2=D.createElement('button');b2.id='w107-dm-btn';b2.className='w107-pbtn dm';
+  b2.innerHTML='✉️ پیام خصوصی';
+  b2.addEventListener('click',function(ev){ev.stopPropagation();
+    var W=WDS();if(W&&W.dm){W.dm(o.uid,o.nick)}
+    else toast('⛔ بخش اجتماعی هنوز بارگذاری نشده — چند لحظه بعد دوباره بزن','lose')});
+  row.append(b1,b2);d.appendChild(row);
+  if(!hintShown){hintShown=true;
+    try{if(!localStorage.getItem('wd107_hint')){localStorage.setItem('wd107_hint','1');
+      toast('🪪 تازه: روی کشور بازیکن‌ها که بزنی، شناسنامه و پیوی در دسترس است','win')}}catch(e){}}
+}
+try{
+  (WD_CLICK_HOOKS.post=WD_CLICK_HOOKS.post||[]).push(function(f,l){try{appendPlayerRow()}catch(e){}});
+  var dEl=$('drawer-actions');
+  if(dEl&&typeof MutationObserver!=='undefined'){
+    new MutationObserver(function(){try{appendPlayerRow()}catch(e){}}).observe(dEl,{childList:true});
+  }
+}catch(e){console.error('w107-hook',e)}
+
+/* ---------- ۲) دکمه‌ی «ورود به کشور» پریمیوم + شیرجه‌ی سینمایی ---------- */
+function showDive(n){
+  var dv=$('wd107-dive');
+  if(!dv){dv=D.createElement('div');dv.id='wd107-dive';
+    dv.innerHTML='<div class="ring"></div><div class="nm"></div><div class="sb">ورود به خاک کشور…</div>';
+    D.body.appendChild(dv)}
+  dv.querySelector('.nm').textContent=cfa(n);
+  dv.classList.add('on');
+  setTimeout(function(){dv.classList.remove('on')},1750);
+}
+function upgradeEnterBtn(n){
+  var b=$('act-wdcv-enter');if(!b||b.__w107)return;
+  b.__w107=1;b.classList.add('w107-enter');
+  b.innerHTML='<svg class="w107-door" viewBox="0 0 24 24" fill="none" aria-hidden="true">'+
+    '<path d="M13 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5" stroke="#ffd75e" stroke-width="1.7" stroke-linecap="round"/>'+
+    '<path d="M13 2.6 4.6 4.4A1 1 0 0 0 3.8 5.4v13.2a1 1 0 0 0 .8 1L13 21.4z" fill="rgba(255,215,94,.16)" stroke="#ffd75e" stroke-width="1.7" stroke-linejoin="round"/>'+
+    '<circle cx="10.4" cy="12" r="1.15" fill="#ffd75e"/></svg><span>ورود سینمایی به کشور</span>';
+  b.addEventListener('click',function(){try{showDive(n||b.__w107c||'')}catch(e){}});
+}
+try{
+  /* ارتقا در مسیر کلیک + ناظر DOM (پایدار در برابر بازسازی کشو)؛ دبل‌گیری با __w107 */
+  (WD_CLICK_HOOKS.post=WD_CLICK_HOOKS.post||[]).push(function(f,l){
+    try{
+      var n=f.properties.name;
+      if(typeof owned!=='function'||!owned(n))return;
+      var b=$('act-wdcv-enter');if(!b)return;
+      b.__w107c=n;upgradeEnterBtn(n);
+    }catch(e){}
+  });
+  var dEl2=$('drawer-actions');
+  if(dEl2&&typeof MutationObserver!=='undefined'){
+    new MutationObserver(function(){
+      try{
+        var n=(typeof activeEngName!=='undefined')?activeEngName:null;if(!n)return;
+        if(typeof owned!=='function'||!owned(n))return;
+        var b=$('act-wdcv-enter');if(!b)return;
+        b.__w107c=n;upgradeEnterBtn(n);
+      }catch(e){}
+    }).observe(dEl2,{childList:true,subtree:true});
+  }
+  /* اگر موتور کشور از مسیر دیگری باز شد، شیرجه با WDCV.open هم فعال می‌شود (بدون دبل) */
+  var wpoll=setInterval(function(){
+    try{
+      if(window.WDCV&&!window.WDCV.__w107d){
+        var _o=window.WDCV.open;
+        window.WDCV.open=function(n,opts){
+          try{var dv=$('wd107-dive');if(!dv||!dv.classList.contains('on'))showDive(n)}catch(e){}
+          return _o.call(window.WDCV,n,opts)};
+        window.WDCV.__w107d=1;clearInterval(wpoll);
+      }
+    }catch(e){clearInterval(wpoll)}
+  },1200);
+}catch(e){console.error('w107-enter',e)}
+})();
+</script>
+
 </body>
 </html>
