@@ -2801,3 +2801,20 @@ Stage Summary:
 - پک فاتح = ۸۰۰ جم @ ۳۰۰٬۰۰۰ تومان و پک امپراتور = ۱۵۰۰ جم @ ۶۹۰٬۰۰۰ تومان — زنده روی پروداکشن
 - نرخ هر جم: ۴۰۰ / ۳۶۷ / ۳۷۵ / ۴۶۰ — تاج «بهترین نرخ» خودکار به پک ۳۰۰جم (جنگاور) می‌رود
 - pending کاربر: در پنل مایکت فقط عنوان و قیمت دو محصول را به‌روز کند (شناسه‌ها همان قبلی) + قیمت ۲۸۰ تومانی emperor_starter
+
+---
+Task ID: V116-MYKET-FIX
+Agent: Super Z (main)
+Task: رد شدن بازبینی مایکت — خطای «the column» روی ثبت‌نام؛ کاربر خواست رفع و نسخه‌ی جدید
+
+Work Log:
+- بازتولید دقیق: APK به main domain (world-dominion7.vercel.app) وصل است که در v109 یخ زده؛ signup با device_id → 500 با متن خام Prisma «The column wallets.starter_seen_at does not exist» (schema drift بیلد قدیمی). بک‌اند dev (V115) سالم: signup+device_id=200، کاتالوگ 4/4
+- SANDBOX ROLLBACK کشف شد: مخزن محلی به اسنپ‌شات V112 برگشته بود (reflog قطع، آبجکت‌های V113–V115 پرونه) — گیت‌هاب سالم بود (49124be)؛ git reset --hard origin/dev → بازیابی کامل؛ درس: قبل از هر ریلیز git fetch + مقایسه origin
+- V116 بهداشت خطا (دفاع دولایه): src/lib/apierr.ts safeErr() — لاگ کامل سمت سرور، توکن پایدار server_busy به کلاینت؛ اعمال روی auth/signup، auth/login، شیم db (select/insert/update/delete؛ قرارداد P2002 حفظ)، catch مسیر rpc (کدهای قراردادی کوتاه مثل stock_race عبور، بقیه پاک‌سازی)؛ کلاینت errFa هم server_busy/column/prisma/invocation/database → پیام فارسی دوستانه (حتی کلاینت‌های کش‌شده قدیمی متن خام نمی‌بینند)
+- release v115→v116 (7 ?v + beacon + GAME_VER) — گیت‌ها: 97/0، 9/9، schema identical، secret-scan clean؛ push ناموفق: ~/.git-credentials در رول‌بک سندباکس پاک شد — PAT دوباره لازم است
+- آماده‌سازی ادغام main: واگرایی فقط ۱۹ فایل + یک فایل legacy مخصوص main (use-tactical-item)؛ کلون جداگانه /home/z/my-project/mainmerge، شاخه rel-main از origin/main، merge با local/dev (204cbcd)، حل تعارض‌ها wholesale به درخت dev؛ گیت‌ها روی کاندیدادغام همه سبز؛ کامیت محلی آماده‌ی push
+
+Stage Summary:
+- ریشه‌ی خطای مایکت = یخ‌زدگی main در v109 (نه کد فعلی)؛ راه‌حل = push V116 به dev + push ادغام به main تا APK محتوای سالم سرو کند
+- دو مانع سمت کاربر: (۱) PAT گیت‌هاب (قبلی در رول‌بک محیط پاک شد) (۲) keystore برای بیلد APK جدید امضاشده
+- بک‌آپ ویرایش‌های امروز: /home/z/my-project/backup-v116/
