@@ -60,7 +60,7 @@ const NICK_A = 'q88a' + Math.random().toString(36).slice(2, 7)
   check('catalog: 10 tactical orders incl. sabotage+blockade', cat.war_cfg && ['emsupply', 'reserve', 'convoy', 'mobilize', 'edefense', 'airrecon', 'reconsweep', 'ewar', 'blockade', 'sabotage'].every(k => cat.war_cfg.orders[k]), '')
   check('catalog: new collections (thunder/warlord/landmarks/capitals/vault)', (cat.collections || []).filter(c => ['thunder', 'warlord', 'landmarks', 'capitals', 'vault'].includes(c.id)).length === 5, 'collections=' + (cat.collections || []).length)
   check('catalog: Imperial Vault box with transparent odds', cat.mystery && cat.mystery.vault_mythic && (cat.mystery.vault_mythic.odds || []).length === 5, S((cat.mystery || {}).vault_mythic || {}).slice(0, 80))
-  check('catalog: gem pack prices intact (regression)', (cat.packs || []).find(p => p.id === 'gems_550').price === '۲۰۰٬۰۰۰ تومان', '')
+  check('catalog: gem pack prices intact (regression — PriceSync-v4/V115)', (() => { const f = id => (cat.packs || []).find(p => p.id === id) || {}; return f('gems_550').price === '۳۰۰٬۰۰۰ تومان' && f('gems_550').gems === 800 && f('gems_1000').price === '۶۹۰٬۰۰۰ تومان' && f('gems_1000').gems === 1500 && f('gems_100').gems === 100 && f('gems_300').gems === 300 })(), '')
 
   /* Shop UI: new tabs render */
   await page.evaluate(() => { try { renderShop(); openModal('m-shop') } catch (e) { } })
