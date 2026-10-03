@@ -688,10 +688,11 @@ async function shopServiceExpiry(userId: string, itemId: string): Promise<string
 }
 
 /* ============================================================
-   V108 — پک شروع امپراتور: تایمر/شرایط فقط از سرور.
-   لنگر ۴۸ ساعته = createdAt حساب (زمان ثبت‌نام روی سرور) —
-   پاک‌کردن حافظه/نصب مجدد/تغییر دستگاه/دستکاری ساعتِ دستگاه اثری ندارد.
-   حساب‌های قدیمی = expired از همان ابتدا (پک فقط برای بازیکن تازه).
+   V108 — پک شروع امپراتور: وضعیت خرید فقط از سرور.
+   V114 — آفر برای «همه‌ی بازیکنان» دیده می‌شود و تا خرید فعال می‌ماند
+   (پنجره‌ی ۴۸ ساعته حذف شد؛ محدودیت واقعی = فقط یک‌بار برای هر حساب،
+   در starter_claim اعمال می‌شود). پاک‌کردن حافظه/نصب مجدد/تغییر دستگاه
+   /دستکاری ساعتِ دستگاه اثری ندارد.
    ============================================================ */
 async function starterStateOf(userId: string) {
   let row = await db.starterOffer.findUnique({ where: { userId } })
@@ -705,7 +706,8 @@ async function starterStateOf(userId: string) {
   }
   const endsAt = row.startedAt.getTime() + STARTER_PACK.windowMs
   const purchasedAt = row.purchasedAt
-  const phase: 'offer' | 'expired' | 'purchased' = purchasedAt ? 'purchased' : Date.now() <= endsAt ? 'offer' : 'expired'
+  /* V114: تا وقتی خریداری نشده، همیشه «offer» — حساب‌های قدیمی هم پک ۲۸۰ تومانی را می‌بینند */
+  const phase: 'offer' | 'expired' | 'purchased' = purchasedAt ? 'purchased' : 'offer'
   return { row, startedAt: row.startedAt, endsAt, purchasedAt, phase }
 }
 
@@ -2494,11 +2496,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const { w } = await dailyBonus(user.id)
         const inv = await shopOwnedRows(user.id)
         const nowC = Date.now()
-        /* V108 — وضعیت پک شروع (فقط برای حساب‌های تازه‌ی در پنجره فعال می‌شود) */
+        /* V114 — وضعیت پک شروع (برای همه‌ی بازیکنان تا لحظه‌ی خرید) */
         const stC = await starterStateOf(user.id)
         const starterBlock = {
           phase: stC.phase,
-          ends_in_ms: stC.phase === 'offer' ? Math.max(0, stC.endsAt - nowC) : 0,
+          /* V114: پنجره‌ی زمانی حذف شد — آفر نامحدود است تا وقتی خریداری نشود */
+          unlimited: true,
+          ends_in_ms: 0,
           price_fa: STARTER_PACK.priceFa,
           price_toman: STARTER_PACK.priceToman,
           contents: starterContents(),
@@ -2878,7 +2882,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         return R({
           ok: true, phase: st.phase,
-          ends_in_ms: st.phase === 'offer' ? Math.max(0, st.endsAt - Date.now()) : 0,
+          /* V114: آفر نامحدود — دیگر پنجره‌ی ۴۸ ساعته وجود ندارد */
+          unlimited: true,
+          ends_in_ms: 0,
           purchased_at: st.purchasedAt ? st.purchasedAt.toISOString() : null,
           price_fa: STARTER_PACK.priceFa,
           price_toman: STARTER_PACK.priceToman,

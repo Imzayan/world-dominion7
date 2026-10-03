@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=113;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=113"></script>
+  <script>window.__WD_V=114;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=114"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2862,7 +2862,14 @@ async function syncTerr(){if(syncBusy||!sb||!ACC.uid||!ACC.ready||MP_OK!==true)r
   catch(e){console.log(e)}
   syncBusy=false}
 async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
-  if(MP_OK!==true){const b=A$('status-banner');if(b)b.textContent='⚠️ اتصال به سرورهای چندنفره برقرار نشد؛ تا اتصال مجدد، پیشرفت شما ذخیره می‌شود';return}
+  if(MP_OK!==true){const b=A$('status-banner');if(b)b.textContent='⚠️ اتصال به سرورهای چندنفره برقرار نشد؛ تا اتصال مجدد، پیشرفت شما ذخیره می‌شود';
+    /* V114: تلاش مجدد خودکار — یک شکستِ گذرا در بوت دیگر «قطعی دائمی» نمی‌شود (بک‌آف ملایم، حداکثر ۱۲ تلاش) */
+    try{window.__wdMpRetry=(window.__wdMpRetry||0)+1}catch(e){}
+    if((window.__wdMpRetry||0)<=12){var dly=Math.min(15000,3000+((window.__wdMpRetry||0)*1000));setTimeout(function(){try{if(sb&&ACC.uid&&!document.hidden)initServer()}catch(e){}},dly)}
+    return}
+  /* V114: اتصال بعد از قطعی موقت برقرار شد — پیام صادقانه + ریست شمارنده */
+  try{if(window.__wdMpRetry>0){const b=A$('status-banner');if(b)b.textContent='👤 '+(ACC.nick||'')+' — پیشرفت بازی خودکار روی سرور ذخیره می‌شود';showToast('✅ اتصال به سرور برقرار شد','win')}}catch(e){}
+  try{window.__wdMpRetry=0}catch(e){}
   /* V86: تازه‌سازی لیست سرورهای تستی از سرور — بعد از «حالت عرضه‌ی مایکت» سرور ۱ خودکار باز می‌شود */
   try{const m=await sb.rpc('srv_meta');const tl=m&&m.data&&m.data.test_srvs;if(Array.isArray(tl))WD_TST=tl.map(Number).filter(n=>n>=1)}catch(e){}
   try{const r=await sb.from('scores').select('server').eq('user_id',ACC.uid).maybeSingle();
@@ -2871,6 +2878,8 @@ async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
   if(!window.__wdSyncLoop){window.__wdSyncLoop=true; /* V71: گارد یک‌بار — قبلاً هر لاگین +۱ interval و +۱ listener انباشته می‌شد */
     setInterval(()=>{if(!document.hidden)syncTerr()},SYNC_MS);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncTerr()})}}
 const _eo=enterOnline;enterOnline=async function(u,nick){await _eo(u,nick);initServer()};
+/* V114: برگشت به تب/باز شدن دوباره‌ی بازی وقتی اتصال برقرار نیست = تلاش مجدد فوری */
+document.addEventListener('visibilitychange',function(){try{if(!document.hidden&&(typeof MP_OK!=='undefined'&&MP_OK!==true)&&sb&&ACC&&ACC.uid&&typeof initServer==='function')initServer()}catch(e){}});
 /* other players' countries can't be attacked/claimed (PvP comes later) */
 /* V59: wrapper V28 حذف شد — چک مالکیت لحظه‌ای + syncTerr داخل attackTarget واحد ادغام شد */
 const _ccv=claimCapital;claimCapital=function(n){if(OTH[n]){showToast('❌ این کشور در سرور تو مال بازیکن دیگری است؛ کشور دیگری انتخاب کن','lose');return}_ccv(n);setTimeout(syncTerr,300);
@@ -10935,7 +10944,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=113';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=114';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -11960,6 +11969,8 @@ function srvBoot(){
     srvB=srvChip.querySelector('#wd-srv-b');srvS=srvChip.querySelector('#wd-srv-s');
     srvBar=srvChip.querySelector('.wd-srv-bar i');
     srvChip.addEventListener('click',function(){try{
+      /* V114: اگر اتصال برقرار نیست، لمسِ چیپ = تلاش فوری برای اتصال */
+      if(typeof MP_OK!=='undefined'&&MP_OK!==true&&typeof initServer==='function'&&ACC&&ACC.uid){srvS.textContent='… در حال اتصال';initServer();return}
       if(typeof window.WD31_SERVER==='function'){window.WD31_SERVER();return}
       if(typeof renderSrv==='function')renderSrv();
       if(typeof openModal==='function')openModal('m-srv');
@@ -17057,11 +17068,13 @@ function vStarter(){
   if(st&&st.phase!=='offer')return null;
   if(!st&&!OFF66)return null; /* V112: آنلاین بدون آفرِ سرور = نه؛ ولی در قطعی سرور، کارت ۲۸۰ تومانی همیشه دیده می‌شود */
   var off=!st;
-  var endsAt=st?(Date.now()+Math.max(0,Number(st.ends_in_ms)||0)):0;
+  /* V114: آفر نامحدود شد (برای همه‌ی بازیکنان تا خرید) — تایمر فقط وقتی سرور پنجره داد */
+  var limited=!!(st&&!st.unlimited&&Number(st.ends_in_ms)>0);
+  var endsAt=limited?(Date.now()+Math.max(0,Number(st.ends_in_ms)||0)):0;
   var w=el('div',null,'wd108-starter');
   w.append(el('div','👑','crown'));
   w.append(el('div','👑 EMPEROR STARTER PACK','ttl'));
-  w.append(el('div','«اولین گام تو به سمت ساختن یک امپراتوری» — فقط برای ۴۸ ساعت اول ورود، فقط یک‌بار برای هر حساب','sub'));
+  w.append(el('div','«اولین گام تو به سمت ساختن یک امپراتوری» — برای همه‌ی بازیکنان، فقط یک‌بار برای هر حساب','sub'));
   var row=el('div');row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:8px';
   /* V111 — قیمت تخفیف‌دار: ۵۰۰ تومان خط‌خورده ← ۲۸۰ تومان */
   var pr=el('div');pr.style.cssText='display:flex;flex-direction:column;gap:3px;min-width:0';
@@ -17072,7 +17085,7 @@ function vStarter(){
   pr.append(pl);
   pr.append(el('div','⭐ پیشنهاد ویژه‌ی شروع — قیمت اصلی این پک ۵۰۰ تومان بود و حالا شده ۲۸۰ تومان','wd108-oldnote'));
   row.append(pr);
-  var t=el('span','⏳ …','wd108-timer');row.append(t);w.append(row);
+  var t=limited?el('span','⏳ …','wd108-timer'):null;if(t)row.append(t);w.append(row);
   var g=el('div',null,'wd108-grid');
   var ctn=((st&&st.contents)||{});
   var items108=[['💎',gemN(ctn.gems||1200)+' جم'],['🪙',gemN(ctn.gold||0)+' طلا'],['🛢️',gemN(ctn.oil||0)+' نفت'],['🍞',gemN(ctn.food||0)+' غذا'],
@@ -17083,10 +17096,10 @@ function vStarter(){
   var b=el('button','🛒 BUY NOW — '+WD_STARTER_PRICE.now,'wd108-buy');
   b.setAttribute('data-act','starter');w.append(b);
   if(off)w.append(el('div','🔌 نمایش آفلاین — خرید این پک پس از وصل‌شدن سرور فعال می‌شود.','wd108-oldnote'));
-  w.append(el('div','✅ قیمت قبل از خرید مشخص است • بدون هزینه‌ی پنهان • فقط یک‌بار برای هر حساب (تایمر سمت سرور — پاک‌کردن حافظه مرورگر اثری ندارد) • ارزش جم بر اساس نرخ بهترین بسته‌ی واقعی فروشگاه.','wd108-hint'));
-  /* تایمر خودپاک — فقط وقتی داده‌ی سرور هست؛ اعتبار با سرور است */
+  w.append(el('div','✅ قیمت قبل از خرید مشخص است • بدون هزینه‌ی پنهان • فقط یک‌بار برای هر حساب (وضعیت خرید سمت سرور — پاک‌کردن حافظه مرورگر اثری ندارد) • ارزش جم بر اساس نرخ بهترین بسته‌ی واقعی فروشگاه.','wd108-hint'));
+  /* تایمر خودپاک — فقط وقتی داده‌ی سرور هست و پنجره‌ی زمانی دارد؛ اعتبار با سرور است */
   try{
-    if(off)return w;
+    if(off||!limited||!t)return w;
     var tick=function(){var m=H('m-shop');
       if(!m||!m.classList.contains('active')||!t.isConnected){clearInterval(TIMER108);TIMER108=null;return}
       t.textContent='⏳ '+faClock(endsAt-Date.now())};
@@ -17188,21 +17201,26 @@ function viewGems(c){
   var vsp=vStarter();if(vsp){c.append(vsp)}
   c.append(el('div','💎 بسته‌های جم','wd66-h'));
   var g=el('div',null,'wd66-packgrid');
+  /* V114 — بازطراحی کامل کارت‌های جم: آیکون درخشان وسط، سلسله‌مراتب تمیز قیمت/نرخ/دکمه — پایان به‌هم‌ریختگی */
   /* V85 پریمیوم: تشخیص بهترین نرخ (کمترین perGem) — نشان «بهترین نرخ» + قاب طلایی */
   var best85=null;(CAT66.packs||[]).forEach(function(p){var n=Number(String(p.perGem).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}));if(n&&(!best85||n<best85.n))best85={n:n,p:p}});
   (CAT66.packs||[]).forEach(function(p){
     var isBest=best85&&best85.p===p;
-    var r=el('div',null,'wd66-card wd66-pack'+(isBest?' best':''));r.style.cssText='display:block';
+    var r=el('div',null,'wd66-card wd66-pack wd114-gpack'+(isBest?' best':''));
     if(isBest)r.append(el('div','👑 بهترین نرخ','wd66-besttag'));
-    var hd=el('div');hd.style.cssText='display:flex;align-items:center;gap:8px';
-    hd.append(el('div','💎','wd66-ico wd66-gemico'));
-    var tx=el('div',null,'wd66-tx');tx.append(el('b',gemN(p.gems)+' جم — پک '+p.name));
-    tx.append(el('small','هر جم ≈ '+p.perGem+' تومان'));
-    hd.append(tx);r.append(hd);
-    if(p.tier)r.append(el('div',p.tier,'wd66-rar rar-leg'));
-    var row=el('div');row.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-top:8px';
-    row.append(el('b',p.price));row.append(el('button','به‌زودی','wd66-buy off'));
-    r.append(row);g.append(r)});
+    /* آیکون جم پریمیوم: پلاک چندلایه + برق متحرک + هاله‌ی نور */
+    var ico=el('div',null,'wd114-gico');
+    ico.append(el('span','💎','wd114-gem'));
+    ico.append(el('i',null,'wd114-gspark'));
+    r.append(ico);
+    r.append(el('div',gemN(p.gems)+' جم','wd114-gtitle'));
+    r.append(el('div','پک '+p.name,'wd114-gsub'));
+    var pr=el('div',null,'wd114-gprice');
+    pr.append(el('span','💵'),el('b',p.price));
+    r.append(pr);
+    r.append(el('div','هر جم ≈ '+p.perGem+' تومان','wd114-grate'));
+    var b=el('button','🔒 به‌زودی','wd66-buy off wd114-gbuy');
+    r.append(b);g.append(r)});
   c.append(g);
   c.append(el('div','🛒 بوست و منابع (مصرفی)','wd66-h'));
   itemsOfCat('resource').forEach(function(it){c.append(card(it,{owned:false}))})}
@@ -17722,7 +17740,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=113';
+              s.src='/game/cv-engine.js?v=114';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17733,7 +17751,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=113"></script>
+<script src="/game/oly3.js?v=114"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17747,7 +17765,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=113';
+      s.src='/game/oly3d.js?v=114';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -18987,8 +19005,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=113"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=113"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=114"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=114"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -19209,6 +19227,58 @@ body.wd45-tutshow #hud-info,body.wd45-tutshow #hud-strip,body.wd45-tutshow #hud-
 @media(prefers-reduced-motion:reduce){
   #wd-tg-fab,#wd-tg-fab::after,.leaflet-top.leaflet-left .leaflet-control-zoom{animation:none!important;transition:none!important}
 }
+</style>
+<style id="v114-css">
+/* ============ V114: فروشگاه درخشان — کارت‌های جم بازطراحی‌شده + آیکون‌های پریمیوم ============
+   پایان به‌هم‌ریختگی داخل کارت‌های جم: چیدمان ستونی منظم، هم‌ارتفاع، سلسله‌مراتب واضح
+   (آیکون درخشان ← نام بسته ← قیمت ← نرخ ← دکمه) + آیکون جم سینمایی چندلایه */
+.wd66-packgrid{gap:10px!important;align-items:stretch!important}
+.wd114-gpack{display:flex!important;flex-direction:column!important;align-items:center!important;text-align:center;
+  padding:15px 10px 12px!important;border-radius:18px!important}
+/* --- آیکون جم سینمایی: پلاک چندلایه + برق متحرک + ستاره‌ی چشمک‌زن + شناوری --- */
+.wd114-gico{position:relative;width:62px;height:62px;border-radius:19px;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;margin-bottom:9px;overflow:hidden;
+  background:linear-gradient(150deg,#1e3f78 0%,#143463 55%,#0b2148 100%);
+  border:1px solid rgba(120,200,255,.42);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 -8px 14px rgba(0,0,0,.3),
+    0 6px 18px rgba(20,120,255,.28),0 0 22px rgba(60,180,255,.2)}
+.wd114-gico::before{content:"";position:absolute;top:-45%;left:-30%;width:90%;height:80%;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.3),transparent 70%);pointer-events:none}
+.wd114-gico::after{content:"";position:absolute;top:0;bottom:0;width:46%;left:-60%;pointer-events:none;
+  background:linear-gradient(105deg,transparent,rgba(255,255,255,.45),transparent);
+  transform:skewX(-18deg);animation:wd66shine 4.6s ease-in-out infinite;animation-delay:.8s}
+.wd114-gem{font-size:30px;line-height:1;font-family:"Segoe UI Emoji","Noto Color Emoji","Apple Color Emoji",sans-serif;
+  filter:drop-shadow(0 3px 7px rgba(0,10,40,.65)) drop-shadow(0 0 9px rgba(90,200,255,.4));
+  animation:wd114float 3.4s ease-in-out infinite}
+@keyframes wd114float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.wd114-gspark{position:absolute;top:7px;left:9px;width:7px;height:7px;border-radius:50%;background:#fff;
+  box-shadow:0 0 9px 2px rgba(160,230,255,.95);opacity:.9;animation:wd114tw 2.2s ease-in-out infinite}
+@keyframes wd114tw{0%,100%{opacity:.12;transform:scale(.55)}50%{opacity:.95;transform:scale(1.15)}}
+/* --- متن‌ها: سلسله‌مراتب تمیز --- */
+.wd114-gtitle{font-size:16.5px;font-weight:950;color:#ffe9ad;text-shadow:0 2px 8px rgba(0,0,0,.55);line-height:1.35}
+.wd114-gsub{font-size:10.5px;color:#9fb6dd;margin-top:2px;font-weight:800}
+.wd114-gprice{display:flex;align-items:center;gap:6px;margin-top:9px;padding:5px 13px;border-radius:999px;
+  background:linear-gradient(135deg,rgba(255,216,77,.17),rgba(255,180,0,.08));
+  border:1px solid rgba(255,216,77,.42);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.wd114-gprice span{font-size:12px;line-height:1}
+.wd114-gprice b{font-size:13.5px;color:#ffd84d;white-space:nowrap;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+.wd114-grate{font-size:9.5px;color:#7f96bd;margin-top:5px;font-weight:800}
+.wd114-gbuy{margin-top:9px;width:100%;min-height:34px;border-radius:11px}
+/* --- پک «بهترین نرخ»: طلاییِ تمام‌قد --- */
+.wd114-gpack.best .wd114-gico{border-color:rgba(255,216,77,.68);
+  background:linear-gradient(150deg,#4d3c10 0%,#352a0b 55%,#201906 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -8px 14px rgba(0,0,0,.3),
+    0 6px 18px rgba(255,170,0,.3),0 0 26px rgba(255,204,0,.3)}
+.wd114-gpack.best .wd114-gtitle{color:#fff3c9}
+.wd114-gpack.best .wd114-gprice{border-color:rgba(255,216,77,.6);background:linear-gradient(135deg,rgba(255,216,77,.24),rgba(255,180,0,.12))}
+/* --- آیکون‌های عمومی فروشگاه: عمق و درخشش بیشتر --- */
+.wd66-ico{border-radius:15px!important;transition:transform .25s cubic-bezier(.22,1,.36,1);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.24),inset 0 -7px 12px rgba(0,0,0,.2),0 4px 14px rgba(0,0,0,.42)!important}
+@media(hover:hover){.wd66-card:hover .wd66-ico{transform:translateY(-1px) scale(1.05)}}
+/* --- مهار انیمیشن در حالت کم‌مصرف --- */
+body.wd-lowfx .wd114-gico::after,body.wd-lowfx .wd114-gspark{display:none!important}
+body.wd-lowfx .wd114-gem,body.wd-lowfx .wd66-ico{animation:none!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){.wd114-gico::after,.wd114-gspark{display:none!important}.wd114-gem{animation:none!important}}
 </style>
 <script id="v110-js">
 /* ============ V110: آیکون مستقل تلگرام — بالا-چپ بالای خروج (منطق پاداش همان V86 کانال رسمی) ============ */

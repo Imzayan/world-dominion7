@@ -113,11 +113,12 @@ export const WAR_RESIST_STEPS = [1, 0.6, 0.3, 0] as const;
 /* حفاظت بازیکن (§13): حساب‌های تازه هدف سلاح تاکتیکی نمی‌شوند */
 export const PROTECTION_MIN_AGE_MS = 7 * 86400_000;
 
-/* ---- پک شروع امپراتور (§4) — تایمر فقط سمت سرور (StarterOffer.startedAt) ---- */
+/* ---- پک شروع امپراتور (§4) — وضعیت خرید فقط سمت سرور (StarterOffer) ----
+   V114: قیمت پروموی جذب پلیر — ۲۸۰ تومان (قیمت اصلی ۵۰۰ تومان بود؛ سنکرون با پنل مایکت) */
 export const STARTER_PACK = {
   id: 'emperor_starter',
-  priceToman: 140000,
-  priceFa: '۱۴۰٬۰۰۰ تومان',
+  priceToman: 280,
+  priceFa: '۲۸۰ تومان',
   windowMs: 48 * 3600_000,
   gems: 1200,
   gold: 100000,
