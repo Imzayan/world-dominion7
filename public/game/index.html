@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=112;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=112"></script>
+  <script>window.__WD_V=113;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=113"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2521,9 +2521,84 @@ addEventListener('load',()=>{const nb=document.querySelector('.bottom-nav');
    <script>
     /* ===== Accounts, saves and leaderboard =====
    Server (Supabase) mode when the keys below are set; otherwise accounts are stored on this device. */
-const SUPABASE_URL='https://yposzxodlwswbkvipsrv.supabase.co';
-const SUPABASE_KEY='sb_publishable_Axj4hDlu-7mktUorUjezMA_IXCnPZYa';
-const CONFIGURED=/^https?:\/\/[^\s]+/.test(SUPABASE_URL)&&SUPABASE_KEY.length>20&&!/PASTE/.test(SUPABASE_KEY);
+const SUPABASE_URL='https://yposzxodlwswbkvipsrv.supabase.co'; /* V113: legacy — فقط برای diag؛ بازی دیگر مستقیم به آن وصل نیست */
+const SUPABASE_KEY='sb_publishable_Axj4hDlu-7mktUorUjezMA_IXCnPZYa'; /* V113: legacy */
+const CONFIGURED=true; /* V113: بک‌اند خودِ بازی روی همین دامنه همیشه در دسترس است */
+
+/* ============================================================
+   V113 — SB SHIM: بک‌اند خودِ بازی (same-origin /api) جایگزین Supabase
+   ------------------------------------------------------------
+   پروژه‌ی قبلی Supabase (yposzx…) خارج از دسترس است (NXDOMAIN) و بازی
+   کامل قطع بود. کل منطق سرور (auth/db/rpc — همان قواعد، قیمت‌ها و
+   ضدتقلب) از قبل روی همین دامنه در /api/* مستقر است. این شِم دقیقاً
+   همان سطح sb.* را که بازی صدا می‌زند با پاکت {data,error} می‌دهد:
+   - auth.signUp / signInWithPassword / getSession / signOut → /api/auth/*
+   - from(t).select().eq().order().limit().single().maybeSingle()
+     .insert().update() → /api/db/{t} (q=base64url(JSON))
+   - rpc(fn,args) → POST /api/rpc/{fn}
+   - channel(): broadcast با پل /api/rt (polling سبک، فقط با نشست);
+     postgres_changes بی‌صدا (اخبار polling ۱۵ثانیه‌ای خودش را دارد)
+   نشست با کوکی httpOnly wd_session حمل می‌شود — هیچ توکنی در
+   localStorage نمی‌رود؛ سطح حمله‌ی توکن-سرقت XSS بسته می‌شود.
+   ============================================================ */
+let sb=(function(){
+  var API='/api';
+  function j(u,o){o=o||{};
+    var init={method:o.method||'GET',cache:'no-store',credentials:'same-origin',headers:Object.assign({'Content-Type':'application/json'},o.headers||{})};
+    if(o.body!==undefined)init.body=o.body;
+    return wdFetch(u,init).then(function(r){return r.json().catch(function(){return{data:null,error:{message:'HTTP '+r.status}}})},function(){return{data:null,error:{message:'network error'}}})}
+  function b64q(o){try{var s=JSON.stringify(o);return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}catch(e){return''}}
+  function unwrap(res,q){
+    if(res.error)return res;
+    var d=res.data;
+    if(q&&q.single)return{data:(d&&d.length)?d[0]:null,error:(d&&d.length)?null:{message:'JSON object requested, multiple (or no) rows returned',code:'PGRST116'}};
+    if(q&&q.maybeSingle)return{data:(d&&d.length)?d[0]:null,error:null};
+    return{data:d||[],error:null}}
+  function builder(t,q,mode,write){
+    q=q||{};
+    var b={
+      select:function(s){q.select=String(s||'').split(',').map(function(x){return x.trim()}).filter(Boolean);return b},
+      eq:function(c,v){(q.filters=q.filters||[]).push({op:'eq',col:c,val:v});return b},
+      in:function(c,v){(q.filters=q.filters||[]).push({op:'in',col:c,val:v});return b},
+      order:function(c,o){q.order={col:c,asc:!(o&&o.ascending===false)};return b},
+      limit:function(n){q.limit=n;return b},
+      single:function(){q.single=true;return b},
+      maybeSingle:function(){q.maybeSingle=true;return b},
+      insert:function(row){return builder(t,q,'insert',row)},
+      update:function(p){return builder(t,q,'update',p)}};
+    b.then=function(res,rej){var p;
+      if(mode==='insert')p=j(API+'/db/'+t,{method:'POST',body:JSON.stringify({payloads:write,query:{select:q.select,single:q.single}})}).then(function(r){return r&&r.error?r:(q.maybeSingle?{data:(r.data&&r.data.length)?r.data[0]:null,error:null}:r)});
+      else if(mode==='update')p=j(API+'/db/'+t,{method:'PATCH',body:JSON.stringify({payload:write,query:{select:q.select,filters:q.filters}})}).then(function(r){return unwrap(r,q)});
+      else p=j(API+'/db/'+t+'?q='+b64q(q)).then(function(r){return unwrap(r,q)});
+      return p.then(res,rej)};
+    return b}
+  function channel(name){
+    var subs={},seq=0,timer=null,started=false;
+    function poll(){
+      if(!(typeof ACC!=='undefined'&&ACC&&ACC.uid))return;
+      j(API+'/rt/'+encodeURIComponent(name)+'?since='+seq).then(function(r){
+        if(r&&r.error){stop();return}
+        var evs=(r&&r.events)||[];
+        evs.forEach(function(e){seq=Math.max(seq,Number(e.seq)||0);(subs[e.event]||[]).forEach(function(cb){try{cb({payload:e.payload})}catch(x){}})});
+      }).catch(function(){})}
+    function start(){if(started)return;started=true;timer=setInterval(poll,12000);setTimeout(poll,1500)}
+    function stop(){started=false;if(timer){clearInterval(timer);timer=null}}
+    var obj={
+      on:function(kind,opt,cb){try{if(kind==='broadcast'&&opt&&opt.event){(subs[opt.event]=subs[opt.event]||[]).push(cb);start()}}catch(e){}return obj},
+      send:function(msg){try{if(msg&&msg.type==='broadcast'){j(API+'/rt/'+encodeURIComponent(name),{method:'POST',body:JSON.stringify({event:String(msg.event||'message'),payload:msg.payload||null})})}}catch(e){}return obj},
+      subscribe:function(){return obj},
+      unsubscribe:function(){stop();return obj}};
+    return obj}
+  return{
+    auth:{
+      signUp:function(p){return j(API+'/auth/signup',{method:'POST',body:JSON.stringify(p||{})})},
+      signInWithPassword:function(p){return j(API+'/auth/login',{method:'POST',body:JSON.stringify(p||{})})},
+      getSession:function(){return j(API+'/auth/session')},
+      signOut:function(){return j(API+'/auth/logout',{method:'POST'})}},
+    from:function(t){return builder(t)},
+    rpc:function(fn,args){return j(API+'/rpc/'+encodeURIComponent(fn),{method:'POST',body:JSON.stringify(args||{})})},
+    channel:channel,
+    removeChannel:function(){}}})();
 
 const ACC={nick:null,uid:null,key:null,ver:null,last:'',ready:false,busy:false};
 const COOL={tax:0,un:0}; /* cooldown end times (saved with the game so a refresh can't skip them) */
@@ -2532,13 +2607,11 @@ function mk(tag,txt,cls,fn){const e=document.createElement(tag);if(txt)e.textCon
 const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v);return true}catch(e){return false}}};
 /* V83 §SAVE (AUDIT-A P1-2): سیوی که در pagehide/مخفی‌شدن دیسپچ می‌شود با keepalive فرستاده
    می‌شود — fetch معمولی هنگام teardown مرورگر اغلب کشته می‌شد (تا ۸ ثانیه پیشرفت می‌پرید).
-   فقط برای نوشتنِ /rest/v1/saves — بقیه‌ی درخواست‌ها مثل قبل. */
+   فقط برای نوشتنِ سیو (rest قدیمی یا /api/db/saves شِم V113) — بقیه‌ی درخواست‌ها مثل قبل. */
 const wdFetch=(u,o)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),12000);if(o&&o.signal)o.signal.addEventListener('abort',()=>c.abort());
   const init=Object.assign({},o,{signal:c.signal});
-  try{if(document.visibilityState==='hidden'&&typeof u==='string'&&u.indexOf('/rest/v1/saves')>0&&init&&((init.method||'GET')!=='GET'))init.keepalive=true}catch(e){}
+  try{if(document.visibilityState==='hidden'&&typeof u==='string'&&(u.indexOf('/rest/v1/saves')>0||u.indexOf('/api/db/saves')>0)&&init&&((init.method||'GET')!=='GET'))init.keepalive=true}catch(e){}
   return fetch(u,init).finally(()=>clearTimeout(t))};
-let sb=null;
-try{if(CONFIGURED&&window.supabase)sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{global:{fetch:wdFetch}})}catch(e){console.log(e)}
 
 /* ---------- cooldowns that survive refresh ---------- */
 function resumeCd(kind,rem){const tax=kind==='tax',btn=A$(tax?'act-tax':'act-un-aid'),label=A$(tax?'tax-cooldown-text':'un-cooldown-text');
@@ -10862,7 +10935,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=112';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=113';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -16732,9 +16805,9 @@ function syncVip(ts){try{if(!ts)return;var t=Date.parse(ts);if(!t)return;
 var OFF66=false;
 function cacheSave(c){try{localStorage.setItem('wd66_cat_v1',JSON.stringify({t:Date.now(),c:c}))}catch(e){}}
 function cacheLoad(){try{var x=JSON.parse(localStorage.getItem('wd66_cat_v1')||'null');return (x&&x.c&&x.c.items&&x.c.items.length)?x.c:null}catch(e){return null}}
-function serverProbe(){return new Promise(function(res){ /* تشخیص صادقانه: سرور پایین است یا اینترنت کاربر */
+function serverProbe(){return new Promise(function(res){ /* تشخیص صادقانه: سرور پایین است یا اینترنت کاربر — V113: پینگ بک‌اند خودِ بازی (same-origin) */
   var done=false;var fin=function(v){if(!done){done=true;res(v)}};var to=setTimeout(function(){fin('down')},6000);
-  try{fetch((typeof SUPABASE_URL!=='undefined'?SUPABASE_URL:'')+'/rest/v1/',{method:'GET',cache:'no-store',headers:{apikey:(typeof SUPABASE_KEY!=='undefined'?SUPABASE_KEY:'')}}).then(function(r){clearTimeout(to);fin(r.ok?'up':'down')},function(){clearTimeout(to);fin('down')})}catch(e){clearTimeout(to);fin('down')}})}
+  try{fetch('/api/auth/session',{method:'GET',cache:'no-store',credentials:'same-origin'}).then(function(r){clearTimeout(to);fin(r.ok?'up':'down')},function(){clearTimeout(to);fin('down')})}catch(e){clearTimeout(to);fin('down')}})}
 function fetchCatalog(force){
   if(CAT66&&!force)return Promise.resolve(CAT66);
   if(typeof sb==='undefined'||!sb||typeof ACC==='undefined'||!ACC.uid)return Promise.reject(new Error('nologin'));
@@ -17649,7 +17722,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=112';
+              s.src='/game/cv-engine.js?v=113';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17660,7 +17733,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=112"></script>
+<script src="/game/oly3.js?v=113"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17674,7 +17747,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=112';
+      s.src='/game/oly3d.js?v=113';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -18914,8 +18987,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=112"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=112"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=113"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=113"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);

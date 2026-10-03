@@ -364,6 +364,63 @@ async function warUserServer(userId: string): Promise<number> {
   try { const s = await db.score.findUnique({ where: { userId }, select: { server: true } }); return Math.max(1, s?.server || 1) } catch { return 1 }
 }
 
+/* ============================================================
+   V113 — WAR CAREER (فتح‌نامه‌ی لشکر — war_generals / war_general_op)
+   کارنامه‌ی واقعی نبرد فقط از PvP داوری‌شده‌ی سرور پر می‌شود (هوک داخل
+   pvp_attack). ذخیره در GameSetting key='war105:{uid}' — همان الگوی
+   تنظیمات سرور؛ بدون مهاجرت اسکیما. RPCهای همتای Supabase قبلی که با
+   پروژه‌ی قدیمی از دسترس خارج شده بودند — حالا روی بک‌اند خودی.
+   ============================================================ */
+type WarCareer = {
+  glory: number; xp: number; wins: number; losses: number
+  class_xp: Record<string, number>
+  unit_xp: Record<string, number>
+  owned: string[]
+  assigned: { atk: string | null; def: string | null }
+  ab_cd: { at: number; ms: number }
+}
+const WAR_GENERALS: Record<string, { fa: string; lore: string; atk: number; def: number; sup: number; mor: number; cost: number; ab: { fa: string; kind: 'atk' | 'refund' | 'glory' } }> = {
+  aryob:  { fa: 'آریوبرزن', lore: 'سردار دژبان — دروازه‌ی روشن را به دشمن نمی‌دهد.', atk: 3, def: 9, sup: 4, mor: 6, cost: 120, ab: { fa: 'سپر کوهستان', kind: 'atk' } },
+  surena: { fa: 'سورنا', lore: 'فرمانده‌ی سواران — ضربت نخست همه‌چیز را می‌گوید.', atk: 9, def: 3, sup: 5, mor: 7, cost: 150, ab: { fa: 'تازش سواران', kind: 'atk' } },
+  bartar: { fa: 'بارتار', lore: 'ناخدای دریای مواج — کاروانِ بی‌ترس، غنیمتِ برگشته.', atk: 6, def: 6, sup: 8, mor: 5, cost: 180, ab: { fa: 'کاروان بازگشت', kind: 'refund' } },
+  garin:  { fa: 'گارین', lore: 'خزانه‌دار سپاه — هر لشکرکشی حساب‌کتابه دارد.', atk: 4, def: 5, sup: 10, mor: 6, cost: 220, ab: { fa: 'حساب سرداری', kind: 'refund' } },
+  rostam: { fa: 'رستم', lore: 'پهلوان زابل — تیرش خطا نمی‌رود، عهدش نمی‌شکند.', atk: 10, def: 8, sup: 3, mor: 9, cost: 400, ab: { fa: 'پیکار پهلوانی', kind: 'atk' } },
+  kaveh:  { fa: 'کاوه', lore: 'آهنگرِ درفش — کاویانی که برمی‌خیزد، پایین نمی‌آید.', atk: 7, def: 7, sup: 6, mor: 10, cost: 500, ab: { fa: 'درفش کاویانی', kind: 'glory' } },
+}
+const WAR_CLS_FA_KEYS = ['infantry', 'armor', 'arty', 'air', 'navy', 'elite']
+/* دکترین حمله → کلاس تمرینی که XP می‌گیرد (طعمِ روایت — سقف واقعی سمت کلاینت نمایش داده می‌شود) */
+const WAR_ATK_CLS: Record<string, string> = { blitz: 'armor', heavy: 'arty', precision: 'air', defensive: 'infantry', balanced: 'infantry' }
+const warCareerKey = (uid: string) => 'war105:' + uid
+const WAR_CAREER_ZERO = (): WarCareer => ({ glory: 0, xp: 0, wins: 0, losses: 0, class_xp: {}, unit_xp: {}, owned: [], assigned: { atk: null, def: null }, ab_cd: { at: 0, ms: 420000 } })
+async function warCareerGet(uid: string): Promise<WarCareer> {
+  try {
+    const g = await db.gameSetting.findUnique({ where: { key: warCareerKey(uid) } })
+    if (g) { const v = JSON.parse(g.value); if (v && typeof v === 'object') return Object.assign(WAR_CAREER_ZERO(), v) }
+  } catch (e) { console.log('war105get', e) }
+  return WAR_CAREER_ZERO()
+}
+async function warCareerSet(uid: string, c: WarCareer) {
+  try {
+    await db.gameSetting.upsert({ where: { key: warCareerKey(uid) }, create: { key: warCareerKey(uid), value: JSON.stringify(c) }, update: { value: JSON.stringify(c) } })
+  } catch (e) { console.log('war105set', e) }
+}
+/* هوک کارنامه — بعد از داوری واقعی pvp_attack صدا زده می‌شود (fail-safe) */
+async function warCareerPostBattle(attackerUid: string, defenderUid: string, attackerWon: boolean, atkType: string | null) {
+  try {
+    const a = await warCareerGet(attackerUid)
+    a.xp += 15; a.glory += attackerWon ? 25 : 8
+    if (attackerWon) a.wins += 1; else a.losses += 1
+    const cls = WAR_ATK_CLS[atkType || 'balanced'] || 'infantry'
+    a.class_xp[cls] = (a.class_xp[cls] || 0) + 15
+    await warCareerSet(attackerUid, a)
+    /* مدافع: دفاع موفق = پیروزی کارنامه‌ای */
+    const d = await warCareerGet(defenderUid)
+    if (!attackerWon) { d.xp += 8; d.glory += 10; d.wins += 1; d.class_xp['infantry'] = (d.class_xp['infantry'] || 0) + 8 }
+    else { d.xp += 4; d.losses += 1 }
+    await warCareerSet(defenderUid, d)
+  } catch (e) { console.log('war105post', e) }
+}
+
 /* بسته‌های جم — تنها بخشی که پرداخت واقعی دارد؛ url خالی یعنی «به‌زودی» (هیچ قیمتی سمت کلاینت اعمال نمی‌شود) */
 const SHOP_PACKS = [
   /* PriceSync-v3 (V85): قیمت‌های جدید پنل مایکت — ۱۰۰جم=۴۰٬۰۰۰ / ۳۰۰جم=۱۱۰٬۰۰۰ / ۵۵۰جم=۲۰۰٬۰۰۰ / ۱۰۰۰جم=۳۸۰٬۰۰۰ تومان.
@@ -3063,6 +3120,35 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       }
 
       /* ---------------- PvP ---------------- */
+      /* ============================================================
+         V113 — فتح‌نامه‌ی لشکر: ژنرال‌ها + کارنامه‌ی واقعی نبرد
+         قرارداد کلاینت: WD105_load → {ok, generals, owned, assigned,
+         glory, xp, wins, losses, class_xp, unit_xp, unit_badges,
+         badges, ab_cd} | war_general_op → {ok} | {ok:false,error:'glory'}
+         ============================================================ */
+      case 'war_generals': {
+        const c = await warCareerGet(user.id)
+        return R({ ok: true, generals: WAR_GENERALS, owned: c.owned, assigned: c.assigned, glory: c.glory, xp: c.xp, wins: c.wins, losses: c.losses, class_xp: c.class_xp, unit_xp: c.unit_xp, unit_badges: {}, badges: {}, ab_cd: c.ab_cd, classes: WAR_CLS_FA_KEYS })
+      }
+      case 'war_general_op': {
+        const op = String(args.p_op || ''), gid = String(args.p_id || ''), slot = String(args.p_slot || 'atk')
+        const g = WAR_GENERALS[gid]
+        if (!g) return R({ ok: false })
+        const c = await warCareerGet(user.id)
+        if (op === 'hire') {
+          if (c.owned.indexOf(gid) > -1) return R({ ok: true, glory: c.glory, owned: c.owned, assigned: c.assigned })
+          if (c.glory < g.cost) return R({ ok: false, error: 'glory' })
+          c.glory -= g.cost; c.owned.push(gid)
+        } else if (op === 'assign' || op === 'unassign') {
+          if (c.owned.indexOf(gid) < 0) return R({ ok: false })
+          const s = slot === 'def' ? 'def' : 'atk'
+          if (!c.assigned) c.assigned = { atk: null, def: null }
+          if (op === 'assign') c.assigned[s] = gid
+          else if (c.assigned[s] === gid) c.assigned[s] = null
+        } else return R({ ok: false })
+        await warCareerSet(user.id, c)
+        return R({ ok: true, glory: c.glory, owned: c.owned, assigned: c.assigned })
+      }
       case 'pvp_attack': {
         const server = Math.max(1, Number(args.p_server) || 1)
         const country = String(args.p_country || '')
@@ -3202,6 +3288,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* ================= پایان V88 ================= */
         const chance = Math.min(0.85, Math.max(0.2, 0.5 + (a - d) / (2 * (a + d + 500))))
         const win = Math.random() < chance
+        /* V113 — کارنامه‌ی واقعی جنگ (فتح‌نامه): فقط از PvP داوری‌شده‌ی سرور */
+        warCareerPostBattle(user.id, t.userId, win, atk88).catch(() => {})
         if (rev) await db.revengeMark.update({ where: { id: rev.id }, data: { used: true } })
         let duelWon: { duel_id: string; prize_gold: number; prize_gems: number } | null = null
         if (win) {
