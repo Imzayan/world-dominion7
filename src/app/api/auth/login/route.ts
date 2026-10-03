@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { verifyPassword, newToken, setSessionCookie, supaUser } from '@/lib/auth'
 import { rateLimit, clientIp } from '@/lib/ratelimit'
+import { safeErr } from '@/lib/apierr' /* V116 */
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json({ data: { session: { user: su }, user: su }, error: null })
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'login failed'
-    return NextResponse.json({ data: {}, error: { message, status: 500 } })
+    /* V116: قبلاً message خام — اکنون توکن پایدار + لاگ سرور */
+    return safeErr('auth:login', e)
   }
 }

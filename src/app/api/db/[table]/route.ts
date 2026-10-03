@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getSessionUser, type SessionUser } from '@/lib/auth'
 import { rateLimit } from '@/lib/ratelimit'
 import { grantAch } from '@/lib/social' /* V95 — SOCIAL & PLAYER IDENTITY */
+import { safeErr } from '@/lib/apierr' /* V116: متن خام دیتابیس هرگز به کلاینت نمی‌رود */
 
 export const dynamic = 'force-dynamic'
 
@@ -339,8 +340,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ table: stri
     }
     return NextResponse.json({ data, error: null, count: null, status: 200, statusText: 'OK' })
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'query failed'
-    return NextResponse.json({ data: null, error: err(message) })
+    /* V116: قبلاً message خام — اکنون توکن پایدار + لاگ سرور */
+    return safeErr('db:select', e, { data: null, error: err('server_busy') })
   }
 }
 
@@ -380,8 +381,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ table: str
   } catch (e: unknown) {
     const anyE = e as { code?: string; message?: string }
     if (anyE?.code === 'P2002') return NextResponse.json({ data: null, error: err('duplicate key value violates unique constraint', '23505') })
-    const message = anyE instanceof Error ? anyE.message : 'insert failed'
-    return NextResponse.json({ data: null, error: err(message) })
+    /* V116: قبلاً message خام — اکنون توکن پایدار + لاگ سرور */
+    return safeErr('db:insert', e, { data: null, error: err('server_busy') })
   }
 }
 
@@ -416,8 +417,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ table: st
     const data = updated.map((r) => serialize(r, spec, body.query?.select))
     return NextResponse.json({ data, error: null, count: data.length, status: 200 })
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'update failed'
-    return NextResponse.json({ data: null, error: err(message) })
+    /* V116: قبلاً message خام — اکنون توکن پایدار + لاگ سرور */
+    return safeErr('db:update', e, { data: null, error: err('server_busy') })
   }
 }
 
@@ -446,8 +447,8 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ table: s
     }
     return NextResponse.json({ data: [], error: null, count: res.count, status: 200 })
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'delete failed'
-    return NextResponse.json({ data: null, error: err(message) })
+    /* V116: قبلاً message خام — اکنون توکن پایدار + لاگ سرور */
+    return safeErr('db:delete', e, { data: null, error: err('server_busy') })
   }
 }
 

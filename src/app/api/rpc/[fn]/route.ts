@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { rateLimit, clientIp } from '@/lib/ratelimit'
+import { safeErr } from '@/lib/apierr' /* V116: متن خام Prisma هرگز به کلاینت نمی‌رود */
 import { computeScore, hasRecalc, SIM_V2_ED, type Telemetry, type TelemEvent } from '@/lib/olyScore'
 import {
   skillOf, consistencyOf, potentialOf, evalAchievements, achDef, bullseyesFromTelemetry,
@@ -5500,8 +5501,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return NextResponse.json({ data: null, error: { message: `function ${fn} does not exist`, code: '42883' } })
     }
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'rpc failed'
-    return NextResponse.json({ data: null, error: { message, code: null } })
+    /* V116: کدهای قراردادیِ کوتاه (stock_race و مانند آن) عبور می‌کنند؛ هر متن دیگری
+       (مثل خطای خام Prisma «The column ...») توکن پایدار می‌گیرد — جزئیات فقط در لاگ سرور */
+    const rawMsg = e instanceof Error ? e.message : 'rpc failed'
+    const msg = /^[a-z0-9_]{3,40}$/.test(rawMsg) ? rawMsg : 'server_busy'
+    return safeErr('rpc:' + fn, e, { data: null, error: { message: msg, code: null } })
   }
 }
 

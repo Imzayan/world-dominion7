@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword, newToken, setSessionCookie, supaUser, adminNicks } from '@/lib/auth'
 import { rateLimit, clientIp } from '@/lib/ratelimit'
+import { safeErr } from '@/lib/apierr' /* V116: متن خام Prisma هرگز به کلاینت نمی‌رود */
 
 export const dynamic = 'force-dynamic'
 
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest) {
     if (raw.startsWith('FRIENDLY:')) {
       return NextResponse.json({ data: {}, error: { message: raw.slice(9), status: 400 } })
     }
-    const message = raw
-    return NextResponse.json({ data: {}, error: { message, status: 500 } })
+    /* V116: قبلاً message خام برمی‌گشت — بازبین مایکت «خطا the column» دید؛ اکنون توکن پایدار + لاگ سرور */
+    return safeErr('auth:signup', e)
   }
 }
