@@ -2782,3 +2782,22 @@ Stage Summary:
 - V108 روی dev: PAYMENT = VALUE + CONVENIENCE + PRESTIGE + STRATEGIC OPTIONS — بدون راستی‌آزمایی سرور هیچ گرنتی نیست، هیچ سلاحی برد آنی نمی‌دهد، بازیکن رایگان دست‌نخورده
 - ریل پرداخت واقعی: با MYKET_CLIENT_ID/SECRET یا ZARINPAL_MERCHANT_ID فعال می‌شود؛ مسیر QA فقط ادمین/سرور تستی
 - pending: تست preview + ارائه کلیدهای پرداخت + در صورت تأیید merge به main
+
+---
+Task ID: V115-PACKS
+Agent: Super Z (main)
+Task: کاربر در مسیر پنل مایکت خواست — پک فاتح ۸۰۰جم با ۳۰۰٬۰۰۰ تومان / پک امپراتور ۱۵۰۰جم با ۶۹۰٬۰۰۰ تومان
+
+Work Log:
+- کشف وضعیت: V113 (اتصال به بک‌اند خودِ بازی) و V114 (نمایش همگانی پک ۲۸۰ + بازطراحی کارت‌های جم + سلف-هیل اتصال) قبلاً کامیت/پوش/منتشر شده بودند؛ نسخه‌ی زنده = ۱۱۴
+- route.ts SHOP_PACKS → PriceSync-v4: gems_550 → 800جم/۳۰۰٬۰۰۰/perGem ۳۷۵ و gems_1000 → 1500جم/۶۹۰٬۰۰۰/perGem ۴۶۰ (gems_100 و gems_300 دست‌نخورده)
+- شناسه‌های SKU مایکت عمداً ثابت ماندند (gems_550 اکنون ۸۰۰جم تحویل می‌دهد؛ gems_1000 اکنون ۱۵۰۰جم) — فقط عنوان/قیمت در پنل به‌روز شود
+- کامنت کلاینت index.html (PriceSync-v4) + چک رگرسیون wd88-qa.mjs (gems+price برای هر ۴ پک) به‌روز شد
+- release.mjs: v114→v115 (7 ?v + beacon + GAME_VER) — گیت‌ها: check-html-js 97/0، verify-build 9/9، schema-diff identical، secret-scan clean
+- push: dev 30aa92b؛ صبر ~115s؛ زنده: /game/v.txt=115 و md5 بازی = 9d00f367c2c7e4c8952caf6fbd090b1b (لوکال=زنده)
+- پروب زنده‌ی انتها-به-انتها (scripts/v115-live-probe.mjs): signup واقعی → shop_catalog → 4/4 پک مطابق مقادیر V115 + starter phase=offer
+
+Stage Summary:
+- پک فاتح = ۸۰۰ جم @ ۳۰۰٬۰۰۰ تومان و پک امپراتور = ۱۵۰۰ جم @ ۶۹۰٬۰۰۰ تومان — زنده روی پروداکشن
+- نرخ هر جم: ۴۰۰ / ۳۶۷ / ۳۷۵ / ۴۶۰ — تاج «بهترین نرخ» خودکار به پک ۳۰۰جم (جنگاور) می‌رود
+- pending کاربر: در پنل مایکت فقط عنوان و قیمت دو محصول را به‌روز کند (شناسه‌ها همان قبلی) + قیمت ۲۸۰ تومانی emperor_starter
