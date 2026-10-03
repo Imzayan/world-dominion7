@@ -2818,3 +2818,24 @@ Stage Summary:
 - ریشه‌ی خطای مایکت = یخ‌زدگی main در v109 (نه کد فعلی)؛ راه‌حل = push V116 به dev + push ادغام به main تا APK محتوای سالم سرو کند
 - دو مانع سمت کاربر: (۱) PAT گیت‌هاب (قبلی در رول‌بک محیط پاک شد) (۲) keystore برای بیلد APK جدید امضاشده
 - بک‌آپ ویرایش‌های امروز: /home/z/my-project/backup-v116/
+
+---
+Task ID: V117-MYKET-RESUBMIT
+Agent: Super Z (main)
+Task: اجرای کامل «برطرف‌سازی ردِ بازبینی مایکت» — انتقال production به V116/117 + ساخت APK v1.0.9 برای ارسال دوباره
+
+Work Log:
+- merge -s ours برای origin/main (v109 lineage) به dev در commit f29e12f: درختِ merge = دقیقاً درختِ تأییدشده‌ی dev؛ محتوای یگانه‌ی main در a6c1197 پارک شد (use-tactical-item route، مدل‌های PlayerStock/PurchaseTx/AnalyticsEvent، V109 zoom css که از قبل در dev بود)
+- release.mjs بامپ v116→v117 (7 ?v + beacon + GAME_VER در index.html و MainActivity)؛ gates: check-html-js 97/0، verify-build 9/9، schema-diff identical، secret-scan clean؛ commit abfc892
+- push dev + main (a6c1197..abfc892 بدون force — merge والدِ main بود)؛ Vercel prod = v117
+- probe تولیدی scripts/v117-prod-probe.mjs روی world-dominion7.vercel.app: 6/6 PASS — signup 200 با session+user، بدون نشت متن خام DB، shop_catalog 4/4 با مقادیر V115، starter_state phase=offer
+- بازیابی 909MB ابزار APK (aapt2/d8/apksigner/JDK17/android.jar) از git d64cd09 به apk-build/tools/؛ staging area بیرونِ repo همگام شد (سندباکس symlink اجازه نمی‌دهد → cp -a)
+- کیستور سوم ساخته شد: download/keystore/world-dominion-release.keystore (alias worlddominion، RSA2048، ۳۰ سال، SHA-256 FC:94:A9:AE…1460EE) + keystore.properties + KEYSTORE-BACKUP-README.md — کاربر باید فوراً بکاپ سه‌گانه بگیرد
+- Manifest vc9→10 / 1.0.8→1.0.9؛ MYKET_APP_URL = https://myket.ir/app/com.worlddominion.game؛ build-apk-myket.sh: بیلد+امضا+verify موفق — WorldDominion-v1.0.9.apk (984,569B، sha256 31a61d8d…f5b16، minSdk21، INTERNET-only)
+- latest.json → vc10/1.0.9 با یادداشت «حذف نسخه‌ی قدیمی قبل از نصب»؛ APK + latest.json در repo (public/apk/) push شد به dev و main (55cc5a9)؛ prod تأیید شد: latest.json=vc10، APK از سایت 200
+
+Stage Summary:
+- prod اکنون v117 سرو می‌کند؛ خطای «خطا the column» بازبینی مایکت در سطح production برطرف شد (دو لایه: safeErr سروری + errFa کلاینتی)
+- APK v1.0.9 در download/ آماده‌ی آپلود به مایکت؛ ⚠️ امضایش با کیستور جدید است و با v1.0.8 موجود در مایکت نمی‌خواند — اگر مایکت امضا را رد کرد: پشتیبانی مایکت + راهنمای حذف/نصب مجدد در notes
+- کیستور سوم + رمز در download/keystore/ — بکاپ سه‌گانه فوری
+- محتوای پارک‌شده‌ی V95 (تاکتیکال/آنالیتیکس) برای بازگشت آینده در a6c1197 محفوظ است
