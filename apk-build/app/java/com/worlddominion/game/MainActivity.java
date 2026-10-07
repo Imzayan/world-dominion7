@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
 
     /* PHASE 4: آدرس صفحه‌ی برنامه در مایکت — پس از انتشار، مقدار واقعی جایگزین شود.
        تا زمانی که placeholder است، مسیر پشتیبان مرورگر غیرفعال و فقط پیام راهنما نمایش داده می‌شود. */
-    private static final String MYKET_APP_URL = "REPLACE_WITH_REAL_MYKET_APP_URL";
+    private static final String MYKET_APP_URL = "https://myket.ir/app/com.worlddominion.game";
     /* پکیج رسمی اپلیکیشن مایکت — مطابق مستندات رسمی Myket Intents */
     private static final String MYKET_PKG = "ir.mservices.market";
 
