@@ -2839,3 +2839,23 @@ Stage Summary:
 - APK v1.0.9 در download/ آماده‌ی آپلود به مایکت؛ ⚠️ امضایش با کیستور جدید است و با v1.0.8 موجود در مایکت نمی‌خواند — اگر مایکت امضا را رد کرد: پشتیبانی مایکت + راهنمای حذف/نصب مجدد در notes
 - کیستور سوم + رمز در download/keystore/ — بکاپ سه‌گانه فوری
 - محتوای پارک‌شده‌ی V95 (تاکتیکال/آنالیتیکس) برای بازگشت آینده در a6c1197 محفوظ است
+
+---
+Task ID: V118-MYKET-IAB
+Agent: Super Z (main)
+Task: پیاده‌سازی واقعی پرداخت درون‌برنامه‌ای مایکت — رفع ردِ بازبینی «پرداخت واقعی به زودی فعال میشه»
+
+Work Log:
+- Audit: ریشه = (۱) starterClaim کلاینت provider='sandbox' جعلی می‌فرستاد → سرور واقعی صادقانه provider_unavailable → پیام «به‌زودی»؛ (۲) پک‌های جم دکمه‌ی «به‌زودی» غیرفعال دائمی داشتند (url:'' بدون هیچ مسیر خرید)؛ (۳) اندروید هیچ SDK/billings/bridge پرداختی نداشت؛ (۴) verifyProviderReceipt سرور پکیج اشتباه (ir.worlddominion.game) و SKU هاردکد داشت
+- اندروید: IInAppBillingService.aidl (ir.mservices.market، قرارداد IAB v3) + WDIab.java (bind/getBuyIntent/onActivityResult/consume/getPurchases-recovery، صف تا اتصال سرویس، ضد busy همیشگی با clearRequest) + WDBridge.java (@JavascriptInterface: billingAvailable/startPurchase/consumePurchase/ownedPurchases — هیچ متدی جم نمی‌دهد) + onActivityResult در MainActivity + Manifest: ir.mservices.market.BILLING
+- سرور: verifyProviderReceipt ← پکیج واقعی com.worlddominion.game + پارامتر sku + احراز X-Access-Token (MYKET_ACCESS_TOKEN) یا Basic (CLIENT_ID/SECRET)؛ RPC جدید shop_gem_topup: مبلغ جم فقط از SHOP_PACKS سرور، idempotency قطعی با id='MYKTX-<token>' (P2002=بدون دوباره‌گرنت)، ردِ رسیدِ متعلق به حساب دیگر، consume پس از تأیید
+- کلاینت: __wdOnPurchase + wdStartPurchase/wdGemServer/wdStarterServer/wdRestore؛ پک‌های جم داخل اپ «🛒 خرید با مایکت» (وب همچنان «به‌زودی» — هیچ خرید فیک وب)؛ جریان پک شروع: خرید مایکت → starter_claim با توکن واقعی؛ بازیابی خریدهای باز هنگام باز شدن فروشگاه؛ متن‌های UI: اتصال/موفق/لغو/ناموفق بدون stack trace
+- بیلد: aidl با -p framework.aidl (android-34)؛ d8: ۱۴ رفرنس کلاس billing داخل dex؛ gates 97/0 + 9/9 + schema identical + secret clean؛ release v117→v118؛ Manifest vc11/1.0.10
+- حادثه: سندباکس وسط جلسه download/ را کامل پاک کرد (کیستور قبلی این سشن + zip) — کیستور پنجم ساخته شد (69:A8:2C:17…636f، storePassword=2b77665e9a976a69fd90300b) در دو محل: download/keystore/ + apk-build/keystore-backup/؛ کاربر باید فوراً zip را بگیرد
+- probe تولیدی: bad sku→'sku' ✓، fake token→'provider_unavailable' ✓ (یعنی MYKET creds هنوز روی Vercel تنظیم نیست — پیش‌نیاز ارسال)، gems بدون پرداخت واقعی تغییر نمی‌کند ✓
+- prod: v.txt=118، latest.json=vc11/1.0.10، APK از سایت قابل دانلود (200)
+
+Stage Summary:
+- APK v1.0.10 (vc11) آماده: public/apk/WorldDominion-v1.0.10.apk + download/ — جریان: کلیک → صفحه پرداخت واقعی مایکت → توکن → راستی‌آزمایی سرور → گرنت جم → consume
+- ⚠️ پیش‌نیاز ارسال: تنظیم MYKET_ACCESS_TOKEN (یا MYKET_CLIENT_ID/MYKET_CLIENT_SECRET) در Vercel env — بدون آن خرید واقعی انجام می‌شود ولی اعمال جم با provider_unavailable رد می‌شود
+- اگر v1.0.9 قبلاً در مایکت آپلود شده بود: امضای v1.0.10 (کیستور 69a8…) با آن نمی‌خواند → تیکت پشتیبانی؛ اگر آپلود نشده بود: v1.0.10 را مستقیم آپلود کن
