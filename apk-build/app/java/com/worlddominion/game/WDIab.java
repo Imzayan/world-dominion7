@@ -64,20 +64,24 @@ public final class WDIab {
             new java.util.concurrent.atomic.AtomicReference<Activity>();
     private static volatile ResultSink actSink;
 
-    /* اتصال به سرویس مایکت — در onCreate و در صورت نیاز دوباره */
-    public static void setup(Activity act) {
+    /* اتصال به سرویس مایکت — در onCreate و در صورت نیاز دوباره.
+       V119: خروجی boolean — false یعنی اپ مایکت روی دستگاه نیست (bindService فوراً false)؛
+       true یعنی وصل شد یا در حال اتصال است (نتیجه‌ی async از onServiceConnected می‌آید). */
+    public static boolean setup(Activity act) {
         try {
-            if (bound && svc != null) return;
-            if (connecting) return;
+            if (bound && svc != null) return true;
+            if (connecting) return true; /* اتصال در جریان است */
             connecting = true;
             Intent i = new Intent(IAB_ACTION);
             i.setPackage(IAB_PKG);
             boolean ok = act.bindService(i, conn, Context.BIND_AUTO_CREATE);
             Log.i(TAG, "PAYMENT_INIT bind myket iab=" + ok);
-            if (!ok) { connecting = false; }
+            if (!ok) { connecting = false; return false; }
+            return true;
         } catch (Exception e) {
             connecting = false;
             Log.w(TAG, "PAYMENT_INIT bind error " + e.getClass().getSimpleName());
+            return false;
         }
     }
 
@@ -99,8 +103,13 @@ public final class WDIab {
         if (actRef.get() != null && actRef.get() != act) return "0:busy";
         actRef.set(act); actSink = sink;
         if (!bound || svc == null) {
+            /* V119: اگر اپ مایکت اصلاً نصب نیست، بلافاصله خطای واضح — نه انتظار بی‌پایان */
+            if (!setup(act)) {
+                clearRequest();
+                Log.w(TAG, "PURCHASE_FAILED myket app not installed (bind=false)");
+                return "0:nomyket";
+            }
             queuedSku = sku;
-            setup(act);
             Log.w(TAG, "PURCHASE_START queued (service not connected yet)");
             return "1";
         }

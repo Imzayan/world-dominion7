@@ -17167,7 +17167,8 @@ function wdStartPurchase(sku,plan){
   if(WDPAY){showToast('⏳ یک پرداخت دیگر در جریان است','lose');return false}
   var r=null;try{r=window.WDAndroid.startPurchase(String(sku))}catch(e){r='0:error'}
   if(r==='1'){WDPAY=plan;showToast('💳 در حال اتصال به پرداخت مایکت…','win');return true}
-  showToast('❌ اتصال به مایکت برقرار نشد — مطمئن شو اپ مایکت نصب و به‌روز است','lose');
+  /* V119: nomyket = اپ مایکت اصلاً روی دستگاه نیست (bindService=false) — پیام واضح به‌جای خطای مبهم */
+  showToast(r==='0:nomyket'?'📱 اپلیکیشن مایکت روی گوشی نصب نیست — اول مایکت را نصب و وارد حسابت شو':'❌ اتصال به مایکت برقرار نشد — مطمئن شو اپ مایکت نصب و به‌روز است','lose');
   return false;
 }
 function wdGemServer(o,p){
@@ -17200,7 +17201,16 @@ function wdRestore(){
     var arr=JSON.parse(window.WDAndroid.ownedPurchases()||'[]');
     (Array.isArray(arr)?arr:[]).forEach(function(o){
       var sku=String(o.productId||''),tok=String(o.purchaseToken||'');
-      if(!tok||sku.indexOf('gems_')!==0||!sb)return;
+      if(!tok||!sb)return;
+      /* V119: بازیابی پک شروعِ پرداخت‌شده ولی اعمال‌نشده (کلیدها دیر فعال شدند / وسط کار بسته شد) —
+         سرور با txId دوباره‌گرنت نمی‌دهد؛ duplicate یعنی قبلاً اعمال شده */
+      if(sku==='emperor_starter'){
+        sb.rpc('starter_claim',{p_provider:'myket',p_receipt:tok,p_request_id:'rest'+Date.now().toString(36)}).then(function(r){
+          if(r&&r.data&&r.data.ok&&!r.data.duplicate){showToast('✅ خرید پیشین‌ات اعمال شد — پک شروع امپراتور','win');try{updateUI()}catch(e){}try{render()}catch(e){}}
+        }).catch(function(){});
+        return;
+      }
+      if(sku.indexOf('gems_')!==0)return;
       sb.rpc('shop_gem_topup',{p_sku:sku,p_token:tok,p_order_id:String(o.orderId||'')}).then(function(r2){
         var d=r2&&r2.data;
         if(d&&d.ok){

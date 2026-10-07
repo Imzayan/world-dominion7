@@ -25,7 +25,8 @@ echo "-- 1) resources (aapt2 compile+link)"
 
 echo "-- 1b) aidl (Myket IAB v3)"
 if [ -d $APP/aidl ]; then
-  "$BT/aidl" -p "$PF" -o $B/gen $APP/aidl/ir/mservices/market/IInAppBillingService.aidl
+  "$BT/aidl" -p "$BT/framework.aidl" -o $B/gen $APP/aidl/ir/mservices/market/IInAppBillingService.aidl 2>/dev/null \
+    || "$BT/aidl" -p "$(dirname $PF)/framework.aidl" -o $B/gen $APP/aidl/ir/mservices/market/IInAppBillingService.aidl
 fi
 
 echo "-- 2) javac (release, target 8) — همه‌ی کلاس‌های اپ + AIDL تولیدشده"

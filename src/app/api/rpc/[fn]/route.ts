@@ -726,10 +726,14 @@ function starterContents() {
   }
 }
 
-/* V118 — درزِ راستی‌آزمایی پرداخت واقعی.
+/* V118/V119 — درزِ راستی‌آزمایی پرداخت واقعی.
    - myket:  فعال با MYKET_ACCESS_TOKEN (هدر X-Access-Token) یا MYKET_CLIENT_ID/MYKET_CLIENT_SECRET (Basic)؛
-     MYKET_PACKAGE اختیاری — پیش‌فرض پکیج واقعی بازی com.worlddominion.game. راستی‌آزمایی با API رسمی
-     developer.myket.ir برای SKU دلخواه انجام می‌شود (جم‌ها و پک شروع).
+     MYKET_PACKAGE اختیاری — پیش‌فرض پکیج واقعی بازی com.worlddominion.game.
+     V119: endpoint دقیقاً مطابق مستندات رسمی مایکت (Server-to-Server):
+       POST https://developer.myket.ir/api/partners/applications/{PACKAGE_NAME}/purchases/products/{SKU_ID}/verify
+       Header: X-Access-Token  |  Body: {"tokenId":"{TOKEN_ID}"}
+     پاسخ: purchaseState (0=موفق)، consumptionState (1=مصرف‌شده) — دریافت X-Access-Token از
+     پنل توسعه‌دهندگان → محصولات درون‌برنامه‌ای → «توکن صحت‌سنجی».
    - zarinpal: فعال با ZARINPAL_MERCHANT_ID — verify با authority.
    - sandbox: فقط سرور تستی/ادمین (QA) — روی سرور واقعی هرگز گرنت نمی‌دهد.
    بدون اعتبار محیط، پاسخ صادقانه‌ی provider_unavailable است — هیچ خرید فیک اتفاق نمی‌افتد. */
@@ -751,10 +755,13 @@ async function verifyProviderReceipt(provider: string, receipt: string, user: { 
     const pkg = process.env.MYKET_PACKAGE || 'com.worlddominion.game' /* V118: پکیج واقعی بازی */
     try {
       const headers: Record<string, string> = accessToken
-        ? { 'X-Access-Token': accessToken } /* مستندات فعلی مایکت */
-        : { Authorization: 'Basic ' + Buffer.from(cid + ':' + sec).toString('base64') } /* سازگاری با اعتبارنامه‌ی قدیمی */
-      const res = await fetch(`https://developer.myket.ir/api/application/${encodeURIComponent(pkg)}/purchases/${encodeURIComponent(sku)}/tokens/${encodeURIComponent(receipt)}`, {
+        ? { 'X-Access-Token': accessToken, 'Content-Type': 'application/json' } /* مستندات رسمی مایکت */
+        : { Authorization: 'Basic ' + Buffer.from(cid + ':' + sec).toString('base64'), 'Content-Type': 'application/json' } /* سازگاری با اعتبارنامه‌ی قدیمی */
+      /* V119: مسیر رسمی صحت‌سنجی — POST /api/partners/applications/{pkg}/purchases/products/{sku}/verify با {"tokenId":...} */
+      const res = await fetch(`https://developer.myket.ir/api/partners/applications/${encodeURIComponent(pkg)}/purchases/products/${encodeURIComponent(sku)}/verify`, {
+        method: 'POST',
         headers,
+        body: JSON.stringify({ tokenId: receipt }),
         signal: AbortSignal.timeout(8000),
       })
       if (!res.ok) return { ok: false, error: res.status === 404 ? 'receipt' : 'provider_error' }
