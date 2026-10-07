@@ -30,7 +30,7 @@ public class MainActivity extends Activity {
 
     /* V91: آپدیت فقط از طریق مایکت (Myket Intent) — بدون دانلود/نصب مستقیم APK
        WebView هرگز HTML قدیمی کش‌شده را سرو نمی‌کند (پارامتر نسخه) */
-    private static final int GAME_VER = 117;
+    private static final int GAME_VER = 118;
     private static final String GAME_URL = "https://world-dominion7.vercel.app/game/index.html?v=" + GAME_VER;
     private static final String GAME_HOST = "world-dominion7.vercel.app";
     private static final String ERROR_URL = "file:///android_asset/error.html";
@@ -84,6 +84,30 @@ public class MainActivity extends Activity {
                 checkUpdate();
             }
         }, 4000);
+
+        /* V118: اتصال به سرویس پرداخت مایکت (IAB v3) — در شروع، بدون مزاحمت */
+        WDIab.setup(this);
+    }
+
+    /* V118: تحویل نتیجه‌ی خرید به جاوااسکریپت بازی (همیشه روی UI thread) */
+    public void deliverPurchaseResult(String json) {
+        try {
+            if (json == null) json = "{\"status\":\"fail\"}";
+            Log.i("WD-PAY", "GEM_CREDIT bridge->js " + json.substring(0, Math.min(120, json.length())));
+            web.evaluateJavascript("window.__wdOnPurchase && window.__wdOnPurchase(" + json + ");", null);
+        } catch (Exception e) {
+            Log.w("WD-PAY", "deliver error " + e.getClass().getSimpleName());
+        } finally {
+            WDIab.clearRequest();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == WDIab.REQ_BUY) {
+            WDIab.onResult(resultCode, data);
+        }
     }
 
     private WebView createWebView() {
@@ -97,6 +121,9 @@ public class MainActivity extends Activity {
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         w.setBackgroundColor(0xFF0A1633);
+
+        /* V118: پل پرداخت مایکت — فقط شروع خرید و نتیجه‌ی خام؛ جم فقط از سمت سرور گرنت می‌شود */
+        try { w.addJavascriptInterface(new WDBridge(this), "WDAndroid"); } catch (Exception ignored) { }
 
         w.setWebViewClient(new WebViewClient() {
             @Override
@@ -330,6 +357,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        WDIab.unbind(this);
         if (web != null) web.destroy();
         super.onDestroy();
     }

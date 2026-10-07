@@ -23,10 +23,19 @@ echo "-- 1) resources (aapt2 compile+link)"
 "$BT/aapt2" link -o $B/base.apk -I "$PF" --manifest $APP/AndroidManifest.xml \
   --java $B/gen --auto-add-overlay --min-sdk-version 21 --target-sdk-version 34 $B/res.zip
 
-echo "-- 2) javac (release, target 8)"
+echo "-- 1b) aidl (Myket IAB v3)"
+if [ -d $APP/aidl ]; then
+  "$BT/aidl" -p "$PF" -o $B/gen $APP/aidl/ir/mservices/market/IInAppBillingService.aidl
+fi
+
+echo "-- 2) javac (release, target 8) — همه‌ی کلاس‌های اپ + AIDL تولیدشده"
+find $APP/java -name '*.java' > $B/sources.txt
+if [ -f $B/gen/ir/mservices/market/IInAppBillingService.java ]; then
+  echo $B/gen/ir/mservices/market/IInAppBillingService.java >> $B/sources.txt
+fi
 "$JDK/javac" -source 1.8 -target 1.8 -encoding UTF-8 -nowarn \
   -bootclasspath "$PF" -classpath "$PF" -d $B/obj \
-  $B/gen/com/worlddominion/game/R.java $APP/java/com/worlddominion/game/MainActivity.java
+  $B/gen/com/worlddominion/game/R.java @$B/sources.txt
 
 echo "-- 3) d8 --release"
 java -cp "$BT/lib/d8.jar" com.android.tools.r8.D8 --release --lib "$PF" \

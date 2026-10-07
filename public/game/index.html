@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=117;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=117"></script>
+  <script>window.__WD_V=118;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=118"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -10946,7 +10946,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=117';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=118';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -17144,13 +17144,90 @@ function starterReveal(res){
   box.append(g);
   var b=el('button','🚀 ادامه‌ی فتح','wd108-buy');b.onclick=function(){m.remove()};box.append(b);
   m.append(box);D.body.appendChild(m)}
+/* ---------- V118 — پرداخت واقعی مایکت (IAB v3) از طریق پل اندروید ----------
+   این ماژول فقط «شروع خرید» و «ارسال رسید خام به سرور» را انجام می‌دهد؛
+   جم هرگز در کلاینت ساخته نمی‌شود — گرنت فقط بعد از راستی‌آزمایی سرور با API رسمی مایکت. */
+function wdNative(){try{return !!(window.WDAndroid&&window.WDAndroid.billingAvailable&&window.WDAndroid.billingAvailable()==='1')}catch(e){return false}}
+var WDPAY=null; /* {type:'gem'|'starter', sku, rid, btn, modal} */
+var WD_RESTORED=false;
+window.__wdOnPurchase=function(o){
+  var p=WDPAY,st=o&&o.status;
+  WDPAY=null;
+  try{console.log('WD-PAY',st)}catch(e){}
+  if(!p){return}
+  if(st==='ok'&&o.token){
+    if(p.type==='starter')wdStarterServer(o,p);else wdGemServer(o,p);
+  }else{
+    showToast(st==='cancel'?'پرداخت لغو شد':st==='pending'?'⏳ پرداخت در حال بررسی است — بعداً به‌طور خودکار اعمال می‌شود':'❌ پرداخت انجام نشد. دوباره تلاش کنید.',st==='cancel'?'win':'lose');
+    if(p.btn){p.btn.disabled=false;if(p.type==='starter')p.btn.textContent='✅ خرید'}
+  }
+};
+function wdStartPurchase(sku,plan){
+  if(!wdNative()){showToast('❌ پرداخت امن مایکت فقط داخل اپلیکیشن بازی فعال است','lose');return false}
+  if(WDPAY){showToast('⏳ یک پرداخت دیگر در جریان است','lose');return false}
+  var r=null;try{r=window.WDAndroid.startPurchase(String(sku))}catch(e){r='0:error'}
+  if(r==='1'){WDPAY=plan;showToast('💳 در حال اتصال به پرداخت مایکت…','win');return true}
+  showToast('❌ اتصال به مایکت برقرار نشد — مطمئن شو اپ مایکت نصب و به‌روز است','lose');
+  return false;
+}
+function wdGemServer(o,p){
+  var s=sb;if(!s){showToast('❌ برای اعمال خرید باید آنلاین باشی','lose');return}
+  s.rpc('shop_gem_topup',{p_sku:p.sku,p_token:String(o.token||''),p_order_id:String(o.order_id||'')}).then(function(r2){
+    var d=r2&&r2.data;
+    if(r2.error||!d||!d.ok){
+      var e=(d&&d.error)||'x';
+      showToast(e==='receipt_consumed'?'⚠️ این خرید قبلاً اعمال شده بود':'❌ خرید انجام شد ولی اعمال نشد — لطفاً به پشتیبانی پیام بده','lose');
+      if(p.btn)p.btn.disabled=false;
+      return;
+    }
+    var added=(d.gems_added|0);
+    try{if(CAT66&&d.wallet&&typeof d.wallet.gems==='number'){CAT66.wallet.gems=d.wallet.gems;GEMS=d.wallet.gems}}catch(e){}
+    try{updateUI()}catch(e){}
+    showToast(added>0?('✅ خرید با موفقیت انجام شد — '+gemN(added)+' جم اضافه شد'):'✅ این خرید قبلاً اعمال شده بود','win');
+    try{window.WDAndroid.consumePurchase(String(o.token))}catch(e){}
+    try{render()}catch(e){}
+    if(p.btn)p.btn.disabled=false;
+  }).catch(function(){showToast('❌ خطای شبکه در اعمال خرید — دوباره فروشگاه را باز کن','lose');if(p.btn)p.btn.disabled=false});
+}
+function wdStarterServer(o,p){
+  var s=sb;if(!s){showToast('❌ برای اعمال خرید باید آنلاین باشی','lose');return}
+  s.rpc('starter_claim',{p_provider:'myket',p_receipt:String(o.token||''),p_request_id:p.rid||('my'+Date.now().toString(36))}).then(function(r){starterClaimAfter(r,p.btn,p.modal)}).catch(function(){showToast('❌ اتصال برقرار نشد','lose');if(p.btn){p.btn.disabled=false;p.btn.textContent='✅ خرید'}})
+}
+/* بازیابی خریدهای باز: پرداخت موفق ولی اعمال‌نشده (برنامه وسط کار بسته شد) — یک‌بار در هر سشن */
+function wdRestore(){
+  if(WD_RESTORED||!wdNative()||WDPAY)return;WD_RESTORED=true;
+  try{
+    var arr=JSON.parse(window.WDAndroid.ownedPurchases()||'[]');
+    (Array.isArray(arr)?arr:[]).forEach(function(o){
+      var sku=String(o.productId||''),tok=String(o.purchaseToken||'');
+      if(!tok||sku.indexOf('gems_')!==0||!sb)return;
+      sb.rpc('shop_gem_topup',{p_sku:sku,p_token:tok,p_order_id:String(o.orderId||'')}).then(function(r2){
+        var d=r2&&r2.data;
+        if(d&&d.ok){
+          try{window.WDAndroid.consumePurchase(tok)}catch(e){}
+          if(d.duplicate===false){
+            try{if(CAT66&&d.wallet&&typeof d.wallet.gems==='number'){CAT66.wallet.gems=d.wallet.gems;GEMS=d.wallet.gems}}catch(e){}
+            showToast('✅ خرید پیشین‌ات اعمال شد — '+gemN(d.gems_added|0)+' جم','win');
+            try{updateUI()}catch(e){}
+          }
+        }
+      }).catch(function(){});
+    });
+  }catch(e){}
+}
 function starterClaim(btn,modal){
   var s=sb;if(!s){showToast('❌ برای خرید باید آنلاین باشی','lose');if(btn)btn.disabled=false;return}
   var rid=null;try{rid=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():('st'+Date.now().toString(36)+Math.random().toString(36).slice(2,10))}catch(e){}
-  /* پرداخت: اگر پل اندروید مایکت موجود بود از آن، وگرنه مسیر QA سرور تستی —
-     روی سرور واقعی بدون اعتبار پرداخت، سرور صادقانه رد می‌کند (هیچ خرید فیک). */
+  /* V118 — پرداخت واقعی: داخل اپ = جریان دو‌مرحله‌ای مایکت (startPurchase → __wdOnPurchase → starter_claim با توکن واقعی)؛
+     روی وب بدون پل، مسیر QA سرور تستی می‌ماند — سرور واقعی صادقانه رد می‌کند (هیچ خرید فیک). */
+  if(wdNative()){
+    var started118=wdStartPurchase('emperor_starter',{type:'starter',sku:'emperor_starter',rid:rid,btn:btn,modal:modal});
+    if(started118&&btn)btn.textContent='⏳…';
+    return;
+  }
   var provider='sandbox', receipt='SBX-'+rid;
-  s.rpc('starter_claim',{p_provider:provider,p_receipt:receipt,p_request_id:rid}).then(function(r){
+  s.rpc('starter_claim',{p_provider:provider,p_receipt:receipt,p_request_id:rid}).then(function(r){starterClaimAfter(r,btn,modal)}).catch(function(){showToast('❌ اتصال برقرار نشد','lose');if(btn){btn.disabled=false;btn.textContent='✅ خرید'}})}
+function starterClaimAfter(r,btn,modal){
     if(r.error||!r.data||!r.data.ok){
       var e=(r.data&&r.data.error)||'x';
       var msg=e==='purchased'?'✅ این پک قبلاً برای این حساب خریداری شده است'
@@ -17185,7 +17262,18 @@ function starterClaim(btn,modal){
     showToast('👑 پک شروع امپراتور فعال شد!','win');
     if(typeof updateUI==='function')updateUI();
     render();
-  }).catch(function(){showToast('❌ اتصال برقرار نشد','lose');if(btn){btn.disabled=false;btn.textContent='✅ خرید'}})}
+}
+function wdGemBtn(p){
+  /* V118 — داخل اپ: دکمه‌ی خرید واقعی مایکت؛ روی وب (بدون پل): وضعیت «به‌زودی» بدون خرید جعلی */
+  if(!wdNative())return el('button','🔒 به‌زودی','wd66-buy off wd114-gbuy');
+  var b=el('button','🛒 خرید با مایکت','wd66-buy wd114-gbuy');
+  b.setAttribute('data-sku',p.id);
+  b.onclick=function(){
+    b.disabled=true;
+    var started=wdStartPurchase(p.id,{type:'gem',sku:p.id,btn:b});
+    if(!started)b.disabled=false;
+  };
+  return b}
 
 function viewHome(c){c.append(vHero());
   var stc=vStarter();if(stc)c.append(stc);
@@ -17199,6 +17287,8 @@ function viewHome(c){c.append(vHero());
   c.append(el('div','🗂️ همه‌ی دسته‌ها','wd66-h'));c.append(vQuick());
   if(!WALLET_OK)c.append(el('div','⚠️ خرید فقط با حساب آنلاین و انتخاب پایتخت فعال می‌شود.','wd66-note'))}
 function viewGems(c){
+  /* V118 — بازیابی خریدهای باز (پرداخت موفق ولی اعمال‌نشده) — فقط داخل اپ */
+  try{wdRestore()}catch(e){}
   /* V112 — پک پیشنهاد ویژه‌ی ورود ۲۸۰ تومانی، جلوی چشم در بخش خرید جم */
   var vsp=vStarter();if(vsp){c.append(vsp)}
   c.append(el('div','💎 بسته‌های جم','wd66-h'));
@@ -17221,7 +17311,7 @@ function viewGems(c){
     pr.append(el('span','💵'),el('b',p.price));
     r.append(pr);
     r.append(el('div','هر جم ≈ '+p.perGem+' تومان','wd114-grate'));
-    var b=el('button','🔒 به‌زودی','wd66-buy off wd114-gbuy');
+    var b=wdGemBtn(p);
     r.append(b);g.append(r)});
   c.append(g);
   c.append(el('div','🛒 بوست و منابع (مصرفی)','wd66-h'));
@@ -17742,7 +17832,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=117';
+              s.src='/game/cv-engine.js?v=118';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17753,7 +17843,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=117"></script>
+<script src="/game/oly3.js?v=118"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17767,7 +17857,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=117';
+      s.src='/game/oly3d.js?v=118';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19007,8 +19097,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=117"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=117"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=118"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=118"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);

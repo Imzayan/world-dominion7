@@ -726,12 +726,14 @@ function starterContents() {
   }
 }
 
-/* V108 §11 — درزِ راستی‌آزمایی پرداخت واقعی.
-   - myket:  فعال با MYKET_CLIENT_ID/MYKET_CLIENT_SECRET (+MYKET_PACKAGE) — IAB v2 verify.
+/* V118 — درزِ راستی‌آزمایی پرداخت واقعی.
+   - myket:  فعال با MYKET_ACCESS_TOKEN (هدر X-Access-Token) یا MYKET_CLIENT_ID/MYKET_CLIENT_SECRET (Basic)؛
+     MYKET_PACKAGE اختیاری — پیش‌فرض پکیج واقعی بازی com.worlddominion.game. راستی‌آزمایی با API رسمی
+     developer.myket.ir برای SKU دلخواه انجام می‌شود (جم‌ها و پک شروع).
    - zarinpal: فعال با ZARINPAL_MERCHANT_ID — verify با authority.
    - sandbox: فقط سرور تستی/ادمین (QA) — روی سرور واقعی هرگز گرنت نمی‌دهد.
    بدون اعتبار محیط، پاسخ صادقانه‌ی provider_unavailable است — هیچ خرید فیک اتفاق نمی‌افتد. */
-async function verifyProviderReceipt(provider: string, receipt: string, user: { id: string; isAdmin: boolean }): Promise<{ ok: true; txId: string } | { ok: false; error: string }> {
+async function verifyProviderReceipt(provider: string, receipt: string, user: { id: string; isAdmin: boolean }, sku = 'emperor_starter'): Promise<{ ok: true; txId: string } | { ok: false; error: string }> {
   if (!provider) return { ok: false, error: 'provider' }
   if (!receipt) return { ok: false, error: 'receipt' }
   if (provider === 'sandbox') {
@@ -742,15 +744,17 @@ async function verifyProviderReceipt(provider: string, receipt: string, user: { 
     return { ok: true, txId: receipt }
   }
   if (provider === 'myket') {
+    const accessToken = process.env.MYKET_ACCESS_TOKEN
     const cid = process.env.MYKET_CLIENT_ID
     const sec = process.env.MYKET_CLIENT_SECRET
-    if (!cid || !sec) return { ok: false, error: 'provider_unavailable' }
-    const pkg = process.env.MYKET_PACKAGE || 'ir.worlddominion.game'
+    if (!accessToken && !(cid && sec)) return { ok: false, error: 'provider_unavailable' }
+    const pkg = process.env.MYKET_PACKAGE || 'com.worlddominion.game' /* V118: پکیج واقعی بازی */
     try {
-      const auth = 'Basic ' + Buffer.from(cid + ':' + sec).toString('base64')
-      const sku = 'emperor_starter'
-      const res = await fetch(`https://developer.myket.ir/api/application/${encodeURIComponent(pkg)}/purchases/${sku}/tokens/${encodeURIComponent(receipt)}`, {
-        headers: { Authorization: auth },
+      const headers: Record<string, string> = accessToken
+        ? { 'X-Access-Token': accessToken } /* مستندات فعلی مایکت */
+        : { Authorization: 'Basic ' + Buffer.from(cid + ':' + sec).toString('base64') } /* سازگاری با اعتبارنامه‌ی قدیمی */
+      const res = await fetch(`https://developer.myket.ir/api/application/${encodeURIComponent(pkg)}/purchases/${encodeURIComponent(sku)}/tokens/${encodeURIComponent(receipt)}`, {
+        headers,
         signal: AbortSignal.timeout(8000),
       })
       if (!res.ok) return { ok: false, error: res.status === 404 ? 'receipt' : 'provider_error' }
@@ -2491,6 +2495,40 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
            p_request_id اختیاری: Idempotency ضد دبل-پرداخت (کلاینت UUID یک‌بارمصرف می‌سازد). */
         const rb = await shopBuy(user.id, String(args.p_item || ''), args.p_request_id ? String(args.p_request_id).slice(0, 80) : null)
         return R(rb)
+      }
+
+      /* V118 — شارژ جم از خرید واقعی مایکت (IAB v3).
+         ورودی: p_sku (gems_*) + p_token (purchaseToken خام مایکت) + p_order_id اختیاری.
+         امنیت: مبلغ جم هرگز از کلاینت پذیرفته نمی‌شود (SHOP_PACKS سرور = تنها منبع)؛
+         رسید با API رسمی مایکت راستی‌آزمایی می‌شود؛ ضد دوباره‌اعمال با id قطعی
+         «MYKTX-<token>» در shop_purchases — توکن تکراری در سطح دیتابیس رد می‌شود (P2002). */
+      case 'shop_gem_topup': {
+        const sku = String(args.p_sku || '').trim()
+        const token = String(args.p_token || '').trim()
+        if (!/^gems_[a-z0-9_]{2,40}$/.test(sku)) return R({ ok: false, error: 'sku' })
+        if (!/^[\w.\-]{8,256}$/.test(token)) return R({ ok: false, error: 'receipt' })
+        const pack = SHOP_PACKS.find((p) => p.id === sku)
+        if (!pack) return R({ ok: false, error: 'sku' })
+        /* رسیدِ تکراری: اگر همین توکن قبلاً برای هر حسابی گرنت خورده باشد اینجا پیدایش می‌کنیم */
+        const prior = await db.shopPurchase.findFirst({ where: { requestId: token, status: 'ok' } })
+        if (prior && prior.userId !== user.id) return R({ ok: false, error: 'receipt' }) /* رسید متعلق به حساب دیگری است */
+        if (prior) return R({ ok: true, duplicate: true, gems_added: 0, wallet: { gems: (await ensureWallet(user.id)).gems } })
+        const ver = await verifyProviderReceipt('myket', token, user, sku)
+        if (!ver.ok) return R({ ok: false, error: ver.error })
+        try {
+          await db.$transaction(async (tx) => {
+            await tx.shopPurchase.create({ data: { id: 'MYKTX-' + token, userId: user.id, itemId: sku, price: 0, currency: 'toman', status: 'ok', provider: 'myket', requestId: token, meta: JSON.stringify({ kind: 'gem_topup', gems: pack.gems, order_id: String(args.p_order_id || '').slice(0, 80) }) } })
+            await tx.wallet.update({ where: { userId: user.id }, data: { gems: { increment: pack.gems } } })
+          })
+        } catch (e: unknown) {
+          const code = (e as { code?: string })?.code
+          if (code === 'P2002') return R({ ok: true, duplicate: true, gems_added: 0, wallet: { gems: (await ensureWallet(user.id)).gems } })
+          throw e
+        }
+        const wTop = await ensureWallet(user.id)
+        const srvT = await warUserServer(user.id).catch(() => 1)
+        void telem('gem_topup_purchased', user.id, srvT, sku, { gems: pack.gems })
+        return R({ ok: true, duplicate: false, gems_added: pack.gems, wallet: { gems: wTop.gems }, consume: true })
       }
 
       /* ---------------- V66 Shop V2 — catalog / inventory / history / collection claim ---------------- */
