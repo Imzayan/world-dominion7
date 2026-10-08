@@ -147,8 +147,12 @@ public final class WDIab {
             Log.w(TAG, "PURCHASE_FAILED remote " + e.getClass().getSimpleName());
             return "0:remote";
         } catch (Exception e) {
-            Log.w(TAG, "PURCHASE_FAILED " + e.getClass().getSimpleName());
-            return "0:error";
+            Log.w(TAG, "PURCHASE_FAILED detail", e);
+            /* V121: نام کلاس استثنا در کد برمی‌گردد تا JS/پشتیبانی علت دقیق را ببیند
+               (رایج: SecurityException یعنی فروشگاه بازی/امضا را نمی‌شناسد — بازی هنوز در پنل تأیید نشده) */
+            String en = e.getClass().getSimpleName();
+            if (e instanceof SecurityException) return "0:sec:" + en;
+            return "0:error:" + en;
         }
     }
 

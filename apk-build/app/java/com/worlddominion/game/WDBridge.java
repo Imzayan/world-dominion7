@@ -51,7 +51,8 @@ public class WDBridge {
             }
             return r.get();
         } catch (Exception e) {
-            return "0:error";
+            /* V121: خطای سطح پل از خطای داخل IAB تفکیک می‌شود */
+            return "0:bridge:" + e.getClass().getSimpleName();
         }
     }
 
@@ -76,7 +77,7 @@ public class WDBridge {
             }
             return r.get();
         } catch (Exception e) {
-            return "0:error";
+            return "0:bridge:" + e.getClass().getSimpleName();
         }
     }
 
