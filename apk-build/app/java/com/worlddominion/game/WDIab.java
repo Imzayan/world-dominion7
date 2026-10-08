@@ -111,6 +111,19 @@ public final class WDIab {
             }
             queuedSku = sku;
             Log.w(TAG, "PURCHASE_START queued (service not connected yet)");
+            /* V120: نگهبان اتصال — اگر سرویس فروشگاه تا ۱۰ ثانیه وصل نشود، JS را آزاد کن (نه انتظار بی‌پایان).
+               اگر تا آن موقع وصل شده باشد، queuedSku در onServiceConnected مصرف شده و این نگهبان کاری نمی‌کند. */
+            final String fsku = sku;
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override public void run() {
+                    if (queuedSku != null && queuedSku.equals(fsku) && !ready()) {
+                        queuedSku = null;
+                        ResultSink s = actSink; clearRequest();
+                        Log.w(TAG, "PURCHASE_FAILED connect timeout (store service never connected)");
+                        if (s != null) { try { s.send("{\"status\":\"fail\",\"code\":-2}"); } catch (Exception ignored) { } }
+                    }
+                }
+            }, 10000);
             return "1";
         }
         try {

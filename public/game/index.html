@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=119;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=119"></script>
+  <script>window.__WD_V=120;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=120"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2901,7 +2901,7 @@ rankOnline=async function(box){box.append(mk('div','🌍 رتبه‌بندی س�
 (function(){const m=document.createElement('div');m.id='m-srv';m.className='modal';
   m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span>🖥️ سرورها</span><span class="close-modal" style="cursor:pointer;font-size:18px;">✕</span></div><div id="srv-body"></div></div>';document.body.appendChild(m)})();
 function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';
-  b.append(el('div','هر سرور یک دنیای مشترک است. وقتی ۸۰ کشور در یک سرور تصرف شود، سرور بعدی خودکار باز می‌شود و بازیکنان جدید به آن می‌روند. سرور 🧪 تستی برای عرضه‌ی مایکت نگه داشته شده و ورود به آن بسته است.','sites-sub'));
+  b.append(el('div','هر سرور یک دنیای مشترک است. وقتی ۸۰ کشور در یک سرور تصرف شود، سرور بعدی خودکار باز می‌شود و بازیکنان جدید به آن می‌روند. سرور 🧪 تستی برای عرضه‌ی عمومی نگه داشته شده و ورود به آن بسته است.','sites-sub'));
   for(let k=1;k<=SRV_COUNT;k++){const t=taken(k),p=(STATS[k]&&STATS[k].players)||0,open=srvOpen(k),full=t>=SRV_CAP,ts=isTst(k);
     const r=el('div','','lobby-item'+(k===SRV?' me':''));
     r.append(el('div','سرور '+faNum(k)+(k===SRV?' (تو اینجایی)':'')+(ts?' 🧪':'')+' — '+faNum(t)+'/'+faNum(SRV_CAP)+' کشور • '+faNum(p)+' بازیکن','lobby-item-text'));
@@ -10946,7 +10946,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=119';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=120';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -17158,17 +17158,26 @@ window.__wdOnPurchase=function(o){
   if(st==='ok'&&o.token){
     if(p.type==='starter')wdStarterServer(o,p);else wdGemServer(o,p);
   }else{
-    showToast(st==='cancel'?'پرداخت لغو شد':st==='pending'?'⏳ پرداخت در حال بررسی است — بعداً به‌طور خودکار اعمال می‌شود':'❌ پرداخت انجام نشد. دوباره تلاش کنید.',st==='cancel'?'win':'lose');
+    showToast(st==='cancel'?'پرداخت لغو شد':st==='pending'?'⏳ پرداخت در حال بررسی است — بعداً به‌طور خودکار اعمال می‌شود':o.code===-2?'⏳ اتصال به فروشگاه بیش از حد طول کشید — مطمئن شو فروشگاه نصب و به‌روز است':'❌ پرداخت انجام نشد. دوباره تلاش کنید.',st==='cancel'?'win':'lose');
     if(p.btn){p.btn.disabled=false;if(p.type==='starter')p.btn.textContent='✅ خرید'}
   }
 };
 function wdStartPurchase(sku,plan){
-  if(!wdNative()){showToast('❌ پرداخت امن مایکت فقط داخل اپلیکیشن بازی فعال است','lose');return false}
+  if(!wdNative()){showToast('❌ خرید امن فقط داخل اپلیکیشن بازی فعال است','lose');return false}
   if(WDPAY){showToast('⏳ یک پرداخت دیگر در جریان است','lose');return false}
   var r=null;try{r=window.WDAndroid.startPurchase(String(sku))}catch(e){r='0:error'}
-  if(r==='1'){WDPAY=plan;showToast('💳 در حال اتصال به پرداخت مایکت…','win');return true}
-  /* V119: nomyket = اپ مایکت اصلاً روی دستگاه نیست (bindService=false) — پیام واضح به‌جای خطای مبهم */
-  showToast(r==='0:nomyket'?'📱 اپلیکیشن مایکت روی گوشی نصب نیست — اول مایکت را نصب و وارد حسابت شو':'❌ اتصال به مایکت برقرار نشد — مطمئن شو اپ مایکت نصب و به‌روز است','lose');
+  if(r==='1'){WDPAY=plan;showToast('💳 در حال اتصال به پرداخت…','win');return true}
+  /* V120: نگاشت دقیق کد خطای پل به پیام قابل‌اقدام + واژگان خنثی «فروشگاه» (آماده‌ی انتشار در هر استور).
+     کدها از WDIab.buy می‌آیند: rc3=BILLING_UNAVAILABLE، rc4=ITEM_UNAVAILABLE، rc5=DEVELOPER_ERROR. */
+  var PAYERR={'0:rc3':'⚠️ نسخه‌ی فروشگاه روی گوشی قدیمی است — اول فروشگاه را به‌روز کن',
+    '0:rc4':'⚠️ این محصول هنوز در فروشگاه فعال نشده — محصولات درون‌برنامه‌ای باید در پنل توسعه‌دهنده ساخته و فعال شوند',
+    '0:rc5':'⚠️ فروشگاه این نسخه از بازی را تأیید نکرد — یا بازی هنوز در فروشگاه فعال نیست یا امضای APK با پنل نمی‌خواند',
+    '0:busy':'⏳ یک خرید دیگر در جریان است — چند لحظه صبر کن',
+    '0:remote':'❌ ارتباط با فروشگاه قطع شد — مطمئن شو فروشگاه نصب و به‌روز است و اینترنت داری',
+    '0:send':'❌ صفحه‌ی پرداخت باز نشد — دوباره تلاش کن',
+    '0:nopi':'❌ صفحه‌ی پرداخت ساخته نشد — دوباره تلاش کن',
+    '0:error':'❌ خطای غیرمنتظره در پرداخت — دوباره تلاش کن'};
+  showToast(r==='0:nomyket'?'📱 فروشگاه بازی روی گوشی نصب نیست — اول آن را نصب و وارد حسابت شو':(PAYERR[r]||'❌ اتصال به فروشگاه برقرار نشد — مطمئن شو فروشگاه نصب و به‌روز است'),'lose');
   return false;
 }
 function wdGemServer(o,p){
@@ -17242,7 +17251,7 @@ function starterClaimAfter(r,btn,modal){
       var e=(r.data&&r.data.error)||'x';
       var msg=e==='purchased'?'✅ این پک قبلاً برای این حساب خریداری شده است'
         :e==='expired'?'⏳ مهلت ۴۸ ساعته‌ی این پیشنهاد تمام شده است'
-        :e==='provider_unavailable'?'🔒 پرداخت واقعی به‌زودی فعال می‌شود — پک با اپلیکیشن جدید مایکت (یا درگاه وب) قابل خرید است'
+        :e==='provider_unavailable'?'🔒 پرداخت واقعی به‌زودی فعال می‌شود — پک با اپلیکیشن جدید بازی (یا درگاه) قابل خرید است'
         :'❌ خرید انجام نشد'+(e?(' ('+e+')'):'');
       showToast(msg,'lose');if(btn){btn.disabled=false;btn.textContent='✅ خرید'}
       return}
@@ -17274,9 +17283,9 @@ function starterClaimAfter(r,btn,modal){
     render();
 }
 function wdGemBtn(p){
-  /* V118 — داخل اپ: دکمه‌ی خرید واقعی مایکت؛ روی وب (بدون پل): وضعیت «به‌زودی» بدون خرید جعلی */
+  /* V120 — داخل اپ: دکمه‌ی خرید درون‌برنامه‌ای با متن خنثی (بدون برند فروشگاه — آماده‌ی بازار/پلی)؛ روی وب: وضعیت «به‌زودی» بدون خرید جعلی */
   if(!wdNative())return el('button','🔒 به‌زودی','wd66-buy off wd114-gbuy');
-  var b=el('button','🛒 خرید با مایکت','wd66-buy wd114-gbuy');
+  var b=el('button','🛒 خرید جم','wd66-buy wd114-gbuy');
   b.setAttribute('data-sku',p.id);
   b.onclick=function(){
     b.disabled=true;
@@ -17842,7 +17851,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=119';
+              s.src='/game/cv-engine.js?v=120';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -17853,7 +17862,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=119"></script>
+<script src="/game/oly3.js?v=120"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -17867,7 +17876,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=119';
+      s.src='/game/oly3d.js?v=120';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19107,8 +19116,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=119"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=119"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=120"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=120"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
