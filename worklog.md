@@ -2527,3 +2527,24 @@ Stage Summary:
 - V119 + APK v1.0.11 (vc12) منتشر و راستی‌آزمایی شد
 - ⚠️ مسیر نهایی دست مالک است: (۱) X-Access-Token از پنل مایکت → محصولات درون‌برنامه‌ای → «توکن صحت‌سنجی» بردار؛ (۲) در Vercel env متغیر MYKET_ACCESS_TOKEN بگذار و Redeploy؛ (۳) v1.0.11 را در مایکت آپلود کن با همان جمله‌ی ثابت یادداشت؛ (۴) نوع محصولات: gems_* مصرف‌شدنی، emperor_starter غیرمصرف‌شدنی
 - بدون گام‌های بالا خریدِ انجام‌شده جم اعمال نمی‌شود (provider_unavailable صادقانه)
+
+---
+Task ID: V119-MYKET-ENV-ACTIVATE
+Agent: Super Z (main)
+Task: ست‌کردن MYKET_ACCESS_TOKEN با «توکن صحت‌سنجی» واقعی مایکت (کاربر دو مقدار فرستاد: UUID تکی + قبلاً app_v1_fbdf223…)، redeploy و راستی‌آزمایی پروب تولیدی
+
+Work Log:
+- سندباکس ریست شده بود (worklog ریشه‌ای در V112 ماند، اسکریپت‌های v118 حذف) — وضعیت از گیت بازیابی شد: 994afee «redeploy: activate MYKET_ACCESS_TOKEN env» یعنی جلسه‌ی قبل env با مقدار app_v1_* ست شده بود ولی هرگز پروب نشده بود
+- داکتر تشخیصی سه‌مرحله‌ای (scripts/v119-env-doctor*.mjs) علیه endpoint رسمی verify با tokenId قلابی:
+  • توکن آشغال / app_v1_* / بدون‌خط‌تیره ⇒ HTTP 401 Unauthorized (احراز رد)
+  • UUID کاربر 510693ef-a725-41de-88c7-a0551ec6976e ⇒ HTTP 400 InvalidToken (نه 401!) و با tokenId عددی ⇒ HTTP 404 PurchasedSkuNotFound «خرید مورد نظر پیدا نشد»
+  ⇒ نتیجه‌ی قطعی: UUID همان «توکن صحت‌سنجی» معتبر است (401=احراز رد، 400=احراز اوکی و ردِ tokenId رشته‌ای قلابی، 404=احراز اوکی و عدم‌وجود خرید)؛ مقدار قبلی app_v1_* غلط بود
+- Vercel API (توکن vcp_ کاربر): پروژه world-dominion7 (prj_3xlvCtCNWAxElGyQ6HPY0YWKZpfc) پیدا شد؛ MYKET_ACCESS_TOKEN با ?upsert=true بازنویسی شد = مقدار UUID (201، encrypted، هر سه target)
+- redeploy از v13 API ممکن نبود (خطای files) ⇒ مسیر اثبات‌شده: کامیت خالی 6f332f5 + push dev و main
+- پروب بازسازی‌شده (scripts/v119-pay-probe.mjs) روی production: signup 200+cookie ✓، T1 bad-sku ⇒ 'sku' ✓، T2 fake-token ⇒ 'provider_error' (یعنی env فعال، مایکت احراز شد، tokenId قلابی 400 خورد — provider_unavailable رفع شد) ✓، T3 کیف ثابت ماند (gems 60→60، هیچ گرنت نادرست) ✓
+- پیام‌های کلاینت برای provider_error و بقیه «عمومیِ امن» ماند (خرید انجام شد ولی اعمال نشد→پشتیبانی) — تغییر نسخه‌ای (V120) لازم ندیدم؛ کمترین تغییر
+
+Stage Summary:
+- زنجیره‌ی پرداخت مایکت اکنون روی production واقعاً فعال است: endpoint رسمی + X-Access-Token معتبر + idempotency txId + بدون هر گرم رایگان
+- تنها آزمون نatenهایی که از اینجا ممکن نیست: خرید واقعی روی گوشی با مایکت نصب (مالک باید با v1.0.11 تست کند)
+- یادآوری پنل مایکت: gems_* مصرف‌شدنی (consumable)، emperor_starter غیرمصرف‌شدنی
