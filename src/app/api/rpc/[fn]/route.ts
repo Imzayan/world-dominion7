@@ -433,6 +433,12 @@ const SHOP_PACKS = [
   { id: 'gems_1000', gems: 1500, price: '۶۹۰٬۰۰۰ تومان', perGem: '۴۶۰', name: 'امپراتور', tier: '', url: '' },
 ]
 
+/* V122 — خاموشی کامل پرداخت واقعی (تصمیم مالک برای عبور روان از بررسی فروشگاه‌ها):
+   هیچ محصول پولی به کلاینت تبلیغ نمی‌شود — packs خالی می‌آید و پک شروع مخفی می‌شود (phase='expired').
+   تمام مسیر خرید/راستی‌آزمایی/بازیابی دست‌نخورده می‌ماند؛ فعال‌سازی دوباره = فقط PAY_OFF=false.
+   پرداخت‌های قبلاً انجام‌شده همچنان از طریق wdRestore/بازیابی به‌صورت صادقانه اعمال می‌شوند. */
+const PAY_OFF = true
+
 /* مجموعه‌ها — members فقط شناسه‌های سرور-شناخته (medal_s1* = هر مدال فصلی) */
 const SHOP_COLLECTIONS: { id: string; fa: string; icon: string; members: string[]; reward: string }[] = [
   { id: 'war', fa: 'جنگ', icon: '⚔️', members: ['fx_conq', 'fx_storm', 'fx_comet', 'war_badge', 'battle_frame', 'radar'], reward: 'col_war_reward' },
@@ -2546,7 +2552,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* V114 — وضعیت پک شروع (برای همه‌ی بازیکنان تا لحظه‌ی خرید) */
         const stC = await starterStateOf(user.id)
         const starterBlock = {
-          phase: stC.phase,
+          phase: PAY_OFF ? 'expired' : stC.phase,
           /* V114: پنجره‌ی زمانی حذف شد — آفر نامحدود است تا وقتی خریداری نشود */
           unlimited: true,
           ends_in_ms: 0,
@@ -2561,7 +2567,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             slot: x.slot || null, days: x.days || null,
             window: x.window ? { from: x.window.from, to: x.window.to } : (x.expands === 'season' ? { to: shopSeasonSlug().to } : null),
           })),
-          packs: SHOP_PACKS,
+          packs: PAY_OFF ? [] : SHOP_PACKS,
           collections: SHOP_COLLECTIONS,
           mystery: Object.fromEntries(Object.entries(SHOP_MYSTERY).map(([k, m]) => [k, {
             fa: m.fa,
@@ -2928,7 +2934,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           }
         }
         return R({
-          ok: true, phase: st.phase,
+          ok: true, phase: PAY_OFF ? 'expired' : st.phase,
           /* V114: آفر نامحدود — دیگر پنجره‌ی ۴۸ ساعته وجود ندارد */
           unlimited: true,
           ends_in_ms: 0,
