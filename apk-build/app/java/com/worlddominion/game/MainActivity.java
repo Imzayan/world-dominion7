@@ -1,8 +1,6 @@
 package com.worlddominion.game;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -17,42 +15,21 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
-import android.widget.Toast;
-
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
 public class MainActivity extends Activity {
 
-    /* V91: آپدیت فقط از طریق مایکت (Myket Intent) — بدون دانلود/نصب مستقیم APK
+    /* V122: به‌روزرسانی بازی فقط از طریق فروشگاه (بازار/مایکت/گوگل‌پلی) —
+       چک‌کننده‌ی نسخه و دیالوگ «به‌روزرسانی» طبق قوانین انتشار فروشگاه‌ها به‌کلی حذف شد؛
+       هیچ پیام یا مسیر به‌روزرسانی خارج از فروشگاه در برنامه وجود ندارد.
        WebView هرگز HTML قدیمی کش‌شده را سرو نمی‌کند (پارامتر نسخه) */
     private static final int GAME_VER = 121;
     private static final String GAME_URL = "https://world-dominion7.vercel.app/game/index.html?v=" + GAME_VER;
     private static final String GAME_HOST = "world-dominion7.vercel.app";
     private static final String ERROR_URL = "file:///android_asset/error.html";
 
-    /* latest.json فقط برای «اطلاع نسخه» خوانده می‌شود؛ فیلد url آن هرگز دانلود نمی‌شود */
-    private static final String UPDATE_JSON = "https://world-dominion7.vercel.app/apk/latest.json";
-    private static final long RECHECK_MS = 15 * 60 * 1000; /* هر ۱۵ دقیقه دوباره چک */
-
-    /* PHASE 4: آدرس صفحه‌ی برنامه در مایکت — پس از انتشار، مقدار واقعی جایگزین شود.
-       تا زمانی که placeholder است، مسیر پشتیبان مرورگر غیرفعال و فقط پیام راهنما نمایش داده می‌شود. */
-    private static final String MYKET_APP_URL = "https://myket.ir/app/com.worlddominion.game";
-    /* پکیج رسمی اپلیکیشن مایکت — مطابق مستندات رسمی Myket Intents */
-    private static final String MYKET_PKG = "ir.mservices.market";
-
     private WebView web;
     private FrameLayout root;
     private boolean errored = false;
-
-    /* وضعیت چک‌کننده‌ی نسخه */
-    private boolean checking = false;
-    private boolean updateDlgShown = false;
-    private int dismissedVc = 0; /* اگر کاربر «ادامه» زد، برای همین نسخه دوباره پرسیده نمی‌شود */
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,14 +53,6 @@ public class MainActivity extends Activity {
         } else {
             web.loadUrl(GAME_URL);
         }
-
-        /* بررسی نسخه‌ی جدید ۴ ثانیه بعد از باز شدن بازی + چک دوره‌ای هر ۱۵ دقیقه */
-        web.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                checkUpdate();
-            }
-        }, 4000);
 
         /* V118: اتصال به سرویس پرداخت مایکت (IAB v3) — در شروع، بدون مزاحمت */
         WDIab.setup(this);
@@ -160,146 +129,6 @@ public class MainActivity extends Activity {
             }
         });
         return w;
-    }
-
-    /* ============ V91: آپدیت فقط از طریق مایکت ============
-       ۱) versionCode از خود پکیج نصب‌شده خوانده می‌شود (هرگز جعلی نیست)
-       ۲) latest.json فقط برای اطلاع نسخه — هیچ APKای دانلود یا نصب نمی‌شود
-       ۳) نسخه‌ی جدید → دیالوغ غیرمسدودکننده: [به‌روزرسانی از مایکت] [ادامه]
-       ۴) دکمه‌ی مایکت → Intent رسمی myket://application?id=<package>
-       ۵) مایکت نصب نبود → مرورگر (اگر آدرس واقعی صفحه تنظیم شده باشد) یا پیام راهنما
-       ۶) هر خطا (شبکه/۴۰۴/JSON/timeout) → بی‌صدا؛ بازی هرگز قفل نمی‌شود            */
-
-    private int currentVc() {
-        try {
-            return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private void checkUpdate() {
-        if (errored || checking) { scheduleNext(); return; }
-        checking = true;
-        final int curVc = currentVc();
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    HttpURLConnection c = (HttpURLConnection) new URL(UPDATE_JSON).openConnection();
-                    c.setConnectTimeout(8000);
-                    c.setReadTimeout(8000);
-                    c.setRequestProperty("Cache-Control", "no-cache");
-                    int code = c.getResponseCode();
-                    if (code != 200) throw new Exception("http " + code);
-                    BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = r.readLine()) != null) sb.append(line);
-                    r.close();
-                    JSONObject o = new JSONObject(sb.toString());
-                    final int vc = o.optInt("versionCode", 0);
-                    /* فقط وقتی نسخه‌ی سروِ جدیدتر از نصب‌شده است دیالوغ بیاید (PHASE 16/17) */
-                    if (vc > curVc && vc != dismissedVc) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() { showUpdateDialog(vc); }
-                        });
-                    }
-                } catch (Exception e) {
-                    /* PHASE 13/14: آفلاین/خطا → بی‌صدا ادامه؛ هیچ‌چیز دانلود یا نصب نمی‌شود */
-                    Log.w("WD-Update", "update check skipped: " + e.getClass().getSimpleName());
-                } finally {
-                    checking = false;
-                    scheduleNext();
-                }
-            }
-        }).start();
-    }
-
-    /* PHASE 6/7: دیالوغ غیرمسدودکننده — داور مایکت همیشه می‌تواند وارد بازی شود */
-    private void showUpdateDialog(final int vc) {
-        try {
-            if (isFinishing() || updateDlgShown) return;
-            updateDlgShown = true;
-            new AlertDialog.Builder(this)
-                    .setTitle("🔄 به‌روزرسانی در دسترس است")
-                    .setMessage("نسخه‌ی جدیدی از ورلد دامین (v" + faNum(vc) + ") منتشر شده است.\nبرای به‌روزرسانی بازی، از طریق مایکت ادامه دهید.")
-                    .setCancelable(true)
-                    .setPositiveButton(" به‌روزرسانی از مایکت ", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface d, int w) { openMyket(); }
-                    })
-                    .setNegativeButton(" ادامه ", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface d, int w) { dismissedVc = vc; }
-                    })
-                    .setOnCancelListener(new DialogInterface.OnCancelListener() {
-                        @Override
-                        public void onCancel(DialogInterface d) { dismissedVc = vc; }
-                    })
-                    .setOnDismissListener(new DialogInterface.OnDismissListener() {
-                        @Override
-                        public void onDismiss(DialogInterface d) { updateDlgShown = false; }
-                    })
-                    .show();
-        } catch (Exception e) {
-            updateDlgShown = false;
-        }
-    }
-
-    /* PHASE 5/15: باز کردن صفحه‌ی برنامه در مایکت — مطابق مستندات رسمی
-       https://myket.ir/kb/topics/using-myket-intents/ */
-    private void openMyket() {
-        /* ۱) Intent رسمی مایکت: myket://application?id=<package> — فقط اپ مایکت آن را می‌گیرد */
-        try {
-            Intent it = new Intent(Intent.ACTION_VIEW);
-            it.setData(Uri.parse("myket://application?id=" + getPackageName()));
-            it.setPackage(MYKET_PKG);
-            startActivity(it);
-            return;
-        } catch (Exception e) {
-            /* مایکت نصب نیست یا Intent حل نشد */
-        }
-        /* ۲) پشتیبان امن: صفحه‌ی وب برنامه در مایکت — فقط اگر آدرس واقعی تنظیم شده باشد */
-        if (MYKET_APP_URL.startsWith("http://") || MYKET_APP_URL.startsWith("https://")) {
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(MYKET_APP_URL)));
-                return;
-            } catch (Exception ignored) { }
-        }
-        /* ۳) هیچ مسیری ممکن نبود → راهنما؛ کاربر هرگز گیر نمی‌افتد */
-        toast("برای بروزرسانی، صفحه‌ی World Dominion در مایکت را باز کنید.");
-    }
-
-    private void scheduleNext() {
-        try {
-            if (web != null && !errored) {
-                web.postDelayed(new Runnable() {
-                    @Override
-                    public void run() { checkUpdate(); }
-                }, RECHECK_MS);
-            }
-        } catch (Exception ignored) { }
-    }
-
-    private static String faNum(int n) {
-        String s = String.valueOf(n);
-        StringBuilder b = new StringBuilder();
-        for (char c : s.toCharArray()) {
-            if (c >= '0' && c <= '9') b.append((char) ('۰' + (c - '0')));
-            else b.append(c);
-        }
-        return b.toString();
-    }
-
-    private void toast(String msg) {
-        try {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() { Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show(); }
-            });
-        } catch (Exception ignored) { }
     }
 
     private void showOffline() {
