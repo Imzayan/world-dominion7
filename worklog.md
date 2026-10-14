@@ -2505,117 +2505,6 @@ Stage Summary:
 - Remaining owner-side: restore Supabase project (still NXDOMAIN) + set Myket panel price 280 Toman
 
 ---
-Task ID: V119-MYKET-VERIFY-FIX
-Agent: Super Z (main)
-Task: گزارش کاربر «باز زده بزودی که رو ایتمای خریدجم» — ریشه‌یابی + فیکس صحت‌سنجی رسمی مایکت + APK جدید
-
-Work Log:
-- کشف وضعیت: V118 واقعاً روی prod بود (v.txt=118، وضعیت stale بود بعد از fetch)؛ «به‌زودی» روی آیتم‌های جم یعنی wdNative()=false → کاربر روی وب یا APK قدیمی تست کرده بود (فقط v1.0.10+ پل پرداخت دارد)
-- پروب تولیدی جدید (scripts/v118-pay-probe.mjs): signup → shop_gem_topup؛ bad-sku→'sku' ✓، fake-token→'provider_unavailable' ⇒ کلیدهای MYKET روی Vercel تنظیم نشده‌اند (پیش‌نیاز ارسال)
-- کشف بحرانی با مستندات رسمی مایکت (myket.ir/kb/pages/server-to-server-payment-validation-api/): endpoint صحت‌سنجی که V118 پیاده کرده بود غلط بود —
-  غلط: GET /api/application/{pkg}/purchases/{sku}/tokens/{token}
-  رسمی: POST /api/partners/applications/{pkg}/purchases/products/{sku}/verify با Body {"tokenId":...} و هدر X-Access-Token
-  ⇒ حتی با کلید، هر verify با 404 رد می‌شد؛ فیکس شد (route.ts، پاسخ purchaseState/consumptionState مطابق doc)
-- فیکس Android: WDIab.setup حالا boolean برمی‌گرداند؛ buy در نبود اپ مایکت بلافاصله '0:nomyket' (به‌جای انتظار بی‌پایان «در حال اتصال»)؛ JS پیام واضح «اپ مایکت نصب نیست»
-- فیکس بازیابی: wdRestore حالا emperor_starter را هم با starter_claim(myket token) بازیابی می‌کند — سرور با txId دوباره‌گرنت نمی‌دهد
-- release v118→v119 (گیت‌ها: check-html-js 97/0، verify-build 9/9، schema-diff identical، secret-scan پاک)؛ Manifest vc12/1.0.11
-- APK v1.0.11 ساخته و امضا شد (همان امضای v1.0.10: cert 69a82c17…0636f؛ INTERNET+BILLING؛ minSdk21؛ sha256 db85b02a…e0e84) در public/apk + download/
-- push dev+main (095f98a)؛ prod v119 لایو؛ latest.json=vc12/1.0.11 با جمله‌ی ثابت یادداشت انتشار به خواست مالک؛ APK 200 از سایت
-- پروب نهایی: T1 'sku' ✓، T2 'provider_unavailable' — درست است چون کلید هنوز ست نشده
-
-Stage Summary:
-- V119 + APK v1.0.11 (vc12) منتشر و راستی‌آزمایی شد
-- ⚠️ مسیر نهایی دست مالک است: (۱) X-Access-Token از پنل مایکت → محصولات درون‌برنامه‌ای → «توکن صحت‌سنجی» بردار؛ (۲) در Vercel env متغیر MYKET_ACCESS_TOKEN بگذار و Redeploy؛ (۳) v1.0.11 را در مایکت آپلود کن با همان جمله‌ی ثابت یادداشت؛ (۴) نوع محصولات: gems_* مصرف‌شدنی، emperor_starter غیرمصرف‌شدنی
-- بدون گام‌های بالا خریدِ انجام‌شده جم اعمال نمی‌شود (provider_unavailable صادقانه)
-
----
-Task ID: V119-MYKET-ENV-ACTIVATE
-Agent: Super Z (main)
-Task: ست‌کردن MYKET_ACCESS_TOKEN با «توکن صحت‌سنجی» واقعی مایکت (کاربر دو مقدار فرستاد: UUID تکی + قبلاً app_v1_fbdf223…)، redeploy و راستی‌آزمایی پروب تولیدی
-
-Work Log:
-- سندباکس ریست شده بود (worklog ریشه‌ای در V112 ماند، اسکریپت‌های v118 حذف) — وضعیت از گیت بازیابی شد: 994afee «redeploy: activate MYKET_ACCESS_TOKEN env» یعنی جلسه‌ی قبل env با مقدار app_v1_* ست شده بود ولی هرگز پروب نشده بود
-- داکتر تشخیصی سه‌مرحله‌ای (scripts/v119-env-doctor*.mjs) علیه endpoint رسمی verify با tokenId قلابی:
-  • توکن آشغال / app_v1_* / بدون‌خط‌تیره ⇒ HTTP 401 Unauthorized (احراز رد)
-  • UUID کاربر 510693ef-a725-41de-88c7-a0551ec6976e ⇒ HTTP 400 InvalidToken (نه 401!) و با tokenId عددی ⇒ HTTP 404 PurchasedSkuNotFound «خرید مورد نظر پیدا نشد»
-  ⇒ نتیجه‌ی قطعی: UUID همان «توکن صحت‌سنجی» معتبر است (401=احراز رد، 400=احراز اوکی و ردِ tokenId رشته‌ای قلابی، 404=احراز اوکی و عدم‌وجود خرید)؛ مقدار قبلی app_v1_* غلط بود
-- Vercel API (توکن vcp_ کاربر): پروژه world-dominion7 (prj_3xlvCtCNWAxElGyQ6HPY0YWKZpfc) پیدا شد؛ MYKET_ACCESS_TOKEN با ?upsert=true بازنویسی شد = مقدار UUID (201، encrypted، هر سه target)
-- redeploy از v13 API ممکن نبود (خطای files) ⇒ مسیر اثبات‌شده: کامیت خالی 6f332f5 + push dev و main
-- پروب بازسازی‌شده (scripts/v119-pay-probe.mjs) روی production: signup 200+cookie ✓، T1 bad-sku ⇒ 'sku' ✓، T2 fake-token ⇒ 'provider_error' (یعنی env فعال، مایکت احراز شد، tokenId قلابی 400 خورد — provider_unavailable رفع شد) ✓، T3 کیف ثابت ماند (gems 60→60، هیچ گرنت نادرست) ✓
-- پیام‌های کلاینت برای provider_error و بقیه «عمومیِ امن» ماند (خرید انجام شد ولی اعمال نشد→پشتیبانی) — تغییر نسخه‌ای (V120) لازم ندیدم؛ کمترین تغییر
-
-Stage Summary:
-- زنجیره‌ی پرداخت مایکت اکنون روی production واقعاً فعال است: endpoint رسمی + X-Access-Token معتبر + idempotency txId + بدون هر گرم رایگان
-- تنها آزمون نatenهایی که از اینجا ممکن نیست: خرید واقعی روی گوشی با مایکت نصب (مالک باید با v1.0.11 تست کند)
-- یادآوری پنل مایکت: gems_* مصرف‌شدنی (consumable)، emperor_starter غیرمصرف‌شدنی
-
----
-Task ID: V120-NEUTRAL-PAY-UI
-Agent: Super Z (main)
-Task: گزارش کاربر «ارور اتصال به مایکت برقرار نشد» + حذف برند مایکت از UI خرید (آماده‌سازی بازار/پلی)
-
-Work Log:
-- ریشه‌یابی: پیام مبهم فقط از مسیر همگام wdStartPurchase می‌آمد — هر «0:xxx» غیر از nomyket ⇒ متن ثابت. با مایکتِ نصب‌شده، محتمل‌ترین کدها rc4=ITEM_UNAVAILABLE (محصول در پنل ساخته/فعال نشده) یا rc5=DEVELOPER_ERROR (بازی در فروشگاه فعال نیست/امضا) — یعنی علتِ محیطیِ پنل، نه کلاینت
-- کشف زیرساختی: APK صفحه را از سرور لود می‌کند (MainActivity GAME_URL=?v=GAME_VER) ⇒ فیکس‌های JS بدون بیلد APK به v1.0.10/11 نصب‌شده می‌رسند
-- V120 JS: دکمه «🛒 خرید با مایکت» → «🛒 خرید جم»؛ همه‌ی پیام‌های پرداخت با واژه‌ی خنثی «فروشگاه»؛ PAYERR نگاشت دقیق rc3/rc4/rc5/busy/remote/send/nopi/error؛ پیام provider_unavailable و متن سرور تستی خنثی شد
-- Java (برای APK بعدی): WDIab نگهبان ۱۰ثانیه‌ای اتصال — صف خرید اگر سرویس وصل نشود آزاد می‌شود با code:-2 ⇒ JS پیام timeout می‌دهد (نه انتظار بی‌پایان)
-- release v119→v120 (گیت‌ها: check-html-js 97/0، verify-build 9/9، schema-diff identical، secret-scan پاک)؛ push aed2482 روی dev و main؛ prod v120 لایو؛ «خرید با مایکت» = صفر بار در HTML لایو
-- ⚠️ بیلد APK جدید الان ممکن نیست: apk-build/tools (۹۰۹MB) و download/keystore در ریست سندباکس پاک شدند — کیستور فقط از بکاپ کاربر برمی‌گردد؛ فیکس Java در رپو آماده‌ی بیلد بعدی (v1.0.12/vc13) است
-
-Stage Summary:
-- متن‌های خنثی + خطای دقیق از همین حالا روی همه‌ی نصب‌ها فعال است (وب‌ویو از سرور می‌خواند)
-- کاربر باید دوباره تست کند: اگر rc4/rc5 دید ⇒ پنل مایکت (ساخت محصولات gems_* مصرف‌شدنی + emperor_starter غیرمصرف‌شدنی و انتشار بازی) — پنل دست کاربر است و حدس زدنی نیست
-
----
-Task ID: V121-BILLING-DIAG
-Agent: Super Z (main)
-Task: گزارش کاربر «خطای غیرمنتظره در پرداخت» (0:error) — تشخیص دقیق‌تر + علت محتمل
-
-Work Log:
-- 0:error یعنی: سرویس مایکت بسته شده بود ولی getBuyIntent/startIntentSender استثنای عمومی داد (پل WDBridge با runOnUiThread+lock سالم است؛ 0:busy جداگانه است)
-- محتمل‌ترین استثنا: SecurityException — مایکت بازی/امضا را نمی‌شناسد چون بازی هنوز در پنل آپلود/تأیید نشده (آپلود v1.0.11 و ساخت ۵ محصول همچنان دست کاربر است)
-- JS: پیام 0:error قابل‌اقدام شد + تطبیق پیشوندی کدهای پسوندی؛ Java (برای بیلد بعدی): 0:error:<Exception>/0:sec:<Exception>/0:bridge:<Exception> + لاگ کامل استثنا
-- release v120→v121 (گیت‌ها سبز: 97/0، 9/9، schema identical، secret-scan پاک)؛ push 7c235c2؛ prod تأیید شد
-
-Stage Summary:
-- تشخیص نهایی از تست بعدی کاربر با پیام جدید می‌آید (کد استثنا در پیام دیده می‌شود)
-- راه‌حل واقعی: آپلود بازی در پنل مایکت + ساخت محصولات + به‌روزبودن اپ مایکت — هیچ فیکس کلاینتی این را دور نمی‌زند
-
----
-Task ID: V121-MYKET-REVIEW-FIX
-Agent: Super Z (main)
-Task: بازخورد رسمی تیم بررسی مایکت (رد «توضیحات فارسی نسخه» + خطای اجرای پرداخت روی دستگاه تست Poco X5 اندروید ۱۴) — پاسخ به «این دو مشکل هم حل شد؟»
-
-Work Log:
-- تأیید کلیدی: خطای پرداخت روی دستگاه تست خودِ مایکت هم تکرار شد ⇒ تشخیص محیطی/پنلی قطعی شد (هم‌خوان با گزارش کاربر: 0:error قبل از باز شدن صفحه پرداخت)
-- بازخوانی کد: WDIab.buy مسیرهای خطا (bad_sku/busy/nomyket/queued/rc*/nopi/send/remote/error) — 0:error فقط از استثنای getBuyIntent می‌آید؛ رایج‌ترین علت: محصول با آن SKU در پنل نیست یا بازی/امضا هنوز تأیید نشده
-- توضیحات نسخه: جمله قبلی با گیومه تودرتو («سرزمین مادری») رد شد؛ متن ساده طبق الگوی پیشنهادی خود مایکت: «اولین نسخه بازی منتشر شد.» — latest.json به‌روز شد
-- متن «توضیحات بیشتر برای بررسی‌کننده برنامه» (IAB v3 + S2S verify رسمی + فهرست ۵ SKU + سناریوی تست) در پاسخ چت برای کپی آماده شد
-- چک‌لیست پنل: ساخت gems_100/300/550/1000 (مصرفی) + emperor_starter (غیرمصرفی) با شناسه دقیق؛ قیمت‌های کاتالوگ سرور ۴۰/۱۱۰/۳۰۰/۶۹۰ هزار تومان + پک شروع ۲۸۰ تومان؛ سپس ارسال مجدد
-- سمت ما آماده: endpoint رسمی verify، پروب‌های T1/T2/T3 سبز، JS V121 لایو؛ همان APK فعلی بعد از ساخت محصولات تست پرداخت را پاس می‌کند (JS از سرور لود می‌شود)
-
-Stage Summary:
-- مشکل ۱: متن جایگزین آماده — درج در پنل با کاربر است
-- مشکل ۲: پیاده‌سازی ما سالم؛ رفع واقعی = ساخت محصولات + تأیید بازی در پنل مایکت + ارسال مجدد
-- بیلد v1.0.12 (Java با نام استثنا + watchdog) همچنان مسدود: ابزار ساخت + کیستور بکاپ لازم
-
-
-Task ID: V121-MYKET-REVIEW-MSG
-Agent: Super Z (main)
-Task: بازخورد دوم بررسی‌کننده مایکت — پیام دقیق «پرداخت انجام نشد به علت اینکه بازی در فروشگاه تایید/منتشر نشده» + پژوهش KB رسمی مایکت
-
-Work Log:
-- بررسی‌کننده متن دقیق خطا را نقل کرد: علت = وضعیت بازی در فروشگاه (تأیید/انتشار نشده) — نه کد کلاینت
-- KB رسمی مایکت خوانده شد (kb/pages/in-app-purchase-implementation-steps، myket-iab-intro، myket-in-app-purchase-fa، myket-integration-faq): خط لوله رسمی = بارگذاری برنامه در پنل (تولید کلید عمومی) → مدیریت محصولات در پنل → IAB v3 (AIDL ir.mservices.market) → صحت‌سنجی؛ پیاده‌سازی ما منطبق است (S2S قوی‌تر از کلید عمومی سمت کلاینت)
-- نتیجه: گیرِ باقی‌مانده فقط وضعیت انتشار در پنل است — دور باطل‌وگمِ بررسی اولین نسخه (بررسی‌کننده پرداخت را قبل از انتشار می‌خواهد، فروشگاه پرداختِ برنامه منتشرنشده را قفل می‌کند)
-- بدون تغییر کد (اصل حداقل تغییر)؛ متن «توضیحات برای بررسی‌کننده» + متن تیکت پشتیبانی مایکت در پاسخ چت آماده شد؛ چک‌لیست پنل تکرار شد (۵ محصول + توضیحات نسخه ساده)
-- search/KB snapshot ها در scripts/myket-*.html ذخیره شد
-
-Stage Summary:
-- تشخیص قطعی: پیام نقل‌شده خودِ دروازه‌ی فروشگاه است؛ هیچ فیکس کلاینتی قبل از تأیید بازی آن را برنمی‌دارد
-- مسیر عملی: ساخت محصولات + متن بررسی‌کننده + ارسال مجدد؛ در صورت رد مجدد → تیکت پشتیبانی مایکت
-
-
 Task ID: V122-BAZAAR-UPDATE-POLICY
 Agent: Super Z (main)
 Task: بازخورد کافه‌بازار (vc10): «پیغام به‌روزسانی پس از ورود» = دیالوگ V91 «به‌روزرسانی از مایکت» در MainActivity — نقض قانون به‌روزرسانی صرفاً از فروشگاه
@@ -2630,3 +2519,23 @@ Work Log:
 Stage Summary:
 - دیالوگ به‌روزرسانی از همین حالا روی همه‌ی APKهای نصب‌شده (vc10/11/12) غیرفعال است — بدون بیلد جدید
 - برای بازار: ارسال APK آخر (v1.0.11/vc12) از لینک سرور؛ نسخه‌ی مخصوص بازار با پرداخت بازار = بیلد بعدی (نیاز به کیستور بکاپ)
+
+---
+Task ID: V122-PAY-OFF
+Agent: Super Z (main)
+Task: تصمیم مالک — «پرداخت را کلا بردار»؛ حذف کامل پرداخت واقعی برای عبور روان از بررسی مایکت (دروازه‌ی انتشار) و بازار
+
+Work Log:
+- تشخیص: تنها سطوح پول واقعی = SHOP_PACKS (۴ پک جم تومانی) + emperor_starter؛ بقیه‌ی فروشگاه جمِ درون‌بازی است (قانون ضد-P2W)
+- backend (route.ts): ثابت PAY_OFF=true → shop_catalog ⇒ packs:[] و starter.phase='expired' (همچنین starter_state)؛ هیچ محصول پولی تبلیغ نمی‌شود
+- مسیرهای خرید/راستی‌آزمایی/بازیابی دست‌نخورده ماندند: wdRestore خریدهای قبلی را همچنان صادقانه اعمال می‌کند؛ فعال‌سازی دوباره فقط PAY_OFF=false (بدون تغییر کلاینت)
+- client (index.html): گارد PG.length در viewGems — با کاتالوگ بی‌پک، هدر و گرید «بسته‌های جم» کلاً رندر نمی‌شود (بدون بخش خالی)
+- release bump v121→v122: beacon __WD_V + ۷ مورد ?v + v.txt ⇒ self-heal ساکت، تغییرات را به همه‌ی کلاینت‌های کش‌شده (وب + vc10/11/12) می‌رساند — بدون بیلد APK
+- گیت‌ها: check-html-js 97/0، verify-build 9/9
+- پروب زنده (scripts/v122-payoff-probe.sh): v.txt=122، بیکون ۱۲۲، ثبت‌نام واقعی + shop_catalog ⇒ packs:[] و starter phase=expired، starter_state ⇒ expired — ALL PASS روی پروداکشن
+- commit 1f54024 push شد به dev+main؛ دیپلوی Vercel ~۹۰ ثانیه بعد لایو شد
+
+Stage Summary:
+- پرداخت واقعی در پروداکشن کاملاً خاموش است (وب + همه‌ی APKها) — برای بررسی‌کننده‌ی هر دو فروشگاه: بازی رایگان تمیز، بدون UI پرداخت، بدون دیالوگ به‌روزرسانی (V122-prep)
+- گلوگاه‌های قبلی هر دو استور رفع شد: مایکت (دروازه‌ی تست پرداخت = دیگر پرداختی برای تست نیست) + بازار (پیغام به‌روزرسانی = kill-switch latest.json)
+- اقدام بعدی مالک: ارسال مجدد/پیگیری در پنل مایکت و بازار؛ پرداخت بعداً با PAY_OFF=false (یا بیلد جدید پس از بازیابی کیستور) برگردد
