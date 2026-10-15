@@ -2667,3 +2667,27 @@ Work Log:
 
 Stage Summary:
 - ترتیب نهایی: (۱) انتشار بدون پرداخت = همین حالا (PAY_OFF)؛ (۲) بعد از انتشار: مسیر سریع PAY_OFF=false با APK موجود، مسیر اصولی بیلد vc13 با کتابخانه‌ی 1.6 + فلیور بازار — نیازمند حل مسئله‌ی کیستور/امضا و کلید RSA عمومی از پنل
+
+---
+Task ID: V123-APK-REBUILD
+Agent: Super Z (main)
+Task: دستور مالک «بچین» — راه‌حل امضای جدید پس از گم‌شدن کیستور؛ ساخت vc13 آماده‌ی ارسال به هر دو استور
+
+Work Log:
+- 🔑 کشف بزرگ: کیستور + کل زنجیره‌ی ابزار در /tmp/my-project (اسنپ‌شات قدیمی پروژه) زنده بودند — keystore-backup + tools (android-14/34 + jdk-17) بازیابی شد
+- تأیید هویت: fingerprint کیستور (SHA-256 69a82c17…636f) دقیقاً = امضای APKهای vc11/vc12 (keytool -printcert -jarfile) ⇒ همین کیستور رسمی خط تولید است؛ اعتبار تا ۲۰۵۶؛ storePassword در keystore.properties + README-کیستور.txt مستند شد
+- بکاپ‌های کیستور: download/keystore/ (اصلی، visible به مالک) + keystore-vault/ + README با رمزها و اثر انگشت
+- manifest vc13/1.0.12: مجوز BILLING + بلاک queries مایکت حذف شد (بازی رایگان — PAY_OFF؛ بررسی‌کننده فقط WebView اینترنت‌محور می‌بیند)؛ WDIab/WDBridge کامپایل می‌مانند ولی غیرقابل‌دسترس (همه try/caught — صفر ریسک کرش)
+- MainActivity: GAME_VER=121→122 (هم‌راستا با بیکون لایو V122)
+- فیکس اسکریپت بیلد (repo canonical): مسیرها به devwork tree + بازگردانی `-A assets` در aapt2 link (error.html بعد از ریورت سندباکس از بیلدها افتاده بود) + دو دام bash (کامنت /* */ و set -e با &&)
+- ⚠️ نکته: دو نسخه اسکریپت هم‌نام وجود داشت (ریشه vs ریپو) — نسخه ریشه حالا wrapper است؛ کانونی = devwork/scripts/build-apk-myket.sh
+- بیلد: vc13 OK — v1+v2+v3 verify true، badging فقط INTERNET، assets/error.html داخل، sha256 5bd8aabf…f7de
+- latest.json: versionCode=1 (kill-switch برای سکوت نصب‌های قدیمی) حفظ شد؛ url/sha256/versionName → v1.0.12
+- انتشار: commit 31021c2 → dev+main؛ پروب لایو: HTTP 200 + sha256 مطابقت در ~۹۰ ثانیه
+- کپی ماندگار ابزارها به apk-build/tools در بک‌گراند (خروج از وابستگی به /tmp)
+
+Stage Summary:
+- APK v1.0.12 (vc13) امضاشده با کیستور رسمی بازیابی‌شده، لایو: https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.12.apk
+- برای مایکت: همین APK (هم‌امضای vc12 در حال بررسی) → جایگزینی در پنل
+- برای بازار: همین APK — اگر پنل به تغییر امضا نسبت به vc10 (کیستور میانی fc94a9ae گم‌شده) اعتراض کرد، تیکت پشتیبانی؛ چون هرگز منتشر نشده، انتظار: پذیرش
+- بیلد بازگشت پرداخت (vc14): myket-billing-client:1.6 + فلیور بازار — همه‌ی مقدمات حالا موجود است (کیستور+ابزار+داک اسنپ‌شات)
