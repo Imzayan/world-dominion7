@@ -1,21 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.worlddominion.game"
-    android:versionCode="12"
-    android:versionName="1.0.11">
+    android:versionCode="13"
+    android:versionName="1.0.12">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34"/>
 
-    <!-- V91: فقط اینترنت — آپدیت از طریق مایکت، بدون نصب مستقیم APK -->
+    <!-- V123: بازی رایگان است (پرداخت با PAY_OFF خاموش) — فقط اینترنت؛
+         مجوز BILLING و بلاک queries مایکت حذف شد تا بررسی‌کننده صرفاً یک بازی وب‌محور ببیند.
+         بازگشت پرداخت = بیلد بعدی با myket-billing-client:1.6 + افزودن مجوز (بدون تداخل امضا) -->
     <uses-permission android:name="android.permission.INTERNET"/>
-
-    <!-- V118: پرداخت درون‌برنامه‌ای رسمی مایکت (IAB v3) -->
-    <uses-permission android:name="ir.mservices.market.BILLING"/>
-
-    <!-- برای شناسایی اپ مایکت در Android 11+ (package visibility) -->
-    <queries>
-        <package android:name="ir.mservices.market"/>
-    </queries>
 
     <application
         android:label="@string/app_name"

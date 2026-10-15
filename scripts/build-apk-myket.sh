@@ -6,13 +6,13 @@ ROOT=/home/z/my-project
 BT=$ROOT/apk-build/tools/android-14
 PF=$ROOT/apk-build/tools/android-34/android.jar
 JDK=$ROOT/apk-build/tools/jdk-17.0.20.1+1/bin
-APP=$ROOT/apk-build/app
-B=$ROOT/apk-build/build
+APP=$ROOT/devwork/apk-build/app
+B=$ROOT/devwork/apk-build/build
 KS=$ROOT/download/keystore/world-dominion-release.keystore
 KSPASS=$(sed -n 's/^storePassword=//p' $ROOT/download/keystore/keystore.properties)
 VC=$(sed -n 's/.*android:versionCode="\([0-9]*\)".*/\1/p' $APP/AndroidManifest.xml | head -1)
 VN=$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' $APP/AndroidManifest.xml | head -1)
-OUT=$ROOT/public/apk/WorldDominion-v$VN.apk
+OUT=$ROOT/devwork/public/apk/WorldDominion-v$VN.apk
 
 echo "== World Dominion APK v$VN (vc $VC) =="
 rm -rf $B/obj $B/gen $B/dexout $B/res.zip $B/base.apk
@@ -20,8 +20,10 @@ mkdir -p $B/obj $B/gen $B/dexout $B/apk
 
 echo "-- 1) resources (aapt2 compile+link)"
 "$BT/aapt2" compile --dir $APP/res -o $B/res.zip
+AARG=""; if [ -d $APP/assets ]; then AARG="-A $APP/assets"; fi # V123: assets (error.html) باید داخل APK باشد
 "$BT/aapt2" link -o $B/base.apk -I "$PF" --manifest $APP/AndroidManifest.xml \
-  --java $B/gen --auto-add-overlay --min-sdk-version 21 --target-sdk-version 34 $B/res.zip
+  --java $B/gen --auto-add-overlay --min-sdk-version 21 --target-sdk-version 34 \
+  $AARG $B/res.zip
 
 echo "-- 1b) aidl (Myket IAB v3)"
 if [ -d $APP/aidl ]; then
