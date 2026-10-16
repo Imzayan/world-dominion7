@@ -15,6 +15,10 @@ import {
   type RecentScore,
 } from '@/lib/olyProfile'
 import { cvGenerateLayout, cvEnrich, cvCountryExists, type CvProvince } from '@/lib/cvGeo'
+import {
+  ACH_CATALOG, ACH_CAT_FA, grantAch, notify, presenceSweep, onlineByServer, onlinePlayersByServer,
+  resolveSocialTarget, cleanBody, presenceTouch, presenceStateOf, badgeCounts, ladderOf, rankOf, olyRankOf, olyMedals,
+} from '@/lib/social' /* V124: بک‌اند واقعی اجتماعی */
 import { OL_REWARDS, SPECIAL_OPS, MENTOR_REWARDS, OL_PARTICIPATION_GEMS, OL_PODIUM_REWARDS, PVP_ATTACK } from '@/lib/balance' /* V72: توازن سرور متمرکز (PHASE 4) — V75: + PVP_ATTACK */
 import { WAR_ITEMS, STARTER_PACK, WAR_RESIST_WINDOW_MS, WAR_RESIST_STEPS, PROTECTION_MIN_AGE_MS } from '@/lib/balance' /* V108: تدارک جنگی + زرادخانه تاکتیکی + پک شروع */
 import {
@@ -5547,6 +5551,278 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         })
         return R(out)
       }
+
+      /* ============================================================
+         V124 — SOCIAL V1 REAL BACKEND: پیام خصوصی، دوستان، مسدودی، حضور،
+         اعلان، پروفایل، دستاوردها. همه از داده‌ی واقعی سرور (بدون عدد جعلی)؛
+         نوشتن فقط با نشست — هویت فرستنده همیشه از سشن می‌آید.
+         ============================================================ */
+      case 'wd_presence': {
+        const server = Math.max(1, Number(args.p_server) || 1)
+        const status = String(args.p_status || 'online') === 'idle' ? 'idle' : 'online'
+        await presenceTouch(user.id, user.nick, server, status)
+        void presenceSweep() /* تنبل — پاک‌سازی ردیف‌های مرده */
+        const bySrv = await onlineByServer()
+        let total = 0
+        for (const k of Object.keys(bySrv)) total += bySrv[Number(k)] || 0
+        const players = await onlinePlayersByServer(server)
+        const servers = Object.keys(bySrv).map((k) => ({ server: Number(k), online: bySrv[Number(k)] || 0 }))
+        if (!servers.some((s) => s.server === server)) servers.push({ server, online: 0 })
+        return R({ servers, online: bySrv[server] || 0, total, players: players.map((p) => ({ nick: p.nick })) })
+      }
+
+      case 'wd_servers': {
+        const bySrv = await onlineByServer()
+        const tst = await testSrvsGet()
+        const stats = await db.serverStat.findMany()
+        const takenOf = new Map(stats.map((s) => [s.server, s.taken]))
+        const SRV_COUNT = 5, SRV_CAP = 80 /* قرینه‌ی کلاینت: SRV_COUNT/SRV_CAP */
+        const servers: Array<{ server: number; online: number; taken: number; status: string; note: string | null }> = []
+        for (let k = 1; k <= SRV_COUNT; k++) {
+          const online = bySrv[k] || 0
+          const taken = takenOf.get(k) || 0
+          const maint = await getSetting<boolean>('srv_maint_' + k, false)
+          let status = 'online'
+          if (maint) status = 'maintenance'
+          else if (taken >= SRV_CAP) status = 'full'
+          else if (online >= 25) status = 'busy'
+          servers.push({ server: k, online, taken, status, note: maint ? 'به‌زودی برمی‌گردیم' : null })
+        }
+        return R({ servers, test_srvs: tst })
+      }
+
+      case 'wd_badges':
+        return R(await badgeCounts(user.id))
+
+      case 'wd_blocks': {
+        const rows = await db.block.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 100 })
+        const uids = rows.map((r) => r.blockedId)
+        const users = uids.length ? await db.user.findMany({ where: { id: { in: uids } }, select: { id: true, nick: true } }) : []
+        const nickOf = new Map(users.map((u) => [u.id, u.nick]))
+        return R({ blocks: rows.map((r) => ({ uid: r.blockedId, nick: nickOf.get(r.blockedId) || '؟' })) })
+      }
+
+      case 'wd_block_add': {
+        const t = await resolveSocialTarget(args.p_uid, null)
+        if (!t) return R({ ok: false, error: 'no_user' })
+        if (t.id === user.id) return R({ ok: false, error: 'self' })
+        await db.block.upsert({
+          where: { userId_blockedId: { userId: user.id, blockedId: t.id } },
+          create: { userId: user.id, blockedId: t.id }, update: {},
+        })
+        /* مسدودی = قطع دوستی در هر دو جهت */
+        await db.friendship.deleteMany({ where: { OR: [{ aId: user.id, bId: t.id }, { aId: t.id, bId: user.id }] } })
+        return R({ ok: true })
+      }
+
+      case 'wd_block_del': {
+        const t = await resolveSocialTarget(args.p_uid, null)
+        if (!t) return R({ ok: false, error: 'no_user' })
+        await db.block.deleteMany({ where: { userId: user.id, blockedId: t.id } })
+        return R({ ok: true })
+      }
+
+      case 'wd_notify': {
+        const rows = await db.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 40 })
+        return R({
+          items: rows.map((r) => ({
+            id: r.id, kind: r.kind, title: r.title, body: r.body,
+            at: r.createdAt.toISOString(), read: !!r.readAt, ref: r.refId,
+          })),
+        })
+      }
+
+      case 'wd_notify_read': {
+        const id = args.p_id ? String(args.p_id).slice(0, 40) : ''
+        if (id) await db.notification.updateMany({ where: { id, userId: user.id }, data: { readAt: new Date() } })
+        else await db.notification.updateMany({ where: { userId: user.id, readAt: null }, data: { readAt: new Date() } })
+        return R({ ok: true })
+      }
+
+      case 'wd_friends': {
+        const rows = await db.friendship.findMany({
+          where: { OR: [{ aId: user.id }, { bId: user.id }] },
+          orderBy: { createdAt: 'desc' }, take: 200,
+        })
+        const otherIds = rows.map((r) => (r.aId === user.id ? r.bId : r.aId))
+        const users = otherIds.length ? await db.user.findMany({ where: { id: { in: otherIds } }, select: { id: true, nick: true } }) : []
+        const uOf = new Map(users.map((u) => [u.id, u]))
+        const scores = otherIds.length ? await db.score.findMany({ where: { userId: { in: otherIds } }, select: { userId: true, server: true, conquered: true } }) : []
+        const sOf = new Map(scores.map((s) => [s.userId, s]))
+        const friends: Array<{ uid: string; nick: string; presence: string; server: number; conquered: number }> = []
+        const requests: Array<{ uid: string; nick: string; at: string }> = []
+        for (const r of rows) {
+          const otherId = r.aId === user.id ? r.bId : r.aId
+          const u = uOf.get(otherId)
+          if (!u) continue
+          if (r.status === 'accepted') {
+            const s = sOf.get(otherId)
+            friends.push({ uid: u.id, nick: u.nick, presence: await presenceStateOf(otherId), server: s?.server || 0, conquered: s?.conquered || 0 })
+          } else if (r.bId === user.id) {
+            requests.push({ uid: u.id, nick: u.nick, at: r.createdAt.toISOString() })
+          }
+        }
+        return R({ friends, requests })
+      }
+
+      case 'wd_friend_add': {
+        const t = await resolveSocialTarget(args.p_uid, args.p_nick)
+        if (!t) return R({ ok: false, error: 'no_user' })
+        if (t.id === user.id) return R({ ok: false, error: 'self' })
+        const blockedEither = await db.block.findFirst({ where: { OR: [{ userId: user.id, blockedId: t.id }, { userId: t.id, blockedId: user.id }] } })
+        if (blockedEither) return R({ ok: false, error: 'blocked' })
+        const cap = await db.friendship.count({ where: { OR: [{ aId: user.id, status: 'accepted' }, { bId: user.id, status: 'accepted' }] } })
+        if (cap >= 50) return R({ ok: false, error: 'cap' })
+        const reverse = await db.friendship.findUnique({ where: { aId_bId: { aId: t.id, bId: user.id } } })
+        if (reverse && reverse.status === 'pending') {
+          await db.friendship.update({ where: { id: reverse.id }, data: { status: 'accepted' } })
+          void grantAch(user.id, user.nick, 'so_friend')
+          void grantAch(t.id, t.nick, 'so_friend')
+          void notify(t.id, 0, 'friend', '🤝 دوستی برقرار شد', user.nick + ' درخواست تو را پذیرفت.', user.id)
+          return R({ ok: true, status: 'accepted' })
+        }
+        const fwd = await db.friendship.findUnique({ where: { aId_bId: { aId: user.id, bId: t.id } } })
+        if (fwd) return R({ ok: true, status: fwd.status === 'accepted' ? 'accepted' : 'pending' })
+        await db.friendship.create({ data: { aId: user.id, bId: t.id, status: 'pending' } })
+        void notify(t.id, 0, 'friend', '🤝 درخواست دوستی', user.nick + ' تو را به دوستی دعوت کرد.', user.id)
+        return R({ ok: true, status: 'pending' })
+      }
+
+      case 'wd_friend_ok': {
+        const t = await resolveSocialTarget(args.p_uid, null)
+        if (!t) return R({ ok: false, error: 'no_user' })
+        const req = await db.friendship.findUnique({ where: { aId_bId: { aId: t.id, bId: user.id } } })
+        if (!req || req.status !== 'pending') return R({ ok: false, error: 'no_req' })
+        await db.friendship.update({ where: { id: req.id }, data: { status: 'accepted' } })
+        void grantAch(user.id, user.nick, 'so_friend')
+        void grantAch(t.id, t.nick, 'so_friend')
+        void notify(t.id, 0, 'friend', '🤝 دوستی برقرار شد', user.nick + ' درخواست تو را پذیرفت.', user.id)
+        return R({ ok: true })
+      }
+
+      case 'wd_friend_del': {
+        const t = await resolveSocialTarget(args.p_uid, null)
+        if (!t) return R({ ok: false, error: 'no_user' })
+        await db.friendship.deleteMany({ where: { OR: [{ aId: user.id, bId: t.id }, { aId: t.id, bId: user.id }] } })
+        return R({ ok: true })
+      }
+
+      case 'wd_dm_send': {
+        const bodyText = cleanBody(args.p_body, 500)
+        if (!bodyText) return R({ ok: false, error: 'empty' })
+        const t = await resolveSocialTarget(args.p_to, null)
+        if (!t) return R({ ok: false, error: 'no_user' })
+        if (t.id === user.id) return R({ ok: false, error: 'self' })
+        const heBlocked = await db.block.findUnique({ where: { userId_blockedId: { userId: t.id, blockedId: user.id } } })
+        if (heBlocked) return R({ ok: false, error: 'blocked' })
+        const youBlocked = await db.block.findUnique({ where: { userId_blockedId: { userId: user.id, blockedId: t.id } } })
+        if (youBlocked) return R({ ok: false, error: 'you_blocked' })
+        const server = Math.max(1, Number(args.p_server) || 1)
+        await db.dmMessage.create({ data: { fromId: user.id, toId: t.id, body: bodyText, server } })
+        void grantAch(user.id, user.nick, 'so_dm', server)
+        void notify(t.id, server, 'dm', '✉️ پیام خصوصی از ' + user.nick, bodyText.slice(0, 120), user.id, true)
+        return R({ ok: true })
+      }
+
+      case 'wd_dm_thread': {
+        const t = await resolveSocialTarget(args.p_with, null)
+        if (!t) return R({ ok: false, error: 'no_user' })
+        const limit = Math.min(200, Math.max(1, Number(args.p_limit) || 60))
+        /* علامت‌گذاری خوانده‌شده‌ی پیام‌های دریافتی از او (وضعیت ✓✓ فرستنده) */
+        await db.dmMessage.updateMany({ where: { fromId: t.id, toId: user.id, readAt: null }, data: { readAt: new Date() } })
+        const rows = await db.dmMessage.findMany({
+          where: { OR: [{ fromId: user.id, toId: t.id }, { fromId: t.id, toId: user.id }] },
+          orderBy: { createdAt: 'desc' }, take: limit,
+        })
+        const pres = await presenceStateOf(t.id)
+        return R({
+          ok: true, presence: pres,
+          messages: rows.reverse().map((m) => ({ id: m.id, body: m.body, at: m.createdAt.toISOString(), out: m.fromId === user.id, read: !!m.readAt })),
+        })
+      }
+
+      case 'wd_dm_threads': {
+        const rows = await db.dmMessage.findMany({
+          where: { OR: [{ fromId: user.id }, { toId: user.id }] },
+          orderBy: { createdAt: 'desc' }, take: 300,
+        })
+        type Th = { uid: string; nick: string; last: string; at: string; unread: number; presence: string }
+        const map = new Map<string, Th>()
+        for (const m of rows) {
+          const otherId = m.fromId === user.id ? m.toId : m.fromId
+          let th = map.get(otherId)
+          if (!th) {
+            th = { uid: otherId, nick: '…', last: m.body, at: m.createdAt.toISOString(), unread: 0, presence: 'off' }
+            map.set(otherId, th)
+          }
+          if (m.toId === user.id && !m.readAt) th.unread++
+        }
+        const list = [...map.values()]
+        if (list.length) {
+          const users = await db.user.findMany({ where: { id: { in: list.map((x) => x.uid) } }, select: { id: true, nick: true } })
+          const nOf = new Map(users.map((u) => [u.id, u.nick]))
+          for (const th of list) {
+            th.nick = nOf.get(th.uid) || 'بازیکن'
+            th.presence = await presenceStateOf(th.uid)
+          }
+        }
+        list.sort((a, b) => (a.at < b.at ? 1 : -1))
+        return R({ threads: list.slice(0, 50) })
+      }
+
+      case 'wd_profile_set': {
+        const bio = cleanBody(args.p_bio, 160)
+        await db.user.update({ where: { id: user.id }, data: { bio } })
+        if (bio) void grantAch(user.id, user.nick, 'so_profile')
+        return R({ ok: true })
+      }
+
+      case 'wd_profile': {
+        const t = await resolveSocialTarget(args.p_uid, args.p_nick)
+        if (!t) return R({ ok: false, error: 'no_user' })
+        const self = t.id === user.id
+        const [sc, pres, uRow] = await Promise.all([
+          db.score.findUnique({ where: { userId: t.id } }),
+          presenceStateOf(t.id),
+          db.user.findUnique({ where: { id: t.id }, select: { bio: true, createdAt: true } }),
+        ])
+        const conquered = sc?.conquered || 0
+        const [milRank, ecoRank, olyRk, medals, achRows, ally] = await Promise.all([
+          rankOf('kills', sc?.kills || 0),
+          rankOf('economy', sc?.economy || 0),
+          olyRankOf(t.id),
+          olyMedals(t.id),
+          db.userTrophy.findMany({ where: { userId: t.id }, select: { key: true, at: true } }),
+          db.allianceMember.findUnique({ where: { userId: t.id }, include: { alliance: true } }),
+        ])
+        let relation: { friend: string | null; blocked: boolean } = { friend: null, blocked: false }
+        if (!self) {
+          const frows = await db.friendship.findMany({ where: { OR: [{ aId: user.id, bId: t.id }, { aId: t.id, bId: user.id }] } })
+          for (const r of frows) {
+            if (r.status === 'accepted') { relation.friend = 'accepted'; break }
+            if (r.aId === t.id) relation.friend = 'pending_in'
+            else if (r.bId === t.id) relation.friend = 'pending_out'
+          }
+          const blk = await db.block.findUnique({ where: { userId_blockedId: { userId: user.id, blockedId: t.id } } })
+          relation.blocked = !!blk
+        }
+        const terr = await db.territory.findMany({ where: { userId: t.id, server: sc?.server || 1 }, select: { country: true, isCapital: true }, take: 40 })
+        const lad = ladderOf(conquered)
+        return R({
+          ok: true, uid: t.id, nick: t.nick, server: sc?.server || 1, self,
+          bio: uRow?.bio || '', presence: { state: pres }, joined: uRow?.createdAt ? uRow.createdAt.toISOString() : null,
+          ladder: lad,
+          alliance: ally ? { tag: ally.alliance.tag, name: ally.alliance.name, role: ally.role } : null,
+          ranks: { military: milRank, economy: ecoRank, olympics: olyRk },
+          stats: { conquered, score: sc?.score || 0, kills: sc?.kills || 0, recruits: sc?.recruits || 0 },
+          olympics: medals, relation,
+          countries: terr.map((x) => ({ country: x.country, capital: x.isCapital })),
+          achievements: achRows.map((a) => ({ key: a.key, at: a.at.toISOString() })),
+        })
+      }
+
+      case 'wd_achievements':
+        return R({ ok: true, catalog: ACH_CATALOG, cats: ACH_CAT_FA })
 
       default:
         return NextResponse.json({ data: null, error: { message: `function ${fn} does not exist`, code: '42883' } })

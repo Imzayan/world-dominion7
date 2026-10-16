@@ -2730,3 +2730,27 @@ Stage Summary:
 - ۱۸ آیکون AAA در بازی لایو شد — همه‌ی کلاینت‌ها (وب + APKهای نصب‌شده) بدون هیچ آپدیتی گرفتن‌شان
 - emojiهای داخل رشته‌های JS پویا عمداً دست‌نخورده ماندند (textContent/مقایسه رشته — ریسک منطق)؛ تبدیل گسترده‌تر فقط با بررسی موردی هر سایت در نوبت بعد
 - بک‌اند دست نخورد (PAY_OFF سر جایش)؛ کیستور رسمی در download/keystore/ امن است
+
+---
+Task ID: V124-SOCIAL-BACKEND-PERF
+Agent: Super Z (main)
+Task: دستور مالک — رفع باگ‌ها (چت خصوصی «اتصال برقرار نشد»، پروفایل، لگ کلیک کشور) + زیباسازی + ساختار پروژه (Vercel)
+
+Work Log:
+- تحلیل کامل: بازی ۱۹,۹۸۸ خط + ۵ ماژول JS + بک‌اند Next.js (۴ مسیر API). دیف کلاینت↔سرور: ۱۸ تابع RPC صدا زده می‌شد که سمت سرور وجود نداشتند (فقط get_world_chat پیاده بود) → همه به default: «function does not exist» می‌خوردند = ریشه‌ی مشترک چت خصوصی و پروفایل
+- src/lib/social.ts نیمه‌ساخته به db.notification/db.presence ارجاع می‌داد که در اسکیما نبودند؛ UserTrophy هم فیلد category که grantAch می‌نویسد را نداشت (دستاوردها بی‌صدا شکست می‌خوردند)
+- اسکیما (هر دو sqlite+postgres): +۵ مدل Presence/Notification/DmMessage/Friendship/Block، +User.bio، +UserTrophy.category
+- src/lib/social.ts: +presenceTouch/presenceStateOf/badgeCounts/LADDER+LadderOf/rankOf/olyRankOf/olyMedals
+- /api/rpc/[fn]: ۱۸ case جدید (wd_presence, wd_servers, wd_badges, wd_blocks, wd_block_add/del, wd_notify, wd_notify_read, wd_friends, wd_friend_add/ok/del, wd_dm_send, wd_dm_thread, wd_dm_threads, wd_profile, wd_profile_set, wd_achievements) — همه session-bound، هویت از سشن، نرخ‌سنج‌های موجود
+- پرف کلیک کشور: backdrop-filter کشو حذف (پینت GPU موبایل)، will-change، اولین dim نقشه تکه‌تکه در rAF (۱۴/فریم)، گارد __wdMapBusy برای پالس مرز درخشان حین پن/زوم، transition:all→خاص
+- wdFetch: retry خودکار با backoff (خطای شبکه/۵۰۲/۵۰۳/۵۰۴/۴۲۹؛ مالی‌ها مستثنا)
+- فونت Vazirmatn (۴۰۰/۷۰۰/۹۰۰ woff2) داخل پروژه + @font-face + preload — قبلاً CSS نامش را می‌نوشت ولی فایلی نبود (همه‌چیز Tahoma بود)
+- getCountryData: حالت پیش‌فرض کشور بی‌داده حالا نام فارسی از WD_ULT.faName می‌گیرد (آرژانتین/قزاقستان…)
+- ساختار: vercel.json (کش فونت immutable + no-store v.txt)، .env.example کامل (DATABASE_URL/ADMIN_NICKS/MYKET_*/OLY_HMAC_SECRET)، README بخش استقرار Vercel + معماری چت
+- تست محلی: build موفق، check-html-js 97/0، verify-build 9/9، ۲ کاربر واقعی ثبت و کل جریان dm/friends/blocks/notify/profile/achievements/servers/presence با curl تأیید، مرورگر: فونت لود (fonts.check=true)، کنسول صفر، کلیک برزیل/آرژانتین + claim پایتخت سالم
+- bump v123→v124 (بیکون + ۷×?v + v.txt)
+
+Stage Summary:
+- چت خصوصی، دوستان، مسدودی، اعلان، پروفایل، دستاورد، حضور زنده = بک‌اند واقعی روی دیتابیس؛ بدون سرویس خارجی (polling هوشمند + دلتا)
+- دیپلوی: push به dev+main؛ پس از لایو، راه‌اندازی jداول جدید خودکار با prisma db push در vercel-build انجام می‌شود
+- نکته برای مالک: TOKEN ورسل به scope world-dominion دسترسی ندارد (403) — دیپلوی از طریق Git Integration انجام می‌شود

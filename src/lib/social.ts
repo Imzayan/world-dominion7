@@ -145,3 +145,89 @@ export async function resolveSocialTarget(p_uid: unknown, p_nick: unknown) {
 export function cleanBody(v: unknown, cap: number): string {
   return String(v ?? '').replace(/[<>]/g, '').slice(0, cap).trim()
 }
+
+/* ============================================================
+   V124 — SOCIAL V2: کمک‌تابع‌های RPCهای wd_* (حضور/بج/نردبان/رتبه)
+   همه فقط از نشست سرور صدا زده می‌شوند؛ هیچ نوشتن مستقیم کلاینت نیست.
+   ============================================================ */
+
+export const PRESENCE_ONLINE_MS = 90_000
+export const PRESENCE_IDLE_MS = 5 * 60_000
+
+/* لمس حضور — upsert یک ردیف به‌ازای هر کاربر */
+export async function presenceTouch(userId: string, nick: string, server: number, status: string): Promise<void> {
+  try {
+    const st = status === 'idle' ? 'idle' : 'online'
+    const now = new Date()
+    await db.presence.upsert({
+      where: { userId },
+      create: { userId, nick, server, status: st, lastSeen: now },
+      update: { nick, server, status: st, lastSeen: now },
+    })
+  } catch (e) { console.log('presenceTouch', e) }
+}
+
+/* وضعیت حضور: آنلاین (۹۰ ثانیه) / دور از تبع (۵ دقیقه) / آفلاین */
+export async function presenceStateOf(userId: string): Promise<'online' | 'idle' | 'off'> {
+  try {
+    const row = await db.presence.findUnique({ where: { userId } })
+    if (!row || !row.lastSeen) return 'off'
+    const dt = Date.now() - row.lastSeen.getTime()
+    if (dt <= PRESENCE_ONLINE_MS && row.status === 'online') return 'online'
+    if (dt <= PRESENCE_IDLE_MS) return 'idle'
+    return 'off'
+  } catch { return 'off' }
+}
+
+/* بج‌های ناخوانده: dm (پیام خصوصی) / nt (اعلان) / fr (درخواست دوستی) */
+export async function badgeCounts(userId: string): Promise<{ dm: number; nt: number; fr: number }> {
+  const out = { dm: 0, nt: 0, fr: 0 }
+  try {
+    out.dm = await db.dmMessage.count({ where: { toId: userId, readAt: null } })
+    out.nt = await db.notification.count({ where: { userId, readAt: null } })
+    out.fr = await db.friendship.count({ where: { bId: userId, status: 'pending' } })
+  } catch (e) { console.log('badgeCounts', e) }
+  return out
+}
+
+/* نردبان لقب نظامی بر پایه‌ی تعداد قلمرو واقعی (همان قالب «ایموجی + نام») */
+export const LADDER: Array<[number, string]> = [
+  [0, '🪖 سرباز'], [3, '🎖️ گروهبان'], [6, '🛡️ ستوان'], [10, '⚔️ ناخدا'], [15, '🏅 سرگرد'],
+  [22, '🎯 سرهنگ'], [30, '🦅 ژنرال'], [40, '👑 امپراتور'], [55, '🌍 فاتح جهان'],
+]
+export function ladderOf(conquered: number): { title: string; next: { title: string; at: number } | null } {
+  let idx = 0
+  for (let i = 0; i < LADDER.length; i++) if (conquered >= LADDER[i][0]) idx = i
+  const next = idx + 1 < LADDER.length ? { title: LADDER[idx + 1][1], at: LADDER[idx + 1][0] } : null
+  return { title: LADDER[idx][1], next }
+}
+
+/* رتبه‌ی سراسری (۱ = بهترین) بر پایه‌ی یک متریک واقعی جدول scores */
+export async function rankOf(metric: 'kills' | 'economy', value: number): Promise<number | null> {
+  try {
+    const where = metric === 'kills' ? { kills: { gt: value } } : { economy: { gt: value } }
+    const better = await db.score.count({ where })
+    return better + 1
+  } catch { return null }
+}
+
+/* رتبه‌ی المپیاد — بر پایه‌ی بیشترین ریتینگ Elo کاربر در رشته‌ها */
+export async function olyRankOf(userId: string): Promise<number | null> {
+  try {
+    const mine = await db.olympicRating.findMany({ where: { userId }, select: { rating: true } })
+    if (!mine.length) return null
+    const best = Math.max(...mine.map((r) => r.rating))
+    const rows = await db.olympicRating.groupBy({ by: ['userId'], _max: { rating: true } })
+    let better = 0
+    for (const r of rows) { if (r.userId !== userId && (r._max.rating || 0) > best) better++ }
+    return better + 1
+  } catch { return null }
+}
+
+/* مدال‌های المپیاد از نتایج واقعی سکو (rank<=3) */
+export async function olyMedals(userId: string): Promise<{ medals: number; golds: number }> {
+  try {
+    const rows = await db.olympicResult.findMany({ where: { userId, rank: { lte: 3 } }, select: { rank: true } })
+    return { medals: rows.length, golds: rows.filter((r) => r.rank === 1).length }
+  } catch { return { medals: 0, golds: 0 } }
+}

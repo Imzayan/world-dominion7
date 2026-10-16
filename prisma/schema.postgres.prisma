@@ -19,6 +19,7 @@ model User {
   passwordHash String   @map("password_hash")
   deviceId     String?  @map("device_id")
   isAdmin      Boolean  @default(false) @map("is_admin")
+  bio          String?
   createdAt    DateTime @default(now()) @map("created_at")
 
   save          Save?
@@ -942,9 +943,10 @@ model WarState {
 
 model UserTrophy {
   id     String   @id @default(cuid())
-  userId String   @map("user_id")
-  key    String
-  at     DateTime @default(now())
+  userId   String   @map("user_id")
+  key      String
+  category String   @default("special")
+  at       DateTime @default(now())
 
   @@unique([userId, key])
   @@index([userId])
@@ -987,4 +989,78 @@ model TelemEvent {
   @@index([key, at])
   @@index([userId, at])
   @@map("telem_events")
+}
+
+/* ============================================================
+   V124 — SOCIAL V1 REAL BACKEND (چت خصوصی، دوستان، مسدودی، حضور، اعلان)
+   جدول‌های ماژول اجتماعی — همه‌ی نوشتن‌ها فقط از /api/rpc با نشست.
+   ============================================================ */
+
+/* حضور زنده — یک ردیف به‌ازای هر کاربر؛ upsert در wd_presence */
+model Presence {
+  userId   String   @id @map("user_id")
+  nick     String
+  server   Int      @default(1)
+  status   String   @default("online") /* online | idle */
+  lastSeen DateTime @default(now()) @map("last_seen")
+
+  @@index([server, status, lastSeen])
+  @@map("presence")
+}
+
+/* اعلان‌ها — خوانده/نخوانده با readAt */
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  server    Int       @default(0)
+  kind      String    @default("sys") /* ach | dm | friend | sys */
+  title     String
+  body      String    @default("")
+  refId     String?   @map("ref_id")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+/* پیام خصوصی — تاریخچه‌ی دائمی؛ readAt = خوانده‌شده توسط گیرنده */
+model DmMessage {
+  id        String    @id @default(cuid())
+  fromId    String    @map("from_id")
+  toId      String    @map("to_id")
+  body      String
+  server    Int       @default(1)
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([fromId, createdAt])
+  @@index([toId, createdAt])
+  @@map("dm_messages")
+}
+
+/* دوستی — aId درخواست‌دهنده، bId هدف؛ status: pending | accepted */
+model Friendship {
+  id        String   @id @default(cuid())
+  aId       String   @map("a_id")
+  bId       String   @map("b_id")
+  status    String   @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([aId, bId])
+  @@index([bId, status])
+  @@map("friendships")
+}
+
+/* مسدودی — یک‌طرفه از userId به blockedId */
+model Block {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  blockedId String   @map("blocked_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, blockedId])
+  @@index([blockedId])
+  @@map("blocks")
 }
