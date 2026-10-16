@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ست آیکون World Dominion — فاز ۱: سکه طلا</title>
+<style>
+  /* ============================================================
+     World Dominion — Icon Set Preview (Phase 1: Gold Coin)
+     بدون هیچ وابستگی خارجی | پس‌زمینه #0f1722
+     سبک مشترک: نور از بالا-چپ | قاب شش‌ضلعی دولایه | فلز سه‌تُنه
+     ============================================================ */
+  :root{
+    --bg:#0f1722; --card-a:#16222f; --card-b:#0d1520; --line:#22344a;
+    --txt:#e9eef7; --muted:#8ea2b9;
+    --res:#e8b73c;   /* قاب دسته‌ی منابع: طلایی   */
+    --mil:#6fa8d8;   /* قاب دسته‌ی نظامی: آبی فولادی */
+    --sys:#a78bfa;   /* قاب دسته‌ی سیستم: بنفش سلطنتی */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(1200px 600px at 50% -10%, #182536 0%, var(--bg) 60%);
+    color:var(--txt);
+    font-family:Vazirmatn,"Segoe UI",Tahoma,"Noto Sans Arabic",system-ui,sans-serif;
+    min-height:100vh;
+  }
+
+  /* ---------- سربرگ ---------- */
+  .page-head{text-align:center;padding:34px 16px 6px}
+  .page-head h1{
+    margin:0 0 10px;font-size:clamp(20px,4vw,30px);font-weight:800;letter-spacing:.3px;
+    background:linear-gradient(180deg,#fff3c4,#e8b73c 55%,#a06c08);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .page-head .sub{margin:0;color:var(--muted);font-size:13px}
+  .badge{
+    display:inline-block;margin-inline-start:8px;padding:3px 10px;border:1px solid #3d5570;
+    border-radius:999px;color:#ffd97a;font-size:11.5px;background:#1a2940;
+  }
+  .legend{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:16px 0 6px}
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#c8d6e6;
+    border:1px solid var(--line);border-radius:999px;padding:5px 12px;background:#121d2b;
+  }
+  .chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .chip-res i{background:var(--res);box-shadow:0 0 8px rgba(232,183,60,.8)}
+  .chip-mil i{background:var(--mil);box-shadow:0 0 8px rgba(111,168,216,.8)}
+  .chip-sys i{background:var(--sys);box-shadow:0 0 8px rgba(167,139,250,.8)}
+
+  /* ---------- گرید آیکون‌ها ---------- */
+  .grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:18px;
+    max-width:1100px;margin:0 auto;padding:26px clamp(14px,4vw,40px) 34px;
+  }
+  .icon-card{
+    position:relative;margin:0;text-align:center;
+    background:linear-gradient(180deg,var(--card-a),var(--card-b));
+    border:1px solid var(--line);border-radius:18px;
+    padding:20px 12px 14px;
+    transition:transform .35s ease,border-color .35s ease,box-shadow .35s ease;
+  }
+  .icon-card:hover{transform:translateY(-5px);border-color:rgba(232,183,60,.4);box-shadow:0 16px 40px rgba(0,0,0,.55)}
+  .icon-card.cat-mil:hover{border-color:rgba(111,168,216,.4)}
+  .icon-card.cat-sys:hover{border-color:rgba(167,139,250,.4)}
+
+  /* صحنه‌ی آیکون: بزرگ‌نمایی hover جدا از انیمیشن float تا تداخل نکنند */
+  .icon-stage{
+    position:relative;width:132px;height:132px;margin:0 auto 12px;
+    transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+  }
+  .icon-card:hover .icon-stage{transform:scale(1.1)}
+  .icon-float{position:relative;width:100%;height:100%;animation:wd-float 3.2s ease-in-out infinite}
+
+  svg.icon-svg{position:relative;z-index:2;width:100%;height:100%;display:block;overflow:visible;transition:filter .35s ease}
+  .icon-card:hover svg.icon-svg{filter:drop-shadow(0 0 10px rgba(255,205,90,.35))}
+
+  /* درخشش ملایم و تپنده‌ی دور قاب (۲.۶ ثانیه، بی‌نهایت) */
+  .aura{
+    position:absolute;inset:-16%;z-index:1;border-radius:50%;pointer-events:none;
+    background:radial-gradient(closest-side,rgba(255,200,80,.42),rgba(255,200,80,0) 72%);
+    animation:wd-aura 2.6s ease-in-out infinite;
+  }
+  .cat-mil .aura{background:radial-gradient(closest-side,rgba(111,168,216,.4),rgba(111,168,216,0) 72%)}
+  .cat-sys .aura{background:radial-gradient(closest-side,rgba(167,139,250,.4),rgba(167,139,250,0) 72%)}
+  .icon-card:hover .aura{filter:blur(3px) saturate(1.3)}
+
+  @keyframes wd-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes wd-aura{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:.9;transform:scale(1.07)}}
+
+  /* برق نوری (shine sweep) — هر ۴ ثانیه یک‌بار از روی کارت عبور می‌کند */
+  .shine{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden;border-radius:22%}
+  .shine::before{
+    content:"";position:absolute;top:-30%;bottom:-30%;left:-45%;width:42%;
+    background:linear-gradient(105deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.22) 40%,
+               rgba(255,255,255,.55) 50%,rgba(255,255,255,.22) 60%,rgba(255,255,255,0) 100%);
+    transform:skewX(-14deg) translateX(0);
+    animation:wd-shine 4s ease-in-out infinite;
+  }
+  @keyframes wd-shine{
+    0%{transform:skewX(-14deg) translateX(0)}
+    46%{transform:skewX(-14deg) translateX(430%)}
+    100%{transform:skewX(-14deg) translateX(430%)}
+  }
+
+  /* ذرات نورانی ریزِ بالارونده — فقط دسته‌ی منابع */
+  .particles{position:absolute;inset:0;z-index:4;pointer-events:none}
+  .cat-mil .particles,.cat-sys .particles{display:none}
+  .particles span{
+    position:absolute;bottom:16%;width:4px;height:4px;border-radius:50%;opacity:0;
+    background:radial-gradient(circle at 35% 35%,#fff 0%,#ffd34d 55%,rgba(255,211,77,0) 100%);
+    box-shadow:0 0 7px rgba(255,212,92,.95);
+    animation:wd-rise 3s linear infinite;
+  }
+  .particles span:nth-child(1){left:20%;animation-duration:2.8s;animation-delay:0s}
+  .particles span:nth-child(2){left:33%;animation-duration:3.5s;animation-delay:.7s}
+  .particles span:nth-child(3){left:49%;animation-duration:3.1s;animation-delay:1.3s}
+  .particles span:nth-child(4){left:62%;animation-duration:3.7s;animation-delay:.35s}
+  .particles span:nth-child(5){left:75%;animation-duration:2.9s;animation-delay:1.6s}
+  .particles span:nth-child(6){left:85%;animation-duration:3.3s;animation-delay:2.1s}
+  @keyframes wd-rise{
+    0%{transform:translateY(10px) scale(.5);opacity:0}
+    14%{opacity:.95}
+    72%{opacity:.75}
+    100%{transform:translateY(-62px) scale(1.05);opacity:0}
+  }
+
+  /* نام زیر آیکون + رنگ دسته */
+  .icon-name{font-size:15px;font-weight:700}
+  .icon-cat{font-size:11px;margin-top:3px;color:var(--muted);letter-spacing:.5px}
+  .cat-res .icon-cat{color:var(--res)}
+  .cat-mil .icon-cat{color:var(--mil)}
+  .cat-sys .icon-cat{color:var(--sys)}
+
+  /* ---------- یادداشت‌های فنی ---------- */
+  .notes{max-width:860px;margin:0 auto;padding:10px 20px 46px;color:var(--muted);font-size:12.5px;line-height:2}
+  .notes h2{font-size:14px;color:#cfe0f2;margin:18px 0 6px}
+  .notes code,.notes pre{font-family:ui-monospace,Consolas,monospace;direction:ltr;text-align:left}
+  .notes pre{background:#0b131d;border:1px solid var(--line);border-radius:10px;padding:10px 14px;overflow:auto;color:#9fd0ff;font-size:12px}
+  .notes ul{padding-inline-start:20px;margin:6px 0}
+  .notes b{color:#cfe0f2}
+
+  /* اسپرایت آیکون‌ها: مخفی ولی رندرشده تا گرادیان/فیلترها در همه‌ی مرورگرها کار کنند */
+  .wd-sprite{position:absolute;width:0;height:0;overflow:hidden}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <h1>ست آیکون «ورلد دامینین»</h1>
+  <p class="sub">فلز سه‌تُنه | نور ثابت از بالا-چپ | قاب شش‌ضلعی دولایه با نگین
+    <span class="badge">فاز ۱ — در انتظار تأیید شما</span>
+  </p>
+  <div class="legend">
+    <span class="chip chip-res"><i></i> منابع — قاب طلایی</span>
+    <span class="chip chip-mil"><i></i> نظامی — قاب آبی فولادی</span>
+    <span class="chip chip-sys"><i></i> سیستم — قاب بنفش سلطنتی</span>
+  </div>
+</header>
+
+<main class="grid">
+
+  <!-- کارت آیکون — این بلوک، الگوی تکرارشونده برای ۱۷ آیکون بعدی است -->
+  <figure class="icon-card cat-res">
+    <div class="icon-stage">
+      <div class="icon-float">
+        <div class="aura" aria-hidden="true"></div>
+        <svg class="icon-svg" viewBox="0 0 128 128" role="img" aria-label="سکه طلا">
+          <use href="#icon-gold" xlink:href="#icon-gold" width="128" height="128"/>
+        </svg>
+        <div class="particles" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="shine" aria-hidden="true"></div>
+      </div>
+    </div>
+    <figcaption>
+      <div class="icon-name">سکه طلا</div>
+      <div class="icon-cat">منابع</div>
+    </figcaption>
+  </figure>
+
+</main>
+
+<footer class="notes">
+  <h2>تصمیم‌های طراحی (خلاصه)</h2>
+  <ul>
+    <li><b>قاب شش‌ضلعی</b> به‌جای سپر: در سایز کوچک (۳۲px HUD) هندسه‌اش خواناتر می‌ماند و با حس نقشه‌ی استراتژی هم‌خوان است. اگر سپر را ترجیح می‌دهید، در فاز ۲ برای همه یکسان عوض می‌کنم.</li>
+    <li><b>نور ثابت از بالا-چپ</b> در همه‌ی گرادیان‌ها (x1,y1 = بالا-چپ) و بول‌ها رعایت شده؛ صفحه‌ی داخلی قاب «فرورفته» است پس بولش برعکس (تیره بالا-چپ) تا عمق واقعی بدهد.</li>
+    <li><b>ضخامت خط‌ها یکسان:</b> خط دور اصلی ۲، جزئیات ۱، نوار لبه‌ی سکه ۴ — در همه‌ی آیکون‌های بعدی همین مقادیر استفاده می‌شود.</li>
+    <li><b>لایه‌ها:</b> قاب ۹ لایه + بدنه‌ی سکه ۲۴ لایه + ۶ نگینِ گوشه (هرکدام ۳ لایه) — بسیار فراتر از حداقل ۱۰ لایه.</li>
+    <li><b>انیمیشن‌ها:</b> هاله‌ی تپنده ۲.۶s، شناوری ۳.۲s، برق نوری هر ۴s، hover بزرگ‌نمایی ۱.۱ + درخشش بیشتر، ذرات نورانی فقط برای دسته‌ی منابع.</li>
+    <li>با <code>prefers-reduced-motion</code> همه‌ی انیمیشن‌ها خاموش می‌شوند (دسترس‌پذیری).</li>
+  </ul>
+  <h2>استفاده در بازی</h2>
+  <pre>&lt;svg viewBox="0 0 128 128"&gt;&lt;use href="#icon-gold" width="128" height="128"/&gt;&lt;/svg&gt;</pre>
+  <p>هر آیکون یک <code>&lt;symbol&gt;</code> با id یکتاست و گرادیان/فیلترها پیشوند نام آیکون دارند؛ کافی است اسپرایت را یک‌بار در صفحه لود کنید.</p>
+</footer>
+
+<!-- ============================================================
+     اسپرایت آیکون‌ها — هر آیکون یک <symbol> با viewBox 0 0 128 128
+     همه‌ی idها پیشوند نام آیکون دارند تا یکتا بمانند (gold-…)
+     ============================================================ -->
+<svg class="wd-sprite" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" focusable="false">
+  <defs>
+
+    <!-- ===== گرادیان‌های فلزی (نور از بالا-چپ) ===== -->
+    <linearGradient id="gold-framePlate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffee9a"/>
+      <stop offset=".35" stop-color="#e2b13a"/>
+      <stop offset=".7" stop-color="#a06c08"/>
+      <stop offset="1" stop-color="#5c3a02"/>
+    </linearGradient>
+    <linearGradient id="gold-innerPlate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8a5f08"/>
+      <stop offset=".5" stop-color="#5f4006"/>
+      <stop offset="1" stop-color="#2e1d04"/>
+    </linearGradient>
+    <radialGradient id="gold-vignette" cx=".5" cy=".45" r=".78">
+      <stop offset="0" stop-color="#0f0800" stop-opacity="0"/>
+      <stop offset=".55" stop-color="#0f0800" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0f0800" stop-opacity=".6"/>
+    </radialGradient>
+    <linearGradient id="gold-rimGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff3b0"/>
+      <stop offset=".5" stop-color="#dca82f"/>
+      <stop offset="1" stop-color="#7a4c03"/>
+    </linearGradient>
+    <radialGradient id="gold-coinBase" cx=".34" cy=".28" r=".95">
+      <stop offset="0" stop-color="#fff2a6"/>
+      <stop offset=".4" stop-color="#f2c14e"/>
+      <stop offset=".75" stop-color="#a06c08"/>
+      <stop offset="1" stop-color="#533602"/>
+    </radialGradient>
+    <radialGradient id="gold-face" cx=".36" cy=".3" r=".9">
+      <stop offset="0" stop-color="#ffe27a"/>
+      <stop offset=".55" stop-color="#ecb02c"/>
+      <stop offset="1" stop-color="#8a5a08"/>
+    </radialGradient>
+    <radialGradient id="gold-innerShade" cx=".32" cy=".3" r="1">
+      <stop offset="0" stop-color="#3a2000" stop-opacity="0"/>
+      <stop offset=".58" stop-color="#3a2000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#3a2000" stop-opacity=".5"/>
+    </radialGradient>
+    <linearGradient id="gold-gloss" x1=".1" y1="0" x2=".45" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="gold-starGrad" x1="0" y1="0" x2=".9" y2="1">
+      <stop offset="0" stop-color="#fff4b8"/>
+      <stop offset=".5" stop-color="#ecb62e"/>
+      <stop offset="1" stop-color="#7a4c03"/>
+    </linearGradient>
+    <radialGradient id="gold-gemGrad" cx=".35" cy=".3" r="1">
+      <stop offset="0" stop-color="#fffbe0"/>
+      <stop offset=".45" stop-color="#ffd34d"/>
+      <stop offset="1" stop-color="#7a4c03"/>
+    </radialGradient>
+
+    <!-- ===== فیلترها ===== -->
+    <filter id="gold-fShadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.2" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+    <filter id="gold-fCoin" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="1.5" dy="2.5" stdDeviation="2.2" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="gold-fBlur3" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+    <filter id="gold-fBlur1" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="0.7"/>
+    </filter>
+
+    <clipPath id="gold-clipB">
+      <path d="M64 16 L105.57 40 L105.57 88 L64 112 L22.43 88 L22.43 40 Z"/>
+    </clipPath>
+
+    <!-- نگین گوشه — قالب مشترک، با use شش‌بار روی رئوس شش‌ضلعی -->
+    <g id="gold-gem">
+      <circle cx="0.7" cy="0.9" r="4.5" fill="#120a00" opacity=".55"/>
+      <circle r="4" fill="url(#gold-gemGrad)" stroke="#3a2705" stroke-width="1"/>
+      <circle cx="-1.3" cy="-1.3" r="1.1" fill="#ffffff" opacity=".95"/>
+    </g>
+
+    <!-- ============================================================
+         SYMBOL: سکه طلا (icon-gold)
+         لایه‌ها: ۱ صفحه‌ی قاب | ۲-۳ بول قاب (روشن بالاچپ/تیره پایین‌راست)
+         ۴ خط حاشیه‌ی دولایه | ۵ صفحه‌ی داخلی فرورفته | ۶ سایه‌ی داخلی blur
+         ۷-۸ بول صفحه‌ی داخلی | ۹ وینیت | ۱۰ سایه‌ی زمینی | ۱۱ بدنه‌ی سکه
+         ۱۲ نوار لبه | ۱۳ شیار | ۱۴-۱۵ بول لبه | ۱۶ سطح | ۱۷ سایه‌ی داخلی سطح
+         ۱۸-۱۹ گلس منحنی + گِر | ۲۰-۲۴ نشان ستاره (سایه/بدنه/فست/یال روشن/یال تیره)
+         ۲۵-۳۰ نگین‌های مینت | ۳۱-۳۳ برق‌های نقطه‌ای | ۳۴+ نگین‌های گوشه
+         ضخامت stroke: دور اصلی ۲ | جزئیات ۱ | نوار لبه ۴
+         ============================================================ -->
+    <symbol id="icon-gold" viewBox="0 0 128 128">
+      <title>سکه طلا</title>
+
+      <!-- ۱) صفحه‌ی بیرونی قاب (شش‌ضلعی طلایی) + سایه‌ی بیرونی عمیق -->
+      <path d="M64 6 L114.23 35 L114.23 93 L64 122 L13.77 93 L13.77 35 Z"
+            fill="url(#gold-framePlate)" stroke="#2e1d04" stroke-width="2"
+            stroke-linejoin="round" filter="url(#gold-fShadow)"/>
+
+      <!-- ۲-۳) بول لبه‌ی قاب: خط روشن بالا-چپ، خط تیره پایین-راست -->
+      <path d="M13.77 35 L64 6 L114.23 35"
+            fill="none" stroke="#fff6c9" stroke-width="2" stroke-linecap="round" opacity=".9"/>
+      <path d="M114.23 35 L114.23 93 L64 122 L13.77 93 L13.77 35"
+            fill="none" stroke="#4a3003" stroke-width="2" stroke-linecap="round" opacity=".9"/>
+
+      <!-- ۴) خط جداکننده‌ی حاشیه‌ی فلزی دولایه -->
+      <path d="M64 13 L108.17 38.5 L108.17 89.5 L64 115 L19.83 89.5 L19.83 38.5 Z"
+            fill="none" stroke="#8a5f08" stroke-width="1" opacity=".65"/>
+
+      <!-- ۵) صفحه‌ی داخلی فرورفته -->
+      <path d="M64 16 L105.57 40 L105.57 88 L64 112 L22.43 88 L22.43 40 Z"
+            fill="url(#gold-innerPlate)" stroke="#241703" stroke-width="2" stroke-linejoin="round"/>
+
+      <!-- ۶) سایه‌ی داخلی قاب (استروک بلورشده، کلیپ‌شده به داخل) -->
+      <g clip-path="url(#gold-clipB)">
+        <path d="M64 16 L105.57 40 L105.57 88 L64 112 L22.43 88 L22.43 40 Z"
+              fill="none" stroke="#0f0800" stroke-width="8" opacity=".7" filter="url(#gold-fBlur3)"/>
+      </g>
+
+      <!-- ۷-۸) بول صفحه‌ی فرورفته: تیره بالا-چپ، روشن پایین-راست (عمق گودی) -->
+      <path d="M22.43 40 L64 16 L105.57 40"
+            fill="none" stroke="#241703" stroke-width="2" stroke-linecap="round" opacity=".9"/>
+      <path d="M105.57 40 L105.57 88 L64 112 L22.43 88 L22.43 40"
+            fill="none" stroke="#ffe98a" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+
+      <!-- ۹) وینیت داخل قاب -->
+      <path d="M64 16 L105.57 40 L105.57 88 L64 112 L22.43 88 L22.43 40 Z"
+            fill="url(#gold-vignette)"/>
+
+      <!-- ===== سکه ===== -->
+      <!-- ۱۰) سایه‌ی زمینی نرم -->
+      <ellipse cx="64" cy="101" rx="24" ry="5" fill="#0f0800" opacity=".5"
+               filter="url(#gold-fBlur3)" clip-path="url(#gold-clipB)"/>
+      <!-- لایه‌های ۱۱ تا ۳۳ با مقیاس ۱.۱ دور مرکز تا سکه، صفحه‌ی داخلی را پر کند -->
+      <g transform="translate(64 64) scale(1.1) translate(-64 -64)">
+      <!-- ۱۱) بدنه‌ی سکه + سایه‌ی بیرونی -->
+      <circle cx="64" cy="64" r="34" fill="url(#gold-coinBase)" stroke="#4a3306"
+              stroke-width="2" filter="url(#gold-fCoin)"/>
+      <!-- ۱۲) نوار لبه‌ی برجسته -->
+      <circle cx="64" cy="64" r="31" fill="none" stroke="url(#gold-rimGrad)" stroke-width="4"/>
+      <!-- ۱۳) شیار داخلی لبه -->
+      <circle cx="64" cy="64" r="28" fill="none" stroke="#6b4403" stroke-width="1" opacity=".9"/>
+      <!-- ۱۴-۱۵) بول لبه: روشن بالا-چپ / تیره پایین-راست -->
+      <path d="M31.5 64 A32.5 32.5 0 0 1 96.5 64"
+            fill="none" stroke="#fff9d6" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+      <path d="M31.5 64 A32.5 32.5 0 0 0 96.5 64"
+            fill="none" stroke="#4a3003" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+      <!-- ۱۶) سطح سکه -->
+      <circle cx="64" cy="64" r="26.5" fill="url(#gold-face)"/>
+      <!-- ۱۷) سایه داخلی سطح (گرادیان رادیال از نقطه‌ی نور) -->
+      <circle cx="64" cy="64" r="26.5" fill="url(#gold-innerShade)"/>
+      <!-- ۱۸-۱۹) هایلایت براق منحنی + گِر کوچک -->
+      <path d="M42.4 56.1 A23 23 0 0 1 81.6 49.2 A34 34 0 0 0 42.4 56.1 Z"
+            fill="url(#gold-gloss)" filter="url(#gold-fBlur1)"/>
+      <ellipse cx="50" cy="47.5" rx="6" ry="1.8" fill="#ffffff" opacity=".35"
+               transform="rotate(-14 50 47.5)"/>
+
+      <!-- ۲۰-۲۴) نشان ستاره‌ی برجسته -->
+      <path d="M64 51.5 L67.4 61.8 L78.3 61.9 L69.5 68.3 L72.8 78.6 L64 72.3 L55.2 78.6 L58.5 68.3 L49.7 61.9 L60.6 61.8 Z"
+            transform="translate(1.2 1.4)" fill="#4a3003" opacity=".55"/>
+      <path d="M64 51.5 L67.4 61.8 L78.3 61.9 L69.5 68.3 L72.8 78.6 L64 72.3 L55.2 78.6 L58.5 68.3 L49.7 61.9 L60.6 61.8 Z"
+            fill="url(#gold-starGrad)" stroke="#4a3306" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M64 51.5 L67.4 61.8 L64 66.5 L60.6 61.8 Z" fill="#fff3b0" opacity=".7"/>
+      <path d="M49.7 61.9 L58.5 68.3 L64 66.5 L60.6 61.8 Z" fill="#fff3b0" opacity=".3"/>
+      <path d="M49.7 61.9 L64 51.5 L67.4 61.8"
+            fill="none" stroke="#fff6c9" stroke-width="1" stroke-linecap="round" opacity=".85"/>
+      <path d="M72.8 78.6 L64 72.3 L55.2 78.6"
+            fill="none" stroke="#5c3a02" stroke-width="1" stroke-linecap="round" opacity=".7"/>
+
+      <!-- ۲۵-۳۰) نگین‌های مینت دور نشان -->
+      <g fill="url(#gold-gemGrad)" stroke="#5c3a02" stroke-width=".8">
+        <circle cx="85.5" cy="68" r="1.4"/>
+        <circle cx="74.6" cy="86.6" r="1.4"/>
+        <circle cx="53.4" cy="86.6" r="1.4"/>
+        <circle cx="42.5" cy="68" r="1.4"/>
+        <circle cx="53.4" cy="49.4" r="1.4"/>
+        <circle cx="74.6" cy="49.4" r="1.4"/>
+      </g>
+
+      <!-- ۳۱-۳۳) برق‌های نقطه‌ای -->
+      <path d="M45 34.5 L46.6 40.4 L52.5 42 L46.6 43.6 L45 49.5 L43.4 43.6 L37.5 42 L43.4 40.4 Z"
+            fill="#ffffff" opacity=".95"/>
+      <circle cx="84" cy="88" r="1.3" fill="#ffffff" opacity=".7"/>
+      <circle cx="87" cy="44" r="1" fill="#ffffff" opacity=".5"/>
+      </g>
+
+      <!-- نگین‌های گوشه‌ی قاب (روی ۶ رأس شش‌ضلعی) -->
+      <use href="#gold-gem" xlink:href="#gold-gem" x="64" y="6"/>
+      <use href="#gold-gem" xlink:href="#gold-gem" x="114.23" y="35"/>
+      <use href="#gold-gem" xlink:href="#gold-gem" x="114.23" y="93"/>
+      <use href="#gold-gem" xlink:href="#gold-gem" x="64" y="122"/>
+      <use href="#gold-gem" xlink:href="#gold-gem" x="13.77" y="93"/>
+      <use href="#gold-gem" xlink:href="#gold-gem" x="13.77" y="35"/>
+    </symbol>
+
+  </defs>
+</svg>
+
+</body>
+</html>
