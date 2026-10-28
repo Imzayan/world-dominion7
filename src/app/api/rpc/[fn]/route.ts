@@ -69,10 +69,11 @@ type ShopItemDef = {
 }
 const RAR_FA: Record<string, string> = { common: 'معمولی', uncommon: 'غیرمعمولی', rare: 'کمیاب', epic: 'حماسی', legendary: 'افسانه‌ای', mythic: 'اسطوره‌ای' }
 const SHOP_ITEMS: ShopItemDef[] = [
-  /* منابع و بوست (مصرفی — الگوی v3) */
-  { id: 'boost', fa: 'دو برابر شدن درآمدها (۱ ساعت)', d: 'همه‌ی درآمدها ۶۰ دقیقه دو برابر.', icon: '⚡', price: 20, kind: 'consumable', cat: 'resource', rar: 'common', serverEffect: 'boost' },
-  { id: 'gold', fa: '۱۵۰۰ طلا فوری', d: 'خزانه‌ی امپراتوری پر می‌شود.', icon: '💰', price: 15, kind: 'consumable', cat: 'resource', rar: 'common' },
-  { id: 'oil', fa: '۱۰۰۰ نفت فوری', d: 'موتور جنگ روشن می‌ماند.', icon: '🛢️', price: 15, kind: 'consumable', cat: 'resource', rar: 'common' },
+  /* منابع و بوست (مصرفی — الگوی v3) — V126: مقادیر بازنگری شد (ارزش واقعی بیشتر = جذب خریدار) */
+  { id: 'boost', fa: 'دو برابر شدن درآمدها (۱ ساعت)', d: 'همه‌ی درآمدها ۶۰ دقیقه دو برابر — بهترین زمان: بعد از فتح.', icon: '⚡', price: 15, kind: 'consumable', cat: 'resource', rar: 'common', serverEffect: 'boost' },
+  { id: 'gold', fa: '۲۵۰۰ طلا فوری', d: 'خزانه‌ی امپراتوری یک‌جا پر می‌شود — ارزش بیشتر با همان قیمت.', icon: '💰', price: 15, kind: 'consumable', cat: 'resource', rar: 'common' },
+  { id: 'oil', fa: '۱۴۰۰ نفت فوری', d: 'موتور جنگ روشن می‌ماند — حجم بیشتر با همان قیمت.', icon: '🛢️', price: 15, kind: 'consumable', cat: 'resource', rar: 'common' },
+  { id: 'res_crate', fa: '📦 جعبه‌ی لجستیک امپراتوری', d: '۲۵۰۰ طلا + ۱۲۰۰ نفت + ۱۵۰۰ غذا — یک‌جا با تخفیف واقعی.', icon: '📦', price: 30, kind: 'consumable', cat: 'resource', rar: 'rare' },
   { id: 'peace', fa: 'لغو تحریم‌ها', d: 'تحریم برداشته می‌شود و تنش جهانی کم می‌شود.', icon: '🕊️', price: 12, kind: 'consumable', cat: 'resource', rar: 'common' },
   { id: 'tax', fa: 'آماده شدن فوری مالیات', d: 'کول‌داون مالیات صفر می‌شود.', icon: '⏩', price: 6, kind: 'consumable', cat: 'resource', rar: 'common' },
   /* Imperial Identity */
@@ -3084,6 +3085,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           orderBy: { createdAt: 'desc' },
           take: 300,
         })
+        /* V126: صف هدیه‌های ادمین (claimed=false) به‌ازای هر بازیکن — مدیر می‌بیند چه چیزی منتظر دریافت است */
+        let pendingMap: Record<string, { g: number; o: number; f: number }> = {}
+        try {
+          const pending = await db.adminGrant.groupBy({
+            by: ['userId'],
+            where: { claimed: false },
+            _sum: { gold: true, oil: true, food: true },
+          })
+          for (const p of pending) pendingMap[p.userId] = { g: p._sum.gold || 0, o: p._sum.oil || 0, f: p._sum.food || 0 }
+        } catch (e) { console.log('adminpending', e) }
         const rows = users.map((u) => ({
           user_id: u.id,
           nick: u.nick,
@@ -3099,8 +3110,29 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           last_save: u.save?.updatedAt ? u.save.updatedAt.toISOString() : null,
           territories: u.territories.length,
           capitals: u.territories.filter((t) => t.isCapital).length,
+          pending_g: pendingMap[u.id]?.g || 0,
+          pending_o: pendingMap[u.id]?.o || 0,
+          pending_f: pendingMap[u.id]?.f || 0,
         }))
         return R(rows)
+      }
+      /* V126 — ارسال گروهی منابع: به همه‌ی بازیکنان (یا فقط یک سرور) یک‌جا.
+         admin-only، مقادیر سقف‌دار (ضد اشتباه تایپی)، همه unclaimed — بازیکن آنلاین تا ۳۰ثانیه بعد می‌گیرد. */
+      case 'admin_grant_bulk': {
+        if (!user.isAdmin) return R({ ok: false, error: 'permission' })
+        const g = Math.max(-50_000_000, Math.min(50_000_000, Math.round(Number(args.p_gold) || 0)))
+        const o = Math.max(-50_000_000, Math.min(50_000_000, Math.round(Number(args.p_oil) || 0)))
+        const f = Math.max(-50_000_000, Math.min(50_000_000, Math.round(Number(args.p_food) || 0)))
+        if (!g && !o && !f) return R({ ok: false, error: 'empty' })
+        const srv = Math.max(0, Math.round(Number(args.p_server) || 0)) /* 0 = همه‌ی سرورها */
+        try {
+          const where = srv > 0 ? { score: { server: srv } } : {}
+          const targets = await db.user.findMany({ where, select: { id: true }, take: 5000 })
+          if (!targets.length) return R({ ok: true, count: 0 })
+          const rows = targets.map((t) => ({ userId: t.id, gold: g, oil: o, food: f }))
+          await db.adminGrant.createMany({ data: rows })
+          return R({ ok: true, count: rows.length })
+        } catch (e) { console.log('grant_bulk', e); return R({ ok: false, error: 'db' }) }
       }
       case 'admin_set_gems': {
         if (!user.isAdmin) return R(null)

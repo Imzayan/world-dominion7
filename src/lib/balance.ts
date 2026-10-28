@@ -38,7 +38,7 @@ export const OL_PARTICIPATION_GEMS = 3;
    (saves.state.res — تک‌نویسنده‌ی tradeApply) کسر می‌شود + کول‌داون
    ۱۰ثانیه‌ای سمت سرور. کلاینت همین اعداد را در پنل حمله نشان می‌دهد.
    ============================================================ */
-export const PVP_ATTACK = { costGold: 400, costOil: 40, cooldownSec: 10 } as const;
+export const PVP_ATTACK = { costGold: 550, costOil: 70, cooldownSec: 15 } as const /* V126: لشکرکشی PvP تصمیم واقعی‌تر — هزینه و فاصله بیشتر */;
 
 /* سکوی المپیک: نقره ۲جم+۳۰هزار طلا، برنز ۱جم+۱۰هزار طلا (قهرمان = OL_REWARDS) */
 export const OL_PODIUM_REWARDS: [number, number, number][] = [

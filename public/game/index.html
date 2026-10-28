@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=125;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=125"></script>
+  <script>window.__WD_V=126;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=126"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -935,6 +935,22 @@
   </defs>
 </svg>
 <style>/* V123-ICONS: inline game icons */.wdic{width:1.15em;height:1.15em;vertical-align:-0.18em;display:inline-block}</style>
+<style>/* V126: کشوی کشور — آیکون‌های فریم‌دار بزرگ به‌جای ایموجی ریز و کادر خاکستری */
+.wdic-big{width:30px;height:30px;display:block;margin:0 auto 3px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.55))}
+.stats-grid.wd126-drawer .stat-box{display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 4px 9px!important;
+  background:linear-gradient(165deg,rgba(20,44,78,.75),rgba(8,18,36,.85))!important;
+  border:1px solid rgba(80,150,220,.22)!important;border-radius:14px!important}
+.stats-grid.wd126-drawer .stat-box::after{display:none}
+.stats-grid.wd126-drawer .stat-box span{font-size:8px!important;color:#9db8d8!important;letter-spacing:.2px}
+.stats-grid.wd126-drawer .stat-box b{font-size:11px!important;font-weight:900;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+.stats-grid.wd126-drawer .stat-box:nth-child(1){border-color:rgba(120,170,255,.3)!important}
+.stats-grid.wd126-drawer .stat-box:nth-child(2){border-color:rgba(255,110,110,.3)!important}
+.stats-grid.wd126-drawer .stat-box:nth-child(3){border-color:rgba(255,205,80,.32)!important}
+.stats-grid.wd126-drawer .stat-box:nth-child(4){border-color:rgba(90,210,255,.3)!important}
+.stats-grid.wd126-drawer .stat-box:nth-child(5){border-color:rgba(110,235,160,.3)!important}
+.stats-grid.wd126-drawer .stat-box:nth-child(6){border-color:rgba(200,150,255,.3)!important}
+.stats-grid.wd126-drawer .stat-box:active{transform:scale(.97)}
+</style>
   <div id="wd-splash">
    <div class="sp-burst">
    </div>
@@ -1215,51 +1231,45 @@
       ✕
      </div>
     </div>
-    <div class="stats-grid">
+    <div class="stats-grid wd126-drawer">
      <div class="stat-box">
-      <span>
-       👨&zwj;👩&zwj;👧&zwj;👦 جمعیت
-      </span>
+      <svg class="wdic-big" viewBox="0 0 128 128" aria-hidden="true"><use href="#icon-profile"></use></svg>
+      <span>جمعیت</span>
       <b id="c-pop">
        ---
       </b>
      </div>
      <div class="stat-box">
-      <span>
-       <svg class="wdic" viewBox="0 0 128 128" aria-hidden="true"><use href="#icon-shield"></use></svg> دفاع باقی&zwnj;مانده
-      </span>
+      <svg class="wdic-big" viewBox="0 0 128 128" aria-hidden="true"><use href="#icon-shield"></use></svg>
+      <span>دفاع باقی&zwnj;مانده</span>
       <b id="c-def-stat" style="color:var(--red-glow)">
        ---
       </b>
      </div>
      <div class="stat-box">
-      <span>
-       <svg class="wdic" viewBox="0 0 128 128" aria-hidden="true"><use href="#icon-gold"></use></svg> طلا
-      </span>
+      <svg class="wdic-big" viewBox="0 0 128 128" aria-hidden="true"><use href="#icon-gold"></use></svg>
+      <span>طلا</span>
       <b id="c-gold-stat">
        ---
       </b>
      </div>
      <div class="stat-box">
-      <span>
-       <svg class="wdic" viewBox="0 0 128 128" aria-hidden="true"><use href="#icon-oil"></use></svg> نفت
-      </span>
+      <svg class="wdic-big" viewBox="0 0 128 128" aria-hidden="true"><use href="#icon-oil"></use></svg>
+      <span>نفت</span>
       <b id="c-oil-stat">
        ---
       </b>
      </div>
      <div class="stat-box">
-      <span>
-       <svg class="wdic" viewBox="0 0 128 128" aria-hidden="true"><use href="#icon-food"></use></svg> غذا
-      </span>
+      <svg class="wdic-big" viewBox="0 0 128 128" aria-hidden="true"><use href="#icon-food"></use></svg>
+      <span>غذا</span>
       <b id="c-food-stat">
        ---
       </b>
      </div>
      <div class="stat-box">
-      <span>
-       ⭐ رتبه نظامی
-      </span>
+      <svg class="wdic-big" viewBox="0 0 128 128" aria-hidden="true"><use href="#icon-prize"></use></svg>
+      <span>رتبه نظامی</span>
       <b id="c-rank-stat">
        ---
       </b>
@@ -2433,11 +2443,19 @@ async function attackTarget(n){
   openModal("m-battle");updateUI();
   try{window.wd51BattleArm&&window.wd51BattleArm()}catch(e){}
   const g=getG(n);if(map&&g)map.flyToBounds([[g.s,g.w],[g.n,g.e]],{maxZoom:4,duration:1.2,paddingBottomRight:[0,220]});
-  await sleep(650);const line=atkLine(n),def0=t.def*1.25*(window.__wdDebuff&&window.__wdDebuff[n]&&window.__wdDebuff[n].until>Date.now()?(1-window.__wdDebuff[n].pct):1);
+  await sleep(650);const line=atkLine(n),
+  /* V126 BALANCE: «گرفتن کشور نباید آسان باشد» — دفاع قوی‌تر + هزینه‌ی واقعی لشکرکشی که با اندازه‌ی امپراتوری بالا می‌رود */
+  expN=(typeof wdTerrCount==='function')?wdTerrCount():1,
+  expCost={g:120+60*Math.max(0,expN-1),o:25+10*Math.max(0,expN-1)},
+  payOK=playerRes.gold>=expCost.g&&playerRes.oil>=expCost.o;
+  if(!payOK){battleBusy=false;window.__wd51nat=false;
+    txt.innerHTML='💰 <b style="color:var(--red-glow)">خزانه برای لشکرکشی کافی نیست!</b><br>هزینه‌ی این لشکرکشی: 💰'+expCost.g.toLocaleString()+' طلا + 🛢️'+expCost.o.toLocaleString()+' نفت (هر چه امپراتوری بزرگ‌تر، لشکرکشی گران‌تر)<br>اول مالیات بگیر یا معامله کن.';showToast('💰 خزانه کافی نیست — لشکرکشی هزینه دارد','lose');$("battle-close-btn").style.display="block";return}
+  playerRes.gold-=expCost.g;playerRes.oil-=expCost.o;updateUI();
+  const def0=t.def*1.42*(window.__wdDebuff&&window.__wdDebuff[n]&&window.__wdDebuff[n].until>Date.now()?(1-window.__wdDebuff[n].pct):1);
   for(let r=1;r<=5;r++){
     txt.textContent=`⚔️ دور ${r} از ۵ — درگیری سنگین در خط مقدم`;
     const defNow=Math.max(def0*(1-occ/100*.75),def0*.2),ratio=power*(.8+Math.random()*.4)/defNow;
-    let gain=Math.max(-3,Math.min(16,(ratio-.3)*16));if(occ>75)gain*=.5;   /* محاصره‌ی پایتخت: ۲۵٪ آخر کندتر */
+    let gain=Math.max(-3,Math.min(13,(ratio-.35)*16));if(occ>75)gain*=.45;   /* محاصره‌ی پایتخت: ۲۵٪ آخر کندتر — V126 سخت‌تر */
     const prev=occ;occ=Math.max(0,Math.min(100,occ+gain));
     bar.style.transition="width 1.2s ease";bar.style.width=occ+"%";$("battle-pct-label").textContent=Math.round(occ)+"%";
     setHatch(n,occ,true,prev);blasts(n,2);
@@ -3017,9 +3035,10 @@ reg('shipyard',[['Hyundai Ulsan Shipyard','کشتی‌سازی هیوندای ا
 reg('telecom',[['Tehran Telecom Tower','مرکز مخابرات تهران','Iran',35.72,51.40],['Goonhilly Earth Station','ایستگاه ماهواره‌ای گونهیلی','United Kingdom',50.05,-5.18],['Raisting Earth Station','ایستگاه ماهواره‌ای رایستینگ','Germany',47.9,11.11],
  ['Canberra Deep Space Complex','مجتمع فضای عمیق کانبرا','Australia',-35.4,148.98],['Goldstone Deep Space Station','ایستگاه گلدستون',US,35.43,-116.89],['Madrid Deep Space Station','ایستگاه فضای عمیق مادرید','Spain',40.43,-4.25],
  ['FAST Radio Telescope','تلسکوپ رادیویی فست','China',25.65,106.86]]);
-/* ---- Gem shop ---- */
-const GEM_ITEMS=[{i:'⚡',t:'دو برابر شدن همه‌ی درآمدها به مدت ۱ ساعت',c:20,k:'boost',f:()=>{BOOST=Math.max(Date.now(),BOOST)+3600e3}},
- {i:'💰',t:'۱۵۰۰ طلا فوری',c:15,k:'gold',f:()=>{playerRes.gold+=1500}},{i:'🛢️',t:'۱۰۰۰ نفت فوری',c:15,k:'oil',f:()=>{playerRes.oil+=1000}},
+/* ---- Gem shop ---- V126: مقادیر بازنگری شد + جعبه‌ی لجستیک — هماهنگ با کاتالوگ سرور */
+const GEM_ITEMS=[{i:'⚡',t:'دو برابر شدن همه‌ی درآمدها به مدت ۱ ساعت',c:15,k:'boost',f:()=>{BOOST=Math.max(Date.now(),BOOST)+3600e3}},
+ {i:'💰',t:'۲۵۰۰ طلا فوری',c:15,k:'gold',f:()=>{playerRes.gold+=2500}},{i:'🛢️',t:'۱۴۰۰ نفت فوری',c:15,k:'oil',f:()=>{playerRes.oil+=1400}},
+ {i:'📦',t:'📦 جعبه‌ی لجستیک — ۲۵۰۰ طلا + ۱۲۰۰ نفت + ۱۵۰۰ غذا',c:30,k:'res_crate',f:()=>{playerRes.gold+=2500;playerRes.oil+=1200;playerRes.food+=1500}},
  {i:'🕊️',t:'لغو تحریم‌ها و کاهش تنش جهانی',c:12,k:'peace',f:()=>{sanction=0;tension=Math.min(tension,30)}},
  {i:'⏩',t:'آماده شدن فوری مالیات',c:6,k:'tax',f:()=>{COOL.tax=0;taxReady=true;clearInterval(taxCooldownTimer);const b=S$('act-tax'),l=S$('tax-cooldown-text');if(b)b.disabled=false;if(l)l.textContent='آماده جمع‌آوری'}}];
 /*WALLET-BEGIN*/
@@ -3604,14 +3623,49 @@ async function renderAdmin(){const b=S$('admin-body');if(!b||!sb)return;b.textCo
       catch(e){console.log(e);paint();pill.style.opacity='1';showToast('❌ تغییر ناموفق بود','lose')}});
     line.append(ic,mid,pill);evWrap.append(line)}
   b.append(evWrap);
-  const r=await sb.from('scores').select('user_id,nick,conquered,server').order('nick');
+  /* ===== V126 FIX «پنل مدیریتی باگ خورده»: قبلاً فهرست بازیکنان از scores می‌آمد و هیچ راهی برای
+     هدیه به «همه» نبود + خطاها بی‌جزئیات بودند. حالا: فهرست کامل از admin_list_players (با صف هدیه‌های
+     معلق هر بازیکن) + باکس «ارسال به همه» + پیام خطای دقیق سرور. */
+  const al=await sb.rpc('admin_list_players');
   b.textContent='';
-  b.append(evWrap); /* V36: پنل ایونت‌ها بعد از پاک‌سازی بدنه دوباره چسبانده می‌شود */
-  if(r.error){b.append(el('div','❌ خطا در دریافت اطلاعات: '+r.error.message,'sites-info'));return}
-  b.append(el('div','عدد مثبت = اضافه، منفی = کم. بازیکن تا ۳۰ ثانیه بعد (وقتی آنلاین است) دریافت می‌کند.','sites-sub'));
-  (r.data||[]).forEach(row=>{
+  b.append(evWrap);
+  if(al.error){b.append(el('div','❌ خطا در دریافت فهرست بازیکنان: '+(al.error.message||'نامعلوم'),'sites-info'));return}
+  const players=(al.data||[]);
+  /* ---------- ارسال گروهی (به همه یا یک سرور) ---------- */
+  const bulk=el('div','','lobby-item');bulk.style.cssText='flex-direction:column;align-items:stretch;gap:8px;border:1px solid rgba(62,232,165,.4);background:linear-gradient(150deg,rgba(6,42,26,.55),rgba(3,16,10,.72));border-radius:14px;padding:12px';
+  bulk.append(el('div','🎁 هدیه به همه‌ی بازیکنان','sites-h'));
+  bulk.append(el('div','یک‌جا به همه (یا فقط بازیکنان یک سرور) طلا/نفت/غذا بده. عدد منفی = کسر. بازیکن آنلاین تا ۳۰ ثانیه بعد دریافت می‌کند.','sites-sub'));
+  const mkBInp=(label)=>{const line=document.createElement('div');line.style.cssText='display:flex;align-items:center;gap:6px;justify-content:space-between';
+    const inp=document.createElement('input');inp.type='number';inp.value=0;
+    inp.style.cssText='width:110px;background:#06231a;color:#fff;border:1px solid rgba(62,232,165,.4);border-radius:8px;padding:6px 8px;text-align:center';
+    line.append(el('span',label,'lobby-item-sub'),inp);bulk.append(line);return inp};
+  const bG=mkBInp('💰 طلا'),bO=mkBInp('🛢️ نفت'),bF=mkBInp('🌾 غذا');
+  const scope=document.createElement('select');
+  scope.style.cssText='width:100%;background:#06231a;color:#fff;border:1px solid rgba(62,232,165,.4);border-radius:8px;padding:7px;margin-top:4px';
+  const optAll=document.createElement('option');optAll.value='0';optAll.textContent='🌍 همه‌ی سرورها';scope.append(optAll);
+  const srvs=[...new Set(players.map(p=>p.server||1))].sort((a,c)=>a-c);
+  srvs.forEach(s=>{const op=document.createElement('option');op.value=String(s);op.textContent='🖥️ فقط سرور '+faNum(s);scope.append(op)});
+  bulk.append(scope);
+  const bulkBtn=el('button','🎁 ارسال گروهی','lobby-item-btn btn-green',async()=>{
+    const g=Math.round(Number(bG.value)||0),o=Math.round(Number(bO.value)||0),f=Math.round(Number(bF.value)||0);
+    if(!g&&!o&&!f){showToast('❌ همه‌ی مقدارها صفر است','lose');return}
+    if(!confirm('ارسال '+g+' طلا / '+o+' نفت / '+f+' غذا به '+(Number(scope.value)?'سرور '+scope.value:'همه‌ی بازیکنان')+'؟'))return;
+    bulkBtn.disabled=true;bulkBtn.textContent='⏳ در حال ارسال...';
+    try{const rr=await sb.rpc('admin_grant_bulk',{p_gold:g,p_oil:o,p_food:f,p_server:Number(scope.value)||0});
+      if(rr.error)throw rr.error;
+      const d=rr.data||{};
+      if(!d.ok)throw new Error(({permission:'دسترسی مدیر رد شد',empty:'مقدارها صفر است',db:'خطای دیتابیس'})[d.error]||d.error||'نامعلوم');
+      bG.value=0;bO.value=0;bF.value=0;
+      showToast('✅ برای '+faNum(d.count||0)+' بازیکن ثبت شد','win');renderAdmin()}
+    catch(e){console.log(e);showToast('❌ ارسال گروهی ناموفق: '+(e.message||''),'lose')}
+    bulkBtn.disabled=false;bulkBtn.textContent='🎁 ارسال گروهی'});
+  bulk.append(bulkBtn);
+  b.append(bulk);
+  b.append(el('div','👤 بازیکنان ('+faNum(players.length)+') — عدد مثبت = اضافه، منفی = کم','sites-h'));
+  players.forEach(row=>{
     const wrap=el('div','','lobby-item');wrap.style.cssText='flex-direction:column;align-items:stretch;gap:6px';
-    wrap.append(el('div','👤 '+row.nick+' — سرور '+(row.server||1)+' • '+(row.conquered||0)+' کشور','sites-h'));
+    const pend=(row.pending_g||row.pending_o||row.pending_f)?' • 📦 در صف: '+(row.pending_g?('💰'+faNum(row.pending_g)):'')+(row.pending_o?(' 🛢️'+faNum(row.pending_o)):'')+(row.pending_f?(' 🌾'+faNum(row.pending_f)):''):'';
+    wrap.append(el('div','👤 '+row.nick+' — سرور '+(row.server||1)+' • '+(row.conquered||0)+' کشور • 💎'+faNum(row.gems||0)+pend,'sites-h'));
     const mkInput=(label)=>{const line=document.createElement('div');line.style.cssText='display:flex;align-items:center;gap:6px;justify-content:space-between';
       const inp=document.createElement('input');inp.type='number';inp.value=0;
       inp.style.cssText='width:100px;background:#081c33;color:#fff;border:1px solid rgba(0,240,255,.3);border-radius:6px;padding:4px 6px;text-align:center';
@@ -3621,12 +3675,16 @@ async function renderAdmin(){const b=S$('admin-body');if(!b||!sb)return;b.textCo
       const g=Math.round(Number(gInp.value)||0),o=Math.round(Number(oInp.value)||0),f=Math.round(Number(fInp.value)||0);
       if(!g&&!o&&!f){showToast('❌ همه‌ی مقدارها صفر است','lose');return}
       sendBtn.disabled=true;sendBtn.textContent='⏳ در حال ارسال...';
-      try{const ins=await sb.from('admin_grants').insert({user_id:row.user_id,gold:g,oil:o,food:f});if(ins.error)throw ins.error;
-        gInp.value=0;oInp.value=0;fInp.value=0;showToast('✅ برای '+row.nick+' ارسال شد','win')}
-      catch(e){console.log(e);showToast('❌ ارسال ناموفق بود: '+(e.message||''),'lose')}
+      try{const ins=await sb.from('admin_grants').insert({user_id:row.user_id,gold:g,oil:o,food:f});
+        if(ins.error)throw ins.error;
+        gInp.value=0;oInp.value=0;fInp.value=0;showToast('✅ برای '+row.nick+' ارسال شد','win');
+        wrap.style.borderColor='rgba(62,232,165,.5)'}
+      catch(e){console.log(e);
+        const msg=String(e.message||'');
+        showToast('❌ ارسال ناموفق: '+(msg.indexOf('permission')>-1?'دسترسی مدیر نداری (ADMIN_NICKS سرور را چک کن)':msg||'خطای نامعلوم'),'lose')}
       sendBtn.disabled=false;sendBtn.textContent='🎁 ارسال'});
     wrap.append(sendBtn);b.append(wrap)});
-  if(!(r.data||[]).length)b.append(el('div','هیچ بازیکنی پیدا نشد.','sites-info'))}
+  if(!players.length)b.append(el('div','هیچ بازیکنی پیدا نشد.','sites-info'))}
 
 /* every player: receive grants sent by the admin */
 async function claimGrants(){if(typeof sb==='undefined'||!sb||!ACC.uid||!ACC.ready)return;
@@ -7059,10 +7117,18 @@ setTimeout(bindMenu,5300);
 /* ============ V26: tap feedback + rank podium ============ */
 /* -- tap pulse on map -- */
 .wd26-pulse-wrap{pointer-events:none}
-.wd26-pulse{position:absolute;left:0;top:0;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;
-  border:2.5px solid rgba(255,225,120,.95);box-shadow:0 0 14px rgba(255,204,0,.85),inset 0 0 6px rgba(255,204,0,.5);
-  animation:wd26Pulse .6s cubic-bezier(.2,.8,.3,1) forwards}
-@keyframes wd26Pulse{0%{transform:scale(.35);opacity:1}100%{transform:scale(4.4);opacity:0}}
+/* V126: قفل هدف دو لایه‌ای — t1 حلقه‌ی انبساطی نرم، t2 حلقه‌ی خط‌چین چرخان، spark برق مرکزی.
+   رنگ طلایی (خنثی/خودی) و قرمز نظامی (حریف OTH)؛ فقط transform/opacity — کامپوزیتور GPU */
+.wd26-pulse{position:absolute;left:0;top:0;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;
+  border:2px solid rgba(255,225,120,.9);opacity:0;animation:wd26Expand .8s cubic-bezier(.2,.8,.3,1) forwards}
+.wd26-pulse.foe{border-color:rgba(255,92,70,.95);box-shadow:0 0 12px rgba(255,70,40,.6)}
+.wd26-pulse.t2{border-style:dashed;border-width:2.5px;animation:wd26LockSpin .85s cubic-bezier(.2,.8,.3,1) forwards}
+.wd26-spark{position:absolute;left:0;top:0;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;
+  background:radial-gradient(circle,#fffde8,#ffcf5a 55%,transparent 80%);box-shadow:0 0 12px 3px rgba(255,204,0,.8);
+  animation:wd26Spark .5s ease-out forwards}
+@keyframes wd26Expand{0%{transform:scale(.25);opacity:1}70%{opacity:.85}100%{transform:scale(2.6);opacity:0}}
+@keyframes wd26LockSpin{0%{transform:scale(.5) rotate(0deg);opacity:1}100%{transform:scale(2.1) rotate(150deg);opacity:0}}
+@keyframes wd26Spark{0%{transform:scale(.4);opacity:1}100%{transform:scale(2.4);opacity:0}}
 /* -- rank podium (GeoWar style + WD gold signature) -- */
 .wd26-podium{display:flex;gap:6px;align-items:flex-end;margin:10px 0 12px;direction:rtl}
 .wd26-pc{flex:1;min-width:0;border-radius:16px;padding:11px 5px 10px;text-align:center;position:relative;
@@ -7093,12 +7159,16 @@ if(window.__wd26)return;window.__wd26=true;
 var D=document;
 function toast26(m,t){try{if(typeof showToast==='function')showToast(m,t||'')}catch(e){}}
 
-/* ============ 1) فیدبک تاپ: پالس طلایی + ویبره ============ */
-function pulseAt(latlng){
+/* ============ 1) فیدبک تاپ: قفل هدف سینمایی + ویبره — V126 بازطراحی ============
+   قبلاً یک حلقه‌ی زرد ساده بود («دایره‌ی اضافی و زشت» به‌گفته‌ی مالک).
+   حالا: قفل هدف دو لایه‌ای — حلقه‌ی خط‌چین چرخان + هاله‌ی انبساطی + برق مرکزی؛
+   طلایی برای کشور خنثی/خودی، قرمز نظامی برای کشور حریف (OTH). فقط transform/opacity. */
+function pulseAt(latlng,foe){
   try{
+    var cls='wd26-pulse'+(foe?' foe':'');
     var m=L.marker(latlng,{interactive:false,keyboard:false,zIndexOffset:1200,
-      icon:L.divIcon({className:'wd26-pulse-wrap',iconSize:[0,0],html:'<i class="wd26-pulse"></i>'})}).addTo(map);
-    setTimeout(function(){try{m.remove()}catch(e){}},720);
+      icon:L.divIcon({className:'wd26-pulse-wrap',iconSize:[0,0],html:'<i class="'+cls+' t1"></i><i class="'+cls+' t2"></i><b class="wd26-spark"></b>'})}).addTo(map);
+    setTimeout(function(){try{m.remove()}catch(e){}},860);
   }catch(e){}
 }
 function haptic(){try{if(navigator.vibrate)navigator.vibrate(12)}catch(e){}}
@@ -7171,7 +7241,7 @@ function drawerIsOpen(){var d=D.getElementById('country-drawer');return !!(d&&d.
 (function wrapOCC(){
   if(typeof onCountryClick!=='function'){setTimeout(wrapOCC,500);return}
   try{if(WD_CLICK_HOOKS){
-    WD_CLICK_HOOKS.pre.push(function(f,l){try{var g=(typeof getG==='function')?getG(f.properties.name):null;if(g)pulseAt(g.c);haptic()}catch(e){}});
+    WD_CLICK_HOOKS.pre.push(function(f,l){try{var g=(typeof getG==='function')?getG(f.properties.name):null;var foe=false;try{foe=!!(typeof OTH!=='undefined'&&OTH&&OTH[f.properties.name])}catch(e0){}if(g)pulseAt(g.c,foe);haptic()}catch(e){}});
   }}catch(e){console.error('wd-c11',e)}
 })();
 
@@ -11592,7 +11662,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=125';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=126';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -16366,20 +16436,46 @@ setInterval(function(){if(!D.hidden)adminCheck().then(function(okad){if(okad||is
 @keyframes wd55ring{0%{opacity:.95;transform:translate(-50%,-50%) scale(.2)}100%{opacity:0;transform:translate(-50%,-50%) scale(26)}}
 .wd55-boom{position:absolute;top:50vh;left:50%;font-size:clamp(44px,13vw,84px);transform:translate(-50%,-50%) scale(.4);opacity:0;animation:wd55boom 1.2s cubic-bezier(.2,1.2,.3,1) 1.32s forwards}
 @keyframes wd55boom{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.25)}100%{opacity:.95;transform:translate(-50%,-50%) scale(1)}}
-/* — nuke — */
-.wd55-opfx.k-nuke{background:rgba(10,2,2,.9)}
-.wd55-nflash{position:absolute;inset:0;background:#fff;opacity:0;animation:wd55nflash 1.6s ease-out .2s forwards}
-@keyframes wd55nflash{0%{opacity:0}10%{opacity:1}100%{opacity:0}}
-.wd55-mush{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:60vw;max-width:420px;height:0;display:flex;flex-direction:column;align-items:center;animation:wd55rise 2.6s cubic-bezier(.25,.8,.3,1) .5s forwards}
-@keyframes wd55rise{to{height:78vh}}
-.wd55-cap{width:100%;aspect-ratio:2/1.15;border-radius:50% 50% 12% 12%;background:radial-gradient(circle at 42% 30%,#ffe9c0,#ff9c3c 42%,#c23c12 75%,#5c1408);opacity:.94;filter:saturate(1.05)}
-.wd55-stem{width:13%;flex:1;background:linear-gradient(180deg,#e07a2c,#8a2a10 70%,#3c0d06);border-radius:14px 14px 0 0;opacity:.9}
-.wd55-base{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:86vw;max-width:640px;height:10vh;border-radius:50%;
-  background:radial-gradient(ellipse,rgba(255,150,60,.5),transparent 70%);animation:wd55spread 2.4s ease-out .5s forwards}
-@keyframes wd55spread{from{transform:translateX(-50%) scale(.4);opacity:.2}to{transform:translateX(-50%) scale(1.15);opacity:.95}}
-.wd55-ring.rd{top:58vh;border-color:rgba(255,220,150,.95);animation-delay:.75s;animation-duration:1.9s}
-.wd55-ring.rd2{top:58vh;border-color:rgba(255,150,80,.85);animation-delay:1.05s;animation-duration:2.1s}
-.wd55-opol{position:absolute;inset:0;background:rgba(255,70,30,.14);opacity:0;animation:wd55opol 2.2s ease-in 1.2s forwards}
+/* — nuke V126: بازسازی کامل — فقط transform/opacity (کامپوزیتور GPU، صفر layout thrash).
+   توالی: هشدار → سقوط کلاهک → فلش → ۳ موج انفجار → قارچ اتمی لایه‌لایه → جرقه‌ها → سرخ‌شدن آسمان */
+.wd55-opfx.k-nuke{background:radial-gradient(ellipse at 50% 88%,#33110a 0%,#12040a 46%,#06010a 100%)}
+.wd55-alertbar{position:absolute;top:14vh;left:50%;transform:translateX(-50%);padding:7px 22px;border-radius:999px;
+  background:rgba(90,8,8,.9);border:1px solid rgba(255,110,70,.75);color:#ffd9c2;font-weight:900;font-size:12px;letter-spacing:1px;
+  opacity:0;animation:wd55alert 1.1s ease-out .05s forwards}
+@keyframes wd55alert{0%{opacity:0;transform:translateX(-50%) scale(.8)}18%{opacity:1;transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateX(-50%) scale(1.04)}}
+.wd55-warhead{position:absolute;top:-8vh;left:50%;width:3px;height:11vh;margin-left:-1.5px;border-radius:3px;
+  background:linear-gradient(180deg,rgba(255,240,200,0),#ffe9b0 30%,#fff 92%);box-shadow:0 0 18px 4px rgba(255,190,90,.75);
+  animation:wd55drop .95s cubic-bezier(.55,0,.9,.6) .75s forwards}
+@keyframes wd55drop{0%{transform:translateY(0);opacity:0}12%{opacity:1}100%{transform:translateY(58vh);opacity:1}}
+.wd55-nflash{position:absolute;inset:0;background:radial-gradient(circle at 50% 62%,#fff 0%,#fff8e0 34%,rgba(255,220,150,.6) 60%,transparent 82%);opacity:0;animation:wd55nflash 1.5s ease-out 1.62s forwards}
+@keyframes wd55nflash{0%{opacity:0}9%{opacity:1}100%{opacity:0}}
+.wd55-ground{position:absolute;bottom:-6vh;left:50%;width:120vw;max-width:760px;height:26vh;transform:translateX(-50%) scale(.35);border-radius:50%;
+  background:radial-gradient(ellipse,rgba(255,196,88,.85) 0%,rgba(255,110,30,.5) 38%,transparent 70%);opacity:0;animation:wd55ground 2.6s ease-out 1.68s forwards}
+@keyframes wd55ground{0%{opacity:0;transform:translateX(-50%) scale(.35)}22%{opacity:.95;transform:translateX(-50%) scale(1)}100%{opacity:.4;transform:translateX(-50%) scale(1.12)}}
+.wd55-nring{position:absolute;top:62vh;left:50%;width:16px;height:16px;margin:-8px;border-radius:50%;border:3px solid rgba(255,214,140,.95);
+  transform:translate(0,0) scale(.2);opacity:0;animation:wd55nring 1.9s ease-out 1.72s forwards}
+.wd55-nring.n2{border-color:rgba(255,140,70,.85);border-width:5px;animation-delay:1.95s;animation-duration:2.3s}
+.wd55-nring.n3{border-color:rgba(255,90,40,.75);border-width:8px;animation-delay:2.3s;animation-duration:2.7s}
+@keyframes wd55nring{0%{opacity:.95;transform:scale(.2)}100%{opacity:0;transform:scale(34)}}
+.wd55-mush{position:absolute;bottom:16vh;left:50%;width:62vw;max-width:430px;transform:translateX(-50%) translateY(24vh) scale(.35);opacity:0;
+  display:flex;flex-direction:column;align-items:center;animation:wd55mush 3.1s cubic-bezier(.2,.75,.3,1) 1.75s forwards}
+@keyframes wd55mush{0%{opacity:0;transform:translateX(-50%) translateY(24vh) scale(.35)}14%{opacity:1}62%{transform:translateX(-50%) translateY(-6vh) scale(1.06)}100%{opacity:.96;transform:translateX(-50%) translateY(-13vh) scale(1.12)}}
+.wd55-cap{width:100%;aspect-ratio:2/1.12;border-radius:50% 50% 13% 13%;position:relative;overflow:hidden;
+  background:radial-gradient(circle at 40% 26%,#fff3cf 0%,#ffd27a 20%,#ff8a34 46%,#c23c12 72%,#4c1106 96%)}
+.wd55-cap::before{content:"";position:absolute;inset:-22%;background:radial-gradient(circle at 66% 74%,rgba(60,8,4,.72),transparent 56%);animation:wd55capsw 3.4s ease-in-out 1.9s infinite alternate}
+@keyframes wd55capsw{from{transform:translate(-3%,1%) scale(1)}to{transform:translate(3%,-2%) scale(1.09)}}
+.wd55-cap::after{content:"";position:absolute;left:14%;top:8%;width:26%;height:15%;border-radius:50%;background:rgba(255,255,240,.85);filter:blur(4px);opacity:.8;animation:wd55hl 3s ease-in-out 2s infinite alternate}
+@keyframes wd55hl{from{opacity:.8;transform:scale(1)}to{opacity:.35;transform:scale(1.25)}}
+.wd55-stem{width:15%;height:26vh;transform-origin:top;transform:scaleY(.4);margin-top:-2vh;
+  background:linear-gradient(90deg,#5c1a08 0%,#e07a2c 34%,#ffb45e 50%,#c25516 68%,#40100a 100%);border-radius:12px;opacity:.92;animation:wd55stem 2.9s cubic-bezier(.2,.8,.3,1) 1.85s forwards}
+@keyframes wd55stem{to{transform:scaleY(1)}}
+.wd55-skr{position:absolute;bottom:14vh;left:50%;width:74vw;max-width:520px;height:9vh;transform:translateX(-50%) scaleX(.4);border-radius:50%;
+  background:radial-gradient(ellipse,rgba(70,20,8,.85),rgba(30,8,4,.4) 62%,transparent 78%);opacity:0;animation:wd55skr 2.8s ease-out 1.9s forwards}
+@keyframes wd55skr{to{opacity:.9;transform:translateX(-50%) scaleX(1)}}
+.wd55-ember{position:absolute;bottom:20vh;width:5px;height:5px;border-radius:50%;background:radial-gradient(circle,#fff3b0,#ff8a2a 60%,transparent);
+  box-shadow:0 0 9px 2px rgba(255,150,50,.85);opacity:0;animation:wd55ember 2.9s ease-out forwards}
+@keyframes wd55ember{0%{opacity:0;transform:translate(0,0) scale(1)}12%{opacity:1}100%{opacity:0;transform:translate(var(--ex),var(--ey)) scale(.35)}}
+.wd55-opol{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 90%,rgba(255,84,34,.34),rgba(120,16,8,.2) 55%,transparent 85%);opacity:0;animation:wd55opol 2.6s ease-in 2s forwards}
 @keyframes wd55opol{to{opacity:1}}
 body.wd-autolite #wd55-opfx{display:none!important}
 body.wd-autolite .wd55-op-t{display:none}
@@ -16414,11 +16510,17 @@ window.WD55_OPFX=function(kind,fa){
       inn+='<div class="wd55-term c-green">&gt; NIGHT OPS :: '+esc55(fa)+'<br>&gt; HALO INSERTION … COMPLETE<br>&gt; ALL TEAMS IN POSITION ✔</div>';
     }else if(kind==='missile'){
       inn+='<div class="wd55-alert"></div><div class="wd55-trail" style="top:12vh"></div><div class="wd55-rocket">🚀</div>';
-      inn+='<div class="wd55-flash"></div><div class="wd55-ring"></div><div class="wd55-ring r2"></div><div class="wd55-boom">💥</div>';
+      inn+='<div class="wd55-flash"></div><div class="wd55-ring"></div><div class="wd55-ring r2"></div><div class="wd55-boom">💥</div><div class="wd55-ground"></div>';
     }else if(kind==='nuke'){
-      inn+='<div class="wd55-nflash"></div><div class="wd55-base"></div>';
+      /* V126: صحنه‌ی سینمایی هسته‌ای — ۱۸ المان، همه transform/opacity */
+      inn+='<div class="wd55-alertbar">⚠️ هشدار موشکی — پناه بگیرید</div>';
+      inn+='<div class="wd55-warhead"></div>';
+      inn+='<div class="wd55-ground"></div><div class="wd55-skr"></div>';
+      inn+='<div class="wd55-nflash"></div>';
+      inn+='<div class="wd55-nring"></div><div class="wd55-nring n2"></div><div class="wd55-nring n3"></div>';
       inn+='<div class="wd55-mush"><div class="wd55-cap"></div><div class="wd55-stem"></div></div>';
-      inn+='<div class="wd55-ring rd"></div><div class="wd55-ring rd2"></div><div class="wd55-opol"></div>';
+      for(i=0;i<8;i++)inn+='<div class="wd55-ember" style="left:'+Math.round(rand(30,70))+'vw;animation-delay:'+(1.85+rand(0,.9)).toFixed(2)+'s;--ex:'+Math.round(rand(-90,90))+'px;--ey:-'+Math.round(rand(90,240))+'px"></div>';
+      inn+='<div class="wd55-opol"></div>';
     }else return;
     inn+='<div class="wd55-op-t">'+ic55(kind)+' '+esc55(fa)+'</div><div class="wd55-op-sk">برای رد کردن، صفحه را بزن ✕</div>';
     root.innerHTML='<div style="position:absolute;inset:0">'+inn+'</div>';
@@ -16426,7 +16528,7 @@ window.WD55_OPFX=function(kind,fa){
     requestAnimationFrame(function(){try{root.classList.add('on')}catch(e){}});
     var kill=function(){if(ended)return;ended=true;try{root.classList.remove('on');root.classList.add('out');setTimeout(function(){try{root.remove()}catch(e){}},360)}catch(e){}};
     root.addEventListener('click',kill);
-    setTimeout(kill,kind==='nuke'?4200:(kind==='missile'?3400:3200));
+    setTimeout(kill,kind==='nuke'?5200:(kind==='missile'?3400:3200));
   }catch(e){}
 };
 function esc55(s){return String(s==null?'':s).replace(/[<>&]/g,'')}
@@ -17609,7 +17711,19 @@ function rarTag(rar){var s=el('span',RARS[rar]||rar,'wd66-rar rar-'+(rar==='myth
 function card(it,opts){opts=opts||{};
   var owned=opts.owned!=null?opts.owned:ownOf(it.id);
   var r=el('div',null,'wd66-card rar-b-'+it.rar);
-  var ic=el('div',it.icon||'🎁','wd66-ico');
+  /* V126: آیکون اسپرایت فریم‌دار AAA به‌جای ایموجی — همان زبان بصری آیکون‌های V123 */
+  var ICON66={gold:'icon-gold',oil:'icon-oil',res_crate:'icon-trade',boost:'icon-attack',peace:'icon-shield',tax:'icon-trade',
+    col_pack:'icon-map',emblem:'icon-shield',title:'icon-prize',emp_nameplate:'icon-profile',emp_power_badge:'icon-diamond',
+    fx_conq:'icon-attack',fx_storm:'icon-attack',fx_comet:'icon-attack',war_badge:'icon-soldier',battle_frame:'icon-shield',
+    border_glow:'icon-diamond',map_ocean_azure:'icon-map',map_ocean_midnight:'icon-map',map_ocean_jade:'icon-map',
+    empire_highlight:'icon-prize',cap_aura_gold:'icon-prize',cap_aura_ice:'icon-prize',cap_aura_flame:'icon-prize',
+    cap_monument:'icon-map',cap_nameplate:'icon-map',cap_theme_royal:'icon-prize',vip7:'icon-diamond',vip30:'icon-diamond',
+    radar:'icon-attack',stats:'icon-trade',medal_s1:'icon-prize',lim_persian_1404:'icon-prize',
+    lucky:'icon-diamond',mystery_premium:'icon-diamond',bundle_cos:'icon-gold'};
+  var sym=ICON66[it.id];
+  var ic=el('div',null,'wd66-ico');
+  if(sym)ic.innerHTML='<svg class="wdic-big" viewBox="0 0 128 128" aria-hidden="true"><use href="#'+sym+'"></use></svg>';
+  else ic.textContent=it.icon||'🎁';
   var tx=el('div',null,'wd66-tx');tx.append(el('b',it.fa));
   if(it.d)tx.append(el('small',it.d));
   var tags=el('div');tags.append(rarTag(it.rar));
@@ -18503,7 +18617,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=125';
+              s.src='/game/cv-engine.js?v=126';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18514,7 +18628,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=125"></script>
+<script src="/game/oly3.js?v=126"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18528,7 +18642,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=125';
+      s.src='/game/oly3d.js?v=126';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19768,8 +19882,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=125"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=125"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=126"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=126"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);

@@ -141,8 +141,8 @@
         basePer: 0.02, baseCap: 0.2,                     // کل قدرت ارتش
         airInfraPerLevel: 0.1                            // airBonus: 1 + infra.air*0.1
       },
-      /* V75 — P4: هزینه‌ی حمله‌ی PvP (قرینه‌ی سرور src/lib/balance.ts:PVP_ATTACK — همیشه هم‌عدد) */
-      pvpAttack: { costGold: 400, costOil: 40, cooldownSec: 10 }
+      /* V75 — P4 — V126: هزینه‌ی حمله‌ی PvP (قرینه‌ی سرور src/lib/balance.ts:PVP_ATTACK — همیشه هم‌عدد) */
+      pvpAttack: { costGold: 550, costOil: 70, cooldownSec: 15 }
     },
 
     /* ============ missions — هدف و پاداش (پرداخت واقعی = داور سرور) ============ */
