@@ -2774,3 +2774,20 @@ Stage Summary:
 - هر ۴ باگ گزارشی ریشه‌یابی و بسته شد؛ بدون دست‌زدن به منطق سالم بازی
 - PUSH معلق: credential سندباکس ریست شده (پیش‌آمد V112) — کامیت 5abe310 روی dev آماده؛ منتظر PAT از مالک، سپس push dev+main و لایو خودکار Vercel
 - نیازمندی سرور جدید: هیچ — RPC wd_presence از V124 روی production لایو است
+
+---
+Task ID: V125-RELEASE-PAT
+Agent: Super Z (main)
+Task: store new owner PAT + push pending V125 + verify live
+
+Work Log:
+- New PAT from user verified (api.github.com/user = Imzayan, repo access HTTP 200) → ~/.git-credentials (chmod 600), credential.helper=store
+- git push origin dev: 9e74f0b..f394b2f SUCCESS (5abe310 V125 + f394b2f worklog)
+- git push origin dev:main: 9e74f0b..f394b2f SUCCESS — both heads aligned
+- Vercel auto-deploy: v.txt 124→125 within ~125s of push
+- Live verification: https://world-dominion7.vercel.app/game/index.html?v=125 — __WD_V=125 beacon ×1, wdDeselectCountry ×4, wd-quiet ×7, wd_presence ×3; md5(live)=md5(commit f394b2f)=f3d4fe0b… (byte-identical)
+
+Stage Summary:
+- V125 fully LIVE on production — 4 reported bugs (yellow-stuck / tap-lag / heat / online-list-self-only) shipped
+- PAT stored and proven; do not commit token into repo (secret-scan gate stays)
+- Next candidate: if owner still feels heat on specific devices, tune wd-quiet selector list; wd_ambient=on localStorage is the per-user escape hatch
