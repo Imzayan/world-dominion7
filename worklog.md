@@ -2754,3 +2754,23 @@ Stage Summary:
 - چت خصوصی، دوستان، مسدودی، اعلان، پروفایل، دستاورد، حضور زنده = بک‌اند واقعی روی دیتابیس؛ بدون سرویس خارجی (polling هوشمند + دلتا)
 - دیپلوی: push به dev+main؛ پس از لایو، راه‌اندازی jداول جدید خودکار با prisma db push در vercel-build انجام می‌شود
 - نکته برای مالک: TOKEN ورسل به scope world-dominion دسترسی ندارد (403) — دیپلوی از طریق Git Integration انجام می‌شود
+
+---
+Task ID: V125-TOUCH-BUGS
+Agent: Super Z (main)
+Task: گزارش کاربر «لمس لگ دارد، گوشی داغ می‌شود، آنلاین‌ها فقط خودم، زرد انتخاب پاک نمی‌شود»
+
+Work Log:
+- ریشه‌یابی «زرد پاک نمی‌شود»: activeEngName بعد از بستن کشو مقدار می‌ماند و applyCountryColor همان کشور را همیشه #ffcc00 می‌کشید (۳ مسیر بستن فقط class را برمی‌داشتند) → wdDeselectCountry جدید: صفر کردن انتخاب + بازپختن فقط همان یک کشور
+- ریشه‌یابی «لگ لمس کشور»: (۱) استورم Dim نسخه‌ی V61/V124 — اولین انتخاب تا ~۱۷۷ setStyle به رندرر Canvas می‌داد = بازکشیدن کامل بوم در ۱۳ فریم متوالی (هر setStyle روی Canvas کل لایه را دوباره می‌کشد؛ chunking rAF فقط برای SVG مفید بود)؛ wdDimOf → تابع هویت. (۲) hover mouseover/mouseout روی موبایل شبیه‌سازی می‌شد = ۲ setStyle اضافه به‌ازای هر تپ → فقط pointer:fine. (۳) تاخیر لمس دریا ۲۸۰→۱۲۰ms. (۴) touch-action:manipulation + tap-highlight:transparent
+- ریشه‌یابی «گرمای گوشی»: ~۱۴۸ انیمیشن infinite CSS؛ همیشه‌روشن‌ها (v12-map-fx اقیانوس/رادار روی کل نقشه، wd10Pulse دکمه فرمانده، wd10Live، wd-pulse-gold مالیات، wd-navglow) GPU را ۲۴/۷ در ۶۰fps نگه می‌داشتند → Governor جدید: html.wd-quiet (خودکار روی pointer:coarse یا دستگاه ضعیف، خروج با localStorage wd_ambient=on) + html.wd-tabhidden = توقف همه انیمیشن‌ها وقتی بازی در پس‌زمینه است
+- ریشه‌یابی «آنلاین‌ها فقط خودم»: هیچ کلاینتی wd_presence را صدا نمی‌زد → presence خالی → onlineByServer() همیشه {} + فهرست بازیکنان renderSrv از حافظه‌ی محلی OTH (فقط بازیکنانی که همین گوشی دیده) ساخته می‌شد → نبض ۵۰ثانیه‌ای + لحظه ورود/بازگشت‌تب؛ فهرست جدید: «🟢 آنلاین‌های سرور» از presence واقعی + «👥 ساکنان سرور» از جدول scores (top20) + شمارنده‌های wd96-onl-* بالاخره پر می‌شوند (تا امروز همیشه «…»)
+- misc: transition:all×3 → property خاص، sync فاب تلگرام بدون DOM-write بی‌دلیل (گارد __wd110Last)
+- bump v124→v125 (بیکون + ۷×?v + v.txt)
+- QA: check-html-js 98 اسکریپت/۰ خطا (سقف مجاز قبلی ۹۷ → حالا صفر)، verify-build 9/9
+- Smoke مرورگر محلی: V125 بوت، ۱۸۰ کشور، صفر خطای کنسول؛ چرخه انتخاب/لغو: Armenia → #ffcc00 + کشو باز → لغو → hsl(0,0%,44%) + کشو بسته + activeEngName=null؛ renderSrv/presence/paint در حالت مهمان بدون خطا
+
+Stage Summary:
+- هر ۴ باگ گزارشی ریشه‌یابی و بسته شد؛ بدون دست‌زدن به منطق سالم بازی
+- PUSH معلق: credential سندباکس ریست شده (پیش‌آمد V112) — کامیت 5abe310 روی dev آماده؛ منتظر PAT از مالک، سپس push dev+main و لایو خودکار Vercel
+- نیازمندی سرور جدید: هیچ — RPC wd_presence از V124 روی production لایو است
