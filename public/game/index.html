@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=124;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=124"></script>
+  <script>window.__WD_V=125;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=125"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1955,11 +1955,9 @@ function onCountryClick(feature, layer) {
   applyCountryColor(activeEngName);
   /* V61+V124: اولین انتخاب کل نقشه را dim می‌کند — ولی «تکه‌تکه» در rAF (۱۴ کشور در هر فریم)
      تا بازکشیدن کامل بوم در همان فریمی که کشو باز می‌شود، فریم‌دراپ نگیرد */
-  if(!window.__wdDimOn){window.__wdDimOn=true;
-    try{const ns=Object.keys(layersByName).filter(n=>n!==activeEngName);let di=0;
-      (function dimStep(){const end=Math.min(di+14,ns.length);
-        for(;di<end;di++){try{applyCountryColor(ns[di])}catch(e){}}
-        if(di<ns.length)requestAnimationFrame(dimStep)})()}catch(e){}}
+  /* V125 PERF-FIX: استورم Dim حذف شد — قبلاً با اولین انتخاب، تا ۱۷۷ کشور با setStyle رنگ دوباره
+     می‌گرفتند (هر setStyle با رندرر Canvas = بازکشیدن کامل بوم = لگ محسوس لمس کشور و گرمای گوشی.
+     حالا انتخاب فقط ۲ کشور را رنگ می‌کند: قبلی + جدید — لمس فوری و روان ۶۰fps */
 
   const defShown = (occ > 0 && occ < 100) ? Math.round(c.def * (1 - occ / 100)) : c.def;
 
@@ -1990,6 +1988,16 @@ function onCountryClick(feature, layer) {
   const cd=document.getElementById("country-drawer"); if(cd) cd.classList.add("open");
   try{for(const h of WD_CLICK_HOOKS.post){h(feature,layer)}}catch(e){console.error('wd-click-post',e)}
 }
+
+/* V125 BUGFIX «رنگ زرد پاک نمی‌شود»: تا امروز activeEngName بعد از بستن کشو هم مقدار داشت و
+   applyCountryColor همان کشور را همیشه زرد نگه می‌داشت. حالا بستن کشو = لغو انتخاب رسمی:
+   activeEngName صفر می‌شود و رنگ همان یک کشور (نه کل نقشه) به حالت پایه برمی‌گردد. */
+window.wdDeselectCountry = function () {
+  try{const cd=document.getElementById("country-drawer"); if(cd) cd.classList.remove("open");}catch(e){}
+  const prev = activeEngName;
+  activeEngName = null;
+  if (prev) { try{applyCountryColor(prev);}catch(e){} }
+};
 
 function claimCapital(engName) {
   myCountryName = engName; conqueredCountries.add(engName);
@@ -2190,7 +2198,8 @@ function bindStaticListeners() {
   });
 
   document.getElementById("close-drawer-btn").addEventListener("click", () => {
-    const cd2=document.getElementById("country-drawer"); if(cd2) cd2.classList.remove("open");
+    if(window.wdDeselectCountry)window.wdDeselectCountry(); /* V125: لغو انتخاب = پاک شدن زرد */
+    else {const cd2=document.getElementById("country-drawer"); if(cd2) cd2.classList.remove("open");}
   });
 
   document.querySelectorAll(".lobby-tab-btn").forEach(btn => {
@@ -2306,8 +2315,10 @@ function setFlag(n){const f=FL[n];if(!f||!f.el||!f.el.isConnected)return;const o
 window.WD_COLOR_HOOKS={after:[]};
 /* V61: Dim ملایم — بعد از اولین انتخاب، بقیه‌ی کشورها کمی محو می‌شوند تا فقط کشور انتخاب‌شده بدرخشد.
    تک‌منبع: این کمکی در سه نقاش مصرف می‌شود (پایه، هوک هوی خودی، paintOther). ضریب .82 = «کمی Dim» */
-function wdDimOf(n){const off=(typeof activeEngName!=='undefined')&&activeEngName&&activeEngName!==n;
-  return off?(o=>Math.round(o*.82*100)/100):(o=>o)}
+/* V125 PERF-FIX: Dim ملایم (کاهش ۱۸٪ شفافیت بقیه کشورها) کلاً غیرفعال شد — همان تابعِ هویت.
+   علت: هر انتخاب کشور ~۱۷۷ setStyle به رندرر Canvas می‌داد = بازکشیدن کامل بوم در ۱۳ فریم پشت‌سرهم
+   = لگ لمس + گرمای گوشی. قرارداد dm() حفظ شده تا سه نقاشِ مصرف‌کننده بدون تغییر کار کنند */
+function wdDimOf(n){return (o=>o)}
 function applyCountryColor(n){const l=layersByName[n];if(!l)return;const s=statusOf(n),occ=occupationPct[n]||0,dm=wdDimOf(n);
   if(s==='capital')l.setStyle({fillColor:'#00d97e',fillOpacity:dm(.75),color:'#fff',weight:2.5});
   else if(s==='conquered')l.setStyle({fillColor:'#12b5e5',fillOpacity:dm(.72),color:'#fff',weight:2});
@@ -2418,7 +2429,8 @@ async function attackTarget(n){
   $("battle-title").textContent=`⚔️ نبرد برای ${t.fa}`;$("battle-pct-label").textContent=Math.round(occ)+"%";
   const bar=$("battle-progress-bar"),txt=$("battle-result-text");bar.style.transition="none";bar.style.width=occ+"%";
   txt.textContent="🚢 نیروها در حال اعزام به جبهه...";$("battle-close-btn").style.display="none";
-  $("country-drawer").classList.remove("open");openModal("m-battle");updateUI();
+  if(window.wdDeselectCountry)window.wdDeselectCountry();else $("country-drawer").classList.remove("open"); /* V125 */
+  openModal("m-battle");updateUI();
   try{window.wd51BattleArm&&window.wd51BattleArm()}catch(e){}
   const g=getG(n);if(map&&g)map.flyToBounds([[g.s,g.w],[g.n,g.e]],{maxZoom:4,duration:1.2,paddingBottomRight:[0,220]});
   await sleep(650);const line=atkLine(n),def0=t.def*1.25*(window.__wdDebuff&&window.__wdDebuff[n]&&window.__wdDebuff[n].until>Date.now()?(1-window.__wdDebuff[n].pct):1);
@@ -3289,6 +3301,7 @@ async function onlineLogin(n,p,m){const r=await sb.auth.signInWithPassword({emai
   const u=r.data.user;await enterOnline(u,(u.user_metadata&&u.user_metadata.nick)||n)}
 async function enterOnline(u,nick){ACC.nick=nick;ACC.uid=u.id;LS.set('wd_seen','1');
   A$('auth').classList.remove('active');showChip(nick);
+  try{if(window.wdPresenceBeat)wdPresenceBeat(true)}catch(e){} /* V125: نبض حضور — همین اول وارد شو */
   try{const r=await sb.from('saves').select('state,updated_at').eq('user_id',u.id).maybeSingle();
     if(r.error)throw r.error;
     if(r.data&&r.data.state){restoreState(r.data.state);ACC.last=JSON.stringify(r.data.state);ACC.ver=r.data.updated_at}
@@ -3461,14 +3474,43 @@ rankOnline=async function(box){box.append(mk('div','🌍 رتبه‌بندی س�
   m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span>🖥️ سرورها</span><span class="close-modal" style="cursor:pointer;font-size:18px;">✕</span></div><div id="srv-body"></div></div>';document.body.appendChild(m)})();
 function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';
   b.append(el('div','هر سرور یک دنیای مشترک است. وقتی ۸۰ کشور در یک سرور تصرف شود، سرور بعدی خودکار باز می‌شود و بازیکنان جدید به آن می‌روند. سرور 🧪 تستی برای عرضه‌ی عمومی نگه داشته شده و ورود به آن بسته است.','sites-sub'));
+  const O=window.WD_ONLINE||null;
   for(let k=1;k<=SRV_COUNT;k++){const t=taken(k),p=(STATS[k]&&STATS[k].players)||0,open=srvOpen(k),full=t>=SRV_CAP,ts=isTst(k);
+    const onl=O&&O.at?O.servers[k]:undefined;
     const r=el('div','','lobby-item'+(k===SRV?' me':''));
     r.append(el('div','سرور '+faNum(k)+(k===SRV?' (تو اینجایی)':'')+(ts?' 🧪':'')+' — '+faNum(t)+'/'+faNum(SRV_CAP)+' کشور • '+faNum(p)+' بازیکن','lobby-item-text'));
-    r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':!open?'🔒 قفل':full?'✅ پر':'🟢 باز','lobby-item-sub'));b.append(r)}
-  const cnt={};Object.values(OTH).forEach(o=>cnt[o.nick]=(cnt[o.nick]||0)+1);if(ACC.nick)cnt[ACC.nick]=(cnt[ACC.nick]||0)+DBMINE.size;
-  b.append(el('div','👥 بازیکنان سرور '+SRV,'sites-h'));
-  const ps=Object.keys(cnt).sort((a,c)=>cnt[c]-cnt[a]);if(!ps.length)b.append(el('div','هنوز کسی کشوری نگرفته.','sites-sub'));
-  ps.forEach(n=>{const r=el('div','','lr-row'+(n===ACC.nick?' me':''));r.append(el('span',n),el('span',cnt[n]+' کشور'));b.append(r)})}
+    r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':!open?'🔒 قفل':full?'✅ پر':'🟢 باز','lobby-item-sub'));
+    if(typeof onl==='number')r.append(el('div','🟢 '+faNum(onl)+' بازیکن آنلاین همین حالا','lobby-item-sub')); /* V125 */
+    b.append(r)}
+  /* V125 BUGFIX «فقط خودم را نشان می‌دهد»: تا امروز این فهرست از حافظه‌ی محلی مرورگر (OTH)
+     ساخته می‌شد — فقط بازیکنانی که همین گوشی با آن‌ها کار کرده بود را می‌دید.
+     حالا دو گروه واقعی از سرور می‌آید: آنلاین‌ها از presence و ساکنان از جدول scores */
+  b.append(el('div','🟢 آنلاین‌های سرور '+SRV,'sites-h'));
+  const ol=document.createElement('div');ol.id='srv-online';b.append(ol);
+  const fresh=O&&O.at&&(Date.now()-O.at)<180000;
+  if(!fresh){ol.append(el('div','در حال دریافت آنلاین‌ها…','sites-sub'));try{wdPresenceBeat(true)}catch(e){}}
+  else{
+    const me=(ACC&&ACC.nick)||'',list=(O.players||[]).slice();
+    if(me&&list.indexOf(me)<0)list.unshift(me);
+    if(!list.length)ol.append(el('div','الان کسی آنلاین نیست — بعداً سر بزن.','sites-sub'));
+    else list.forEach(n=>{const r=el('div','','lr-row'+(n===me?' me':''));r.append(el('span','🟢 '+n),el('span',n===me?'تو':'آنلاین'));ol.append(r)});
+    ol.append(el('div','مجموع آنلاین همه‌ی سرورها: '+faNum(O.total||0),'sites-sub'))}
+  b.append(el('div','👥 ساکنان سرور '+SRV,'sites-h'));
+  const pl=document.createElement('div');pl.id='srv-res';pl.append(el('div','در حال دریافت…','sites-sub'));b.append(pl);
+  if(typeof sb!=='undefined'&&sb&&typeof SRV==='number'){
+    sb.from('scores').select('nick,conquered').eq('server',SRV).order('conquered',{ascending:false}).limit(20)
+      .then(function(res){pl.textContent='';
+        const rows=(res&&res.data)||[];
+        if(!rows.length){pl.append(el('div','هنوز کسی این جهان را نساخته.','sites-sub'));return}
+        rows.forEach(x=>{const r=el('div','','lr-row'+(x.nick===ACC.nick?' me':''));r.append(el('span',x.nick),el('span',faNum(x.conquered||0)+' کشور'));pl.append(r)})})
+      .catch(function(){pl.textContent='';pl.append(el('div','دریافت فهرست ساکنان ناموفق بود — اینترنت را چک کن.','sites-sub'))});
+  }else{
+    pl.textContent='';
+    const cnt={};Object.values(OTH).forEach(o=>cnt[o.nick]=(cnt[o.nick]||0)+1);if(ACC.nick)cnt[ACC.nick]=(cnt[ACC.nick]||0)+DBMINE.size;
+    const ps=Object.keys(cnt).sort((a,c)=>cnt[c]-cnt[a]);
+    if(!ps.length)pl.append(el('div','برای دیدن بازیکنان باید آنلاین باشی.','sites-sub'));
+    ps.forEach(n=>{const r=el('div','','lr-row'+(n===ACC.nick?' me':''));r.append(el('span',n),el('span',faNum(cnt[n])+' کشور'));pl.append(r)})}
+}
 function renderSrvChip(){const c=S$('hud-srv'),t=S$('hud-t2');if(c)c.textContent=(window.WDS&&window.WDS.srvLabel)?window.WDS.srvLabel():(MP_OK===true?'🖥️ '+SRV+' ('+taken(SRV)+'/'+SRV_CAP+')':'🖥️ —');
   if(t){const n=conqueredCountries.size;t.textContent='🏴 '+n;t.title=n+' کشور'}}
 addEventListener('load',()=>{const s=S$('hud-strip');if(!s)return;
@@ -3477,6 +3519,43 @@ addEventListener('load',()=>{const s=S$('hud-strip');if(!s)return;
   const info=document.createElement('div');info.id='hud-info';document.body.appendChild(info);
   const d=S$('hud-date');if(d&&!(d.parentNode&&d.parentNode.className==='wd101b-rows'))info.append(d);const tb=S$('tn-bar');if(tb&&tb.parentNode)info.append(tb.parentNode);
   setInterval(function(){if(!document.hidden)renderSrvChip()},4000)});
+
+/* ===== V125: حضور واقعی — نبض ۵۰ ثانیه‌ای به wd_presence + شمارنده‌های آنلاین =====
+   تا امروز هیچ کلاینتی wd_presence را صدا نمی‌زد؛ جدول presence خالی می‌ماند و
+   «آنلاین‌های سرور» همیشه یا خالی یا فقط خودِ بازیکن نمایش داده می‌شد. */
+window.WD_ONLINE={servers:{},total:0,players:[],at:0};
+window.wdPresenceBeat=async function(force){
+  try{
+    if(typeof sb==='undefined'||!sb)return;
+    if(!ACC||!ACC.uid)return;
+    if(typeof SRV!=='number')return;
+    if(document.hidden&&!force)return;
+    const r=await sb.rpc('wd_presence',{p_server:SRV,p_status:document.hidden?'idle':'online'});
+    const d=r&&r.data;
+    if(d&&typeof d==='object'){
+      window.WD_ONLINE.servers={};
+      (d.servers||[]).forEach(s=>{window.WD_ONLINE.servers[s.server]=s.online||0});
+      window.WD_ONLINE.total=d.total||0;
+      window.WD_ONLINE.players=(d.players||[]).map(p=>p.nick).filter(Boolean);
+      window.WD_ONLINE.at=Date.now();
+      try{window.wdPaintOnlineCounts()}catch(e){}
+      try{const m=document.getElementById('m-srv');if(m&&m.classList.contains('active'))renderSrv()}catch(e){}
+    }
+  }catch(e){console.log('presence',e)}
+};
+window.wdPaintOnlineCounts=function(){ /* هر شمارنده‌ی «بازیکن آنلاین» که در صفحه هست پر می‌شود */
+  const O=window.WD_ONLINE;if(!O||!O.at)return;
+  try{
+    document.querySelectorAll('[id^="wd96-onl-"]').forEach(b=>{
+      const k=Number(String(b.id).replace('wd96-onl-',''));if(!k)return;
+      const n=O.servers[k];if(typeof n==='number')b.textContent=faNum(n);
+    });
+    const hb=document.getElementById('wd-onl-total');
+    if(hb)hb.textContent=faNum(O.total||0);
+  }catch(e){}
+};
+setInterval(function(){wdPresenceBeat()},50000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)wdPresenceBeat(true)},{passive:true});
    </script>
    <script>
     /* ===== Admin panel: sends resource GRANTS. The database decides who is admin (public.is_admin); the player receives the grant on his next sync ===== */
@@ -6026,13 +6105,17 @@ function mapUpgrade(){
     for(var lon=-180;lon<180;lon+=20){gl.push(L.polyline([[-85,lon],[85,lon]],{color:'#7fb4dd',weight:.35,opacity:.10,interactive:false,pane:'tilePane'}));}
     gl.forEach(function(l){l.addTo(map)});
   }catch(e){console.log('graticule',e)}
-  /* 2) hover glow on countries */
+  /* 2) hover glow on countries — V125: فقط دسکتاپ. روی موبایل هر تپ، mouseover/mouseout شبیه‌سازی‌شده
+     تولید می‌کرد = ۲ setStyle اضافه (۲ بازکشیدن کامل بوم Canvas) به‌ازای هر لمس کشور = لگ */
   try{
-    Object.keys(layersByName).forEach(function(n){
-      var l=layersByName[n];
-      l.on('mouseover',function(){ if(!l._wdHover&&n!==activeEngName){l._wdHover=true;try{l.setStyle({weight:2,color:'#eaf6ff',opacity:.95,fillOpacity:Math.min(1,(l.options.fillOpacity||.9)+.06)})}catch(e){}} });
-      l.on('mouseout',function(){ l._wdHover=false;try{applyCountryColor(n)}catch(e){} });
-    });
+    var finePointer=false;try{finePointer=!!(window.matchMedia&&window.matchMedia('(pointer:fine)').matches)}catch(e2){}
+    if(finePointer){
+      Object.keys(layersByName).forEach(function(n){
+        var l=layersByName[n];
+        l.on('mouseover',function(){ if(!l._wdHover&&n!==activeEngName){l._wdHover=true;try{l.setStyle({weight:2,color:'#eaf6ff',opacity:.95,fillOpacity:Math.min(1,(l.options.fillOpacity||.9)+.06)})}catch(e){}} });
+        l.on('mouseout',function(){ l._wdHover=false;try{applyCountryColor(n)}catch(e){} });
+      });
+    }
   }catch(e){console.log('hover',e)}
   /* 3) Persian labels per zoom tier */
   var labelMarkers={};
@@ -7063,7 +7146,7 @@ function drawerIsOpen(){var d=D.getElementById('country-drawer');return !!(d&&d.
       pulseAt(e.latlng);haptic();
       var beforeName='';try{beforeName=(D.getElementById('c-name')||{}).textContent||''}catch(err){}
       var wasOpen=drawerIsOpen();
-      setTimeout(function(){
+      setTimeout(function(){ /* V125: ۲۸۰→۱۲۰ میلی‌ثانیه — لغو با لمس دریا سریع‌تر حس می‌شود */
         var nowName='';try{nowName=(D.getElementById('c-name')||{}).textContent||''}catch(err){}
         if(drawerIsOpen()&&nowName!==beforeName)return;   /* a country layer already reacted with a NEW country */
         var hit=null;
@@ -7074,10 +7157,11 @@ function drawerIsOpen(){var d=D.getElementById('country-drawer');return !!(d&&d.
         }else{
           try{if(window.WD30_CANCEL_TARGET&&window.WD30_CANCEL_TARGET())return}catch(err){}   /* لمس دریا = لغو حالت هدف‌گیری */
           if(wasOpen){
-            try{D.getElementById('country-drawer').classList.remove('open')}catch(err){}
+            if(window.wdDeselectCountry){try{window.wdDeselectCountry()}catch(err){}} /* V125: لغو انتخاب = پاک شدن زرد */
+            else try{D.getElementById('country-drawer').classList.remove('open')}catch(err){}
           }
         }
-      },280);
+      },120);
     });
   },400);
 })();
@@ -9601,6 +9685,8 @@ async function refreshServer(){
           '<div class="wd31-mini" style="margin-top:5px">🏴 '+faN(t)+'/'+faN(CAP)+' کشور • 👥 '+faN(p2)+' بازیکن</div>';
         sg.appendChild(c)}}
       try{window.WDSI_SRV&&window.WDSI_SRV.paint()}catch(e){}
+      try{window.wdPaintOnlineCounts&&window.wdPaintOnlineCounts()}catch(e){} /* V125: شمارنده‌ی آنلاین هر سرور */
+      try{window.wdPresenceBeat&&window.wdPresenceBeat(true)}catch(e){} /* V125: داده‌ی تازه، بعد از ساخت کارت‌ها */
   }catch(e){console.log('v31srv',e)}}
 window.WD31_SERVER=function(){openPage('wd-srvpage','click');refreshServer();
   if(srvT)clearInterval(srvT);srvT=setInterval(refreshServer,20000)};
@@ -10095,7 +10181,7 @@ setTimeout(placeCrown,12000);setInterval(()=>{if(!document.hidden)placeCrown()},
 .gm35-stamp{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%) rotate(-12deg) scale(3);font-size:26px;font-weight:900;color:#ff5d7e;
   border:4px solid #ff5d7e;border-radius:12px;padding:4px 16px;background:rgba(20,2,8,.8);z-index:56;animation:wg35Stamp .45s cubic-bezier(.3,1.4,.5,1) both}
 @keyframes wg35Stamp{from{transform:translate(-50%,-50%) rotate(-12deg) scale(3);opacity:0}to{transform:translate(-50%,-50%) rotate(-12deg) scale(1);opacity:1}}
-.gm35-glide{position:absolute;z-index:57;font-size:clamp(14px,4.6vw,22px);pointer-events:none;transition:all .6s cubic-bezier(.3,.9,.3,1)}
+.gm35-glide{position:absolute;z-index:57;font-size:clamp(14px,4.6vw,22px);pointer-events:none;transition:transform .6s cubic-bezier(.3,.9,.3,1)} /* V125: transition:all حذف شد */
 
 </style>
 <script id="v33-games">
@@ -11155,7 +11241,7 @@ window.WD33_CEREMONY_DONE=function(fn){cerDone=fn};
 .w38-mark::before{content:'';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:1.5px;height:9px;background:rgba(255,255,255,.4)}
 .w38-finish{position:absolute;right:6px;top:0;bottom:0;width:7px;z-index:3;
   background:repeating-linear-gradient(45deg,#fff 0 5px,#15181e 5px 10px);border-radius:3px;box-shadow:0 0 12px rgba(255,255,255,.5)}
-.w38-tape{position:absolute;right:13px;top:50%;height:3px;width:64px;background:linear-gradient(90deg,#ff5d7e,#ffd75e);transform-origin:right center;transition:all .25s ease-out;z-index:3;box-shadow:0 0 8px rgba(255,93,126,.7)}
+.w38-tape{position:absolute;right:13px;top:50%;height:3px;width:64px;background:linear-gradient(90deg,#ff5d7e,#ffd75e);transform-origin:right center;transition:transform .25s ease-out;z-index:3;box-shadow:0 0 8px rgba(255,93,126,.7)} /* V125 */
 .w38-tape.broken{width:0!important;opacity:0}
 .w38-meter{display:inline-block;margin-top:9px;padding:3px 13px;border-radius:99px;font-size:11.5px;font-weight:900;color:#7fd8ff;
   background:rgba(20,40,70,.6);border:1px solid rgba(120,190,255,.35);font-variant-numeric:tabular-nums}
@@ -11194,7 +11280,7 @@ window.WD33_CEREMONY_DONE=function(fn){cerDone=fn};
 /* chess grandmaster clock */
 .w38-clock{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:3px 12px;border-radius:99px;font-size:11px;font-weight:900;color:#cfe3ff;
   background:rgba(10,18,36,.75);border:1px solid rgba(120,170,230,.35);font-variant-numeric:tabular-nums}
-.w38-piece-fly{position:absolute;font-size:26px;z-index:60;pointer-events:none;text-shadow:0 4px 8px rgba(0,0,0,.6);transition:all .55s cubic-bezier(.3,1,.4,1)}
+.w38-piece-fly{position:absolute;font-size:26px;z-index:60;pointer-events:none;text-shadow:0 4px 8px rgba(0,0,0,.6);transition:transform .55s cubic-bezier(.3,1,.4,1),opacity .55s ease} /* V125 */
 .w38-say{animation:w38Say .3s ease both}
 @keyframes w38Say{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 </style>
@@ -11506,7 +11592,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=124';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=125';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -18417,7 +18503,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=124';
+              s.src='/game/cv-engine.js?v=125';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18428,7 +18514,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=124"></script>
+<script src="/game/oly3.js?v=125"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18442,7 +18528,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=124';
+      s.src='/game/oly3d.js?v=125';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19682,8 +19768,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=124"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=124"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=125"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=125"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -19967,10 +20053,14 @@ var fa=function(n){return String(Math.max(0,Number(n)||0)).replace(/\d/g,functio
 var TG_GEMS=20;
 var PLANE='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.6 3.2 2.9 10.4c-1 .4-1 1.8.1 2.1l4.6 1.4 1.7 5.3c.3.9 1.4 1.1 2 .4l2.5-2.6 4.7 3.4c.8.6 1.9.2 2.1-.8l2.6-15.1c.2-1-.8-1.7-1.6-1.3ZM9.3 13.5l8.8-5.6c.3-.2.6.2.4.4l-7.2 6.7-.3 3-1.7-4.5Z" fill="#fff"/></svg>';
 var fab=null,tries=0;
+var __wd110Last=null;
 function sync(){
   if(!fab)return;
   var done=window.WD86_TG===true;
   try{var g=S('wd86-gift');if(g&&g.classList.contains('wd86-done'))done=true}catch(e){}
+  var st=done?'1':'0';
+  if(st===__wd110Last)return; /* V125: بدون تغییر = هیچ دستکاری DOM (قبلاً هر ۱.۵ ثانیه دو toggle می‌خورد) */
+  __wd110Last=st;
   fab.classList.toggle('wd110-done',done);
   fab.classList.toggle('wd110-live',!done);
 }
@@ -19997,6 +20087,38 @@ function build(){
 function boot(){tries++;if(build())return;if(tries<30)setTimeout(boot,500)}
 if(D.readyState==='complete'||D.readyState==='interactive')boot();else D.addEventListener('DOMContentLoaded',boot);
 setInterval(sync,1500);
+})();
+</script>
+<style id="wd125-perf">
+/* ===== V125 PERF GOVERNOR — بازی سبک‌تر و خنک‌تر روی موبایل =====
+   wd-quiet: حلقه‌های تزئینیِ «همیشه‌روشن» روی دستگاه لمسی/ضعیف قطع می‌شوند؛
+   ظاهر ثابت (گرادیان‌ها، رنگ‌ها، بوردرها) دست‌نخورده می‌ماند — فقط انیمیشن‌های بی‌پایانِ محیطی.
+   این‌ها همان عامل اصلی «گرم شدن گوشی» بودند: GPU ساعت‌ها بی‌وقفه در ۶۰fps کار می‌کرد.
+   خروج اضطراری برای هر کاربری: localStorage['wd_ambient']='on' */
+html{-webkit-tap-highlight-color:transparent}
+body,button,.action-btn,.nav-btn,.close-modal,.modal,.modal-card,.hchip,.lobby-item,.country-drawer,.bottom-nav,.wd7-tool{touch-action:manipulation}
+html.wd-quiet #v12-map-fx,html.wd-quiet #waves{display:none!important}
+html.wd-quiet .action-btn::after{animation:none!important;display:none!important}
+html.wd-quiet #wd7-btn::after,html.wd-quiet .wd10-live-dot{animation:none!important}
+html.wd-quiet #act-tax:not([disabled]),html.wd-quiet #act-un-aid:not([disabled]){animation:none!important}
+html.wd-quiet .nav-btn.wd-ready span:first-child{animation:none!important;filter:none!important}
+/* وقتی بازی در پس‌زمینه است (سوییچ اپ/قفل صفحه) همه‌ی انیمیشن‌ها متوقف = صفر مصرف */
+html.wd-tabhidden *,html.wd-tabhidden *::before,html.wd-tabhidden *::after{animation-play-state:paused!important;transition:none!important}
+</style>
+<script id="wd125-governor">
+/* ===== V125 PERF GOVERNOR — فعال‌ساز خودکار ===== */
+(function(){'use strict';
+ try{
+  var de=document.documentElement,opt=null;
+  try{opt=localStorage.getItem('wd_ambient')}catch(e){}
+  var coarse=false,weak=false;
+  try{coarse=!!(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)}catch(e){}
+  try{weak=(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4)||(window.innerWidth||0)<480}catch(e){}
+  if((coarse||weak)&&opt!=='on')de.classList.add('wd-quiet');
+  var setH=function(){try{de.classList.toggle('wd-tabhidden',!!document.hidden)}catch(e){}};
+  if(document.addEventListener)document.addEventListener('visibilitychange',setH,{passive:true});
+  setH();
+ }catch(e){}
 })();
 </script>
 </body>
