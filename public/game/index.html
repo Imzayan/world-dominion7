@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=126;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=126"></script>
+  <script>window.__WD_V=127;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=127"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1531,23 +1531,198 @@
     </div>
    </div>
    <script>
+/* ===== V127: دیتابیس واقعی ۱۸۰ کشور =====
+       جمعیت واقعی (برآورد ۲۰۲۴) • def بر پایه‌ی قدرت نظامی واقعی (در گام تعادل بازی) •
+       gold متناسب با اقتصاد (GDP) • oil متناسب با تولید/ذخیره‌ی واقعی • rank خودکار از def */
     const REAL_POWER_DATABASE = {
-  "United States of America": { fa: "آمریکا", def: 9800, pop: "335M", rank: "#1", gold: 12000, oil: 5000 },
-  "China": { fa: "چین", def: 9500, pop: "1.4B", rank: "#2", gold: 11000, oil: 4000 },
-  "Russia": { fa: "روسیه", def: 9200, pop: "144M", rank: "#3", gold: 8000, oil: 9000 },
-  "India": { fa: "هند", def: 8500, pop: "1.4B", rank: "#4", gold: 6000, oil: 2000 },
-  "United Kingdom": { fa: "انگلیس", def: 8200, pop: "67M", rank: "#5", gold: 7000, oil: 1500 },
-  "France": { fa: "فرانسه", def: 8100, pop: "68M", rank: "#6", gold: 6500, oil: 1000 },
-  "Japan": { fa: "ژاپن", def: 8000, pop: "125M", rank: "#7", gold: 9000, oil: 500 },
-  "Pakistan": { fa: "پاکستان", def: 7800, pop: "230M", rank: "#8", gold: 3000, oil: 1000 },
-  "Turkey": { fa: "ترکیه", def: 7700, pop: "85M", rank: "#9", gold: 4500, oil: 1200 },
-  "Iran": { fa: "ایران", def: 7600, pop: "88M", rank: "#10", gold: 5000, oil: 8500 },
-  "Germany": { fa: "آلمان", def: 7500, pop: "84M", rank: "#11", gold: 8500, oil: 800 },
-  "Brazil": { fa: "برزیل", def: 7400, pop: "215M", rank: "#12", gold: 4000, oil: 3000 },
-  "Egypt": { fa: "مصر", def: 7000, pop: "110M", rank: "#14", gold: 3000, oil: 1500 },
-  "Saudi Arabia": { fa: "عربستان", def: 7200, pop: "36M", rank: "#13", gold: 9000, oil: 10000 },
-  "Australia": { fa: "استرالیا", def: 6800, pop: "26M", rank: "#15", gold: 6000, oil: 2500 }
+  "United States of America": { fa: "آمریکا", def: 9800, pop: "335M", gold: 12000, oil: 9500 },
+  "China": { fa: "چین", def: 9500, pop: "1.41B", gold: 11000, oil: 4200 },
+  "Russia": { fa: "روسیه", def: 9200, pop: "144M", gold: 8000, oil: 9000 },
+  "India": { fa: "هند", def: 8500, pop: "1.43B", gold: 6000, oil: 1200 },
+  "United Kingdom": { fa: "انگلیس", def: 8200, pop: "68M", gold: 7000, oil: 1800 },
+  "France": { fa: "فرانسه", def: 8100, pop: "68M", gold: 6500, oil: 100 },
+  "Japan": { fa: "ژاپن", def: 8000, pop: "124M", gold: 9000, oil: 150 },
+  "South Korea": { fa: "کره جنوبی", def: 7950, pop: "52M", gold: 6500, oil: 50 },
+  "Pakistan": { fa: "پاکستان", def: 7800, pop: "240M", gold: 1600, oil: 300 },
+  "Turkey": { fa: "ترکیه", def: 7700, pop: "85M", gold: 4500, oil: 150 },
+  "Iran": { fa: "ایران", def: 7600, pop: "89M", gold: 5000, oil: 8500 },
+  "Israel": { fa: "اسرائیل", def: 7500, pop: "9.8M", gold: 4200, oil: 30 },
+  "Germany": { fa: "آلمان", def: 7500, pop: "84M", gold: 8500, oil: 150 },
+  "Brazil": { fa: "برزیل", def: 7400, pop: "216M", gold: 4000, oil: 4500 },
+  "Italy": { fa: "ایتالیا", def: 7200, pop: "59M", gold: 5500, oil: 150 },
+  "Saudi Arabia": { fa: "عربستان", def: 7200, pop: "36M", gold: 9000, oil: 10000 },
+  "Egypt": { fa: "مصر", def: 7000, pop: "112M", gold: 2500, oil: 1400 },
+  "Indonesia": { fa: "اندونزی", def: 6900, pop: "279M", gold: 4200, oil: 1600 },
+  "Australia": { fa: "استرالیا", def: 6800, pop: "26M", gold: 6000, oil: 1800 },
+  "Ukraine": { fa: "اوکراین", def: 6700, pop: "37M", gold: 1800, oil: 150 },
+  "Spain": { fa: "اسپانیا", def: 6600, pop: "48M", gold: 4800, oil: 50 },
+  "North Korea": { fa: "کره شمالی", def: 6400, pop: "26M", gold: 400, oil: 100 },
+  "Poland": { fa: "لهستان", def: 6500, pop: "37M", gold: 3800, oil: 200 },
+  "Vietnam": { fa: "ویتنام", def: 6200, pop: "99M", gold: 3000, oil: 700 },
+  "Canada": { fa: "کانادا", def: 6000, pop: "40M", gold: 5000, oil: 5500 },
+  "Taiwan": { fa: "تایوان", def: 6000, pop: "23.4M", gold: 7000, oil: 20 },
+  "Thailand": { fa: "تایلند", def: 5800, pop: "72M", gold: 2400, oil: 300 },
+  "Mexico": { fa: "مکزیک", def: 5400, pop: "128M", gold: 4500, oil: 3500 },
+  "Algeria": { fa: "الجزایر", def: 5300, pop: "45M", gold: 2700, oil: 3400 },
+  "United Arab Emirates": { fa: "امارات", def: 5200, pop: "9.5M", gold: 7500, oil: 7000 },
+  "South Africa": { fa: "آفریقای جنوبی", def: 5100, pop: "60M", gold: 2200, oil: 50 },
+  "Netherlands": { fa: "هلند", def: 5000, pop: "17.9M", gold: 4700, oil: 200 },
+  "Nigeria": { fa: "نیجریه", def: 5000, pop: "223M", gold: 2200, oil: 3000 },
+  "Iraq": { fa: "عراق", def: 4800, pop: "45M", gold: 3200, oil: 7500 },
+  "Sweden": { fa: "سوئد", def: 4900, pop: "10.5M", gold: 3800, oil: 0 },
+  "Norway": { fa: "نروژ", def: 4700, pop: "5.5M", gold: 4600, oil: 4000 },
+  "Kazakhstan": { fa: "قزاقستان", def: 4600, pop: "20M", gold: 3000, oil: 3800 },
+  "Argentina": { fa: "آرژانتین", def: 4600, pop: "46M", gold: 3200, oil: 1300 },
+  "Qatar": { fa: "قطر", def: 4500, pop: "2.7M", gold: 6800, oil: 4500 },
+  "Malaysia": { fa: "مالزی", def: 4400, pop: "34M", gold: 3400, oil: 1700 },
+  "Greece": { fa: "یونان", def: 5200, pop: "10.4M", gold: 2700, oil: 20 },
+  "Colombia": { fa: "کلمبیا", def: 4300, pop: "52M", gold: 2300, oil: 1500 },
+  "Finland": { fa: "فنلاند", def: 4200, pop: "5.6M", gold: 2600, oil: 0 },
+  "Philippines": { fa: "فیلیپین", def: 4200, pop: "117M", gold: 2600, oil: 300 },
+  "Azerbaijan": { fa: "جمهوری آذربایجان", def: 4100, pop: "10.2M", gold: 1900, oil: 1800 },
+  "Morocco": { fa: "مراکش", def: 4000, pop: "37M", gold: 1900, oil: 50 },
+  "Myanmar": { fa: "میانمار", def: 4100, pop: "54M", gold: 1300, oil: 300 },
+  "Chile": { fa: "شیلی", def: 3900, pop: "19.6M", gold: 2800, oil: 50 },
+  "Belgium": { fa: "بلژیک", def: 3900, pop: "11.8M", gold: 3500, oil: 0 },
+  "Denmark": { fa: "دانمارک", def: 3700, pop: "5.9M", gold: 3300, oil: 100 },
+  "Venezuela": { fa: "ونزوئلا", def: 3700, pop: "28M", gold: 1600, oil: 6000 },
+  "Switzerland": { fa: "سوئیس", def: 3800, pop: "8.9M", gold: 5200, oil: 0 },
+  "Ethiopia": { fa: "اتیوپی", def: 3800, pop: "126M", gold: 1200, oil: 0 },
+  "Romania": { fa: "رومانی", def: 3800, pop: "19M", gold: 2300, oil: 300 },
+  "Austria": { fa: "اتریش", def: 3600, pop: "9.1M", gold: 3400, oil: 50 },
+  "Peru": { fa: "پرو", def: 3600, pop: "34M", gold: 2200, oil: 50 },
+  "Oman": { fa: "عمان", def: 3600, pop: "4.6M", gold: 4000, oil: 2200 },
+  "Iceland": { fa: "ایسلند", def: 400, pop: "0.39M", gold: 1000, oil: 0 },
+  "Costa Rica": { fa: "کاستاریکا", def: 1500, pop: "5.2M", gold: 1500, oil: 0 },
+  "Republic of Serbia": { fa: "صربستان", def: 3100, pop: "6.6M", gold: 1600, oil: 100 },
+  "Bangladesh": { fa: "بنگلادش", def: 3500, pop: "173M", gold: 1900, oil: 50 },
+  "Portugal": { fa: "پرتغال", def: 3400, pop: "10.3M", gold: 2600, oil: 0 },
+  "Jordan": { fa: "اردن", def: 3400, pop: "11.3M", gold: 1000, oil: 20 },
+  "Kenya": { fa: "کنیا", def: 3400, pop: "55M", gold: 1500, oil: 100 },
+  "Czech Republic": { fa: "چک", def: 3300, pop: "10.9M", gold: 2500, oil: 50 },
+  "Kuwait": { fa: "کویت", def: 3300, pop: "4.3M", gold: 5600, oil: 6500 },
+  "Ecuador": { fa: "اکوادور", def: 3200, pop: "18M", gold: 1700, oil: 1200 },
+  "Uzbekistan": { fa: "ازبکستان", def: 3200, pop: "36M", gold: 1800, oil: 800 },
+  "Sudan": { fa: "سودان", def: 3200, pop: "48M", gold: 800, oil: 600 },
+  "Syria": { fa: "سوریه", def: 3200, pop: "23M", gold: 500, oil: 600 },
+  "Angola": { fa: "آنگولا", def: 2900, pop: "37M", gold: 1400, oil: 2600 },
+  "Tunisia": { fa: "تونس", def: 2900, pop: "12M", gold: 1000, oil: 200 },
+  "Dominican Republic": { fa: "دومینیکن", def: 2800, pop: "11.3M", gold: 1900, oil: 100 },
+  "Bulgaria": { fa: "بلغارستان", def: 2800, pop: "6.4M", gold: 1600, oil: 50 },
+  "Libya": { fa: "لیبی", def: 2800, pop: "6.9M", gold: 1500, oil: 3200 },
+  "Ghana": { fa: "غنا", def: 2700, pop: "34M", gold: 1300, oil: 500 },
+  "Ivory Coast": { fa: "ساحل عاج", def: 2800, pop: "29M", gold: 1600, oil: 100 },
+  "Turkmenistan": { fa: "ترکمنستان", def: 2800, pop: "6.5M", gold: 2000, oil: 2000 },
+  "New Zealand": { fa: "نیوزیلند", def: 2900, pop: "5.2M", gold: 2800, oil: 100 },
+  "Uganda": { fa: "اوگاندا", def: 2700, pop: "48M", gold: 900, oil: 200 },
+  "United Republic of Tanzania": { fa: "تانزانیا", def: 2900, pop: "67M", gold: 1300, oil: 100 },
+  "Cuba": { fa: "کوبا", def: 3000, pop: "11M", gold: 700, oil: 300 },
+  "Hungary": { fa: "مجارستان", def: 3000, pop: "9.6M", gold: 2000, oil: 100 },
+  "Afghanistan": { fa: "افغانستان", def: 2600, pop: "42M", gold: 600, oil: 0 },
+  "Armenia": { fa: "ارمنستان", def: 2600, pop: "3M", gold: 1000, oil: 30 },
+  "Cameroon": { fa: "کامرون", def: 2600, pop: "28M", gold: 900, oil: 400 },
+  "Democratic Republic of the Congo": { fa: "کنگو دموکراتیک", def: 2600, pop: "102M", gold: 800, oil: 200 },
+  "Nepal": { fa: "نپال", def: 2600, pop: "30M", gold: 700, oil: 0 },
+  "Cambodia": { fa: "کامبوج", def: 2600, pop: "17M", gold: 900, oil: 100 },
+  "Belarus": { fa: "بلاروس", def: 3600, pop: "9.2M", gold: 1700, oil: 200 },
+  "Slovakia": { fa: "اسلواکی", def: 2600, pop: "5.4M", gold: 1700, oil: 50 },
+  "Mozambique": { fa: "موزامبیک", def: 1900, pop: "33M", gold: 500, oil: 300 },
+  "Ireland": { fa: "ایرلند", def: 2400, pop: "5.3M", gold: 4000, oil: 0 },
+  "Yemen": { fa: "یمن", def: 2400, pop: "34M", gold: 400, oil: 500 },
+  "Mali": { fa: "مالی", def: 2400, pop: "23M", gold: 500, oil: 100 },
+  "Bolivia": { fa: "بولیوی", def: 2400, pop: "12.4M", gold: 1000, oil: 400 },
+  "Sri Lanka": { fa: "سری‌لانکا", def: 2500, pop: "22M", gold: 1200, oil: 0 },
+  "Croatia": { fa: "کرواسی", def: 2500, pop: "3.9M", gold: 1700, oil: 50 },
+  "Chad": { fa: "چاد", def: 2300, pop: "18M", gold: 400, oil: 500 },
+  "Senegal": { fa: "سنگال", def: 2300, pop: "18M", gold: 800, oil: 100 },
+  "Guatemala": { fa: "گواتمالا", def: 2200, pop: "18M", gold: 1400, oil: 100 },
+  "Mongolia": { fa: "مغولستان", def: 2200, pop: "3.4M", gold: 900, oil: 400 },
+  "Niger": { fa: "نیجر", def: 2200, pop: "27M", gold: 400, oil: 200 },
+  "Tajikistan": { fa: "تاجیکستان", def: 2200, pop: "10M", gold: 600, oil: 100 },
+  "Burkina Faso": { fa: "بورکینافاسو", def: 2000, pop: "23M", gold: 500, oil: 100 },
+  "Lebanon": { fa: "لبنان", def: 2000, pop: "5.4M", gold: 500, oil: 0 },
+  "Bosnia and Herzegovina": { fa: "بوسنی و هرزگوین", def: 1800, pop: "3.2M", gold: 800, oil: 20 },
+  "Uruguay": { fa: "اروگوئه", def: 1800, pop: "3.4M", gold: 1300, oil: 0 },
+  "Eritrea": { fa: "اریتره", def: 1800, pop: "3.7M", gold: 200, oil: 100 },
+  "Zambia": { fa: "زامبیا", def: 1700, pop: "20M", gold: 700, oil: 0 },
+  "Honduras": { fa: "هندوراس", def: 1700, pop: "10.6M", gold: 800, oil: 0 },
+  "Nicaragua": { fa: "نیکاراگوئه", def: 1700, pop: "7M", gold: 500, oil: 50 },
+  "El Salvador": { fa: "السالوادور", def: 1700, pop: "6.4M", gold: 900, oil: 0 },
+  "Mauritania": { fa: "موریتانی", def: 1700, pop: "4.9M", gold: 400, oil: 200 },
+  "Madagascar": { fa: "ماداگاسکار", def: 1700, pop: "30M", gold: 500, oil: 100 },
+  "Moldova": { fa: "مولداوی", def: 1500, pop: "2.5M", gold: 500, oil: 10 },
+  "South Sudan": { fa: "سودان جنوبی", def: 1600, pop: "11M", gold: 300, oil: 800 },
+  "Panama": { fa: "پاناما", def: 1600, pop: "4.5M", gold: 1500, oil: 0 },
+  "Paraguay": { fa: "پاراگوئه", def: 1600, pop: "6.9M", gold: 900, oil: 50 },
+  "Zimbabwe": { fa: "زیمبابوه", def: 1600, pop: "16M", gold: 800, oil: 0 },
+  "Kyrgyzstan": { fa: "قرقیزستان", def: 1900, pop: "7M", gold: 500, oil: 20 },
+  "Albania": { fa: "آلبانی", def: 1900, pop: "2.8M", gold: 600, oil: 100 },
+  "Rwanda": { fa: "رواندا", def: 1900, pop: "14M", gold: 500, oil: 0 },
+  "Republic of the Congo": { fa: "کنگو", def: 1900, pop: "6M", gold: 700, oil: 900 },
+  "Laos": { fa: "لائوس", def: 2100, pop: "7.6M", gold: 600, oil: 100 },
+  "Guinea": { fa: "گینه", def: 2100, pop: "14M", gold: 500, oil: 100 },
+  "Slovenia": { fa: "اسلوونی", def: 2100, pop: "2.1M", gold: 1100, oil: 10 },
+  "Botswana": { fa: "بوتسوانا", def: 1500, pop: "2.7M", gold: 700, oil: 0 },
+  "Namibia": { fa: "نامیبیا", def: 1400, pop: "2.6M", gold: 500, oil: 200 },
+  "Macedonia": { fa: "مقدونیه شمالی", def: 1400, pop: "2.1M", gold: 500, oil: 20 },
+  "Papua New Guinea": { fa: "پاپوآ گینه نو", def: 1400, pop: "10.3M", gold: 700, oil: 300 },
+  "Brunei": { fa: "برونئی", def: 1400, pop: "0.45M", gold: 800, oil: 500 },
+  "Somalia": { fa: "سومالی", def: 1500, pop: "18M", gold: 300, oil: 100 },
+  "Benin": { fa: "بنین", def: 1300, pop: "13.7M", gold: 400, oil: 100 },
+  "Gabon": { fa: "گابن", def: 1300, pop: "2.4M", gold: 700, oil: 700 },
+  "Jamaica": { fa: "جامائیکا", def: 1300, pop: "2.8M", gold: 500, oil: 20 },
+  "Kosovo": { fa: "کوزوو", def: 1300, pop: "1.7M", gold: 400, oil: 0 },
+  "Malawi": { fa: "مالاوی", def: 1100, pop: "21M", gold: 300, oil: 0 },
+  "Togo": { fa: "توگو", def: 1100, pop: "9M", gold: 300, oil: 0 },
+  "Haiti": { fa: "هائیتی", def: 1100, pop: "11.7M", gold: 300, oil: 0 },
+  "Burundi": { fa: "بوروندی", def: 1000, pop: "13M", gold: 200, oil: 0 },
+  "Equatorial Guinea": { fa: "گینه استوایی", def: 1000, pop: "1.7M", gold: 600, oil: 800 },
+  "Montenegro": { fa: "مونته‌نگرو", def: 1000, pop: "0.62M", gold: 300, oil: 0 },
+  "Cyprus": { fa: "قبرس", def: 900, pop: "1.3M", gold: 1300, oil: 0 },
+  "Djibouti": { fa: "جیبوتی", def: 900, pop: "1.1M", gold: 200, oil: 0 },
+  "Central African Republic": { fa: "جمهوری آفریقای مرکزی", def: 900, pop: "5.7M", gold: 200, oil: 0 },
+  "Sierra Leone": { fa: "سیرالئون", def: 900, pop: "8.8M", gold: 200, oil: 50 },
+  "Liberia": { fa: "لیبریا", def: 900, pop: "5.4M", gold: 200, oil: 50 },
+  "Guyana": { fa: "گویان", def: 900, pop: "0.81M", gold: 1300, oil: 2400 },
+  "Somaliland": { fa: "سومالی‌لند", def: 900, pop: "5.7M", gold: 200, oil: 50 },
+  "Bhutan": { fa: "بوتان", def: 900, pop: "0.79M", gold: 200, oil: 0 },
+  "Georgia": { fa: "گرجستان", def: 2200, pop: "3.7M", gold: 900, oil: 30 },
+  "Lesotho": { fa: "لسوتو", def: 600, pop: "2.3M", gold: 150, oil: 0 },
+  "Guinea Bissau": { fa: "گینه بیسائو", def: 600, pop: "2.1M", gold: 100, oil: 0 },
+  "Estonia": { fa: "استونی", def: 1600, pop: "1.37M", gold: 1300, oil: 0 },
+  "Latvia": { fa: "لتونی", def: 1700, pop: "1.88M", gold: 1000, oil: 0 },
+  "Lithuania": { fa: "لیتوانی", def: 1900, pop: "2.87M", gold: 1600, oil: 50 },
+  "Trinidad and Tobago": { fa: "ترینیداد و توباگو", def: 1200, pop: "1.5M", gold: 1200, oil: 800 },
+  "Luxembourg": { fa: "لوکزامبورگ", def: 700, pop: "0.66M", gold: 1500, oil: 0 },
+  "Malta": { fa: "مالت", def: 500, pop: "0.54M", gold: 800, oil: 0 },
+  "Swaziland": { fa: "اسواتینی", def: 700, pop: "1.2M", gold: 200, oil: 0 },
+  "Suriname": { fa: "سورینام", def: 700, pop: "0.62M", gold: 300, oil: 200 },
+  "The Bahamas": { fa: "باهاما", def: 500, pop: "0.41M", gold: 500, oil: 0 },
+  "Belize": { fa: "بلیز", def: 500, pop: "0.41M", gold: 200, oil: 0 },
+  "Gambia": { fa: "گامبیا", def: 500, pop: "2.8M", gold: 150, oil: 0 },
+  "Fiji": { fa: "فیجی", def: 800, pop: "0.93M", gold: 300, oil: 0 },
+  "West Bank": { fa: "کرانه باختری", def: 1200, pop: "5M", gold: 300, oil: 0 },
+  "Puerto Rico": { fa: "پورتوریکو", def: 1000, pop: "3.2M", gold: 700, oil: 0 },
+  "Northern Cyprus": { fa: "قبرس شمالی", def: 400, pop: "0.38M", gold: 100, oil: 0 },
+  "French Guiana": { fa: "گویان فرانسه", def: 400, pop: "0.29M", gold: 300, oil: 0 },
+  "Greenland": { fa: "گرینلند", def: 300, pop: "0.057M", gold: 200, oil: 0 },
+  "New Caledonia": { fa: "کالدونیای جدید", def: 400, pop: "0.27M", gold: 300, oil: 0 },
+  "Western Sahara": { fa: "صحرای غربی", def: 400, pop: "0.6M", gold: 100, oil: 100 },
+  "Falkland Islands": { fa: "جزایر فاکلند", def: 50, pop: "0.0038M", gold: 100, oil: 0 },
+  "French Southern and Antarctic Lands": { fa: "سرزمین‌های جنوبی فرانسه", def: 30, pop: "0.0002M", gold: 50, oil: 0 },
+  "Solomon Islands": { fa: "جزایر سلیمان", def: 400, pop: "0.74M", gold: 150, oil: 0 },
+  "Vanuatu": { fa: "وانواتو", def: 300, pop: "0.33M", gold: 100, oil: 0 },
+  "East Timor": { fa: "تیمور شرقی", def: 700, pop: "1.4M", gold: 150, oil: 300 },
+  "Bermuda": { fa: "برمودا", def: 100, pop: "0.064M", gold: 300, oil: 0 },
+  "Antarctica": { fa: "قطب جنوب", def: 30, pop: "0.001M", gold: 0, oil: 0 }
 };
+/* V127: rank خودکار بر اساس def — یک‌بار در بارگذاری محاسبه می‌شود */
+(function(){
+  try{
+    const ks=Object.keys(REAL_POWER_DATABASE).sort((a,b)=>REAL_POWER_DATABASE[b].def-REAL_POWER_DATABASE[a].def);
+    ks.forEach((k,i)=>{REAL_POWER_DATABASE[k].rank='#'+(i+1)});
+  }catch(e){}
+})();
 
 // آیکن‌ها به‌گونه‌ای انتخاب شدن که تانک/هواپیمای بمب‌افکن/جنگنده/هلیکوپتر/موشک هرکدام ظاهر مجزا داشته باشند
 /* V72 (PHASE 4): اعداد یگان‌ها (قدرت/هزینه/هوایی) فقط از BALANCE.army.units — نام/آیکن محتوای نمایشی است؛ count وضعیت اجراست */
@@ -1963,6 +2138,7 @@ function onCountryClick(feature, layer) {
   activeLayer = layer;
   if (prevActive && prevActive !== activeEngName) applyCountryColor(prevActive);
   applyCountryColor(activeEngName);
+  try{wdFocusOn(activeEngName)}catch(e){}   /* V127: فوکوس CSS تک‌پاس + خط دور درخشان */
   /* V61+V124: اولین انتخاب کل نقشه را dim می‌کند — ولی «تکه‌تکه» در rAF (۱۴ کشور در هر فریم)
      تا بازکشیدن کامل بوم در همان فریمی که کشو باز می‌شود، فریم‌دراپ نگیرد */
   /* V125 PERF-FIX: استورم Dim حذف شد — قبلاً با اولین انتخاب، تا ۱۷۷ کشور با setStyle رنگ دوباره
@@ -2007,6 +2183,7 @@ window.wdDeselectCountry = function () {
   const prev = activeEngName;
   activeEngName = null;
   if (prev) { try{applyCountryColor(prev);}catch(e){} }
+  try{if(window.wdFocusOff)window.wdFocusOff();}catch(e){}   /* V127: خروج از حالت فوکوس */
 };
 
 function claimCapital(engName) {
@@ -2170,9 +2347,24 @@ window.addEventListener('popstate',function(){
     wdBackSync();
   }catch(e){}
 });
-function openModal(id) { const el=document.getElementById(id); if(!el) return;
+/* V127: ناوبری مستقیم — هر openModal یک «سوییچ تمام‌صفحه» است:
+   ۱) همه‌ی مودال‌های فعال دیگر بسته می‌شوند (به‌جز سنجاق‌شده‌ها: نبرد/ورود)
+   ۲) پاپ‌آپ‌های کمکی (کارت بازیکن، پنل آنلاین‌ها) و شیت‌های فرمان بسته می‌شوند
+   ۳) مودال مقصد همیشه روی همه چیز باز می‌شود (z-bump) — هیچ پنلی پشت صفحه‌ی قبلی نمی‌ماند
+   opts.stack=true یعنی «روی قبلی باز شود» (فقط برای فراخوانی‌های خاص) */
+var WD_PINNED_MODAL={ 'm-battle':1, 'auth':1 };
+window.__wdModalZ=10001;
+function openModal(id, opts) { const el=document.getElementById(id); if(!el) return;
+  if(!(opts&&opts.stack)){
+    document.querySelectorAll('.modal.active').forEach(function(m){
+      if(m.id!==id&&!WD_PINNED_MODAL[m.id]) closeModal(m.id);
+    });
+    ['wd95-cardp','wd96-op'].forEach(function(pid){const p=document.getElementById(pid);if(p)p.remove()});
+    ['wd-menu','wd22-sheet'].forEach(function(sid){const s=document.getElementById(sid);if(s)s.classList.remove('open')});
+  }
   const wasActive=el.classList.contains("active"); el.classList.add("active");
   if(!wasActive&&WD_BACK.stack.indexOf(id)<0)WD_BACK.stack.push(id);
+  try{ el.style.zIndex=(++window.__wdModalZ); }catch(e){}   /* V127: تضمین روی-بودن */
   const hs=WD_MODAL_HOOKS[id]; if(hs) for(let i=0;i<hs.length;i++){try{hs[i](id)}catch(e){console.error("modal-hook",id,e)}} wdBackSync(); }
 function wdModalHook(id,fn){ (WD_MODAL_HOOKS[id]=WD_MODAL_HOOKS[id]||[]).push(fn) }
 function closeModal(id) { const el=document.getElementById(id); if(el) el.classList.remove("active");
@@ -2340,6 +2532,29 @@ function applyCountryColor(n){const l=layersByName[n];if(!l)return;const s=statu
   else{const b=baseStyle(n);l.setStyle(occ>0?Object.assign(b,{color:'#ffcc00',weight:2,fillOpacity:dm(b.fillOpacity)}):Object.assign(b,{fillOpacity:dm(b.fillOpacity)}))}
   setFlag(n);
   for(const h of WD_COLOR_HOOKS.after){try{h(n)}catch(e){console.error('wd-color-hook',e)}}}
+/* ===== V127: سیستم فوکوس تک‌منبع — تمرکز بصری بدون هیچ استورمی =====
+   یک فیلتر CSS روی بوم (تک‌پاس GPU، در wd-perf خاموش) + یک polyline دور کشور فعال.
+   برخلاف dim قدیمی، هیچ‌گاه حلقه روی کشورها نمی‌زند؛ هزینه‌ی هر انتخاب ثابت و کم است. */
+let WDF_OUT=null;
+function wdFocusOn(n){
+  try{
+    const mc=map&&map.getContainer?map.getContainer():null;
+    if(mc)mc.classList.add('wd-focus');
+    const l=layersByName[n];
+    if(!l){if(WDF_OUT){try{WDF_OUT.remove()}catch(e){}WDF_OUT=null}return}
+    if(WDF_OUT){try{WDF_OUT.setLatLngs(l.getLatLngs())}catch(e){}}
+    else WDF_OUT=L.polyline(l.getLatLngs(),{interactive:false,keyboard:false,bubblingMouseEvents:false,
+      color:'#ffe27a',weight:2.6,opacity:.95,className:'wd-active-outline'}).addTo(map);
+  }catch(e){console.log('wdf',e)}
+}
+function wdFocusOff(){
+  try{
+    const mc=(typeof map!=='undefined')&&map&&map.getContainer?map.getContainer():null;
+    if(mc)mc.classList.remove('wd-focus');
+    if(WDF_OUT){try{WDF_OUT.remove()}catch(e){}WDF_OUT=null}
+  }catch(e){}
+}
+window.wdFocusOn=wdFocusOn;window.wdFocusOff=wdFocusOff;
 function afterGeo(){try{buildFlags()}catch(e){console.log(e)}}
 
 // ---- deliveries: vehicles move only when the player trades / receives aid ----
@@ -6415,6 +6630,8 @@ var SET={perf:false,labels:true,sound:true};
 try{Object.assign(SET,JSON.parse(localStorage.getItem('wd22_set')||'{}'))}catch(e){}
 function saveSet(){try{localStorage.setItem('wd22_set',JSON.stringify(SET))}catch(e){}}
 function applySet(){
+  /* V127: کلاس روی html هم ست می‌شود — قواعد html.wd-perf (بلاک wd-v14-performance) قبلاً مرده بودند */
+  try{document.documentElement.classList.toggle('wd-perf',!!SET.perf)}catch(e){}
   document.body.classList.toggle('wd-perf',!!SET.perf);
   document.body.classList.toggle('wd-hide-labels',!SET.labels);
   try{if(typeof muted!=='undefined')muted=!SET.sound}catch(e){}
@@ -7196,16 +7413,38 @@ function pip(pt,rings){
   }
   return inside;
 }
+/* V127: ایندکس جعبه‌ی محیطی — pip فقط برای کشورهایی اجرا می‌شود که bboxشان نقطه را دارد (~۵٪) */
+var __wdHitIdx=null;
+function wdHitIndex(){
+  if(__wdHitIdx)return __wdHitIdx;
+  var idx=[];
+  try{
+    var names=Object.keys(layersByName||{});
+    for(var k=0;k<names.length;k++){
+      var l=layersByName[names[k]];
+      if(!l||!l.getLatLngs)continue;
+      var s=90,nn=-90,w=180,e=-180,ok=true;
+      try{
+        var rings=ringsOf(l);
+        for(var r=0;r<rings.length;r++){var rg=rings[r];
+          for(var q=0;q<rg.length;q++){var p=rg[q];if(p.lat<s)s=p.lat;if(p.lat>nn)nn=p.lat;if(p.lng<w)w=p.lng;if(p.lng>e)e=p.lng}}
+      }catch(err){ok=false}
+      if(ok)idx.push({name:names[k],l:l,s:s-.25,nb:nn+.25,wb:w-.25,eb:e+.25});
+    }
+  }catch(e){}
+  __wdHitIdx=idx;
+  return idx;
+}
 function hitTest(latlng){
-  var names=[];try{names=Object.keys(layersByName||{})}catch(e){return null}
-  for(var i=0;i<names.length;i++){
-    var l=layersByName[names[i]];
-    if(!l||!l.getLatLngs)continue;
-    try{if(pip(latlng,ringsOf(l)))return{name:names[i],layer:l}}catch(e){}
+  var idx=wdHitIndex();
+  for(var i=0;i<idx.length;i++){
+    var b=idx[i];
+    if(latlng.lat<b.s||latlng.lat>b.nb||latlng.lng<b.wb||latlng.lng>b.eb)continue;   /* رد سریع با bbox */
+    try{if(pip(latlng,ringsOf(b.l)))return{name:b.name,layer:b.l}}catch(e){}
   }
   return null;
 }
-try{window.wd26HitTest=hitTest}catch(e){}
+try{window.wd26HitTest=hitTest;window.wd26HitIndexReset=function(){__wdHitIdx=null}}catch(e){}
 function drawerIsOpen(){var d=D.getElementById('country-drawer');return !!(d&&d.classList.contains('open'))}
 (function bindMapSafety(){
   var n=0,t=setInterval(function(){
@@ -7217,8 +7456,12 @@ function drawerIsOpen(){var d=D.getElementById('country-drawer');return !!(d&&d.
       var beforeName='';try{beforeName=(D.getElementById('c-name')||{}).textContent||''}catch(err){}
       var wasOpen=drawerIsOpen();
       setTimeout(function(){ /* V125: ۲۸۰→۱۲۰ میلی‌ثانیه — لغو با لمس دریا سریع‌تر حس می‌شود */
+        /* V127: ضدپردازش-دوباره — اگر لایه‌ی کشور به همین لمس پاسخ داد (کشو تازه باز شد یا کشور
+           عوض شد) fallback کاری ندارد. ولی کشوی باز با همان کشور = لمس دریا/نقطه‌ی مرده: رفتار دریا
+           اجرا می‌شود (تاپ تکراری روی همان کشور دیگر دو بار پردازش نمی‌شود) */
+        var nowOpen=drawerIsOpen();
         var nowName='';try{nowName=(D.getElementById('c-name')||{}).textContent||''}catch(err){}
-        if(drawerIsOpen()&&nowName!==beforeName)return;   /* a country layer already reacted with a NEW country */
+        if(nowOpen&&(!wasOpen||nowName!==beforeName))return;
         var hit=null;
         try{hit=hitTest(e.latlng)}catch(err){}
         if(hit){
@@ -11662,7 +11905,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=126';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=127';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -18617,7 +18860,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=126';
+              s.src='/game/cv-engine.js?v=127';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18628,7 +18871,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=126"></script>
+<script src="/game/oly3.js?v=127"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18642,7 +18885,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=126';
+      s.src='/game/oly3d.js?v=127';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19882,8 +20125,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=126"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=126"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=127"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=127"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -20235,5 +20478,31 @@ html.wd-tabhidden *,html.wd-tabhidden *::before,html.wd-tabhidden *::after{anima
  }catch(e){}
 })();
 </script>
+<style id="wd127-css">
+/* ============ V127: پرف + فوکوس + ناوبری مستقیم ============ */
+/* ۱) فوکوس کشور فعال — یک فیلتر تک‌پاس GPU روی بوم. خط دور درخشان = .wd-active-outline */
+.wd-focus .leaflet-map-pane canvas{filter:brightness(.58) saturate(.66)}
+.wd-focus .leaflet-overlay-pane path.wd-active-outline{
+  filter:drop-shadow(0 0 6px rgba(255,215,90,.9)) drop-shadow(0 0 14px rgba(255,190,40,.5));}
+html.wd-perf .wd-focus .leaflet-map-pane canvas{filter:none}
+/* ۲) موبایل: blur تمام‌صفحه روی بوم نقشه گران است — پس‌زمینه‌ی توپک جایگزین می‌شود */
+@media (hover:none),(pointer:coarse){
+  .modal,#wd-menu,#wd22-sheet,#wd-confirm,.wd96-op,.wd95-cardp{
+    backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .modal{background:rgba(2,8,18,.94)!important}
+  #wd-menu,#wd22-sheet{background:rgba(2,8,18,.72)!important}
+  .modal-card{box-shadow:0 18px 44px rgba(0,0,0,.6)!important}
+}
+/* ۳) حالت کارایی: خاموشی کامل حلقه‌های تزئینی */
+html.wd-perf .nav-btn span:first-child,html.wd-perf .res-card i,html.wd-perf .bic-icon,
+html.wd-perf .wd96-fab::before,html.wd-perf .wd96-fdot,html.wd-perf .wd96-orb,
+html.wd-perf #ticker>div,html.wd-perf .wd-own-dash,html.wd-perf #wd-infra-chip,
+html.wd-perf #wd-war-banner,html.wd-perf .rt,html.wd-perf .wd26-pulse,html.wd-perf .wd26-spark{
+  animation:none!important;filter:none!important}
+html.wd-perf #ticker{overflow:hidden}
+/* ۴) سوییچ پنل‌ها: ورود سبک GPU-only */
+.modal{transition:opacity .16s ease!important}
+.modal.active .modal-card{transition:transform .26s cubic-bezier(.18,1.14,.32,1),opacity .2s ease!important;will-change:transform,opacity}
+</style>
 </body>
 </html>
