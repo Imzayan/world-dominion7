@@ -2327,7 +2327,7 @@ async function cvAccrue(userId: string, cv: CvCountryRow, buildings: CvBuildingR
       cvStorageLvl += b.level
     }
     capOil = 6000 + 1200 * terrN + 6000 * (Number(infraJ.storage) || 0) + 2500 * cvStorageLvl
-    capFood = 9000 + 2500 * terrN
+    capFood = 9000 + 2500 * terrN + 5000 * (Number(infraJ.storage) || 0) /* V133: انبار مرکزی سقف غذا را هم بالا می‌برد — قرینه‌ی کلاینت */
   } catch (e) { console.log('cvcap', e) }
   if (gain.gold || gain.oil || gain.food || rpGain > 0 || finished.length) {
     await db.$transaction(async (tx) => {

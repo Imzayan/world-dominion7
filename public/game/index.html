@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=132;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=133;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <script>
   /* V132 PERF GOVERNOR — یک پچِ سراسری قبل از همه‌ی اسکریپت‌های بازی.
      ۱) دستگاه ضعیف: بازه‌های نظرسنجیِ ≥۵ثانیه (presence/ذخیره/متادیتا/چت-پس‌زمینه) کشیده می‌شوند ×۱.۴
@@ -31,7 +31,7 @@
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-  <script src="/game/balance.js?v=132"></script>
+  <script src="/game/balance.js?v=133"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2285,8 +2285,8 @@ function renderLobbyInfra() {
       <button class="lobby-item-btn btn-cyan" id="infra-buy-air">ارتقا (${infraCost('air')} 💰)</button>
     </div>
     <div class="lobby-item">
-      <div class="lobby-item-text">🏗️ مخازن و انبار نفت — سطح ${infra.storage}
-        <div class="lobby-item-sub">ظرفیت ذخیره نفت: ${oilStorageCap().toLocaleString()} بشکه</div>
+      <div class="lobby-item-text">🏗️ انبار مرکزی — غذا و نفت — سطح ${infra.storage}
+        <div class="lobby-item-sub">ظرفیت: 🌾${(typeof window.foodStorageCap==='function'?window.foodStorageCap():0).toLocaleString()} غذا | 🛢️${oilStorageCap().toLocaleString()} نفت — هر سطح: +۵٬۰۰۰ غذا و +۶٬۰۰۰ نفت</div>
       </div>
       <button class="lobby-item-btn btn-gold" id="infra-buy-storage">ارتقا (${infraCost('storage')} 💰)</button>
     </div>
@@ -2306,7 +2306,7 @@ function buyInfra(type) {
   playerRes.gold -= cost;
   infra[type] += 1;
   updateUI();
-  const labels = { oil: "🛢️ پالایشگاه نفت", arms: "🏭 کارخانه تسلیحات", air: "🛫 پایگاه هوایی", storage: "🏗️ مخازن و انبار نفت" };
+  const labels = { oil: "🛢️ پالایشگاه نفت", arms: "🏭 کارخانه تسلیحات", air: "🛫 پایگاه هوایی", storage: "🏗️ انبار مرکزی (غذا و نفت)" };
   showToast(`${labels[type]} به سطح ${infra[type]} ارتقا یافت!`, "win");
 }
 
@@ -2682,8 +2682,10 @@ async function attackTarget(n){
   if(window.__wd51nat&&Date.now()-(window.__wd51natAt||0)<15000){showToast('⏳ نبرد قبلی هنوز در جریان است','lose');return}
   let power=Math.round(calculateTotalAttack()*(window.__ovs?ovsMult():1));
   if(power<=0){showToast('❌ شما هیچ نیروی نظامی ندارید!','lose');return}
-  const sup=250+Math.round(power*.06);
-  if(playerRes.food<sup||playerRes.oil<sup){showToast('❌ لجستیک ناکافی! این نبرد '+sup+' غذا و '+sup+' نفت می‌خواهد','lose');return}
+  /* V133: لجستیک مقیاس‌پذیر — هزینه با قدرت ارتش بالا می‌رود اما هرگز از ۷۵٪ ظرفیت انبار عبور نمی‌کند (ضد بن‌بست) */
+  const sup=(typeof window.wdLogisticsCost==='function')?window.wdLogisticsCost(power):250+Math.round(power*.06);
+  if(playerRes.food<sup||playerRes.oil<sup){const _fc=(typeof window.foodStorageCap==='function')?window.foodStorageCap():0,_oc=(typeof window.oilStorageCap==='function')?window.oilStorageCap():0;
+    showToast('❌ لجستیک ناکافی! این نبرد '+sup.toLocaleString('en')+' غذا و '+sup.toLocaleString('en')+' نفت می‌خواهد — داری: 🌾'+Math.round(playerRes.food).toLocaleString('en')+' / 🛢️'+Math.round(playerRes.oil).toLocaleString('en')+' (سقف انبار: 🌾'+_fc.toLocaleString('en')+' / 🛢️'+_oc.toLocaleString('en')+' — انبار مرکزی را ارتقا بده)','lose');return}
   window.__wd51nat=true;window.__wd51natAt=Date.now();
   playerRes.food-=sup;playerRes.oil-=sup;battleBusy=true;
   const t=getCountryData(n),t0={fa:t.fa,def:t.def,gold:t.gold},wasMine=conqueredCountries.has(n),start=occupationPct[n]||0,power0=power;let occ=start;
@@ -4035,18 +4037,20 @@ refreshSites=function(){if(typeof map==='undefined'||!map||!Object.keys(layersBy
 const TR={buys:[],sells:[]};let lastCap=0;
 const recentN=a=>{const t=Date.now();while(a.length&&t-a[0]>180000)a.shift();return a.length};
 function capStore(){const t=Math.max(1,conqueredCountries.size);
-  /* V40: سقف نفت حالا از همان oilStorageCap می‌آید که UI نشان می‌دهد (قبلاً متفاوت بود و ارتقای انبار بی‌اثر بود!) — سقف غذا هم بزرگ‌تر شد */
+  /* V40: سقف نفت حالا از همان oilStorageCap می‌آید که UI نشان می‌دهد (قبلاً متفاوت بود و ارتقای انبار بی‌اثر بود!) — سقف غذا هم بزرگ‌تر شد.
+     V133: سقف غذا هم از foodStorageCap می‌آید (تابع انبار مرکزی) — قرینه‌ی نفت */
   const SB=BALANCE.economy.storage;
-  const oc=(typeof window.oilStorageCap==='function')?window.oilStorageCap():SB.oilBase+SB.oilPerTerr*t,fc=SB.foodBase+SB.foodPerTerr*t;let cut=false; /* V71: fallback کهنه‌ی 1500 هم‌تراز شد؛ V72: از BALANCE */
+  const oc=(typeof window.oilStorageCap==='function')?window.oilStorageCap():SB.oilBase+SB.oilPerTerr*t,fc=(typeof window.foodStorageCap==='function')?window.foodStorageCap():(SB.foodBase+SB.foodPerTerr*t);let cut=false; /* V71: fallback کهنه‌ی 1500 هم‌تراز شد؛ V72: از BALANCE */
   if(playerRes.oil>oc){playerRes.oil=oc;cut=true}if(playerRes.food>fc){playerRes.food=fc;cut=true}
   if(cut&&Date.now()-lastCap>60000){lastCap=Date.now();showToast('📦 انبارها پر است؛ مازاد تولید از بین می‌رود (ظرفیت نفت '+oc.toLocaleString()+'، غذا '+fc.toLocaleString()+')','lose')}return cut}
-setInterval(()=>{if(myCountryName&&capStore())updateUI()},3000);
+/* V133: گارد document.hidden — هنگام مخفی‌بودن تب، تولید هم متوقف است؛ clamp هر ۳ثانیه فقط بیهوده CPU می‌سوزاند */
+setInterval(()=>{if(document.hidden)return;if(myCountryName&&capStore())updateUI()},3000);
 /* V71: buyMarket حذف شد — دکمه‌های قدیمی #act-buy-oil/#act-buy-food از اولین بازشدن بازار با WD28 بازنویسی می‌شدند */
 barterTrade=function(gt,ga,rt,ra){if(playerRes[gt]<ga){showToast('❌ موجودی کافی برای این مبادله ندارید!','lose');return}
   const r=recentN(TR.sells);let got=Math.round(ra*Math.max(.4,1-.12*r));
   /* V83 (AUDIT-A P1-4): دریافتِ مبادله هم قبل از دریافتِ طلا clamp شد — قبلاً capStore بعد از دریافت نابود می‌کرد */
   try{if(rt==='oil'||rt==='food'){var tB=Math.max(1,conqueredCountries.size),SBB=BALANCE.economy.storage;
-    var capB=rt==='oil'?((typeof window.oilStorageCap==='function')?window.oilStorageCap():SBB.oilBase+SBB.oilPerTerr*tB):(SBB.foodBase+SBB.foodPerTerr*tB);
+    var capB=rt==='oil'?((typeof window.oilStorageCap==='function')?window.oilStorageCap():SBB.oilBase+SBB.oilPerTerr*tB):((typeof window.foodStorageCap==='function')?window.foodStorageCap():(SBB.foodBase+SBB.foodPerTerr*tB)); /* V133: سقف غذا = تابع انبار */
     got=Math.min(got,Math.max(0,Math.floor(capB-playerRes[rt])))}}catch(e){}
   if(got<=0){showToast('📦 انبار برای دریافت پر است','lose');return}
   playerRes[gt]-=ga;playerRes[rt]+=got;TR.sells.push(Date.now());capStore();updateUI();
@@ -4829,6 +4833,26 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     /* V68: انبار راهبردی CV (Country View) هم به سقف نفت اضافه شد — قبلاً ساختمان انبار CV بی‌اثر بود */
     return BALANCE.economy.storage.oilBase + territoryBonus + ((infra&&infra.storage)||0)*BALANCE.economy.storage.oilPerStorageLevel + (window.__wdcvOilCapAdd||0);
   };
+  /* V133 — سقف غذا حالا تابع انبار مرکزی هم هست (قرینه‌ی سقف نفت؛ سرور همین فرمول را clamp می‌کند)
+     قبلاً سقف غذا فقط 9000+2500×قلمرو بود و ارتقای انبار بی‌اثر → امپراتوری‌های بزرگ بن‌بست می‌شدند */
+  window.foodStorageCap=function(){
+    const territoryBonus=(typeof conqueredCountries!=='undefined'?conqueredCountries.size:0)*BALANCE.economy.storage.foodPerTerr;
+    return BALANCE.economy.storage.foodBase + territoryBonus + ((infra&&infra.storage)||0)*(BALANCE.economy.storage.foodPerStorageLevel||0);
+  };
+  /* V133 — لجستیک مقیاس‌پذیر (منبع واحد برای حمله‌ی خنثی + بریفینگ PvP):
+     هزینه = 250 + قدرت×۰٫۰۶ اما سقفش = ۷۵٪ ظرفیتِ کوچک‌ترِ انبار (غذا/نفت).
+     تضمین ریاضی: هر حمله‌ای که انبارها ۷۵٪ پر باشند قابل پرداخت است — بن‌بست «هزینه ۷۰هزار، انبار ۳۰هزار» دیگر ممکن نیست. */
+  window.wdLogisticsCost=function(power){
+    const raw=250+Math.round((power||0)*.06);
+    try{
+      const t=Math.max(1,(typeof conqueredCountries!=='undefined'?conqueredCountries.size:1));
+      const SB=BALANCE.economy.storage;
+      const capF=(typeof window.foodStorageCap==='function')?window.foodStorageCap():(SB.foodBase+SB.foodPerTerr*t);
+      const capO=(typeof window.oilStorageCap==='function')?window.oilStorageCap():(SB.oilBase+SB.oilPerTerr*t);
+      const share=(BALANCE.conquest&&BALANCE.conquest.logisticsCapShare)||.75;
+      return Math.min(raw,Math.floor(Math.min(capF,capO)*share));
+    }catch(e){return raw}
+  };
   window.storageCost=function(){const IB=BALANCE.infra;return IB.storageBase+(((infra&&infra.storage)||0)+1)*IB.storagePerLevel}; /* V72: BALANCE */
   if(typeof infra!=='undefined' && infra.storage==null)infra.storage=0;
 
@@ -4860,8 +4884,10 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       const cap=oilStorageCap();
       let cut=false;
       if(playerRes.oil>cap){playerRes.oil=cap;cut=true}
-      if(playerRes.food>9000+2500*conqueredCountries.size){ /* V71: هم‌تراز سرور (9000+2500×terrN) — max(1,) حذف شد */
-        playerRes.food=9000+2500*conqueredCountries.size;cut=true
+      /* V133: سقف غذا = foodStorageCap (تابع انبار مرکزی) — فرمول کهنه 9000+2500×terr حذف شد */
+      const capF=(typeof window.foodStorageCap==='function')?window.foodStorageCap():(BALANCE.economy.storage.foodBase+BALANCE.economy.storage.foodPerTerr*Math.max(1,conqueredCountries.size));
+      if(playerRes.food>capF){
+        playerRes.food=capF;cut=true
       }
       return cut;
     };
@@ -4888,7 +4914,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     const STEPS=[
       {k:'capital',ic:'🏛️',t:'انتخاب پایتخت',d:'روی یک کشور آزاد بزن و آن را پایتخت کن — مرکز اقتصاد و ارتش تو همین‌جا شکل می‌گیرد.'},
       {k:'army',ic:'🪖',t:'آموزش اولین یگان',d:'در «مرکز آموزش نیرو» یک یگان به صف اضافه کن؛ قدرت حمله از همین‌جا می‌آید.'},
-      {k:'infra',ic:'🏗️',t:'ارتقای زیرساخت',d:'در «لابی ← زیرساخت» یک بخش را ارتقا بده؛ مخزن سقف نفت و کارخانه سرعت آموزش را بالا می‌برد.'},
+      {k:'infra',ic:'🏗️',t:'ارتقای زیرساخت',d:'در «لابی ← زیرساخت» یک بخش را ارتقا بده؛ انبار مرکزی سقف غذا و نفت را بالا می‌برد و کارخانه سرعت آموزش را.'},
       {k:'conquer',ic:'⚔️',t:'گسترش قلمرو',d:'روی یک کشور آزاد بزن و حمله را شروع کن — هر فتح جمعیت و منابع بیشتری می‌دهد.'},
       {k:'oly',ic:'🥇',t:'ورزشکار شو',d:'وارد هاب المپیک شو و یک رشته را باز کن؛ مدال آبروی ملت است.'}
     ];
@@ -4989,6 +5015,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
         try{ if(typeof myCountryName==='undefined'||!myCountryName) add('🏛️','<b>هنوز پایتخت نداری.</b> روی یک کشور آزاد بزن و آن را پایتخت کن — بدون پایتخت اقتصاد و ارتش قفل است.') }catch(e){}
         try{ if(typeof myCountryName!=='undefined'&&myCountryName){ const t=(typeof wdTerrCount==='function')?wdTerrCount():0,mx=(typeof WD_MAX_COUNTRIES!=='undefined')?WD_MAX_COUNTRIES:'?'; add('🗺️','قلمرو فعلی: <b>'+t+'/'+mx+'</b> کشور'+(t<3?' — هر فتح، پایه‌ی اقتصادی قوی‌تر است.':' — امپراتوری داری!')) } }catch(e){}
         try{ if(typeof window.oilStorageCap==='function'&&typeof playerRes!=='undefined'&&playerRes){ const cap=window.oilStorageCap()||0,o=playerRes.oil|0; if(cap>0&&o>=cap*0.85) add('🛢️','انبار نفت تقریباً <b>پر</b> است ('+Math.round(o/cap*100)+'٪) — مخزن را ارتقا بده یا در بازار بفروش؛ تولید اضافه هدر می‌رود.') } }catch(e){}
+        try{ if(typeof window.foodStorageCap==='function'&&typeof playerRes!=='undefined'&&playerRes){ const cap=window.foodStorageCap()||0,f=playerRes.food|0; if(cap>0&&f>=cap*0.85) add('🌾','انبار غذا تقریباً <b>پر</b> است ('+Math.round(f/cap*100)+'٪) — «انبار مرکزی» را ارتقا بده تا هم سقف غذا هم سقف نفت بالا برود.') } }catch(e){}
         try{ if(typeof myCountryName!=='undefined'&&myCountryName&&typeof queued==='function'&&queued()===0) add('🪖','صف آموزش نیرو <b>خالی</b> است — بدون یگان تازه، حمله‌ی بعدی نتیجه‌ی مطمئنی ندارد.') }catch(e){}
         try{ if(typeof infra!=='undefined'&&infra&&(infra.arms|0)===0&&(infra.oil|0)===0) add('🏗️','هنوز هیچ زیرساختی نساخته‌ای — پالایشگاه نفت درآمد، کارخانه سرعت آموزش و مخزن سقف انبار را بالا می‌برد.') }catch(e){}
         try{ if(typeof M!=='undefined'&&typeof day==='function'&&M.lastDay!==day()) add('🎁','پاداش ورود روزانه‌ات <b>دریافت نشده</b> — از صفحه‌ی حساب بگیرش.') }catch(e){}
@@ -5009,7 +5036,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       const p=$('lobby-panel-infra');if(!p)return;
       const exists=$('wd-storage-info');if(exists)exists.remove();
       const d=document.createElement('div');d.id='wd-storage-info';d.className='wd-card';
-      d.innerHTML='🏗️ <b>انبار نفت</b><div class="wd-muted">سطح '+(infra.storage||0)+' • ظرفیت '+oilStorageCap().toLocaleString()+' بشکه • ارتقای بعدی '+storageCost().toLocaleString()+' طلا</div>';
+      d.innerHTML='🏗️ <b>انبار مرکزی</b><div class="wd-muted">سطح '+(infra.storage||0)+' • ظرفیت 🌾'+((typeof window.foodStorageCap==='function')?window.foodStorageCap():0).toLocaleString()+' غذا | 🛢️'+oilStorageCap().toLocaleString()+' نفت • ارتقای بعدی '+storageCost().toLocaleString()+' طلا (+۵٬۰۰۰ غذا / +۶٬۰۰۰ نفت)</div>';
       p.appendChild(d);
     };
   }
@@ -5021,8 +5048,8 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
         const c=storageCost();
         if(playerRes.gold<c){showToast('❌ طلای کافی برای ارتقای انبار ندارید!','lose');return}
         playerRes.gold-=c;infra.storage=(infra.storage||0)+1;updateUI();saveNow();
-        showToast('🏗️ ظرفیت انبار نفت به '+oilStorageCap().toLocaleString()+' افزایش یافت!','win');
-        addNews((ACC&&ACC.nick?ACC.nick:'بازیکن')+' ظرفیت انبار نفت خود را ارتقا داد.');
+        showToast('🏗️ انبار مرکزی ارتقا یافت — ظرفیت جدید: 🌾'+((typeof window.foodStorageCap==='function')?window.foodStorageCap():0).toLocaleString()+' غذا | 🛢️'+oilStorageCap().toLocaleString()+' نفت','win');
+        addNews((ACC&&ACC.nick?ACC.nick:'بازیکن')+' ظرفیت انبار مرکزی (غذا و نفت) خود را ارتقا داد.');
         return;
       }
       return _buy(type);
@@ -5140,7 +5167,8 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     /* ---------- فاز ۱: بریفینگ عملیات ---------- */
     const target=getCountryData(country);
     const myAttack=Math.round(calculateTotalAttack());
-    const sup=250+Math.round(myAttack*.06);
+    /* V133: همان لجستیک مقیاس‌پذیر حمله‌ی خنثی — بریفینگ همیشه همان چیزی است که واقعاً کسر می‌شود */
+    const sup=(typeof window.wdLogisticsCost==='function')?window.wdLogisticsCost(myAttack):250+Math.round(myAttack*.06);
     const supOK=playerRes.food>=sup&&playerRes.oil>=sup;
     const armyOK=myAttack>0;
     /* V75 — P4: هزینه‌ی خزانه‌ی حمله (قرینه‌ی سرور) — پول و نفت واقعی کم می‌شود */
@@ -5179,7 +5207,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       (armyOK?'<div class="wd39-chk good">✅ ارتش آماده است — قدرت مؤثر: <b>'+fmt(myAttack*(revActive?1.25:1))+'</b></div>'
              :'<div class="wd39-chk bad">⛔ قدرت حمله‌ات صفر است — بدون یگان نظامی نمی‌توان جنگید. از بخش «ارتش» نیرو بساز.</div>')+
       (armyOK?(supOK?'<div class="wd39-chk good">⛽ لجستیک آماده — هزینه‌ی نبرد: <b>'+fmt(sup)+'</b> غذا + <b>'+fmt(sup)+'</b> نفت</div>'
-                     :'<div class="wd39-chk bad">⛽ لجستیک ناکافی — این نبرد <b>'+fmt(sup)+'</b> غذا و <b>'+fmt(sup)+'</b> نفت می‌خواهد (داری: '+fmt(playerRes.food)+' غذا، '+fmt(playerRes.oil)+' نفت)</div>'):'')+
+                     :'<div class="wd39-chk bad">⛽ لجستیک ناکافی — این نبرد <b>'+fmt(sup)+'</b> غذا و <b>'+fmt(sup)+'</b> نفت می‌خواهد (داری: '+fmt(playerRes.food)+' غذا، '+fmt(playerRes.oil)+' نفت) — انبارها را پُر کن یا «انبار مرکزی» را در لابی ارتقا بده</div>'):'')+
       (armyOK?(payOK?'<div class="wd39-chk good">💰 خزانه آماده — هزینه‌ی حمله: <b>'+fmt(PB.costGold)+'</b> طلا + <b>'+fmt(PB.costOil)+'</b> نفت (فاصله‌ی حمله‌ها: '+PB.cooldownSec+' ثانیه)</div>'
                      :'<div class="wd39-chk bad">💰 خزانه ناکافی — هر حمله <b>'+fmt(PB.costGold)+'</b> طلا + <b>'+fmt(PB.costOil)+'</b> نفت هزینه دارد (داری: '+fmt(playerRes.gold)+' طلا، '+fmt(playerRes.oil)+' نفت)</div>'):'')+
       (truceOn?'<div class="wd39-chk bad">🕊️ آتش‌بس المپیک برقرار است — حمله‌ی آزاد تا پایان بازی‌ها بسته است؛ دوئر رسمی استثناست (از مرکز اجتماعی دعوت کن)</div>':'')+
@@ -8740,7 +8768,7 @@ function trade28(k,side,qty){
     /* V83 (AUDIT-A P1-4): خرید تا فضای آزاد انبار clamp می‌شود — قبلاً ۳ثانیه بعد capStore
        مازادِ پرداخت‌شده را نابود می‌کرد (طلا می‌رفت، کالا هیچ). مبلغ هم به همان نسبت clamp. */
     var t28=Math.max(1,conqueredCountries.size),SB28=BALANCE.economy.storage;
-    var free28=k==='oil'?Math.max(0,Math.floor(((typeof window.oilStorageCap==='function')?window.oilStorageCap():SB28.oilBase+SB28.oilPerTerr*t28)-playerRes.oil)):(k==='food'?Math.max(0,Math.floor(SB28.foodBase+SB28.foodPerTerr*t28-playerRes.food)):qty);
+    var free28=k==='oil'?Math.max(0,Math.floor(((typeof window.oilStorageCap==='function')?window.oilStorageCap():SB28.oilBase+SB28.oilPerTerr*t28)-playerRes.oil)):(k==='food'?Math.max(0,Math.floor(((typeof window.foodStorageCap==='function')?window.foodStorageCap():(SB28.foodBase+SB28.foodPerTerr*t28))-playerRes.food)):qty); /* V133: سقف غذا = تابع انبار */
     if(free28<qty){
       qty=Math.max(0,free28);
       if(qty<=0){showToast('📦 انبار '+RES[k].fa+' پر است — جا برای خرید نیست','lose');return false}
@@ -12141,7 +12169,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=132';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=133';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -19276,7 +19304,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=132';
+              s.src='/game/cv-engine.js?v=133';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -19287,7 +19315,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=132"></script>
+<script src="/game/oly3.js?v=133"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -19301,7 +19329,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=132';
+      s.src='/game/oly3d.js?v=133';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -20566,8 +20594,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=132"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=132"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=133"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=133"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);

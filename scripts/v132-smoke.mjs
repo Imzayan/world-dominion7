@@ -30,7 +30,7 @@ await page.goto('http://localhost:8933/', { waitUntil: 'domcontentloaded', timeo
 await page.waitForTimeout(4500)
 
 check('zero pageerror on load', errors.length === 0, errors.join(' | '))
-check('V132 beacon', await page.evaluate(() => window.__WD_V === 132))
+check('V132 beacon', await page.evaluate(() => window.__WD_V === 133))
 
 /* ---------- ① chat entry: dock button ---------- */
 const dock = await page.evaluate(() => {

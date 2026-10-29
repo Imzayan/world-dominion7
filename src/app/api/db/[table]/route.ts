@@ -153,7 +153,7 @@ const AIR_UNITS = new Set(['bomber', 'fighter', 'heli', 'drone'])
    (قدرت مهاجم) تزریق می‌شد. حالا سقف‌های واقعی بازی — همان فرمول‌های
    BALANCE — روی نوشتن و خواندن اعمال می‌شوند:
    - نفت ≤ 6000 + 1200×قلمرو + 6000×سطح انبار لابی + 2500×انبار CV
-   - غذا ≤ 9000 + 2500×قلمرو
+   - غذا ≤ 9000 + 2500×قلمرو + 5000×سطح انبار مرکزی (V133)
    - طلا ≤ 20M + 2M×قلمرو (چند ماه گنج دلخواه بازیکن حرفه‌ای؛ هیچ
      بازیکن واقعی به آن نمی‌خورد — فقط جعل را بی‌اثر می‌کند)
    - هر یگان سقف مشخص + سقف کل قدرت ارتش ۱M (باز هم ده برابرِ
@@ -168,7 +168,7 @@ const GOLD_CAP_BASE = 20_000_000
 const GOLD_CAP_PER_TERR = 2_000_000
 const MAX_COUNTRIES_DB = 15 /* قرینه‌ی MAX_COUNTRIES در rpc route — تک‌منبع نیست چون آن‌جا مقدار ثابت لابی است */
 const OIL_CAP_BASE = 6000, OIL_CAP_PER_TERR = 1200, OIL_CAP_PER_STORAGE = 6000, OIL_CAP_PER_CVSTORAGE = 2500
-const FOOD_CAP_BASE = 9000, FOOD_CAP_PER_TERR = 2500
+const FOOD_CAP_BASE = 9000, FOOD_CAP_PER_TERR = 2500, FOOD_CAP_PER_STORAGE = 5000 /* V133: انبار مرکزی سقف غذا را هم بالا می‌برد — قرینه‌ی کلاینت balance.js */
 
 const ST_CAPS_CACHE = new Map<string, { terr: number; cvSt: number; at: number }>()
 async function stateCapsFor(userId: string): Promise<{ terr: number; cvSt: number }> {
@@ -196,7 +196,7 @@ async function clampSaveState(stateStr: string, userId: string): Promise<string>
   const capOil = OIL_CAP_BASE + OIL_CAP_PER_TERR * terr + OIL_CAP_PER_STORAGE * Math.max(0, Math.round(Number((st.infra as Record<string, unknown>)?.storage) || 0)) + OIL_CAP_PER_CVSTORAGE * cvSt
   res.gold = sNum(res.gold, GOLD_CAP_BASE + GOLD_CAP_PER_TERR * terr)
   res.oil = sNum(res.oil, capOil)
-  res.food = sNum(res.food, FOOD_CAP_BASE + FOOD_CAP_PER_TERR * terr)
+  res.food = sNum(res.food, FOOD_CAP_BASE + FOOD_CAP_PER_TERR * terr + FOOD_CAP_PER_STORAGE * Math.max(0, Math.round(Number((st.infra as Record<string, unknown>)?.storage) || 0))) /* V133: سقف غذا تابع انبار مرکزی */
   res.steel = sNum(res.steel, 100_000) /* منبع پاداش قهرمانی — بی‌دشمن جعل نشود */
   st.res = res
   /* --- یگان‌ها: سقف تکی + سقف کل قدرت --- */
