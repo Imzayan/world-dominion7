@@ -2896,3 +2896,34 @@ v.txt=134، __WD_V=134، ۷×?v=134 • check-html-js 103/0 • verify-build 9/9
 
 ### دروازه‌ها
 v.txt=135، __WD_V=135، ۷×?v=135 • check-html-js **103/0** • verify-build **9/9** • v132-smoke **18/18** • v131-smoke **31/31** • probe-sweeps: صفر pageerror، retarget تأیید‌شده
+
+---
+
+## V142-APK — بیلد vc14 با امضای اصلی (حلقه‌ی آخر باگ خرید جم)
+
+### زمینه
+کد V142 (انتخاب آزاد سرور + مودال راهنمای خرید) کامیت و روی پروداکشن لایو بود؛ تنها حلقه‌ی باز، بیلد APK بود — مالک صریحاً گفت بیلد بلد نیست و باید خودم انجام دهم.
+
+### بازیابی ابزار از بکاپ /tmp/my-project
+| قطعه | مسیر بازیابی‌شده | وضعیت |
+|------|------------------|--------|
+| keystore اصلی | keystore-vault → download/keystore/ | SHA-256 گواهی **69a82c17…636f** = همان زنجیره‌ی vc11/12/13 نصب‌شده — آپدیت رسمی روی نصب‌های فعلی معتبر است |
+| build-tools android-14 | apk-build/tools/android-14 | aapt2 2.19 + aidl + zipalign + d8.jar + apksigner.jar + framework.aidl |
+| platform android-34 | apk-build/tools/android-34 | android.jar (26MB) |
+| JDK 17.0.20.1 | apk-build/tools/jdk-17.0.20.1+1 | javac target 8 |
+
+### خروجی بیلد (scripts/build-apk-myket.sh — ۷ مرحله سبز)
+- **download/apk/WorldDominion-v1.0.13.apk** (vc14، 992,824 بایت)
+- امضا: v1+v2+v3 همه true؛ گواهی 69a82c17…06a0636f (تطبیق بایت‌به‌بایت با vc13 نصب‌شده)
+- Manifest: INTERNET + **com.android.vending.BILLING** + `<queries>` ir.mservices.market (ریشه‌ی واقعی باگ «مایکت نصب کن» — vc13 بدون این مجوز بود)
+- dex: WDIab$1/2 + WDBridge + IInAppBillingService حاضر؛ GAME_VER=142 (هم‌نسخه‌ی وب لایو)
+- sha256: `ca3839fbfde3c4a579c4a59b1cce902aa9173a80df8ebdd6d46c1cc117119c66`
+
+### توزیع
+- APK → `public/apk/WorldDominion-v1.0.13.apk` (دانلود مستقیم برای مالک → آپلود در پنل مایکت)
+- latest.json: versionCode 1→14 (بیمه‌ی اطلاعاتی؛ آپدیت‌ر درون‌اپ طبق دکترین V122 حذف است، آپدیت فقط از مایکت)
+- کی‌استور + پسورد در download/keystore/ برای بکاپ دوتایی مالک
+
+### نسخه و دروازه‌ها
+- وب: v.txt=142 دست‌نخورده (هیچ تغییر وبی لازم نبود — کد V142 از قبل لایو)
+- apksigner verify + aapt badging + dex-scan هر سه سبز

@@ -1,8 +1,8 @@
 {
-  "versionCode": 1,
-  "versionName": "1.0.12",
-  "url": "https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.12.apk",
-  "sha256": "5bd8aabf3dc4850cb0e1556127c8f289f19483dee428607de0669c2314fef7de",
-  "notes": "اولین نسخه بازی منتشر شد.",
-  "releasedAt": "2026-10-15"
+  "versionCode": 14,
+  "versionName": "1.0.13",
+  "url": "https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.13.apk",
+  "sha256": "ca3839fbfde3c4a579c4a59b1cce902aa9173a80df8ebdd6d46c1cc117119c66",
+  "notes": "نسخه جدید با پشتیبانی کامل خرید جم (مجوز پرداخت مایکت) — به‌روزرسانی فقط از طریق مایکت.",
+  "releasedAt": "2026-10-29"
 }
