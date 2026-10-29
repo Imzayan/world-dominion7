@@ -2834,3 +2834,33 @@ Notes:
 - پالس قفل‌هدف سینمایی V126 دست‌نخورده ماند (سلیقه‌ی تاییدشده‌ی مالک)
 - QA: check-html-js 98/0 • verify-build 9/9 • اسموک Playwright: انتخاب/تعویض کشور با کشوی باز/لمس دریا/دیسلکت/ناوبری انحصاری/منو همگی سبز
 - نسخه: v.txt=127، __WD_V=127، ۷×?v=127
+
+---
+
+## V134 — مهندسی کارایی اندازه‌گیری‌شده (پروفایلر-محور، نه حدسی)
+
+### روش
+سوئیت پروفایل تکرارپذیر `scripts/perf-v134.mjs` (Playwright + CDP CPU-throttle ۴×، موبایل ۳۹۰×۸۴۴ dpr3 + دسکتاپ ۱۲۸۰×۸۰۰):
+نمونه‌برداری rAF (median/p95/بیشتر از ۳۰ms)، longtask، heap، mapReady. بیس‌لاین قبل از هر تغییر ثبت شد.
+
+### یافته‌های اندازه‌گیری‌شده و اصلاحات
+| # | مشکل | شواهد | اصلاح |
+|---|------|-------|-------|
+| 1 | فیلتر CSS روی کل بوم نقشه (focus حالت باز بودن کشو) | دسکتاپ median 33.3ms = قفل ۳۰fps | scrim فقط-opacity `#wd-focus-scrim` (کامپوزیتور) — median → 16.7ms، ۶۳→۰ فریم افت |
+| 2 | رقابت انیمیشن‌های تزئینی با ژست | compositor contention | `html.wd-dragging` (movestart→moveend+400ms) — pause انیمیشن‌ها |
+| 3 | هزینه‌ی بازکشی moveend/zoomend | zoom موبایل ۴×CPU: ۳۸ فریم >۳۰ms، worst 83ms | smoothFactor تطبیقی (۲.۵ در زوم<۴، نوشتن خاموش در options) → ۸ فریم، worst 33ms |
+| 4 | intervalهای تزئینی حین ژست | ممیزی ۱۲۳ setInterval | گارد `__wdMapBusy` روی ۱۱ سایت + کشش ۲× روی دستگاه‌های wd-quiet (۴ سایت سنگین) |
+| 5 | MutationObserver همیشه‌فور | arm() روی هر تغییر DOM کل سند | coalesce با rAF |
+| 6 | تأخیر مصنوعی زوم چرخ موس | Leaflet wheelDebounceTime:40 | ۰ |
+
+### نتیجه‌ی پس از اصلاح (همان شرایط)
+- دسکتاپ: هر ۴ تست 59.9fps صفر افت — pan_focus هم که قبلاً ۳۰fps بود
+- موبایل ۴×: pan ۱۱۷→۸۸، zoom ۳۸→۸ (−۷۹٪)، pan_focus longtask ۳→۰
+- idle موبایل تحت SwiftShader نوسان دارد (۱۸۷→۲۲۵) — آزمایش کنترل‌شده نشان داد intervalها منبع نیستند؛ artifact شبیه‌ساز نرم‌افزاری است (دستگاه واقعی GPU سخت‌افزاری دارد)
+- mapReady: دسکتاپ ~۱s، موبایل ۴× ~۴.۵s (ساخت تدریجی ۷-تایی زیر اسپلش)
+
+### بیکان‌های تست
+`window.__wdMapReady`، `window.__wdMapGet()`، `window.__wdSmoothForZoom` — برای QA خودکار و پروفایلر.
+
+### نسخه و دروازه‌ها
+v.txt=134، __WD_V=134، ۷×?v=134 • check-html-js 103/0 • verify-build 9/9 • v132-smoke 18/18 • v131-smoke 31/31 • اسکرام scrim/dragging/smoothFactor تست عملکردی مستقیم سبز
