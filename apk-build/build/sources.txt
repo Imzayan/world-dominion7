@@ -1,4 +1,4 @@
-/home/z/my-project/devwork/apk-build/app/java/com/worlddominion/game/WDBridge.java
-/home/z/my-project/devwork/apk-build/app/java/com/worlddominion/game/WDIab.java
-/home/z/my-project/devwork/apk-build/app/java/com/worlddominion/game/MainActivity.java
-/home/z/my-project/devwork/apk-build/build/gen/ir/mservices/market/IInAppBillingService.java
+/home/z/my-project/apk-build/app/java/com/worlddominion/game/WDIab.java
+/home/z/my-project/apk-build/app/java/com/worlddominion/game/WDBridge.java
+/home/z/my-project/apk-build/app/java/com/worlddominion/game/MainActivity.java
+/home/z/my-project/apk-build/build/gen/ir/mservices/market/IInAppBillingService.java
