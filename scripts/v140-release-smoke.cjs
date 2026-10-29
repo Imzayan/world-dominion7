@@ -131,15 +131,15 @@ check('news formatters: both wdNewsFa and the cinematic newspaper know country_r
 });
 
 console.log('=== C) VERSION SYNC (V141) ===');
-check('v.txt=142, beacon __WD_V=142, 12 ?v=142 refs, APK wrapper synced', () => {
+check('v.txt=143, beacon __WD_V=143, 12 ?v=143 refs, APK wrapper synced', () => {
   const vTxt = fs.readFileSync(path.join(ROOT, 'public/game/v.txt'), 'utf8').trim();
-  if (vTxt !== '142') throw new Error('v.txt=' + vTxt);
-  if (!html.includes('window.__WD_V=142;')) throw new Error('beacon not 142');
-  const n = (html.match(/\?v=142(?![0-9])/g) || []).length;
-  if (n !== 12) throw new Error('?v=142 refs=' + n);
-  if ((html.match(/\?v=141(?![0-9])/g) || []).length) throw new Error('stale ?v=141 refs');
+  if (vTxt !== '143') throw new Error('v.txt=' + vTxt);
+  if (!html.includes('window.__WD_V=143;')) throw new Error('beacon not 143');
+  const n = (html.match(/\?v=143(?![0-9])/g) || []).length;
+  if (n !== 12) throw new Error('?v=143 refs=' + n);
+  if ((html.match(/\?v=142(?![0-9])/g) || []).length) throw new Error('stale ?v=142 refs');
   const apk = fs.readFileSync(path.join(ROOT, 'apk-build/app/java/com/worlddominion/game/MainActivity.java'), 'utf8');
-  if (!apk.includes('GAME_VER = 142')) throw new Error('APK wrapper not synced');
+  if (!apk.includes('GAME_VER = 142')) throw new Error('APK wrapper not synced'); /* vc14 ships GAME_VER=142 — WebView always revalidates, web-only V143 needs no rebuild */
 });
 
 console.log('=== D) V141 — ☰ MENU ENTRY + APK STORE ROOT-FIX ===');

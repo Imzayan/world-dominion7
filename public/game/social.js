@@ -565,7 +565,7 @@ function openInbox(){
   rpc('wd_dm_threads').then(function(r){
     list.innerHTML='';
     var th=r.threads||[];
-    if(!th.length){list.innerHTML='<div class="wd95-empty">هنوز گفتگویی نداری.<br>از چت جهانی روی نام بازیکن بزن یا بالا نامش را بنویس.</div>';return}
+    if(!th.length){list.innerHTML='<div class="wd95-empty">هنوز گفتگویی نداری.<br>در چت سرور روی نام بازیکن بزن یا پیامت را بنویس.</div>';return}
     th.forEach(function(t){
       var row=mk('div','','wd95-row'+(t.unread?' unread':''));
       var av=mk('div',(t.nick||'؟').trim().charAt(0).toUpperCase(),'wd95-ava');
@@ -859,7 +859,7 @@ function openFriends(tab){
     rpc('wd_friends').then(function(r){
       list.innerHTML='';
       if(k==='f'){
-        if(!(r.friends||[]).length){list.innerHTML='<div class="wd95-empty">هنوز دوستی نداری.<br>از چت جهانی یا نقشه روی بازیکنان بزن.</div>';return}
+        if(!(r.friends||[]).length){list.innerHTML='<div class="wd95-empty">هنوز دوستی نداری.<br>از چت سرور یا نقشه روی بازیکنان بزن.</div>';return}
         r.friends.forEach(function(f){
           var row=mk('div','','wd95-row');
           var av=mk('div',(f.nick||'؟').charAt(0).toUpperCase(),'wd95-ava');

@@ -1320,6 +1320,23 @@ async function testSrvsSet(list: number[]) {
   TST_CACHE = { at: Date.now(), list }
 }
 
+/* V143 — قفل زنجیره‌ای سرورها (دستور صریح مالک: «الکی سرور اضافه نکن؛ هر وقت سرور قبلی به نود کشور
+   رسید بعد سرور جدید بساز»): سرور k فقط وقتی «باز» است که همه‌ی سرورهای غیرتستیِ قبلش ۹۰/۹۰ پُر
+   شده باشند. سمت کلاینت (srvOpen) همین قانون را در فهرست‌ها اعمال می‌کند؛ این نسخه‌ی سمت سرور
+   همان داوری را روی مسیر نوشتن قلمرو تکرار می‌کند تا هیچ ادعای تازه‌ای روی سرورِ قفل ممکن نشود. */
+async function srvChainOpen(server: number): Promise<boolean> {
+  const tst = await testSrvsGet()
+  if (tst.includes(server)) return false
+  if (server <= 1) return !tst.includes(1)
+  const stats = await db.serverStat.findMany({ where: { server: { lt: server } }, select: { server: true, taken: true } })
+  const takenOf = new Map(stats.map((s) => [s.server, s.taken]))
+  for (let k = 1; k < server; k++) {
+    if (tst.includes(k)) continue /* سرور تستی زنجیره را نمی‌بندد — فقط درِ ورودش بسته است */
+    if ((takenOf.get(k) || 0) < SRV_CAP_GLOBAL) return false
+  }
+  return true
+}
+
 /** daily login bonus: +20 gems per calendar day (atomic — no double-claim race) */
 async function dailyBonus(userId: string) {
   await ensureWallet(userId)
@@ -3521,6 +3538,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
            کسی که از قبل زمین دارد (حساب‌های تست/ادمین) دست‌نخورده به کارش ادامه می‌دهد */
         if ((await testSrvsGet()).includes(server) && !user.isAdmin && current.length === 0) {
           return R({ ok: false, test_server: true, granted: [], denied: [], lost: [], mine: [] })
+        }
+        /* V143 — قفل زنجیره‌ای ۹۰کشوری: ادعای تازه فقط روی سرورِ بازِ زنجیره. مستثنا (ساکنانِ واقعی):
+           کسی که همین حالا در این سرور عضو است (سطر score.server) یا قلمروی دارد — ساکنانِ
+           پیشین دست‌نخورده بازی می‌کنند؛ فقط پرش به سرورهایِ جلوی زنجیره بسته می‌شود */
+        if (current.length === 0) {
+          const scRow = await db.score.findUnique({ where: { userId: user.id }, select: { server: true } })
+          const isMember = scRow?.server === server
+          if (!isMember && !(await srvChainOpen(server))) {
+            return R({ ok: false, server_locked: true, granted: [], denied: [], lost: [], mine: [] })
+          }
         }
         const mine = new Set(current.map((t) => t.country))
         /* releases — زمین‌هایی که دیگر نگه نمی‌دارم (فقط ردیف‌های خودم) */

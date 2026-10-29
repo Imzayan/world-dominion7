@@ -180,15 +180,16 @@ check('sw.js IMMUTABLE offline list keeps V137 state (shop-v2.js)', () => {
 });
 
 console.log('=== 5) VERSION / REFS ===');
-check('v.txt == 138 and __WD_V beacon matches', () => {
-  if (vTxt !== '138') throw new Error('v.txt=' + vTxt);
-  if (!html.includes('window.__WD_V=138;')) throw new Error('beacon not 138');
+check('v.txt == current (>=138) and __WD_V beacon matches', () => {
+  if (Number(vTxt) < 138) throw new Error('v.txt=' + vTxt);
+  if (!html.includes('window.__WD_V=' + vTxt + ';')) throw new Error('beacon mismatch: ' + vTxt);
 });
-check('exactly 12 ?v=138 refs, zero stale ?v=13[0-7] refs', () => {
-  const n138 = (html.match(/\?v=138/g) || []).length;
-  const stale = (html.match(/\?v=13[0-7]/g) || []).length;
-  if (n138 !== 12) throw new Error('?v=138 count=' + n138);
-  if (stale !== 0) throw new Error('stale refs=' + stale);
+check('exactly 12 current-version refs, zero stale ?v refs', () => {
+  const ncur = (html.match(new RegExp('\\?v=' + vTxt + '(?![0-9])', 'g')) || []).length;
+  if (ncur !== 12) throw new Error('?v=' + vTxt + ' count=' + ncur);
+  for (let vv = 130; vv < Number(vTxt); vv++) {
+    if ((html.match(new RegExp('\\?v=' + vv + '(?![0-9])', 'g')) || []).length) throw new Error('stale ?v=' + vv);
+  }
 });
 check('rebase integrity: V133 logistics + V132 governor + V130 cosmetics coexist with V138 fixes', () => {
   if (!html.includes('wdLogisticsCost')) throw new Error('V133 logistics lost');

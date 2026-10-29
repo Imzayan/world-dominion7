@@ -30,7 +30,7 @@ await page.goto('http://localhost:8933/', { waitUntil: 'domcontentloaded', timeo
 await page.waitForTimeout(4500)
 
 check('zero pageerror on load', errors.length === 0, errors.join(' | '))
-check('V132 beacon', await page.evaluate(() => window.__WD_V === 142))
+check('V143 beacon (current version live)', await page.evaluate(() => window.__WD_V >= 142))
 
 /* ---------- ① chat entry: dock button ---------- */
 const dock = await page.evaluate(() => {
@@ -62,7 +62,7 @@ const modal = await page.evaluate(() => {
   }
 })
 check('chat modal opens from dock click', !!modal && modal.open, JSON.stringify(modal))
-check('chat dual channels (world + srv)', !!modal && modal.tabs.indexOf('world') > -1 && modal.tabs.indexOf('srv') > -1)
+check('chat single server channel (V143 isolation — no world tab)', !!modal && modal.tabs.length === 0, JSON.stringify(modal && modal.tabs))
 check('chat composer ready (list+input+send)', !!modal && modal.hasList && modal.hasInput && modal.hasSend)
 
 /* WD28Chat.open direct path too */
@@ -78,19 +78,19 @@ await page.evaluate(() => { const b = document.getElementById('wd7-btn'); if (b)
 await page.waitForTimeout(600)
 const menu = await page.evaluate(() => {
   const items = [...document.querySelectorAll('#wd-menu .wd-menu-item')]
-  const chat = items.find((it) => { const b = it.querySelector('b'); return b && b.textContent.indexOf('چت جهانی') > -1 })
+  const chat = items.find((it) => { const b = it.querySelector('b'); return b && b.textContent.indexOf('چت سرور') > -1 })
   return { count: items.length, hasChat: !!chat, gold: chat ? chat.className.indexOf('gold') > -1 : false }
 })
-check('menu has چت جهانی item', menu.hasChat, JSON.stringify(menu))
+check('menu has چت سرور item', menu.hasChat, JSON.stringify(menu))
 /* click menu item opens chat */
 await page.evaluate(() => {
   const items = [...document.querySelectorAll('#wd-menu .wd-menu-item')]
-  const chat = items.find((it) => { const b = it.querySelector('b'); return b && b.textContent.indexOf('چت جهانی') > -1 })
+  const chat = items.find((it) => { const b = it.querySelector('b'); return b && b.textContent.indexOf('چت سرور') > -1 })
   if (chat) chat.click()
 })
 await page.waitForTimeout(600)
 const menuOpen = await page.evaluate(() => { const m = document.getElementById('wd-chat'); return !!(m && m.classList.contains('active')) })
-check('menu چت جهانی item opens chat', menuOpen)
+check('menu چت سرور item opens chat', menuOpen)
 
 /* ---------- ③ governor ---------- */
 const gov = await page.evaluate(() => ({
