@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=128;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=128"></script>
+  <script>window.__WD_V=129;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=129"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -6355,9 +6355,7 @@ setTimeout(clean,500);setTimeout(clean,1500);
 #wd-lvlchip small{font-weight:700;color:#b9d7f5;font-size:8px}
 /* --- leaderboard king crown --- */
 .lr-row b.wd-crown{margin-right:3px}
-/* --- selection pulse ring on the map --- */
-/* V61: حلقه‌ی انتخاب ثابت + هاله‌ی بسیار ملایم — انیمیشن دائمی حذف شد (نویز بصری/کامپوزیتور) */
-.wd-selring{width:34px;height:34px;border:2px solid rgba(255,215,100,.85);border-radius:50%;margin:-17px 0 0 -17px;box-shadow:0 0 10px rgba(255,215,100,.28),inset 0 0 6px rgba(255,215,100,.14)}
+/* V129: حلقه‌ی زرد انتخاب (wd-selring) کلاً حذف شد — انتخاب کشور حالا با فوکوس CSS + outline درخشان مشخص می‌شود؛ دایره‌ی اضافه‌ی روی نقشه نیست */
 /* --- smoother modals --- */
 .modal-card{animation:wd-modalin .22s cubic-bezier(.34,1.4,.64,1)}
 @keyframes wd-modalin{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
@@ -6469,16 +6467,8 @@ function mapUpgrade(){
   WD_onZoom(updateLabelsDeb);
   map.on('moveend',updateLabelsDeb);
   setTimeout(updateLabels,600);
-  /* 4) selection pulse ring on the clicked country */
-  /* V59 wave-2: wrapper حذف شد — حلقه‌ی انتخاب، پس‌هوک کلیک */
-  var selRing=null;
-  try{WD_CLICK_HOOKS.post.push(function(f,l){
-    try{
-      if(selRing){selRing.remove();selRing=null;}
-      var g=mainRing(l);
-      if(g){selRing=L.marker(g.c,{interactive:false,zIndexOffset:390,icon:L.divIcon({className:'wd-clabel-wrap',iconSize:[34,34],html:'<div class="wd-selring"></div>'})}).addTo(map);}
-    }catch(e){}
-  })}catch(e){console.error('wd-c9',e)}
+  /* V129: حلقه‌ی زرد انتخاب حذف شد — هیچ marker اضافه‌ای روی تپ کشور ساخته نمی‌شود (تپ سبک‌تر + بدون المان مزاحم).
+     انتخاب کشور فقط با فیلتر فوکوس + outline درخشان CSS مشخص می‌شود. */
 }
 /* chain onto afterGeo (runs right after countries render) */
 setTimeout(function(){
@@ -11970,7 +11960,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=128';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=129';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -17117,8 +17107,8 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
 .leaflet-container.z5 .wd-pat-ov{opacity:.22}
 body.wd-autolite .wd-pat-ov{opacity:.1!important;transition:none!important}
 @media(prefers-reduced-motion:reduce){.wd-pat-ov{transition:none!important}}
-    /* ۲) صفر انیمیشن دائمی روی افکت‌های نقشه (گارانتی — ریشه‌ها در بلاک‌های خودی حذف شدند) */
-.wd-pat-ov,.wd-selring{animation:none!important}
+    /* ۲) صفر انیمیشن دائمی روی افکت‌های نقشه (گارانتی — ریشه‌ها در بلاک‌های خودی حذف شدند؛ wd-selring در V129 کلاً حذف شد) */
+.wd-pat-ov{animation:none!important}
    </style>
    <script id="wd61-map-js">
     /* ============ V61: CLEAN MAP JS — ضدتداخل لیبل پایتخت‌ها + هوک زوم (تک‌منبع) ============ */
@@ -18959,7 +18949,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=128';
+              s.src='/game/cv-engine.js?v=129';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18970,7 +18960,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=128"></script>
+<script src="/game/oly3.js?v=129"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18984,7 +18974,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=128';
+      s.src='/game/oly3d.js?v=129';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -20224,8 +20214,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=128"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=128"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=129"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=129"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -20603,5 +20593,207 @@ html.wd-perf #ticker{overflow:hidden}
 .modal{transition:opacity .16s ease!important}
 .modal.active .modal-card{transition:transform .26s cubic-bezier(.18,1.14,.32,1),opacity .2s ease!important;will-change:transform,opacity}
 </style>
+<style id="v129-css">
+/* ============ V129: آیکون امتیاز مایکت (کنار تلگرام) + آیکون‌های شناور سینمایی ============
+   همه‌ی انیمیشن‌های این بلاک فقط transform/opacity/translate/scale هستند = فقط کامپوزیتور GPU،
+   صفر بازکشیدن رنگ (paint) — به‌علاوه‌ی توقف کامل با wd-tabhidden و prefers-reduced-motion. */
+/* ۱) دکمه‌ی مایکت — دقیقا کنار آیکون تلگرام (ستون چپ، همان زبان بصری V110) */
+#wd129-mk-fab{position:fixed;top:72px;left:64px;width:46px;height:46px;z-index:9996;border-radius:50%;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent;
+  border:1px solid rgba(130,215,255,.6);
+  background:radial-gradient(circle at 30% 24%,rgba(255,255,255,.22),transparent 55%),linear-gradient(160deg,#38a8f0,#1667b8 58%,#0a4180);
+  box-shadow:0 5px 16px rgba(0,0,0,.5),0 0 16px rgba(60,180,255,.4),inset 0 1px 0 rgba(255,255,255,.28);
+  animation:wd129float 5.2s ease-in-out 1s infinite;
+  transition:transform .2s cubic-bezier(.22,1,.36,1),filter .25s}
+#wd129-mk-fab svg{width:23px;height:23px;pointer-events:none;filter:drop-shadow(0 0 8px rgba(255,235,170,.75))}
+#wd129-mk-fab:hover{filter:brightness(1.15)}
+#wd129-mk-fab:active{transform:scale(.88)}
+#wd129-mk-fab::before{content:'';position:absolute;inset:-6px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(70,185,255,.42) 0%,transparent 68%);
+  opacity:.35;animation:wd129aura 4.4s ease-in-out 1.2s infinite}
+#wd129-mk-fab::after{content:'';position:absolute;top:-2px;bottom:-2px;width:40%;left:-55%;pointer-events:none;border-radius:50%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.4),transparent);animation:wd110shine 3.8s ease-in-out 1.8s infinite}
+#wd129-mk-fab .wd129-mkb{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);min-width:26px;height:15px;line-height:14px;
+  padding:0 5px;border-radius:99px;font-size:9px;font-weight:950;color:#2a1c02;font-style:normal;
+  background:linear-gradient(180deg,#ffe08a,#ffb02e);border:1px solid rgba(255,220,120,.9);
+  box-shadow:0 2px 8px rgba(0,0,0,.5),0 0 9px rgba(255,190,50,.45);pointer-events:none;font-variant-numeric:tabular-nums}
+#wd129-mk-fab.wd129-done{filter:saturate(.35) brightness(.8);animation:none}
+#wd129-mk-fab.wd129-done::before,#wd129-mk-fab.wd129-done::after{display:none}
+#wd129-mk-fab.wd129-done .wd129-mkb{display:none}
+@media(max-width:640px){
+  #wd129-mk-fab{top:106px;left:56px;width:40px;height:40px}
+  #wd129-mk-fab svg{width:20px;height:20px}
+}
+@media(max-width:380px){
+  #wd129-mk-fab{top:100px;left:52px;width:36px;height:36px}
+  #wd129-mk-fab svg{width:18px;height:18px}
+  #wd129-mk-fab .wd129-mkb{min-width:22px;height:13px;line-height:12px;font-size:8px;bottom:-5px}
+}
+/* ۲) تلگرام: جای wd110pulse (بازکشیدن box-shadow در هر فریم) هاله‌ی opacity-محور + شناوری هماهنگ */
+#wd-tg-fab.wd110-live{animation:wd129float 5.4s ease-in-out 1.4s infinite}
+#wd-tg-fab:not(.wd110-done)::before{content:'';position:absolute;inset:-6px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(70,170,255,.4) 0%,transparent 68%);
+  opacity:.32;animation:wd129aura 4.4s ease-in-out .4s infinite}
+/* ۳) مدالیون‌های بالای نقشه (امپراتوری/خزانه/رویدادها/سامانه) — شناوری پلکانی + هاله‌ی آیکون */
+.wd101b-btn{animation:wd129float 6s ease-in-out infinite}
+#hud-strip .wd101b-grp:nth-child(1) .wd101b-btn{animation-delay:0s}
+#hud-strip .wd101b-grp:nth-child(2) .wd101b-btn{animation-delay:.55s}
+#hud-strip .wd101b-grp:nth-child(3) .wd101b-btn{animation-delay:1.1s}
+#hud-strip .wd101b-grp:nth-child(4) .wd101b-btn{animation-delay:1.65s}
+.wd101b-btn svg{filter:drop-shadow(0 0 6px var(--glow,rgba(120,200,255,.35)))}
+/* ۴) FAB سرور (wd96) + المپیک — شناوری ملایم هماهنگ */
+.wd96-fab{animation:wd129float 5.6s ease-in-out 2s infinite}
+#wd34-heat-btn{animation:wd129float 5.9s ease-in-out 2.6s infinite}
+/* ۵) نوار پایین — ایموجی‌ها شناور با تاخیر پلکانی (!important برای شکست بلاک lite قدیمی) */
+.bottom-nav .nav-btn span:first-child{animation:wd129float 4.8s ease-in-out infinite!important}
+.bottom-nav .nav-btn:nth-child(1) span:first-child{animation-delay:0s!important}
+.bottom-nav .nav-btn:nth-child(2) span:first-child{animation-delay:.45s!important}
+.bottom-nav .nav-btn:nth-child(3) span:first-child{animation-delay:.9s!important}
+.bottom-nav .nav-btn:nth-child(4) span:first-child{animation-delay:1.35s!important}
+.bottom-nav .nav-btn:nth-child(5) span:first-child{animation-delay:1.8s!important}
+.bottom-nav .nav-btn:nth-child(6) span:first-child{animation-delay:2.25s!important}
+.bottom-nav .nav-btn:nth-child(7) span:first-child{animation-delay:2.7s!important}
+.bottom-nav .nav-btn:nth-child(8) span:first-child{animation-delay:3.15s!important}
+/* دکمه‌های «آماده» (مالیات/سازمان): نبض طلایی گیم‌پلی روی span حفظ می‌شود + شناوری روی خودِ دکمه */
+.bottom-nav .nav-btn.wd-ready{animation:wd129float 4.8s ease-in-out infinite}
+.bottom-nav .nav-btn.wd-ready span:first-child{animation:wd-navglow 1.6s ease-in-out infinite;filter:drop-shadow(0 0 6px rgba(255,215,90,.9))}
+/* ۶) ساعت/تاریخ — شناوری خیلی ملایم */
+#hud-info .hchip{animation:wd129float 6.6s ease-in-out 2.2s infinite}
+@keyframes wd129float{0%,100%{translate:0 0}50%{translate:0 -3px}}
+@keyframes wd129aura{0%,100%{opacity:.26;scale:.92}50%{opacity:.82;scale:1.08}}
+/* ۷) احترام به تنظیم کارایی اختیاری کاربر + حرکت کاهش‌یافته سیستم */
+html.wd-perf #wd129-mk-fab,html.wd-perf #wd-tg-fab.wd110-live,html.wd-perf .wd101b-btn,
+html.wd-perf .wd96-fab,html.wd-perf #wd34-heat-btn,html.wd-perf .bottom-nav .nav-btn span:first-child,
+html.wd-perf #hud-info .hchip{animation:none!important}
+@media(prefers-reduced-motion:reduce){
+  #wd129-mk-fab,#wd129-mk-fab::before,#wd129-mk-fab::after,#wd-tg-fab.wd110-live,#wd-tg-fab:not(.wd110-done)::before,
+  .wd101b-btn,.wd96-fab,#wd34-heat-btn,.bottom-nav .nav-btn span:first-child,#hud-info .hchip{animation:none!important}
+  #wd129-mk-fab::before,#wd-tg-fab:not(.wd110-done)::before{opacity:.42}}
+/* ۸) مودال امتیاز مایکت — سینمایی آبی-طلایی */
+#wd129-mk .wd129-mkc{max-width:440px;background:linear-gradient(168deg,rgba(8,30,58,.97),rgba(4,12,28,.98)),radial-gradient(circle at 15% -10%,rgba(56,168,255,.22),transparent 55%);
+  border:1px solid rgba(90,190,255,.45);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 24px rgba(40,160,255,.15)}
+#wd129-mk .wd129-hero{display:flex;align-items:center;justify-content:center;gap:14px;margin:12px 0 10px}
+#wd129-mk .wd129-mkic{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(150deg,rgba(56,168,255,.24),rgba(10,60,120,.3));border:1px solid rgba(120,210,255,.55);
+  box-shadow:0 0 22px rgba(56,168,255,.35),inset 0 1px 0 rgba(255,255,255,.2)}
+#wd129-mk .wd129-mkic svg{width:32px;height:32px;filter:drop-shadow(0 0 8px rgba(120,210,255,.8))}
+#wd129-mk .wd129-gb{font-weight:950;font-size:21px;color:#ffd75e;text-shadow:0 0 16px rgba(255,190,40,.5)}
+#wd129-mk .wd129-gb small{display:block;font-size:9.5px;font-weight:800;color:#9fd8ff;letter-spacing:.06em}
+#wd129-mk .wd129-copy{font-size:11.5px;line-height:2;color:#d7ecff;margin:0 2px 10px;text-align:right}
+#wd129-mk .wd129-copy b{color:#ffd75e}
+#wd129-mk .wd129-go{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;border:0;cursor:pointer;
+  border-radius:14px;padding:12px;font-weight:950;font-size:13px;color:#fff;
+  background:linear-gradient(135deg,#2f9df0,#14568f);box-shadow:0 8px 22px rgba(30,140,220,.4),inset 0 1px 0 rgba(255,255,255,.25);
+  transition:transform .2s ease,filter .2s ease}
+#wd129-mk .wd129-go:active{transform:scale(.97)}
+#wd129-mk .wd129-go:hover{filter:brightness(1.12)}
+#wd129-mk .wd129-go.wd129-ok{background:linear-gradient(135deg,#2fae62,#187a41)}
+#wd129-mk .wd129-claim{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;
+  border-radius:14px;padding:12px;font-weight:950;font-size:13.5px;color:#3a2400;margin-top:10px;
+  background:linear-gradient(135deg,#ffd75e,#f0a929);box-shadow:0 8px 22px rgba(255,180,40,.35),inset 0 1px 0 rgba(255,255,255,.5);
+  transition:transform .2s ease,filter .2s ease,opacity .2s ease}
+#wd129-mk .wd129-claim:active{transform:scale(.97)}
+#wd129-mk .wd129-claim[disabled]{filter:grayscale(.75) brightness(.62);opacity:.72;cursor:not-allowed;box-shadow:none}
+#wd129-mk .wd129-claim.wd129-ok{background:linear-gradient(135deg,#37d97f,#1a9a4e);color:#fff;filter:none;opacity:1}
+#wd129-mk .wd129-st{font-size:10px;line-height:1.9;color:#9fd8ff;margin-top:9px;text-align:center;min-height:19px}
+#wd129-mk .wd129-note{font-size:9px;color:#7fa6cf;margin-top:6px;text-align:center;line-height:1.8}
+</style>
+<script id="v129-js">
+/* ============ V129: امتیاز ۵ ستاره مایکت — ۵٬۰۰۰ طلا، فقط پس از ثبت امتیاز واقعی ============ */
+/* جریان: FAB مایکت (دقیقا کنار FAB تلگرام) → مودال سینمایی → پرش به مایکت → پس از ≥۴۵ ثانیه غیبت
+   (زمان واقعی ورود به مایکت، پیدا کردن بازی و ثبت امتیاز) و بازگشت به بازی، دکمه‌ی طلایی فعال
+   می‌شود → واریز ۵٬۰۰۰ طلا؛ یک‌بارمصرف برای هر حساب (localStorage + cookie) */
+(function(){
+'use strict';
+var D=document;
+var MK_URL='https://myket.ir/app/com.worlddominion.game';
+var GOLD=5000, MIN_AWAY=45000;
+var fa=function(n){return String(n).replace(/\d/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[d]})};
+var fmt=function(n){try{return Number(n).toLocaleString('fa-IR')}catch(e){return fa(n)}};
+var BTN_SVG='<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 2.4l3 6.1 6.7 1-4.85 4.7 1.15 6.7L12 17.7l-6 3.2 1.15-6.7L2.3 9.5l6.7-1z" fill="#ffe08a" stroke="rgba(255,255,255,.65)" stroke-width=".6"/></svg>';
+var HERO_SVG='<svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true"><path d="M12 2.4l3 6.1 6.7 1-4.85 4.7 1.15 6.7L12 17.7l-6 3.2 1.15-6.7L2.3 9.5l6.7-1z" fill="#ffe08a" stroke="rgba(255,255,255,.7)" stroke-width=".5"/></svg>';
+function uid(){try{return (window.ACC&&ACC.uid)||'dev'}catch(e){return 'dev'}}
+function uidSlug(){return String(uid()).replace(/[^a-z0-9]/gi,'').slice(0,10)}
+function doneKey(){return 'wd129mk_done_'+uid()}
+function isDone(){try{if(localStorage.getItem(doneKey())==='1')return true;return D.cookie.indexOf('wdmk'+uidSlug()+'=1')>-1}catch(e){return false}}
+function setDone(){try{localStorage.setItem(doneKey(),'1');D.cookie='wdmk'+uidSlug()+'=1;max-age=31536000;path=/'}catch(e){}}
+function pendTs(){try{return Number(localStorage.getItem('wd129mk_pend'))||0}catch(e){return 0}}
+function fabDone(){try{var b=D.getElementById('wd129-mk-fab');if(b)b.classList.add('wd129-done')}catch(e){}}
+function updUI(){try{if(typeof updateUI==='function')updateUI()}catch(e){}}
+
+function ensureModal(){
+  var m=D.getElementById('wd129-mk');if(m)return m;
+  m=D.createElement('div');m.id='wd129-mk';m.className='modal';
+  m.innerHTML='<div class="modal-card wd129-mkc">'+
+    '<div class="modal-title-row"><span>⭐ امتیاز ۵ ستاره در مایکت</span><span class="close-modal" style="cursor:pointer;font-size:18px" onclick="this.closest(\'.modal\').classList.remove(\'active\')">✕</span></div>'+
+    '<div class="wd129-hero"><span class="wd129-mkic">'+HERO_SVG+'</span><div class="wd129-gb">+'+fmt(GOLD)+' <small>طلا هدیه</small></div></div>'+
+    '<p class="wd129-copy">فرمانده! این جهان — با نقشه‌ی واقعی <b>۱۸۰ کشور</b>، نبردهای زنده، المپیک جهانی و اتحادها — با عشق توسط یک تیم کوچک ساخته شده است. تنها سوخت ما برای آپدیت‌های بزرگ‌تر، <b>امتیازهای توست</b>؛ هر ۵ ستاره بازی را در مایکت جلوی چشم هزاران فرمانده‌ی تازه می‌آورد و آینده‌ی رویدادها را تضمین می‌کند. اگر این بازی برایت لحظه‌های خوبی ساخته، فقط <b>۳۰ ثانیه</b> وقت بگذار: در مایکت ۵ ستاره ثبت کن؛ وقتی به بازی برگشتی <b>'+fmt(GOLD)+' طلا</b> منتظرت است!</p>'+
+    '<button class="wd129-go" id="wd129-go">'+BTN_SVG+'<span>ثبت امتیاز ۵ ستاره در مایکت</span></button>'+
+    '<button class="wd129-claim" id="wd129-claim" disabled>🪙 دریافت '+fmt(GOLD)+' طلا</button>'+
+    '<div class="wd129-st" id="wd129-st"></div>'+
+    '<div class="wd129-note">پاداش فقط یک‌بار به هر حساب واریز می‌شود • امتیاز واقعی ۵ ستاره در صفحه‌ی بازی در مایکت ثبت شود • بعد از ثبت امتیاز به بازی برگرد و جایزه‌ات را بگیر</div>'+
+    '</div>';
+  D.body.appendChild(m);
+  D.getElementById('wd129-go').addEventListener('click',goMk);
+  D.getElementById('wd129-claim').addEventListener('click',claim);
+  return m;
+}
+function refresh(){
+  var m=D.getElementById('wd129-mk');if(!m)return;
+  var done=isDone(),p=pendTs(),el=p?(Date.now()-p):0,ok=!done&&p>0&&el>=MIN_AWAY;
+  var go=D.getElementById('wd129-go'),cl=D.getElementById('wd129-claim'),st=D.getElementById('wd129-st');
+  if(done){
+    if(go){go.classList.add('wd129-ok');var s2=go.querySelector('span');if(s2&&s2.textContent!=='✅ امتیازت ثبت شد — دستت درد نکند!')s2.textContent='✅ امتیازت ثبت شد — دستت درد نکند!'}
+    if(cl){cl.classList.add('wd129-ok');cl.disabled=true;if(cl.textContent!=='🎉 پاداش واریز شد')cl.textContent='🎉 پاداش واریز شد'}
+    var t1='پاداش این حساب قبلاً واریز شده. ممنون که به بازی امتیاز دادی! ⭐';
+    if(st&&st.textContent!==t1)st.textContent=t1;
+    fabDone();return;
+  }
+  if(cl&&cl.disabled!==(!ok))cl.disabled=!ok;
+  if(st){
+    var t2=!p?'اول دکمه‌ی بالا را بزن و در مایکت ۵ ستاره ثبت کن؛ وقتی برگردی دکمه‌ی طلایی فعال می‌شود.'
+      :(!ok?'⏳ بعد از ثبت امتیاز به بازی برگرد — دریافت پاداش تا '+fa(Math.max(0,Math.ceil((MIN_AWAY-el)/1000)))+' ثانیه‌ی دیگر فعال می‌شود'
+      :'✅ سپاسگزاریم! امتیازت ثبت شد — حالا جایزه‌ات را بگیر');
+    if(st.textContent!==t2)st.textContent=t2;
+  }
+}
+function goMk(){
+  try{localStorage.setItem('wd129mk_pend',String(Date.now()))}catch(e){}
+  try{var w=window.open(MK_URL,'_blank');if(w)w.opener=null}catch(e){}
+  refresh();
+}
+var granting=false;
+function claim(){
+  if(granting)return;
+  var p=pendTs(),el=p?(Date.now()-p):0;
+  if(isDone()){refresh();return}
+  if(!(p>0&&el>=MIN_AWAY)){try{showToast('⏳ اول در مایکت امتیاز ۵ ستاره ثبت کن و بعد به بازی برگرد','info')}catch(e){}refresh();return}
+  granting=true;
+  try{
+    playerRes.gold+=GOLD;updUI();
+    try{if(typeof save==='function')save()}catch(e){}
+    setDone();granting=false;
+    try{showToast('🎉 '+fmt(GOLD)+' طلا هدیه‌ی امتیاز ۵ ستاره به خزانه اضافه شد!','win')}catch(e){}
+    refresh();
+    setTimeout(function(){try{D.getElementById('wd129-mk').classList.remove('active')}catch(e){}},1700);
+  }catch(e){granting=false;try{showToast('❌ خطا در واریز پاداش — دوباره امتحان کن','lose')}catch(e2){}}
+}
+function openMk(){var m=ensureModal();refresh();try{openModal('wd129-mk')}catch(e){m.classList.add('active')}}
+function ensureFab(){
+  if(D.getElementById('wd129-mk-fab')){if(isDone())fabDone();return}
+  var b=D.createElement('button');b.type='button';b.id='wd129-mk-fab';
+  b.title='امتیاز ۵ ستاره در مایکت — '+fmt(GOLD)+' طلا هدیه';b.setAttribute('aria-label',b.title);
+  b.innerHTML=BTN_SVG+'<b class="wd129-mkb">★۵</b>';
+  b.addEventListener('click',openMk);
+  D.body.appendChild(b);
+  if(isDone())b.classList.add('wd129-done');
+}
+/* تیک ۱ثانیه‌ای فقط وقتی مودال باز است — شمارش معکوس فعال شدن پاداش */
+setInterval(function(){try{var m=D.getElementById('wd129-mk');if(m&&m.classList.contains('active'))refresh()}catch(e){}},1000);
+try{D.addEventListener('visibilitychange',function(){if(!D.hidden){try{var m=D.getElementById('wd129-mk');if(m&&m.classList.contains('active'))refresh()}catch(e){}}},{passive:true})}catch(e){}
+try{ensureFab()}catch(e){}
+setTimeout(function(){try{ensureFab()}catch(e){}},1500);
+})();
+</script>
 </body>
 </html>
