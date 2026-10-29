@@ -2864,3 +2864,35 @@ Notes:
 
 ### نسخه و دروازه‌ها
 v.txt=134، __WD_V=134، ۷×?v=134 • check-html-js 103/0 • verify-build 9/9 • v132-smoke 18/18 • v131-smoke 31/31 • اسکرام scrim/dragging/smoothFactor تست عملکردی مستقیم سبز
+
+---
+
+## V135 — ریشه‌یابی اندازه‌گیری‌شده‌ی لگ سراسری (CDP trace، نه حدس) — «کل بازی هنوز لگ داره»
+
+### روش
+- `scripts/perf-v135.mjs` — سوئیت عمیق‌تر: rAF sampler + سرشماری interval (wrap با self-time) + CDP Performance.getMetrics (RecalcStyleCount/LayoutCount/TaskDuration) + کنترل‌های dpr1/2/3 + آزمایش‌های disable تدریجی
+- `scripts/census-v2/v3/v4-trace/v5-anims/v6-willchange/v7-trace2.mjs` + `probe-nav/probe-sweeps` — ردیابی CDP با invalidation-tracking و استک
+
+### یافته‌ی ریشه‌ای (شواهد سخت)
+ردیابی CDP: **کل recalc های idle = 57/s، دلیل صددرصد «Animation»، منبع = ۸ شبه‌المان `::after`** (گلوی دکمه‌های ناوبری wd130glow). نکته‌ی کلیدی: **Blink هرگز انیمیشن شبه‌المان‌ها را compositor نمی‌کند** — هر فریم = recalc + paint روی main-thread. قانون خط ۲۱۲۱۹ با `infinite!important` از همه‌ی گیت‌های wd-low-power/wd-page-hidden/lowfx قوی‌تر بود — یعنی روی گوشی کاربر و حتی تب مخفی همیشه می‌چرخید. به همین دلیل «کل بازی» حس لگ می‌داد (چرن دائمی main-thread).
+
+### اصلاحات (همه اندازه‌گیری-محور)
+| # | مشکل | اصلاح |
+|---|------|-------|
+| 1 | wd130glow روی ۸ شبه‌المان + #wd7-btn، `!important` جهانی | حذف `!important`؛ روی wd-low-power/wd-lowfx/wd-quiet → گلوی **استاتیک** (همان نما، صفر هزینه‌ی فریم)؛ دسکتاپ سالم متحرک می‌ماند |
+| 2 | ~۱۰ انیمیشن shine که `left` را انیمیت می‌کردند (left = ویژگی layout → layout در هر فریم) | بازنویسی یکپارچه در لایه‌ی `style#wd135-perf`: شبه‌المان full-width + باند به‌صورت `background-size` + انیمیشن با `transform:translateX` (`wd135sweepT`/`wd135sweepSk` با skew حفظ‌شده) — نتیجه‌ی بصری یکسان |
+| 3 | ~۱۱ پالس box-shadow (paint هر فریم: wg33FabPulse/wd50pulse-gold/wd86glow/wd87brth/wd110pulse/w43crs/…) | فقط روی دستگاه‌های ضعیف → استاتیک؛ دسکتاپ دست‌نخورده |
+| 4 | نظرسنجی FA_SEL هر 1200ms بدون گارد ژست (4.07ms/call تحت throttle) | گارد `__wdMapBusy` + 2000ms |
+
+### نتیجه (همان شرایط، mobile dpr3 CPU 4x)
+- idle تمیز ۱۲ثانیه‌ای: فریم‌های >30ms : **۸۸ → ۰** | recalc: **۶۳۵ → ۰** | زمان task: **۳.۳۳s → ۰.۳۶s (−۸۹٪)** | p95: 33.4 → **16.7ms**
+- درون‌سوئیت (بعد از pan/zoom): recalc 1030→۰، task −۷۵٪
+- دسکتاپ: هر ۴ تست 59.9fps و صفر افت (بدون تغییر — از قبل عالی) | task idle −۴۳٪
+- انیمیشن infinite در نمای اصلی موبایل: ۸ → **۰**
+- parity بصری: اسکرین‌شات‌های قبل/بعد nav (تفاوت نامحسوس) + HUD بایت‌به‌بایت یکسان
+
+### یادداشت صادقانه
+باقی‌مانده‌ی p95=33.4 در idle «درون‌سوئیت» (بعد از ژست‌ها) = بدهی raster بوم + GC تحت SwiftShader نرم‌افزاری است؛ idle با بارگذاری تمیز = صفر افت. بازکشی هر-فریم پالیگون‌های Leaflet هنگام ژست = معماری فعلی حفظ شد (طبق قانون؛ V134 قبلاً smoothFactor/guards را بهینه کرده).
+
+### دروازه‌ها
+v.txt=135، __WD_V=135، ۷×?v=135 • check-html-js **103/0** • verify-build **9/9** • v132-smoke **18/18** • v131-smoke **31/31** • probe-sweeps: صفر pageerror، retarget تأیید‌شده

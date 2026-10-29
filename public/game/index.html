@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=134;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=135;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <script>
   /* V132 PERF GOVERNOR — یک پچِ سراسری قبل از همه‌ی اسکریپت‌های بازی.
      ۱) دستگاه ضعیف: بازه‌های نظرسنجیِ ≥۵ثانیه (presence/ذخیره/متادیتا/چت-پس‌زمینه) کشیده می‌شوند ×۱.۴
@@ -31,7 +31,7 @@
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-  <script src="/game/balance.js?v=134"></script>
+  <script src="/game/balance.js?v=135"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -7294,14 +7294,14 @@ try{window.faNum=faNum}catch(e){}
 var FA_SEL='#r-gold,#r-food,#r-oil,#r-army,#total-attack-power,#hud-gem,#hud-terr,#battle-pct-label,#wd6-level,.lr-val,.wd22-stat b,#c-pop,#c-def-stat,#c-gold-stat,#c-oil-stat,#c-food-stat,#c-rank-stat';
 setInterval(function(){
   try{
-    if(D.hidden)return;
+    if(D.hidden||window.__wdMapBusy)return;
     var els=D.querySelectorAll(FA_SEL);
     for(var i=0;i<els.length;i++){
       var e=els[i],t=e.textContent;
       if(t&&/[0-9]/.test(t))e.textContent=faNum(t);
     }
   }catch(e){}
-},1200);
+},2000);
 
 /* ============ 2) هیچ تپ مرده‌ای: فیدبک هنگام درگیری + ضد-گیر کردن battleBusy ============ */
 setInterval(function(){
@@ -12186,7 +12186,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=134';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=135';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -19321,7 +19321,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=134';
+              s.src='/game/cv-engine.js?v=135';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -19332,7 +19332,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=134"></script>
+<script src="/game/oly3.js?v=135"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -19346,7 +19346,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=134';
+      s.src='/game/oly3d.js?v=135';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -20612,8 +20612,8 @@ try{if(window.MutationObserver){var _aQ=false;new MutationObserver(function(){if
 setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=134"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=134"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=135"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=135"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -21216,7 +21216,7 @@ setTimeout(function(){try{ensureFab()}catch(e){}},1500);
 .bottom-nav .nav-btn:nth-child(2n)>span:first-child{animation-delay:1.1s!important}
 .bottom-nav .nav-btn:nth-child(3n)>span:first-child{animation-delay:2.2s!important}
 .bottom-nav .nav-btn>span:first-child::before{content:"";position:absolute;inset:2px;border-radius:11px;background:linear-gradient(160deg,rgba(255,255,255,.28),rgba(255,255,255,0) 42%);pointer-events:none}
-.bottom-nav .nav-btn>span:first-child::after{content:"";position:absolute;inset:-5px;border-radius:16px;opacity:.5;background:radial-gradient(closest-side,rgba(90,220,255,.5),rgba(90,220,255,0) 72%);z-index:-1;animation:wd130glow 4.2s ease-in-out infinite!important}
+.bottom-nav .nav-btn>span:first-child::after{content:"";position:absolute;inset:-5px;border-radius:16px;opacity:.5;background:radial-gradient(closest-side,rgba(90,220,255,.5),rgba(90,220,255,0) 72%);z-index:-1;animation:wd130glow 4.2s ease-in-out infinite}
 .bottom-nav .nav-btn>span:first-child svg{width:21px!important;height:21px!important;display:block;filter:drop-shadow(0 2px 3px rgba(0,10,25,.65)) brightness(1.18) saturate(1.3)!important}
 .bottom-nav .nav-btn>span:first-child span,.bottom-nav .nav-btn>span:first-child{font-size:19px;line-height:1}
 .bottom-nav .nav-btn:active>span:first-child{transform:scale(.86) translateY(1px)!important}
@@ -21663,5 +21663,42 @@ setInterval(function(){if(!D.hidden)hostState(false).then(function(st){pillState
 window.WD131_HOSTTAG=function(nick){try{return isHost(nick)?'👑 ':''}catch(e){return ''}}
 })();
 </script>
+<style id="wd135-perf">
+/* ═══════ V135 MEASURED-PERF LAYER — trace-driven (CDP invalidation tracing), see worklog ═══════
+   Evidence: idle style-recalc = 57/s (reason=Animation) ALL from pseudo-element animations —
+   Blink never composites ::before/::after animations → main-thread recalc + paint EVERY frame.
+   Secondary: ~10 shine sweeps animate `left` (layout property → forced layout per frame);
+   ~11 box-shadow pulses repaint main-thread every frame.
+   Strategy: identical visuals on capable devices; static/pacified on weak devices
+   (body.wd-low-power auto: cores≤6/mem≤4/mobile UA — user's phones) and html.wd-quiet governor. */
+
+/* 1) wd130glow nav glows — THE measured idle thief (8 pseudo nodes, 344 recalcs/6s).
+   Weak devices get the same static glow (zero per-frame cost). Capable devices keep motion. */
+body.wd-low-power .bottom-nav .nav-btn>span:first-child::after,
+body.wd-lowfx .bottom-nav .nav-btn>span:first-child::after,
+html.wd-quiet .bottom-nav .nav-btn>span:first-child::after{animation:none!important;opacity:.55!important}
+body.wd-low-power #wd7-btn::after,
+body.wd-lowfx #wd7-btn::after,
+html.wd-quiet #wd7-btn::after{animation:none!important;opacity:.35!important}
+
+/* 2) Shine sweeps: `left` animation → `transform:translateX` (layout-free per frame).
+   Geometry normalized: pseudo full-width, band = background-size (visually identical). */
+.res-card::after{left:0!important;width:100%!important;background-size:40% 100%!important;background-repeat:no-repeat!important;animation-name:wd135sweepT!important}
+.action-btn::after{left:0!important;width:100%!important;background-size:35% 100%!important;background-repeat:no-repeat!important;animation-name:wd135sweepT!important}
+#hud-gem::after{left:0!important;width:100%!important;background-size:34% 100%!important;background-repeat:no-repeat!important;animation-name:wd135sweepT!important}
+#wd86-gift::after{left:0!important;width:100%!important;background-size:36% 100%!important;background-repeat:no-repeat!important;animation-name:wd135sweepT!important}
+.w107-enter::after{left:0!important;width:100%!important;background-size:34% 100%!important;background-repeat:no-repeat!important;animation-name:wd135sweepT!important}
+#wd87-b-gift::after{left:0!important;width:100%!important;background-size:42% 100%!important;background-repeat:no-repeat!important;animation-name:wd135sweepT!important}
+#wd-tg-fab::after,#wd129-mk-fab::after{left:0!important;width:100%!important;background-size:40% 100%!important;background-repeat:no-repeat!important;animation-name:wd135sweepT!important}
+.cos27-card::after{left:0!important;width:100%!important;background-size:34% 100%!important;background-repeat:no-repeat!important;animation-name:wd135sweepSk!important}
+.wd66-ico::after,.wd114-gico::after{left:0!important;width:100%!important;background-size:46% 100%!important;background-repeat:no-repeat!important;animation-name:wd135sweepSk!important}
+@keyframes wd135sweepT{0%{transform:translateX(-62%)}55%,100%{transform:translateX(132%)}}
+@keyframes wd135sweepSk{0%{transform:translateX(-62%) skewX(-18deg)}55%,100%{transform:translateX(132%) skewX(-18deg)}}
+
+/* 3) box-shadow pulse/glow loops (per-frame main-thread paint) → static on weak devices only */
+body.wd-low-power :is(#act-tax:not([disabled]),#act-un-aid:not([disabled]),#hud-olympic.wg33-live,.w38-dot.now,#hud-crisis,.wd-em-gold,.wd-em-dragon,.wd-em-fire,#wd131-axpill.on,#wd-tg-fab.wd110-live,#wd86-gift,#wd87dock .wd87-ic),
+body.wd-lowfx :is(#act-tax:not([disabled]),#act-un-aid:not([disabled]),#hud-olympic.wg33-live,.w38-dot.now,#hud-crisis,.wd-em-gold,.wd-em-dragon,.wd-em-fire,#wd131-axpill.on,#wd-tg-fab.wd110-live,#wd86-gift,#wd87dock .wd87-ic),
+html.wd-quiet :is(#act-tax:not([disabled]),#act-un-aid:not([disabled]),#hud-olympic.wg33-live,.w38-dot.now,#hud-crisis,.wd-em-gold,.wd-em-dragon,.wd-em-fire,#wd131-axpill.on,#wd-tg-fab.wd110-live,#wd86-gift,#wd87dock .wd87-ic){animation:none!important}
+</style>
 </body>
 </html>
