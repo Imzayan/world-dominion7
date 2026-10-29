@@ -487,13 +487,15 @@ function ensureDock(){
   applyBadges();
 }
 /* شیت فرمان هر بار باز شدن بازسازی می‌شود — با Observer آیتم‌ها را تزریق می‌کنیم */
+var _wd95LastInj=0;
 function ensureSheetItems(){
   var body=$('wd-menu');if(!body)return;
   var grid=body.querySelector('.wd-menu-grid');if(!grid)return;
   if(grid.__wd95)return;grid.__wd95=1;
   var anchor=null;
   var its=grid.querySelectorAll('.wd-menu-item');
-  for(var i=0;i<its.length;i++){var b=its[i].querySelector('b');if(b&&b.textContent.indexOf('چت جهانی')>-1){anchor=its[i];break}}
+  /* V130: انکرا از «چت جهانی» (که از منو حذف شد) به «شکوه» منتقل شد */
+  for(var i=0;i<its.length;i++){var b=its[i].querySelector('b');if(b&&(b.textContent.indexOf('شکوه')>-1||b.textContent.indexOf('چت جهانی')>-1)){anchor=its[i];break}}
   function item(icoTxt,ttl,sub,fn,alt){
     var it=mk('div','','wd-menu-item'+(alt?' alt':''));it.addEventListener('click',fn);
     var ic=mk('span',icoTxt,'wd-menu-ic');var tx=mk('div','','');
@@ -501,6 +503,7 @@ function ensureSheetItems(){
     tx.append(bb,ss);it.append(ic,tx);return it;
   }
   var fr=mk('div','');fr.style.cssText='display:contents';
+  var sect=mk('div','🌍 جامعه و پیوندها','wd-menu-sect');fr.appendChild(sect);
   fr.appendChild(item('✉️','پیام‌ها','چت خصوصی با فرماندهان دیگر',function(){openInbox()}));
   fr.appendChild(item('👥','دوستان','فهرست هم‌پیمانان و درخواست‌ها',function(){openFriends()},1));
   fr.appendChild(item('🪪','پروفایل من','هویت، سه رتبه و دستاوردها',function(){openProfile()}));
@@ -510,7 +513,8 @@ function ensureSheetItems(){
   applyBadges();
 }
 try{
-  new MutationObserver(function(){try{ensureSheetItems()}catch(e){}}).observe(D.body,{childList:true,subtree:true});
+  /* V130: Observer سبک شد — حداکثر هر ۴۰۰ms یک بررسی (قبلاً روی هر Mutation کل صفحه اجرا می‌شد) */
+  new MutationObserver(function(){try{var now=Date.now();if(now-_wd95LastInj<400)return;_wd95LastInj=now;ensureSheetItems()}catch(e){}}).observe(D.body,{childList:true,subtree:true});
 }catch(e){}
 /* داک V87 با تاخیر ساخته می‌شود — نظرسنجی سبک تا ظهور */
 var dockTries=0;
@@ -522,12 +526,18 @@ setInterval(function(){if(!D.hidden)ensureDock()},5000);
    ============================================================ */
 function mmodal(id,titleIco,titleTxt){
   var m=$(id);
-  if(m)return m;
+  if(m){try{m.__wd130t=titleTxt;var tt=m.querySelector('.wd95-title > span');if(tt)tt.textContent=titleTxt}catch(e){}return m}
   m=D.createElement('div');m.id=id;m.className='modal wd95-modal';
   m.innerHTML='<div class="modal-card"><div class="modal-title-row wd95-head"><span class="wd95-title">'+WDSI_ICON(titleIco,20)+'<span>'+titleTxt+'</span></span><span class="close-modal wd95-icobtn" style="width:36px;height:36px;min-width:36px" data-x="'+id+'">✕</span></div><div class="wd95-body" style="display:flex;flex-direction:column;gap:8px;flex:1;min-height:0;overflow:hidden"></div></div>';
   D.body.appendChild(m);
   m.querySelector('[data-x]').addEventListener('click',function(){try{closeModal(id)}catch(e){}});
+  /* V130: مودال‌های پویا هنگام bindStaticListeners وجود نداشتند — کلیک روی پس‌زمینه این‌جا بسته می‌شود */
+  try{m.addEventListener('click',function(ev){if(ev.target===m)closeModal(id)})}catch(e){}
   return m;
+}
+/* V130: دسترسی امن به فیلدهای پاسخ سرور — هیچ پروفایلی نباید روی undefined سقوط کند */
+function sfp(o,path,def){
+  try{var v=o;var ps=String(path).split('.');for(var i=0;i<ps.length;i++){if(v==null)return def;v=v[ps[i]]}return v==null?def:v}catch(e){return def}
 }
 function body(id){var m=$(id);return m?m.querySelector('.wd95-body'):null}
 
@@ -660,38 +670,51 @@ function openProfile(tab,uid,nick){
   b.innerHTML='<div class="wd95-empty">در حال بارگذاری…</div>';
   try{openModal('wd-prof')}catch(e){}
   var args={p_server:mySrv()};
-  if(uid)args.p_uid=uid;else if(nick)args.p_nick=nick;
+  /* V130 FIX «پروفایل پیدا نشد»: سرور بدون p_uid/p_nick پاسخ no_user می‌دهد —
+     حالت «پروفایل من» (بدون آرگومان) باید صریحاً uid خودش را بفرستد */
+  if(uid)args.p_uid=uid;else if(nick)args.p_nick=nick;else{var _me=myUid();if(_me)args.p_uid=_me}
   rpc('wd_profile',args).then(function(p){
     if(!p||!p.ok){b.innerHTML='<div class="wd95-empty">پروفایل پیدا نشد.</div>';return}
+    /* V130: ثبت زینتی‌های این بازیکن (نشان/لقب/رنگ) از امضای بیو */
+    try{if(window.WD130_COSYNC)window.WD130_COSYNC.fromProfile(p)}catch(e){}
     b.innerHTML='';
     /* سرصفحه */
     var head=D.createElement('div');head.className='wd95-prof-head';
     var av=mk('div',(p.nick||'؟').charAt(0).toUpperCase(),'wd95-ava');
     av.style.background='linear-gradient(135deg,hsl('+avColor(p.nick)+',65%,45%),hsl('+((avColor(p.nick)+50)%360)+',70%,35%))';
-    var dot=mk('i','');dot.className='wd95-dot '+(p.presence.state==='online'?'on':p.presence.state==='idle'?'idle':'off');av.appendChild(dot);
+    var pst=sfp(p,'presence.state','offline');
+    var dot=mk('i','');dot.className='wd95-dot '+(pst==='online'?'on':pst==='idle'?'idle':'off');av.appendChild(dot);
     var mid=mk('div','','wd95-mid');
     var nm=mk('b',p.nick);nm.style.fontSize='14px';
     mid.appendChild(nm);
-    var sub=mk('small',(p.presence.state==='online'?'🟢 آنلاین':p.presence.state==='idle'?'🟡 دور از تبع':'🔴 آفلاین')+' — سرور '+fa(p.server)+' • عضویت '+(p.joined?new Date(p.joined).toLocaleDateString('fa-IR'):'—'));
+    var sub=mk('small',(pst==='online'?'🟢 آنلاین':pst==='idle'?'🟡 دور از تبع':'🔴 آفلاین')+' — سرور '+fa(sfp(p,'server',mySrv()))+' • عضویت '+(p.joined?new Date(p.joined).toLocaleDateString('fa-IR'):'—'));
     mid.appendChild(sub);
-    var tc=D.createElement('div');tc.className='wd95-titlechip';tc.textContent=p.ladder.title;
+    var tc=D.createElement('div');tc.className='wd95-titlechip';tc.textContent=sfp(p,'ladder.title','—');
     mid.appendChild(tc);
-    if(p.alliance){var al=mk('div','','wd95-titlechip');al.textContent='🛡️ ['+p.alliance.tag+'] '+p.alliance.name;mid.appendChild(al)}
+    /* V130: زینتی‌های خریداری‌شده‌ی این فرمانده — نشان و لقب برای همه دیده می‌شود */
+    try{if(window.WD130_COSYNC){var _c=window.WD130_COSYNC.get(p.nick);
+      if(_c&&_c.e){var eb=mk('div','','wd95-titlechip');eb.textContent=_c.e+' نشان زینتی';mid.appendChild(eb)}
+      if(_c&&_c.t){var tb=mk('div','','wd95-titlechip');tb.textContent='👑 '+_c.t;mid.appendChild(tb)}}}catch(e){}
+    if(p.alliance){var al=mk('div','','wd95-titlechip');al.textContent='🛡️ ['+sfp(p,'alliance.tag','')+'] '+sfp(p,'alliance.name','');mid.appendChild(al)}
     head.append(av,mid);b.appendChild(head);
-    /* بیو */
+    /* بیو — V130: امضای زینتی مخفی از متن بیو حذف می‌شود */
+    var bioText=function(){var t2=String(p.bio||'');try{if(window.WD130_COSYNC)t2=window.WD130_COSYNC.strip(t2)}catch(e){}return t2}();
     var bioWrap=D.createElement('div');
     if(p.self){
-      var bi=mk('input','','wd95-input');bi.value=p.bio||'';bi.maxLength=160;bi.placeholder='بیوی خودت را بنویس (حداکثر ۱۶۰ حرف)…';
+      var bi=mk('input','','wd95-input');bi.value=bioText;bi.maxLength=160;bi.placeholder='بیوی خودت را بنویس (حداکثر ۱۶۰ حرف)…';
+      bi.__wd130raw=true;
       var bs=mk('button','ذخیره','wd95-act pri');
       bs.addEventListener('click',function(){
-        rpc('wd_profile_set',{p_bio:bi.value,p_server:mySrv()}).then(function(r){
+        /* V130: امضای زینتی در بیو حفظ می‌شود — کاربر فقط متن خودش را می‌بیند و ویرایش می‌کند */
+        var bioOut=bi.value;try{if(window.WD130_COSYNC)bioOut=window.WD130_COSYNC.withSigil(bi.value)}catch(e){}
+        rpc('wd_profile_set',{p_bio:bioOut,p_server:mySrv()}).then(function(r){
           if(r&&r.ok){toast('پروفایل ذخیره شد ✓','win');pollBadges()}
         }).catch(function(){toast('ذخیره نشد','lose')});
       });
       var brow=D.createElement('div');brow.style.cssText='display:flex;gap:7px';brow.append(bi,bs);
       bioWrap.appendChild(brow);
     }else{
-      bioWrap=mk('div',p.bio||'— بیویی ثبت نشده —','wd95-sub');
+      bioWrap=mk('div',bioText||'— بیویی ثبت نشده —','wd95-sub');
     }
     b.appendChild(bioWrap);
     /* سه رتبه */
@@ -701,22 +724,22 @@ function openProfile(tab,uid,nick){
       c.appendChild(mk('b',val==null?'—':'#'+fa(val)));
       c.appendChild(mk('small',lbl));return c;
     }
-    rk.append(rankCard('sword',p.ranks.military,'رتبه نظامی'),rankCard('hof',p.ranks.economy,'رتبه اقتصاد'),rankCard('medal',p.ranks.olympics,'رتبه المپیاد'));
+    rk.append(rankCard('sword',sfp(p,'ranks.military'),'رتبه نظامی'),rankCard('hof',sfp(p,'ranks.economy'),'رتبه اقتصاد'),rankCard('medal',sfp(p,'ranks.olympics'),'رتبه المپیاد'));
     b.appendChild(rk);
     /* آمار */
     var st2=D.createElement('div');st2.className='wd95-stats';
-    [['قلمرو',p.stats.conquered],['امتیاز',p.stats.score],['کشتار',p.stats.kills],['نظامیان',p.stats.recruits]].forEach(function(x){
+    [['قلمرو',sfp(p,'stats.conquered')],['امتیاز',sfp(p,'stats.score')],['کشتار',sfp(p,'stats.kills')],['نظامیان',sfp(p,'stats.recruits')]].forEach(function(x){
       var s=mk('div','','wd95-stat');s.appendChild(mk('b',fa(x[1])));s.appendChild(mk('small',x[0]));st2.appendChild(s);
     });
     b.appendChild(st2);
     /* المپیاد + لقب بعدی */
     var olymp=mk('div','','wd95-sub');
-    olymp.textContent='🥇 مدال‌ها: '+fa(p.olympics.medals)+' (طلا: '+fa(p.olympics.golds)+')'+(p.ladder.next?(' • لقب بعدی: '+p.ladder.next.title.replace(/^[^ ]+ /,'')+' در '+fa(p.ladder.next.at)+' قلمرو'):' • بالاترین لقب!');
+    olymp.textContent='🥇 مدال‌ها: '+fa(sfp(p,'olympics.medals'))+' (طلا: '+fa(sfp(p,'olympics.golds'))+')'+(sfp(p,'ladder.next')?(' • لقب بعدی: '+String(sfp(p,'ladder.next.title','')).replace(/^[^ ]+ /,'')+' در '+fa(sfp(p,'ladder.next.at'))+' قلمرو'):' • بالاترین لقب!');
     b.appendChild(olymp);
     /* دیپلماسی/اطلاعات */
     if(p.alliance){
       var dip=mk('div','','wd95-sub');
-      dip.textContent='🕊️ دیپلماسی: عضو اتحاد «'+p.alliance.name+'» ['+p.alliance.tag+'] با نقش '+(p.alliance.role==='owner'?'رهبر':'عضو');
+      dip.textContent='🕊️ دیپلماسی: عضو اتحاد «'+sfp(p,'alliance.name','')+'» ['+sfp(p,'alliance.tag','')+'] با نقش '+(sfp(p,'alliance.role')==='owner'?'رهبر':'عضو');
       b.appendChild(dip);
     }
     /* اکشن‌ها */
@@ -901,14 +924,14 @@ function openNotifs(){
 
 /* ---------- مسدودسازی با تأیید ---------- */
 function wdConfirmBlock(uid,nick,done){
-  try{
-    if(typeof wdConfirm==='function'){wdConfirm('مسدودسازی '+nick+'؟ پیام‌هایش در چت هم پنهان می‌شود.',function(){
-      rpc('wd_block_add',{p_uid:uid}).then(function(r){if(r&&r.ok){toast('مسدود شد','info');loadBlocks();if(done)done()}}).catch(function(){toast('انجام نشد','lose')});
-    });return}
-  }catch(e){}
-  if(window.confirm('مسدودسازی '+nick+'؟')){
+  var go=function(){
     rpc('wd_block_add',{p_uid:uid}).then(function(r){if(r&&r.ok){toast('مسدود شد','info');loadBlocks();if(done)done()}}).catch(function(){toast('انجام نشد','lose')});
-  }
+  };
+  try{
+    /* V130 FIX: wdConfirm یک Promise برمی‌گرداند (msg, yesLabel) — قبلاً callback رد می‌شد و دکمه مسدودسازی کار نمی‌کرد */
+    if(typeof wdConfirm==='function'){wdConfirm('مسدودسازی '+nick+'؟ پیام‌هایش در چت هم پنهان می‌شود.','مسدودسازی').then(function(y){if(y)go()});return}
+  }catch(e){}
+  if(window.confirm('مسدودسازی '+nick+'؟'))go();
 }
 
 /* ---------- کارت فشرده بازیکن (کلیک روی نام در چت/لیست‌ها) ---------- */
@@ -947,14 +970,15 @@ D.addEventListener('click',function(ev){
       var head=D.createElement('div');head.className='wd95-prof-head';
       var av=mk('div',(p.nick||'؟').charAt(0).toUpperCase(),'wd95-ava');
       av.style.cssText+=';width:44px;height:44px;font-size:17px;background:linear-gradient(135deg,hsl('+avColor(p.nick)+',65%,45%),hsl('+((avColor(p.nick)+50)%360)+',70%,35%))';
-      var dot=mk('i','');dot.className='wd95-dot '+(p.presence.state==='online'?'on':p.presence.state==='idle'?'idle':'off');av.appendChild(dot);
+      var pst2=sfp(p,'presence.state','offline');
+      var dot=mk('i','');dot.className='wd95-dot '+(pst2==='online'?'on':pst2==='idle'?'idle':'off');av.appendChild(dot);
       var mid=mk('div','','wd95-mid');mid.appendChild(mk('b',p.nick));
-      mid.appendChild(mk('small',(p.presence.state==='online'?'🟢 آنلاین':p.presence.state==='idle'?'🟡 دور از تبع':'🔴 آفلاین')+' • '+p.ladder.title));
-      if(p.alliance){mid.appendChild(mk('small','🛡️ ['+p.alliance.tag+']'))}
+      mid.appendChild(mk('small',(pst2==='online'?'🟢 آنلاین':pst2==='idle'?'🟡 دور از تبع':'🔴 آفلاین')+' • '+sfp(p,'ladder.title','—')));
+      if(p.alliance){mid.appendChild(mk('small','🛡️ ['+sfp(p,'alliance.tag','')+']'))}
       head.append(av,mid);c.appendChild(head);
       var rk=D.createElement('div');rk.className='wd95-ranks';
       function rc(ico,v,l){var d2=mk('div','','wd95-rank');d2.innerHTML=WDSI_ICON(ico,16);d2.appendChild(mk('b',v==null?'—':'#'+fa(v)));d2.appendChild(mk('small',l));return d2}
-      rk.append(rc('sword',p.ranks.military,'نظامی'),rc('hof',p.ranks.economy,'اقتصاد'),rc('medal',p.ranks.olympics,'المپیاد'));
+      rk.append(rc('sword',sfp(p,'ranks.military'),'نظامی'),rc('hof',sfp(p,'ranks.economy'),'اقتصاد'),rc('medal',sfp(p,'ranks.olympics'),'المپیاد'));
       c.appendChild(rk);
       var acts=D.createElement('div');acts.className='wd95-actions';acts.style.marginTop='8px';
       var pb=mk('button','','wd95-act');pb.innerHTML=WDSI_ICON('user',15)+'<span> پروفایل</span>';
@@ -1017,11 +1041,8 @@ window.WDS={
   srvLabel:function(){var onl=ST.onl[mySrv()]||0;return '🖥️ سرور '+mySrv()+' • '+fad(onl)+' آنلاین'},
   servers:function(){openSrvSelector()},
   profile:function(uid,nick){openProfile(null,uid,nick)},
-  dm:function(uid,nick){openDm(uid,nick)}, /* V107: پیوی از کشوی کشور */
-  dm:function(uid,nick){openDm(uid,nick)}, /* V107: پیوی از کشوی کشور */
-  dm:function(uid,nick){openDm(uid,nick)}, /* V107: پیوی از کشوی کشور */
-  dm:function(uid,nick){openDm(uid,nick)}, /* V107: پیوی از کشوی کشور */
-  av:function(nick,cls){var hh=avColor(nick);return '<span class="wds-av '+(cls||'wds-av-s')+'" style="background:linear-gradient(135deg,hsl('+hh+',65%,45%),hsl('+((hh+50)%360)+',70%,35%))">'+String(nick||'؟').charAt(0).toUpperCase()+'</span>'},
+  dm:function(uid,nick){openDm(uid,nick)} /* V130: نسخه‌های تکراری dm حذف شد */,
+  av:function(nick,cls){var hh=avColor(nick);var em='';try{if(window.WD130_COSYNC){var _c=window.WD130_COSYNC.get(nick);if(_c&&_c.e)em='<i style="font-style:normal;position:absolute;bottom:-3px;inset-inline-start:-4px;font-size:11px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))">'+_c.e+'</i>'}}catch(e){}return '<span class="wds-av '+(cls||'wds-av-s')+'" style="position:relative;background:linear-gradient(135deg,hsl('+hh+',65%,45%),hsl('+((hh+50)%360)+',70%,35%))">'+String(nick||'؟').charAt(0).toUpperCase()+em+'</span>'},
   dot:function(st){return '<i class="wds-dot'+(st==='online'?' wds-dot-online':st==='idle'?' wds-dot-away':'')+'"'+(st==='online'||st==='idle'?'':' style="background:#5a6b80"')+'></i>'},
   sym:function(name,size){var px=size||20;return '<svg class="wds-ic" width="'+px+'" height="'+px+'" aria-hidden="true"><use href="#i-'+name+'"/></svg>'}
 };
