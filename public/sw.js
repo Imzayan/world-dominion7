@@ -11,7 +11,8 @@ const IMMUTABLE = [
   '/cdn/leaflet/leaflet.min.js',
   '/cdn/leaflet/leaflet.min.css',
   '/cdn/geo/countries.geo.json',
-  '/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js'
+  '/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
+  '/game/shop-v2.js' /* V137: versioned ?v= — new URL = fresh cache entry */
 ];
 
 self.addEventListener('install', (e) => {

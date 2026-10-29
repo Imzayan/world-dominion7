@@ -61,7 +61,9 @@ await page.route('**/api/**', async (route) => {
   if (path === '/api/auth/logout') { sessionTok = null; return J({ data: {}, error: null }) }
   if (path === '/api/rpc/shop_catalog') {
     if (!sessionTok) return J({ data: null, error: { message: 'not authenticated', code: '401' } })
-    return J({ data: { ok: true, items: [{ id: 'boost', fa: 'بوست', price: 20 }], packs: [], wallet: { gems: 140, vip_until: null }, owned: [], collections: [] }, error: null })
+    /* V137: mock now carries the server starter offer (phase 'offer') — the promo card is BY DESIGN
+       hidden when online without a server offer (V112), so the render test needs the offer present */
+    return J({ data: { ok: true, items: [{ id: 'boost', fa: 'بوست', price: 20 }], packs: [], wallet: { gems: 140, vip_until: null }, owned: [], collections: [], starter: { phase: 'offer', unlimited: true, ends_in_ms: 0, price_fa: '۲۸۰ تومان', contents: { gems: 1200, gold: 50000, boost_min: 60, war_supply: 3 } } }, error: null })
   }
   if (path === '/api/rpc/get_wallet') {
     return J({ data: { ok: true, gems: 140, boost_until: null, daily_granted: 0, vip_granted: 0, streak: null }, error: null })
@@ -133,7 +135,10 @@ const promo = await page.evaluate(() => {
   const t = document.body.innerHTML
   return { p280: t.indexOf('۲۸۰ تومان') > -1, p500: t.indexOf('۵۰۰ تومان') > -1, disc: t.indexOf('۴۴٪ تخفیف') > -1 }
 })
-check('starter promo 280/500/44% renders with live catalog', promo.p280 && promo.p500 && promo.disc, JSON.stringify(promo))
+/* V137: PAY_OFF=true (V122 owner decision) → server sends starter.phase='expired' → promo hidden by design.
+   Expectation follows the payment flag state instead of hard-coding promo presence. */
+const payOff = await page.evaluate(async () => { try { const r = await sb.rpc('shop_catalog', {}); return !!(r && r.data && r.data.starter && r.data.starter.phase === 'expired') } catch (e) { return false } })
+check('starter promo matches PAY_OFF state (renders when offer / hidden when expired)', payOff ? (!promo.p280 && !promo.p500 && !promo.disc) : (promo.p280 && promo.p500 && promo.disc), JSON.stringify({ ...promo, payOff }))
 
 /* ---------- 5) saves flow: GET maybeSingle null → POST insert → PATCH update ---------- */
 const savesFlow = await page.evaluate(async () => {

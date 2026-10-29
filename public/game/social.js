@@ -158,6 +158,9 @@ var css=[
 '.wd95-nt span{font-size:18px;flex:0 0 auto}',
 '.wd95-nt .wd95-mid b{font-size:11px}.wd95-nt .wd95-mid div{font-size:10px;color:#a8c8e4;line-height:1.5}',
 '.wd95-empty{text-align:center;color:#7fa4c6;font-size:11px;padding:26px 10px;line-height:1.9}',
+/* V137 FIX «چیدمان پروفایل»: بدنه‌ی مودال پروفایل overflow:hidden بود — محتوای پایین (قلمروها/دستاوردها/دکمه‌ها) بریده و غیرقابل اسکرول می‌شد.
+   فقط برای wd-prof (تنها مودالی که محتوا را مستقیم در body می‌ریزد) اسکرول فعال شد — لیست‌های دیگر (دوستان/پیام‌ها/اعلان‌ها) اسکرول داخلی خودشان را دارند */
+'#wd-prof .wd95-body{overflow-y:auto!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}',
 '.wd95-sub{font-size:9.5px;color:#8fb4d4;line-height:1.7}',
 /* ---- V96: FAB آنلاین سینمایی زیر المپیک + قرص‌های وضعیت درخشان (جایگزین اموجی) ---- */
 '.wd96-fab{position:fixed;right:8px;width:46px;height:46px;z-index:9997;border-radius:50%;cursor:pointer;',
