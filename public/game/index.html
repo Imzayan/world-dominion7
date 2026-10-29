@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=138;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=139;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <script>
   /* V132 PERF GOVERNOR — یک پچِ سراسری قبل از همه‌ی اسکریپت‌های بازی.
      ۱) دستگاه ضعیف: بازه‌های نظرسنجیِ ≥۵ثانیه (presence/ذخیره/متادیتا/چت-پس‌زمینه) کشیده می‌شوند ×۱.۴
@@ -31,13 +31,13 @@
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=138">
+   <link rel="preload" as="script" href="/game/balance.js?v=139">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=138">
-   <link rel="preload" as="script" href="/game/social.js?v=138">
-   <link rel="preload" as="script" href="/game/mentor.js?v=138">
-  <script src="/game/balance.js?v=138"></script>
+   <link rel="preload" as="script" href="/game/oly3.js?v=139">
+   <link rel="preload" as="script" href="/game/social.js?v=139">
+   <link rel="preload" as="script" href="/game/mentor.js?v=139">
+  <script src="/game/balance.js?v=139"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -3711,8 +3711,8 @@ async function startup(){
 .own.oth{background:rgba(0,0,0,.72)}
    </style>
    <script>
-    /* ===== v4: 5 shared servers, other players visible on the map ===== */
-const SRV_COUNT=5,SRV_CAP=80,SYNC_MS=30000;
+    /* ===== v4: سرورهای پویا (V139) — سقف هر سرور ۹۰ کشورِ تصرف‌شده؛ با پرشدن، سرور بعدیِ خالی همان لحظه باز می‌شود ===== */
+let SRV_CAP=90,SYNC_MS=30000; /* V139: سقف از srv_meta (cap) همگام می‌شود؛ SRV_COUNT ثابت حذف شد — تعداد سرورها نامحدود است */
 let SRV=1,SRV_OK=false,STATS={},OTH={},DBMINE=new Set(),MP_OK=null,syncBusy=false;
 /* V86: سرورهای تستی — درِ ورود بازیکنان تازه بسته است (گارد واقعی سمت سرور در territory_sync/pvp_capture).
    لیست از RPC srv_meta تازه می‌شود؛ روی عرضه‌ی مایکت سرور آن را به [] برمی‌گرداند ⇒ همه از سرور ۱ صفر شروع می‌کنند */
@@ -3720,9 +3720,12 @@ let WD_TST=[1];
 const isTst=k=>WD_TST.indexOf(Number(k))>=0;
 const nickHue=n=>{let h=11;for(const c of String(n))h=(h*37+c.charCodeAt(0))%360;return h};
 const taken=k=>(STATS[k]&&STATS[k].taken)||0;
-/* V86: سرور تستی همیشه قفل است؛ نخستین سرور غیرتستی، درِ ورود است (k-1 تستی ⇒ باز) */
+/* V139: بیشترین شماره‌ی سرورِ شناخته‌شده (آمار + آنلاین‌ها) — فهرست/انتخاب سرور دیگر به ۵ محدود نیست */
+const srvMax=()=>{let m=1;for(const k in STATS){const n=Number(k);if(n>m)m=n}const S=window.WD_ONLINE&&window.WD_ONLINE.servers;if(S)for(const k in S){const n=Number(k);if(n>m)m=n}return m};
+/* V86: سرور تستی همیشه قفل است؛ نخستین سرور غیرتستی، درِ ورود است (k-1 تستی ⇒ باز) — V139: بازشدن زنجیره‌ای برای هر تعداد سرور ادامه دارد */
 const srvOpen=k=>!isTst(k)&&(k===1||isTst(k-1)||taken(k-1)>=SRV_CAP);
-function pickServer(){for(let k=1;k<=SRV_COUNT;k++)if(srvOpen(k)&&taken(k)<SRV_CAP)return k;return SRV_COUNT}
+/* V139: پیش‌فرضِ ورود = نخستین سرورِ بازِ پُرنشده (تازه‌ترین سرورِ خالی)؛ اگر همه‌ی شناخته‌شده‌ها پُر بودند، سرور بعدی همان لحظه ساخته می‌شود */
+function pickServer(){for(let k=1;k<=srvMax()+1;k++)if(srvOpen(k)&&taken(k)<SRV_CAP)return k;return srvMax()+1}
 async function loadStats(){try{const r=await sb.from('server_stats').select('server,taken,players');if(r.error)throw r.error;STATS={};(r.data||[]).forEach(x=>STATS[x.server]=x);MP_OK=true}catch(e){MP_OK=false;console.log(e)}}
 async function fetchTerr(){const r=await sb.from('territories').select('country,user_id,nick,is_capital').eq('server',SRV).limit(400);if(r.error)throw r.error;
   const oth={},mine=new Set();(r.data||[]).forEach(x=>{if(x.user_id===ACC.uid)mine.add(x.country);else oth[x.country]={nick:x.nick,cap:x.is_capital,uid:x.user_id}});return{oth,mine}} /* V107: uid برای شناسنامه/پیوی */
@@ -3788,6 +3791,37 @@ async function syncTerr(){if(syncBusy||!sb||!ACC.uid||!ACC.ready||MP_OK!==true)r
     if(!SRV_OK&&myCountryName){const r2=await sb.from('scores').update({server:SRV}).eq('user_id',ACC.uid).select('server');if(!r2.error&&r2.data&&r2.data.length)SRV_OK=true}}
   catch(e){console.log(e)}
   syncBusy=false}
+/* V139 — انتخابگر سرور برای بازیکن تازه: حق انتخاب آزاد («هر سرور دلش خواست»).
+   پیش‌فرض و پیشنهاد = نخستین سرورِ بازِ خالی (pickServer). سرورِ ۹۰کشوری «🔴 شلوغ» برچسب می‌خورد و
+   سرور بعدیِ خالی بلافاصله در فهرست است. بستن پنجره به هر روشی (✕ / بک‌دراپ / Escape) =
+   انتخاب خودکارِ سرور پیشنهادی — بدون بن‌بست. فقط برای بازیکنِ بدون‌سرور باز می‌شود؛ بقیه سرورِ خودشان را دارند */
+function chooseSrv(){
+  return new Promise(function(resolve){
+    let settled=false,guard=null;const rec=pickServer();
+    const settle=function(k){if(settled)return;settled=true;if(guard){clearInterval(guard);guard=null}
+      try{const b2=S$('srv-body');if(b2)b2.__wd139pick=null}catch(e){}
+      try{closeModal('m-srv')}catch(e){}resolve(k)};
+    const b=S$('srv-body'),mm=S$('m-srv');
+    if(!b||!mm||MP_OK!==true){resolve(rec);return}
+    b.__wd139pick=1; /* انتخابگر فعال — غنی‌ساز V96 (augmentSrvList) دست به این ردیف‌ها نمی‌زند */
+    const O=window.WD_ONLINE||null,mt=Math.max(srvMax()+1,rec);
+    try{const t2=mm.querySelector('.modal-title-row span');if(t2)t2.textContent='🖥️ سرورت را انتخاب کن'}catch(e){}
+    b.textContent='';
+    b.append(el('div','هر سرور یک دنیای مشترک است. وقتی ۹۰ کشور یک سرور تصرف شود، آن سرور «شلوغ» می‌شود و سرور بعدیِ خالی خودکار باز می‌شود. پیشنهاد ما سرورِ خالی است — ولی انتخاب با خودت است.','sites-sub'));
+    for(let k=1;k<=mt;k++){
+      const t=taken(k),p=(STATS[k]&&STATS[k].players)||0,open=srvOpen(k),full=t>=SRV_CAP,ts=isTst(k),onl=O&&O.at?O.servers[k]:undefined;
+      const r=el('div','','lobby-item'+(k===rec?' me':''));
+      r.append(el('div','سرور '+faNum(k)+(ts?' 🧪':'')+' — '+faNum(t)+'/'+faNum(SRV_CAP)+' کشور • '+faNum(p)+' بازیکن','lobby-item-text'));
+      r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':!open?'🔒 قفل':full?'🔴 شلوغ — سرور جدید خودکار باز شده است':(k===rec?'🟢 خالی — پیشنهادی برای شروع':'🟢 باز'),'lobby-item-sub'));
+      if(typeof onl==='number')r.append(el('div','🟢 '+faNum(onl)+' بازیکن آنلاین همین حالا','lobby-item-sub'));
+      if(open&&!ts){r.style.cursor='pointer';r.addEventListener('click',function(){settle(k)})}
+      b.append(r)}
+    const auto=el('div','✅ ببرم به سرور خالیِ پیشنهادی (سرور '+faNum(rec)+')','lobby-item');
+    auto.style.cursor='pointer';auto.addEventListener('click',function(){settle(rec)});b.append(auto);
+    b.append(el('div','اگر پنجره را ببندی، خودکار به سرور پیشنهادی می‌روی.','sites-sub'));
+    openModal('m-srv');
+    guard=setInterval(function(){const m2=S$('m-srv');if(!m2||!m2.classList.contains('active'))settle(rec)},350);
+  })}
 async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
   if(MP_OK!==true){const b=A$('status-banner');if(b)b.textContent='⚠️ اتصال به سرورهای چندنفره برقرار نشد؛ تا اتصال مجدد، پیشرفت شما ذخیره می‌شود';
     /* V114: تلاش مجدد خودکار — یک شکستِ گذرا در بوت دیگر «قطعی دائمی» نمی‌شود (بک‌آف ملایم، حداکثر ۱۲ تلاش) */
@@ -3797,10 +3831,13 @@ async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
   /* V114: اتصال بعد از قطعی موقت برقرار شد — پیام صادقانه + ریست شمارنده */
   try{if(window.__wdMpRetry>0){const b=A$('status-banner');if(b)b.textContent='👤 '+(ACC.nick||'')+' — پیشرفت بازی خودکار روی سرور ذخیره می‌شود';showToast('✅ اتصال به سرور برقرار شد','win')}}catch(e){}
   try{window.__wdMpRetry=0}catch(e){}
-  /* V86: تازه‌سازی لیست سرورهای تستی از سرور — بعد از «حالت عرضه‌ی مایکت» سرور ۱ خودکار باز می‌شود */
-  try{const m=await sb.rpc('srv_meta');const tl=m&&m.data&&m.data.test_srvs;if(Array.isArray(tl))WD_TST=tl.map(Number).filter(n=>n>=1)}catch(e){}
+  /* V86: تازه‌سازی لیست سرورهای تستی از سرور — بعد از «حالت عرضه‌ی مایکت» سرور ۱ خودکار باز می‌شود.
+     V139: سقف ۹۰کشوری هم از srv_meta همگام می‌شود (تک‌منبع = سرور) */
+  try{const m=await sb.rpc('srv_meta');const md=(m&&m.data)||{};const tl=md.test_srvs;if(Array.isArray(tl))WD_TST=tl.map(Number).filter(n=>n>=1);const mc=Number(md.cap);if(mc>=10&&mc<=180)SRV_CAP=mc}catch(e){}
+  /* V139: بازیکنِ بدون‌سرور = پلیر جدید — پنجره‌ی انتخاب سرور باز می‌شود (پیشنهاد: تازه‌ترین سرورِ خالی) */
   try{const r=await sb.from('scores').select('server').eq('user_id',ACC.uid).maybeSingle();
-    if(r.data&&r.data.server){SRV=r.data.server;SRV_OK=true}else{SRV=pickServer();SRV_OK=false}}catch(e){SRV=pickServer()}
+    if(r.data&&r.data.server){SRV=r.data.server;SRV_OK=true}
+    else{SRV_OK=false;SRV=(MP_OK===true)?await chooseSrv():pickServer()}}catch(e){SRV_OK=false;SRV=pickServer()}
   renderSrvChip();try{await sb.rpc('release_inactive_territories')}catch(e){}await syncTerr();
   if(!window.__wdSyncLoop){window.__wdSyncLoop=true; /* V71: گارد یک‌بار — قبلاً هر لاگین +۱ interval و +۱ listener انباشته می‌شد */
     setInterval(()=>{if(!document.hidden)syncTerr()},SYNC_MS);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncTerr()})}}
@@ -3825,14 +3862,14 @@ rankOnline=async function(box){box.append(mk('div','🌍 رتبه‌بندی س�
 /* servers window + chips */
 (function(){const m=document.createElement('div');m.id='m-srv';m.className='modal';
   m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span>🖥️ سرورها</span><span class="close-modal" style="cursor:pointer;font-size:18px;">✕</span></div><div id="srv-body"></div></div>';document.body.appendChild(m)})();
-function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';
-  b.append(el('div','هر سرور یک دنیای مشترک است. وقتی ۸۰ کشور در یک سرور تصرف شود، سرور بعدی خودکار باز می‌شود و بازیکنان جدید به آن می‌روند. سرور 🧪 تستی برای عرضه‌ی عمومی نگه داشته شده و ورود به آن بسته است.','sites-sub'));
+function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';b.__wd139pick=null;
+  b.append(el('div','هر سرور یک دنیای مشترک است. وقتی ۹۰ کشور در یک سرور تصرف شود، آن سرور «شلوغ» می‌شود و سرور بعدیِ خالی خودکار باز می‌شود. سرور 🧪 تستی برای عرضه‌ی عمومی نگه داشته شده و ورود به آن بسته است.','sites-sub'));
   const O=window.WD_ONLINE||null;
-  for(let k=1;k<=SRV_COUNT;k++){const t=taken(k),p=(STATS[k]&&STATS[k].players)||0,open=srvOpen(k),full=t>=SRV_CAP,ts=isTst(k);
+  for(let k=1;k<=Math.max(srvMax()+1,SRV);k++){const t=taken(k),p=(STATS[k]&&STATS[k].players)||0,open=srvOpen(k),full=t>=SRV_CAP,ts=isTst(k);
     const onl=O&&O.at?O.servers[k]:undefined;
     const r=el('div','','lobby-item'+(k===SRV?' me':''));
     r.append(el('div','سرور '+faNum(k)+(k===SRV?' (تو اینجایی)':'')+(ts?' 🧪':'')+' — '+faNum(t)+'/'+faNum(SRV_CAP)+' کشور • '+faNum(p)+' بازیکن','lobby-item-text'));
-    r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':!open?'🔒 قفل':full?'✅ پر':'🟢 باز','lobby-item-sub'));
+    r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':!open?'🔒 قفل':full?'🔴 شلوغ — سرور جدید خودکار باز شده است':'🟢 باز','lobby-item-sub'));
     if(typeof onl==='number')r.append(el('div','🟢 '+faNum(onl)+' بازیکن آنلاین همین حالا','lobby-item-sub')); /* V125 */
     b.append(r)}
   /* V125 BUGFIX «فقط خودم را نشان می‌دهد»: تا امروز این فهرست از حافظه‌ی محلی مرورگر (OTH)
@@ -8250,7 +8287,7 @@ try{D.querySelectorAll(CHIP_SEL).forEach(function(e){guardChip(e)})}catch(e){}
 setInterval(function(){if(!document.hidden)guardAll()},4000);
 /* رندر سطح چیپ‌ها: فقط وقتی مقدار واقعی عوض شود DOM لمس می‌شود */
 var _srvChip=null;
-window.renderSrvChip=function(){var c=S$('hud-srv'),t=S$('hud-t2');if(c){var txt=(typeof MP_OK!=='undefined'&&MP_OK===true)?'🖥️ '+(typeof SRV!=='undefined'?SRV:'')+' ('+(typeof taken==='function'?taken(SRV):0)+'/'+(typeof SRV_CAP!=='undefined'?SRV_CAP:80)+')':'🖥️ …';if(c.__wd28v!==txt){c.__wd28v=txt;c.textContent=txt;c.style.opacity=(typeof MP_OK!=='undefined'&&MP_OK===true)?'1':'.55'}}if(t){var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var tt='🏴 '+n;if(t.__wd28v!==tt){t.__wd28v=tt;t.textContent=tt}}};
+window.renderSrvChip=function(){var c=S$('hud-srv'),t=S$('hud-t2');if(c){var txt=(typeof MP_OK!=='undefined'&&MP_OK===true)?'🖥️ '+(typeof SRV!=='undefined'?SRV:'')+' ('+(typeof taken==='function'?taken(SRV):0)+'/'+(typeof SRV_CAP!=='undefined'?SRV_CAP:90)+')':'🖥️ …';if(c.__wd28v!==txt){c.__wd28v=txt;c.textContent=txt;c.style.opacity=(typeof MP_OK!=='undefined'&&MP_OK===true)?'1':'.55'}}if(t){var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var tt='🏴 '+n;if(t.__wd28v!==tt){t.__wd28v=tt;t.textContent=tt}}};
 (function(){if(typeof renderLvlChip!=='function')return;var _rlc=renderLvlChip;window.renderLvlChip=function(){try{var chip=D.getElementById('wd-lvlchip');if(!chip)return;var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var r=(typeof rankOf==='function')?rankOf(n):['','🎖️'];var next=null;if(typeof RANKS!=='undefined'){for(var i=0;i<RANKS.length;i++){if(RANKS[i][0]>n){next=RANKS[i];break}}}var html='<span>'+r[1]+'</span><small>🏴 '+fa(n)+' کشور'+(next?(' → '+fa(next[0])):'')+'</small>';if(chip.__wd28v!==html){chip.__wd28v=html;chip.innerHTML=html}}catch(e){}}})();
 /* نمایش سرور هنگام قطعی لحظه‌ای: چیپ خاموش نمی‌شود، فقط کم‌نور */
 
@@ -10222,7 +10259,7 @@ async function q(fn){try{return{ok:true,d:await fn()}}catch(e){return{ok:false,e
 async function rpcQ(fn,args){try{const r=await sb.rpc(fn,args);if(r&&r.error)return{ok:false,e:r.error};return{ok:true,d:r?r.data:null}}catch(e){return{ok:false,e}}}
 async function tblQ(p){try{const r=await p;if(r&&r.error)return{ok:false,e:r.error};return{ok:true,d:r?r.data:null}}catch(e){return{ok:false,e}}}
 const isMe=n=>{try{return typeof ACC!=='undefined'&&ACC&&n===ACC.nick}catch(e){return false}};
-const CAP31=()=>{try{return (typeof SRV_CAP!=='undefined')?SRV_CAP:80}catch(e){return 80}};
+const CAP31=()=>{try{return (typeof SRV_CAP!=='undefined')?SRV_CAP:90}catch(e){return 90}};
 
 /* ================================================================
    PAGE 1 — شناسنامه‌ی سینمایی سرور (وارد شدن با چیپ سرور در HUD)
@@ -10269,7 +10306,7 @@ async function refreshServer(){
     const cap=H('wdsp-cap');if(cap)cap.textContent=faN(tk)+' از '+faN(CAP)+' کشور تصرف شده — وقتی پر شود، جهان بعدی باز می‌شود';
     const bg=H('wdsp-badges');
     if(bg){const open=(typeof srvOpen==='function')?srvOpen(S):true,full=tk>=CAP;
-      bg.innerHTML='<span class="wd31-live"><i></i>زنده</span> '+(full?'<span class="wd96-pill st-full"><i class="wd96-orb"></i>پر — ظرفیت تکمیل</span>':open?'<span class="wd96-pill st-on"><i class="wd96-orb"></i>باز — ورود آزاد</span>':'<span class="wd96-pill st-lock"><i class="wd96-orb"></i>قفل</span>')}
+      bg.innerHTML='<span class="wd31-live"><i></i>زنده</span> '+(full?'<span class="wd96-pill st-full"><i class="wd96-orb"></i>شلوغ — سرور بعدی باز شد</span>':open?'<span class="wd96-pill st-on"><i class="wd96-orb"></i>باز — ورود آزاد</span>':'<span class="wd96-pill st-lock"><i class="wd96-orb"></i>قفل</span>')}
     const ss=(window.WD30_SEASON&&window.WD30_SEASON())||{no:1,day:1,left:0};
     countUp(H('wdsp-n-sn'),ss.no||1);
     const hh=Math.max(0,Math.floor((ss.left||0)/3600000)),mm=Math.max(0,Math.floor(((ss.left||0)%3600000)/60000));
@@ -10320,7 +10357,7 @@ async function refreshServer(){
         r.insertAdjacentHTML('beforeend','<span class="val">🏴 <b>'+faN(x.conquered||0)+'</b> کشور</span>');
         pb.appendChild(r)})}
     const sg=H('wdsp-srvs');
-    if(sg){sg.textContent='';const N=(typeof SRV_COUNT!=='undefined')?SRV_COUNT:5;
+    if(sg){sg.textContent='';const N=(typeof srvMax==='function')?srvMax()+1:5;
       for(let k=1;k<=N;k++){let t=0,p2=0;
         try{t=typeof taken==='function'?taken(k):0;p2=((typeof STATS!=='undefined'&&STATS[k])||{}).players||0}catch(e){}
         const open=(typeof srvOpen==='function')?srvOpen(k):true,full=t>=CAP;
@@ -10328,7 +10365,7 @@ async function refreshServer(){
         const wst=(window.WDSI_SRV&&window.WDSI_SRV.status(k))||'online';
         c.classList.add(wst==='maintenance'?'wd96-glow-maint':(full||wst==='full')?'wd96-glow-full':wst==='busy'?'wd96-glow-busy':'wd96-glow-on');
         c.innerHTML='<div class="t"><span>'+(window.WDSI?WDSI.icon('globeCine',16):'🌍')+' جهان '+faN(k)+(k===S?' <span class="wd31-mini">(تو اینجایی)</span>':'')+'</span>'+
-          (full?'<span class="wd96-pill st-full"><i class="wd96-orb"></i>پر</span>':open?'<span class="wd96-pill '+(wst==='busy'?'st-busy':'st-on')+'"><i class="wd96-orb"></i>'+(wst==='busy'?'شلوغ':'باز')+'</span>':'<span class="wd96-pill st-lock"><i class="wd96-orb"></i>قفل</span>')+'</div>'+
+          (full?'<span class="wd96-pill st-full"><i class="wd96-orb"></i>شلوغ</span>':open?'<span class="wd96-pill '+(wst==='busy'?'st-busy':'st-on')+'"><i class="wd96-orb"></i>'+(wst==='busy'?'شلوغ':'باز')+'</span>':'<span class="wd96-pill st-lock"><i class="wd96-orb"></i>قفل</span>')+'</div>'+
           '<div class="wd96-onl" style="margin-top:7px"><i class="wd96-orb"></i><b id="wd96-onl-'+k+'">…</b>&nbsp;بازیکن آنلاین</div>'+
           '<div class="wd31-bar" style="height:8px;margin-top:7px"><i style="width:'+Math.min(100,t/CAP*100)+'%"></i></div>'+
           '<div class="wd31-mini" style="margin-top:5px">🏴 '+faN(t)+'/'+faN(CAP)+' کشور • 👥 '+faN(p2)+' بازیکن</div>';
@@ -12251,7 +12288,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=138';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=139';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -13250,10 +13287,10 @@ function faN(n){try{return Number(n||0).toLocaleString('fa-IR')}catch(e){return 
 var SRV_SVG='<svg class="wd-srv-ic" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="wsvA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9be8ff"/><stop offset="1" stop-color="#1e9ad6"/></linearGradient></defs><rect x="3" y="3.5" width="18" height="7" rx="2.4" fill="url(#wsvA)"/><rect x="3" y="13.5" width="18" height="7" rx="2.4" fill="url(#wsvA)" opacity=".72"/><circle cx="7" cy="7" r="1.5" fill="#04222b"/><circle cx="7" cy="17" r="1.5" fill="#04222b"/><rect x="11" y="6" width="7" height="2" rx="1" fill="#04222b" opacity=".55"/><rect x="11" y="16" width="7" height="2" rx="1" fill="#04222b" opacity=".55"/></svg>';
 var srvChip=null,srvB=null,srvS=null,srvBar=null;
 function srvVals(){
-  var ok=false,srv=1,cap=80,tk=0;
+  var ok=false,srv=1,cap=90,tk=0;
   try{ok=(typeof MP_OK!=='undefined'&&MP_OK===true)}catch(e){}
   try{srv=Number((typeof SRV!=='undefined'&&SRV)||1)||1}catch(e){}
-  try{cap=Number((typeof SRV_CAP!=='undefined'&&SRV_CAP)||80)||80}catch(e){}
+  try{cap=Number((typeof SRV_CAP!=='undefined'&&SRV_CAP)||90)||90}catch(e){}
   try{if(typeof taken==='function')tk=Number(taken(srv)||0)}catch(e){}
   return{ok:ok,srv:srv,cap:cap,tk:tk};
 }
@@ -18101,7 +18138,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=138"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=139"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18127,7 +18164,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=138';
+              s.src='/game/cv-engine.js?v=139';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18138,7 +18175,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=138"></script>
+<script src="/game/oly3.js?v=139"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18152,7 +18189,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=138';
+      s.src='/game/oly3d.js?v=139';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19418,8 +19455,8 @@ try{if(window.MutationObserver){var _aQ=false;new MutationObserver(function(){if
 setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=138"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=138"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=139"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=139"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);

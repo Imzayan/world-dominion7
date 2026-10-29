@@ -296,7 +296,7 @@ function renderLive(){
   if(f.className!==cls)f.className=cls;
   var n=f.querySelector('.wd96-num');if(n&&n.textContent!==fad(onl))n.textContent=fad(onl);
   var lb=f.querySelector('.wd96-flbl');
-  var txt=(sts==='maintenance'?'تعمیر':sts==='full'?'پر':sts==='busy'?'شلوغ':'آنلاین')+' • سرور '+fad(mySrv());
+  var txt=(sts==='maintenance'?'تعمیر':sts==='full'?'شلوغ':sts==='busy'?'شلوغ':'آنلاین')+' • سرور '+fad(mySrv());
   if(lb&&lb.textContent!==txt)lb.textContent=txt;
   paintSrvPage();refreshOnlPanel();
 }
@@ -402,11 +402,12 @@ if(typeof wdModalHook==='function')wdModalHook('m-srv',function(){
 /* V96: غنی‌سازی سینمایی ردیف‌های سرور — قرص وضعیت درخشان + شمارنده‌ی آنلاین واقعی هر سرور (به‌جای خط متنی اموجی) */
 function augmentSrvList(){
   var body=$('srv-body');if(!body||!ST.srvs)return;
+  if(body.__wd139pick)return; /* V139: پنجره‌ی انتخاب سرورِ بازیکن تازه باز است — غنی‌ساز V96 ردیف‌های تعاملی را برچسب‌گذاری نمی‌کند */
   try{var mm=$('m-srv');if(mm){var ts=mm.querySelector('.modal-title-row span');if(ts&&!ts.__wd96){ts.__wd96=1;
     ts.innerHTML=WDSI_ICON('globeCine',18)+'<span> سرورهای جهان</span>';
     ts.style.display='inline-flex';ts.style.alignItems='center';ts.style.gap='6px'}}}catch(e){}
   var items=body.querySelectorAll('.lobby-item');
-  var STC={online:['st-on','آنلاین'],busy:['st-busy','شلوغ'],full:['st-full','پر'],maintenance:['st-maint','تعمیر']};
+  var STC={online:['st-on','آنلاین'],busy:['st-busy','شلوغ'],full:['st-full','شلوغ — سرور بعدی باز شد'],maintenance:['st-maint','تعمیر']};
   items.forEach(function(item,i){
     var k=i+1,s=ST.srvs[k];if(!s)return;
     var sub=item.querySelector('.lobby-item-sub');if(!sub)return;

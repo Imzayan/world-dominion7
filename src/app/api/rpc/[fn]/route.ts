@@ -1294,6 +1294,10 @@ const TG_GEMS = 20
 /* V86 — سرورهای تستی: درِ ورود بازیکنان تازه بسته است؛ [] یعنی حالت عرضه‌ی مایکت (همه از سرور ۱ شروع می‌کنند).
    تک‌منبع: GameSetting('wd_test_srvs') — کلاینت فقط برای نمایش/انتخاب می‌خواند (srv_meta)، گارد واقعی این‌جاست */
 const TEST_SRV_KEY = 'wd_test_srvs'
+
+/* V139 — سقف هر سرور: ۹۰ کشورِ تصرف‌شده. با رسیدن به آن، کلاینت سرور بعدیِ خالی را «باز» نشان می‌دهد و
+   بازیکنان جدید همان‌جا کشور انتخاب می‌کنند. تک‌منبع = همین ثابت؛ از srv_meta با کلید cap به کلاینت می‌رود */
+const SRV_CAP_GLOBAL = 90
 let TST_CACHE: { at: number; list: number[] } = { at: 0, list: [] }
 async function testSrvsGet(): Promise<number[]> {
   if (Date.now() - TST_CACHE.at < 30_000) return TST_CACHE.list
@@ -2503,9 +2507,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (tupd.count === 0) return R({ ok: false, error: 'claimed', gems: tw.gems })
         return R({ ok: true, gems: tw.gems, granted: TG_GEMS })
       }
-      /* V86 — متادیتای سرورها: لیست سرورهای تستی (کلاینت درب ورود را می‌بندد؛ گارد واقعی در territory_sync/pvp_capture است) */
+      /* V86 — متادیتای سرورها: لیست سرورهای تستی (کلاینت درب ورود را می‌بندد؛ گارد واقعی در territory_sync/pvp_capture است).
+         V139: سقف ۹۰کشوری هم از همین‌جا می‌رود (تک‌منبع = سرور) */
       case 'srv_meta':
-        return R({ test_srvs: await testSrvsGet() })
+        return R({ test_srvs: await testSrvsGet(), cap: SRV_CAP_GLOBAL })
       case 'spend_gems':
       case 'shop_buy': {
         /* V66: موتور واحد خرید — هر دو مسیر RPC همین‌جا می‌روند.
@@ -5608,15 +5613,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const tst = await testSrvsGet()
         const stats = await db.serverStat.findMany()
         const takenOf = new Map(stats.map((s) => [s.server, s.taken]))
-        const SRV_COUNT = 5, SRV_CAP = 80 /* قرینه‌ی کلاینت: SRV_COUNT/SRV_CAP */
+        /* V139 — سرورهای پویا: فهرست دیگر به ۵ سرور محدود نیست؛ آخرین سرورِ شناخته‌شده (آمار + حضور) +
+           سرورِ بعدیِ خالی همیشه در فهرست است. سقف هر سرور ۹۰ کشور است؛ با پرشدن، سرور بعدی بلافاصله «باز» می‌شود */
+        let maxKnown = 1
+        for (const s of stats) if (s.server > maxKnown) maxKnown = s.server
+        for (const k of Object.keys(bySrv)) { const n = Number(k); if (n > maxKnown) maxKnown = n }
+        const SRV_COUNT = maxKnown + 1 /* +۱: سرور بعدیِ خالی هم در فهرست دیده شود */
+        /* نگهداری‌ها یکجا — به‌جای یک کوئری به‌ازای هر سرور (تعداد سرورها حالا نامحدود است) */
+        const maintRows = await db.gameSetting.findMany({ where: { key: { startsWith: 'srv_maint_' } } })
+        const maintOf = new Map<number, boolean>()
+        for (const mrow of maintRows) {
+          try { const kk = Number(String(mrow.key).slice('srv_maint_'.length)); if (kk >= 1) maintOf.set(kk, JSON.parse(mrow.value) === true) } catch { /* نگهداری بدفرم = بی‌اثر */ }
+        }
         const servers: Array<{ server: number; online: number; taken: number; status: string; note: string | null }> = []
         for (let k = 1; k <= SRV_COUNT; k++) {
           const online = bySrv[k] || 0
           const taken = takenOf.get(k) || 0
-          const maint = await getSetting<boolean>('srv_maint_' + k, false)
+          const maint = maintOf.get(k) === true
           let status = 'online'
           if (maint) status = 'maintenance'
-          else if (taken >= SRV_CAP) status = 'full'
+          else if (taken >= SRV_CAP_GLOBAL) status = 'full'
           else if (online >= 25) status = 'busy'
           servers.push({ server: k, online, taken, status, note: maint ? 'به‌زودی برمی‌گردیم' : null })
         }
