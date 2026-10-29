@@ -3003,3 +3003,28 @@ v.txt=143، __WD_V=143، ۱۲×?v=143 (APK wrapper GAME_VER=142 می‌ماند 
 
 ### نسخه و دروازه‌ها
 v.txt=144، __WD_V=144، ۱۲×?v=144 (APK wrapper GAME_VER=142 می‌ماند — WebView همیشه revalidate می‌شود، نیازی به بیلد APK نیست) • check-html-js **102/0** • tsc تمیز (بیس‌لاین) • schema-diff identical • **v144-srv-smoke 42/42 جدید** در مرورگر واقعی (انتخاب آزاد/قانون spawn/پیکرِ نصبِ تازه با initServer واقعی/گارد ربوده‌شدن/گاردهای ورود/پچ شمارنده‌ها/صفر pageerror) • **v144-free-e2e 12/12 جدید** روی سرور زنده + SQLite (signup server=0 → قانون spawn در wd_servers → ادعای آزاد روی سرور بازِ غیرتستی → رد server_full روی ۹۰/۹۰ → مستثنای ساکن → درِ تستی) • v132-smoke 18/18 • v138-smoke 29/29 • v140-release-smoke 25/25 (چک نسخه به نسخه‌آگاه ارتقا یافت) • صفر pageerror در همه‌ی فلوها
+## V145 — راستی‌آزمایی خرید مایکت با «کلید عمومی» (توکن عمومی پنل توسعه‌دهنده)
+
+درخواست مالک: کلید عمومی RSA مایکت تحویل داده شد («این توکن عمومی برای خرید از مایکت») تا خرید درون‌برنامه‌ای واقعاً کار کند.
+
+### ریشه‌یابی — چرا خرید بدون این کلید گرنت نمی‌گرفت؟
+| واقعیت | نتیجه |
+|--------|-------|
+| `verifyProviderReceipt` (V118) مسیر مایکت را فقط با API رسمی (developer.myket.ir + `MYKET_ACCESS_TOKEN`/`CLIENT_ID/SECRET`) باز می‌کرد | بدون آن اعتبارنامه‌ی env → `provider_unavailable` صادقانه → خریدِ پرداخت‌شده هیچ جمی نمی‌گرفت |
+| کلید عمومی که مالک فرستاد «توکن صحت‌سنجی API» نیست؛ کلید RSA عمومی است که مایکت رسید JSON را با کلید خصوصی‌اش با آن امضا می‌کند (استاندارد IAB v3: SHA1withRSA) | جای درست کلید عمومی = تأیید امضای رسید؛ با آن، سرور می‌تواند بدون اعتبار API هم رسیدِ واقعاً مایکت را از جعلی تشخیص دهد |
+
+### پیاده‌سازی (سرور-مأخذ، بدون هیچ گرنت فیک)
+| لایه | فیکس |
+|------|------|
+| `src/lib/myket.ts` (جدید) | `myketSigVerify(json, sig)` — PEM-wrap کلید + `RSA-SHA1` و `RSA-SHA256` (هرکدام درست آمد = معتبر)؛ کلید از `MYKET_PUBLIC_KEY` env (چرخش بی‌دیپلوی) یا مقدار پیش‌فرض = کلید واقعی مالک |
+| `route.ts` verifyProviderReceipt | پارامتر پنجم `sigCtx{json,sig}`؛ مسیر امضا فقط وقتی اعتبار API ست نشده: امضا معتبر + کنترل‌های روی محتوای امضاشده: `purchaseState=0`، `packageName==com.worlddominion.game`، `productId==sku` (ضد خرید پک ارزان برای پک گران)، `purchaseToken==p_token` (ضد جابه‌جایی) → `txId='MYKSG-'+orderId`؛ API رسمی همچنان اولویت اول |
+| `route.ts` shop_gem_topup / starter_claim | `p_json`/`p_sig` خام (سقف ۸KB/۴KB) از کلاینت گرفته و به verifier پاس می‌شود؛ ضد پخش مجدد همان‌های قبلی (MYKTX-<token> / requestId) دست‌نخورده |
+| `shop-v2.js` wdGemServer/wdStarterServer | رسید خام + امضا (`o.json`/`o.signature` که WDIab اندروید از V118 هم می‌فرستاد) حالا به RPC می‌رود — **APK نیازی به بیلد مجدد ندارد**؛ v1.0.13 نصب‌شده هم همان‌جا json+signature را تحویل می‌دهد |
+| مسیر بازیابی (wdRestore) | getPurchases فهرست امضا نمی‌دهد — همان مسیر API می‌ماند؛ بدون اعتبار API صادقانه رد می‌شود (بدون فیک) |
+
+### آزمون‌ها — v145-iab-sig (static 11/11 + e2e 14/14)
+- **static**: کلید واقعی مالک parse معتبر RSA-SPKI؛ هر دو الگوریتم؛ گاردهای route؛ پوشش هر دو مسیر کلاینت
+- **e2e روی سرور زنده + SQLite با جفت‌کلید آزمایشی** (env چرخش): رسید معتبر SHA1 → +۱۰۰جم • پخش → duplicate • **دستکاری json → receipt** • **کلید غریبه → receipt** • **productId≠sku → receipt** • `purchaseState=1` → receipt_state • packageName غریبه → receipt • جابه‌جایی توکن → receipt • بدون امضا/اعتبار → provider_unavailable (بدون فیک) • SHA256 → ok • پک شروع با رسید معتبر → ok • پخش پک شروع → duplicate • رسید جم برای پک شروع → receipt
+
+### نسخه و دروازه‌ها
+v.txt=145، __WD_V=145، ۱۲×?v=145 (APK wrapper GAME_VER=142 ثابت — WebView همیشه revalidate می‌کند، بیلد APK لازم نیست؛ v1.0.13 روی مایکت بدون آپلود جدید از فیکس بهره می‌برد) • check-html-js **102/0** • shop-v2 **0/0** • tsc تمیز (بیس‌لاین skills/) • v140-release-smoke **25/25** (بخش نسخه version-aware شد — الگوی V138) • v138-smoke **29/29** • v132-smoke **18/18** • **v145-iab-sig static 11/11 + e2e 14/14** • صفر pageerror در فلوهای اسموک

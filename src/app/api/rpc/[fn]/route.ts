@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { rateLimit, clientIp } from '@/lib/ratelimit'
 import { safeErr } from '@/lib/apierr' /* V116: متن خام Prisma هرگز به کلاینت نمی‌رود */
+import { myketSigVerify } from '@/lib/myket' /* V144: راستی‌آزمایی امضای رسید مایکت با کلید عمومی (توکن عمومی پنل) */
 import { computeScore, hasRecalc, SIM_V2_ED, type Telemetry, type TelemEvent } from '@/lib/olyScore'
 import {
   skillOf, consistencyOf, potentialOf, evalAchievements, achDef, bullseyesFromTelemetry,
@@ -756,7 +757,14 @@ function starterContents() {
    - zarinpal: فعال با ZARINPAL_MERCHANT_ID — verify با authority.
    - sandbox: فقط سرور تستی/ادمین (QA) — روی سرور واقعی هرگز گرنت نمی‌دهد.
    بدون اعتبار محیط، پاسخ صادقانه‌ی provider_unavailable است — هیچ خرید فیک اتفاق نمی‌افتد. */
-async function verifyProviderReceipt(provider: string, receipt: string, user: { id: string; isAdmin: boolean }, sku = 'emperor_starter'): Promise<{ ok: true; txId: string } | { ok: false; error: string }> {
+async function verifyProviderReceipt(
+  provider: string,
+  receipt: string,
+  user: { id: string; isAdmin: boolean },
+  sku = 'emperor_starter',
+  /* V144: زمینه‌ی مسیر امضا — json/sig خام مایکت (وقتی اعتبار API ست نشده باشد به‌کار می‌آید) */
+  sigCtx?: { json?: string; sig?: string }
+): Promise<{ ok: true; txId: string } | { ok: false; error: string }> {
   if (!provider) return { ok: false, error: 'provider' }
   if (!receipt) return { ok: false, error: 'receipt' }
   if (provider === 'sandbox') {
@@ -770,8 +778,30 @@ async function verifyProviderReceipt(provider: string, receipt: string, user: { 
     const accessToken = process.env.MYKET_ACCESS_TOKEN
     const cid = process.env.MYKET_CLIENT_ID
     const sec = process.env.MYKET_CLIENT_SECRET
-    if (!accessToken && !(cid && sec)) return { ok: false, error: 'provider_unavailable' }
     const pkg = process.env.MYKET_PACKAGE || 'com.worlddominion.game' /* V118: پکیج واقعی بازی */
+    /* V144 — مسیر دوم راستی‌آزمایی با «کلید عمومی مایکت» (توکن عمومی پنل توسعه‌دهنده):
+       purchase JSON باید دقیقاً با کلید خصوصی مایکت امضا شده باشد (SHA1withRSA استاندارد IAB v3؛
+       SHA256withRSA هم پذیرفته می‌شود). روی محتوای امضاشده کنترل می‌شود:
+       purchaseState=0، packageName بازی، productId==sku، purchaseToken==رسیدِ دریافتی (ضد جابه‌جایی).
+       API رسمی همچنان اولویت دارد؛ این مسیر فقط وقتی اعتبار API تنظیم نشده فعال است —
+       هیچ خریدِ امضای موفقِ جعلی‌ای نمی‌تواند از آن عبور کند چون کلید خصوصی مایکت فقط پیش مایکت است. */
+    if (!accessToken && !(cid && sec)) {
+      const pj = String(sigCtx?.json || '')
+      const ps = String(sigCtx?.sig || '')
+      if (!pj || !ps || pj.length > 8192 || ps.length > 4096) return { ok: false, error: 'provider_unavailable' }
+      let j: { purchaseState?: number; packageName?: string; productId?: string; purchaseToken?: string; orderId?: string }
+      try {
+        j = JSON.parse(pj)
+      } catch {
+        return { ok: false, error: 'receipt' }
+      }
+      if (!myketSigVerify(pj, ps)) return { ok: false, error: 'receipt' }
+      if (j.purchaseState !== 0) return { ok: false, error: 'receipt_state' }
+      if (j.packageName !== pkg) return { ok: false, error: 'receipt' }
+      if (!sku || j.productId !== sku) return { ok: false, error: 'receipt' }
+      if (j.purchaseToken !== receipt) return { ok: false, error: 'receipt' }
+      return { ok: true, txId: 'MYKSG-' + (j.orderId || receipt) }
+    }
     try {
       const headers: Record<string, string> = accessToken
         ? { 'X-Access-Token': accessToken, 'Content-Type': 'application/json' } /* مستندات رسمی مایکت */
@@ -2552,7 +2582,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const prior = await db.shopPurchase.findFirst({ where: { requestId: token, status: 'ok' } })
         if (prior && prior.userId !== user.id) return R({ ok: false, error: 'receipt' }) /* رسید متعلق به حساب دیگری است */
         if (prior) return R({ ok: true, duplicate: true, gems_added: 0, wallet: { gems: (await ensureWallet(user.id)).gems } })
-        const ver = await verifyProviderReceipt('myket', token, user, sku)
+        const ver = await verifyProviderReceipt('myket', token, user, sku, /* V144: رسید امضاشده برای مسیر کلید عمومی */ { json: String(args.p_json || '').slice(0, 8192), sig: String(args.p_sig || '').slice(0, 4096) })
         if (!ver.ok) return R({ ok: false, error: ver.error })
         try {
           await db.$transaction(async (tx) => {
@@ -2982,8 +3012,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           const prior = await db.shopPurchase.findFirst({ where: { userId: user.id, requestId, status: 'ok' }, orderBy: { createdAt: 'desc' } })
           if (prior) return R({ ok: true, duplicate: true, item_id: 'emperor_starter', gems: (await ensureWallet(user.id)).gems })
         }
-        /* ۲) راستی‌آزمایی پرداخت واقعی (مایکت/زارین‌پال) — بدون اعتبار محیط، صادقانه رد می‌شود */
-        const ver = await verifyProviderReceipt(provider, receipt, user)
+        /* ۲) راستی‌آزمایی پرداخت واقعی (مایکت/زارین‌پال) — بدون اعتبار محیط، صادقانه رد می‌شود؛
+              V144: مسیر کلید عمومی مایکت — p_json/p_sig خام از خرید زنده‌ی اپ */
+        const ver = await verifyProviderReceipt(provider, receipt, user, 'emperor_starter', { json: String(args.p_json || '').slice(0, 8192), sig: String(args.p_sig || '').slice(0, 4096) })
         if (!ver.ok) return R({ ok: false, error: ver.error })
         const txId = ver.txId
         /* ۳) ضد پخش مجدد رسید — requestId = شناسه‌ی تراکنش (یکتا به‌ازای هر کاربر)؛

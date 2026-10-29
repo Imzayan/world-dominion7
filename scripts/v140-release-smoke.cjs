@@ -130,16 +130,19 @@ check('news formatters: both wdNewsFa and the cinematic newspaper know country_r
   if (!html.includes("case 'country_released':")) throw new Error('newspaper case missing');
 });
 
-console.log('=== C) VERSION SYNC (V141) ===');
-check('v.txt = __WD_V beacon = 12 ?v= refs all current (version-aware since V144)', () => {
-  /* V144: made current-version-aware — v.txt is the single source of truth */
+console.log('=== C) VERSION SYNC (V145 — version-aware, V138 pattern) ===');
+check('v.txt = __WD_V beacon = 12 ?v= refs all current / zero stale refs (130..V-1) / APK wrapper GAME_VER untouched', () => {
+  /* version-aware since V144 — v.txt is the single source of truth */
   const vTxt = fs.readFileSync(path.join(ROOT, 'public/game/v.txt'), 'utf8').trim();
   if (!/^\d+$/.test(vTxt)) throw new Error('v.txt not numeric: ' + vTxt);
+  const V = parseInt(vTxt, 10);
+  if (!(V >= 145)) throw new Error('v.txt=' + vTxt);
   if (!html.includes('window.__WD_V=' + vTxt + ';')) throw new Error('beacon not ' + vTxt);
   const n = (html.match(new RegExp('\\?v=' + vTxt + '(?![0-9])', 'g')) || []).length;
   if (n !== 12) throw new Error('?v=' + vTxt + ' refs=' + n);
-  const prev = String(Number(vTxt) - 1);
-  if ((html.match(new RegExp('\\?v=' + prev + '(?![0-9])', 'g')) || []).length) throw new Error('stale ?v=' + prev + ' refs');
+  for (let vv = 130; vv < V; vv++) {
+    if ((html.match(new RegExp('\\?v=' + vv + '(?![0-9])', 'g')) || []).length) throw new Error('stale ?v=' + vv);
+  }
   const apk = fs.readFileSync(path.join(ROOT, 'apk-build/app/java/com/worlddominion/game/MainActivity.java'), 'utf8');
   if (!apk.includes('GAME_VER = 142')) throw new Error('APK wrapper not synced'); /* vc14 ships GAME_VER=142 — WebView always revalidates, web-only bumps need no rebuild */
 });

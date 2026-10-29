@@ -656,7 +656,9 @@ function wdStoreHelp(){
 }
 function wdGemServer(o,p){
   var s=sb;if(!s){showToast('❌ برای اعمال خرید باید آنلاین باشی','lose');return}
-  s.rpc('shop_gem_topup',{p_sku:p.sku,p_token:String(o.token||''),p_order_id:String(o.order_id||'')}).then(function(r2){
+  /* V144: json+signature خام هم به سرور می‌رود — مسیر راستی‌آزمایی با کلید عمومی مایکت
+     (وقتی اعتبار API ست نشده باشد، سرور امضای RSA رسید را با کلید عمومی پنل تأیید می‌کند) */
+  s.rpc('shop_gem_topup',{p_sku:p.sku,p_token:String(o.token||''),p_order_id:String(o.order_id||''),p_json:String(o.json||''),p_sig:String(o.signature||'')}).then(function(r2){
     var d=r2&&r2.data;
     if(r2.error||!d||!d.ok){
       var e=(d&&d.error)||'x';
@@ -675,7 +677,8 @@ function wdGemServer(o,p){
 }
 function wdStarterServer(o,p){
   var s=sb;if(!s){showToast('❌ برای اعمال خرید باید آنلاین باشی','lose');return}
-  s.rpc('starter_claim',{p_provider:'myket',p_receipt:String(o.token||''),p_request_id:p.rid||('my'+Date.now().toString(36))}).then(function(r){starterClaimAfter(r,p.btn,p.modal)}).catch(function(){showToast('❌ اتصال برقرار نشد','lose');if(p.btn){p.btn.disabled=false;p.btn.textContent='✅ خرید'}})
+  /* V144: p_json/p_sig برای مسیر تأیید امضای مایکت روی سرور */
+  s.rpc('starter_claim',{p_provider:'myket',p_receipt:String(o.token||''),p_request_id:p.rid||('my'+Date.now().toString(36)),p_json:String(o.json||''),p_sig:String(o.signature||'')}).then(function(r){starterClaimAfter(r,p.btn,p.modal)}).catch(function(){showToast('❌ اتصال برقرار نشد','lose');if(p.btn){p.btn.disabled=false;p.btn.textContent='✅ خرید'}})
 }
 /* بازیابی خریدهای باز: پرداخت موفق ولی اعمال‌نشده (برنامه وسط کار بسته شد) — یک‌بار در هر سشن */
 function wdRestore(){
