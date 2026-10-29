@@ -74,6 +74,9 @@ model Score {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /* V144-PERF: قرینه‌ی اسکیمای postgres — رتبه‌بندی سرور بدون اسکن کامل */
+  @@index([server, score(sort: Desc)])
+  @@index([server])
   @@map("scores")
 }
 

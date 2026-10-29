@@ -262,6 +262,11 @@ async function recomputeScore(userId: string, nick: string, stateJson: string) {
       m = computeMetrics(typeof parsed === 'string' ? '{}' : JSON.stringify(parsed))
     } catch { /* default metrics */ }
     const prev = await db.score.findUnique({ where: { userId } })
+    /* V144-PERF: اگر متریک‌ها ذره‌ای عوض نشده‌اند، upsert + بررسی دستاوردها حذف می‌شود —
+       سیو ۸ثانیه‌ای با تغییرِ غیرامتیازی (باز/بسته شدن پنل‌ها و…) دیگر ۲ کوئری نوشتن +
+       تا ۱۴ کوئری دستاورد اضافه نمی‌سازد. رتبه‌بندی ذره‌ای تغییر نمی‌کند (مقادیر همان‌ها هستند). */
+    if (prev && prev.nick === nick && prev.conquered === m.conquered && prev.score === m.score &&
+        prev.kills === m.kills && prev.economy === m.economy && prev.recruits === m.recruits) return
     await db.score.upsert({
       where: { userId },
       create: { userId, nick, ...m },

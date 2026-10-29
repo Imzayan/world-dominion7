@@ -35,12 +35,24 @@ const { page, ctx } = await boot(nick)
 const u = await db.user.findUnique({ where: { nickLower: nick.toLowerCase() } })
 check('actor registered', !!u)
 
+/* V146: شرط «prod-like» قطعی شد — قبلاً به حالت تصادفی دیتابیس dev وابسته بود:
+   وقتی سرور ۱ پُر بود تازه‌کار به سرور ۲ می‌رفت و درِ sandbox بسته می‌ماند؛ الان سرور ۱ خالی است و
+   پیش‌فرض dev (wd_test_srvs=[1]) درِ sandbox را برای تازه‌کار باز می‌کند. صادقانه و مستقیم: [] */
+await db.gameSetting.upsert({ where: { key: 'wd_test_srvs' }, create: { key: 'wd_test_srvs', value: '[]' }, update: { value: '[]' } })
+
 /* ---------- starter_state: fresh account → offer with server timer ---------- */
 const st0 = await rpc(page, 'starter_state', {})
-check('starter_state offer for fresh account', !!(st0 && st0.ok && st0.phase === 'offer' && st0.ends_in_ms > 43 * 3600_000), JSON.stringify(st0).slice(0, 120))
+/* V144: doctrine فعلی = آفر نامحدود برای هر غیرخریده (V114) — پنجره‌ی ۴۸ساعته حذف شده است */
+check('starter_state offer for fresh account (V114 unlimited)', !!(st0 && st0.ok && st0.phase === 'offer' && st0.unlimited === true && st0.ends_in_ms === 0), JSON.stringify(st0).slice(0, 120))
 check('starter contents honest (1200 gems + cosmetics list)', !!(st0.contents && st0.contents.gems === 1200 && st0.contents.cosmetics && st0.contents.cosmetics.length === 5), JSON.stringify(st0.contents || {}).slice(0, 100))
 
 /* ---------- provider honesty: sandbox بدون صلاحیت → رد صادقانه ---------- */
+/* کش ۳۰ثانیه‌ای testSrvsGet سمت سرور — تا اعمال شدن [] صبر می‌کنیم (قطعی، نه شانسی) */
+for (let wi = 0; wi < 22; wi++) {
+  const md = await rpc(page, 'srv_meta', {})
+  if (md && Array.isArray(md.test_srvs) && md.test_srvs.length === 0) break
+  await new Promise((r) => setTimeout(r, 2000))
+}
 const bad0 = await rpc(page, 'starter_claim', { p_provider: 'sandbox', p_receipt: 'SBX-wd108-' + tag, p_request_id: 'rq0' + tag })
 check('sandbox on prod-like server (non-admin) → provider_unavailable', !!(bad0 && bad0.ok === false && bad0.error === 'provider_unavailable'), JSON.stringify(bad0).slice(0, 80))
 const myket = await rpc(page, 'starter_claim', { p_provider: 'myket', p_receipt: 'tok.abc', p_request_id: 'rq2' + tag })
@@ -48,6 +60,15 @@ check('myket without env creds → honest provider_unavailable', !!(myket && myk
 
 /* ---------- make actor admin (QA sandbox provider gate: admin OR test server) ---------- */
 await db.user.update({ where: { id: u.id }, data: { isAdmin: true } })
+/* V144-PERF: کش ۳۰ثانیه‌ای نشست در auth.ts — ارتقای مستقیمِ دیتابیدی با توکن فعلی تا TTL دیده
+   نمی‌شود؛ خروج/ورود = توکن تازه = کش میس. در پروداکشن هم ارتقای ادمین طبیعتاً از سشن بعدی معتبر است */
+await page.evaluate(async ([nk, pw]) => {
+  try { await sb.auth.signOut() } catch (e) {}
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('wd:' + String(nk).trim().toLowerCase()))
+  const em = [...new Uint8Array(b)].slice(0, 16).map(x => x.toString(16).padStart(2, '0')).join('') + '@players.worlddominion.app'
+  try { await sb.auth.signInWithPassword({ email: em, password: pw }) } catch (e) {}
+}, [nick, 'dgtess1234'])
+await page.waitForTimeout(1200)
 const w0 = await db.wallet.findUnique({ where: { userId: u.id } })
 
 /* ---------- sandbox receipt format now enforced for eligible caller ---------- */
@@ -179,5 +200,8 @@ check('telemetry: viewed/purchased + tactical used + supply used', ['starter_off
 check('zero pageerrors', errors.length === 0, errors.join(' | ').slice(0, 200))
 await ctx.close()
 await br.close()
+/* V146: بهداشت بین-تست — شرط prod-like این smoke دائمی نماند؛ حذف ردیف = بازگشت به پیش‌فرض dev ([۱])
+   تا e2e های درِ تستی (v140-release-e2e و…) به رفتار قبلی خودشان برگردند */
+await db.gameSetting.deleteMany({ where: { key: 'wd_test_srvs' } })
 console.log('\n== ' + ok + '/' + (ok + fail) + ' ==')
 process.exit(fail ? 1 : 0)

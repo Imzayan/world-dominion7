@@ -74,6 +74,10 @@ model Score {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /* V144-PERF: رتبه‌بندی سرور (order by score desc limit 10) و شمارش برد سرور تا امروز
+     اسکن کامل جدول بودند — با رشد players این سنگین‌ترین کوئری هر پنل شد */
+  @@index([server, score(sort: Desc)])
+  @@index([server])
   @@map("scores")
 }
 

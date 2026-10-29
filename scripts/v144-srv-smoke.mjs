@@ -51,7 +51,9 @@ check('social.js: m-srv open ALWAYS refetches wd_servers (no 60s stale counts)',
 check('no chain-locked rows text anywhere', !html.includes('بعد از پُر شدن سرورهای قبلی باز می‌شود') && !html.includes('قفل زنجیره‌ای دارند'))
 check('full-server label honest (90/90 — no room for newcomers)', html.includes('۹۰/۹۰؛ برای تازه‌واردها جا ندارد'))
 check('wd31 grid uses srvListTop', html.includes("let M31=(typeof srvListTop==='function')?srvListTop()"))
-check('version beacon bumped', html.includes('__WD_V=144') && readFileSync(join(ROOT, 'public/game/v.txt'), 'utf8').trim() === '144')
+/* V146: نسخه-آگاه (الگوی V138) — v.txt تک‌منبع حقیقت است؛ نسخه‌ی ۱۴۴+ معتبر */
+const vTxt146 = readFileSync(join(ROOT, 'public/game/v.txt'), 'utf8').trim()
+check('version beacon bumped', /^\d+$/.test(vTxt146) && parseInt(vTxt146, 10) >= 144 && html.includes('__WD_V=' + vTxt146))
 
 /* ---------- ② real-browser behavior with mocked multiplayer layer ---------- */
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.ttf': 'font/ttf' }
@@ -71,7 +73,7 @@ page.on('pageerror', (e) => errors.push(String(e).slice(0, 160)))
 await page.goto('http://localhost:8944/', { waitUntil: 'domcontentloaded', timeout: 30000 })
 await page.waitForTimeout(3500)
 check('zero pageerror on boot', errors.length === 0, errors.join(' | '))
-check('V144 beacon live in browser', await page.evaluate(() => window.__WD_V === 144))
+check('V144 beacon live in browser', await page.evaluate((v) => window.__WD_V === v, parseInt(readFileSync(join(ROOT, 'public/game/v.txt'), 'utf8').trim(), 10)))
 
 /* mock the multiplayer layer: STATS srv1=20/90, srv2=2/90, srv3=90/90(full), no test servers;
    scores row exists with server=0 (fresh-install unassigned state).

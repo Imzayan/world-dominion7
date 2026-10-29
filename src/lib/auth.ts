@@ -67,11 +67,20 @@ export function adminNicks(): string[] {
   return ADMIN_NICKS
 }
 
+/* V144-PERF: کش نشست درون‌پردازه‌ای (TTL ۳۰ثانیه) — قبلاً «هر» درخواست API (برای هر بازیکنِ
+   آنلاین ۲۰-۴۰ درخواست در دقیقه: سیو، سینک، حضور، اخبار، چت…) یک findUnique روی جدول sessions
+   با include user می‌زد = هزاران کوئری اضافه در دقیقه فقط برای احراز هویت. TTL کوتاه یعنی
+   انصراف/حذف نشست حداکثر ۳۰ثانیه دیر بسته می‌شود — برای این بازی قابل قبول. */
+const SES_CACHE = new Map<string, { u: SessionUser; at: number }>()
+const SES_TTL_MS = 30_000
+
 export async function getSessionUser(): Promise<SessionUser | null> {
   try {
     const store = await cookies()
     const token = store.get(SESSION_COOKIE)?.value
     if (!token) return null
+    const hit = SES_CACHE.get(token)
+    if (hit && Date.now() - hit.at < SES_TTL_MS) return hit.u
     const { db } = await import('@/lib/db')
     const session = await db.session.findUnique({
       where: { token },
@@ -82,13 +91,19 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       await db.session.delete({ where: { token } }).catch(() => {})
       return null
     }
-    return {
+    const u: SessionUser = {
       id: session.user.id,
       email: session.user.email,
       nick: session.user.nick,
       isAdmin: session.user.isAdmin || ADMIN_NICKS.includes(session.user.nickLower),
       deviceId: session.user.deviceId,
     }
+    if (SES_CACHE.size > 5000) {
+      const now = Date.now()
+      for (const [k, v] of SES_CACHE) if (now - v.at > SES_TTL_MS) SES_CACHE.delete(k)
+    }
+    SES_CACHE.set(token, { u, at: Date.now() })
+    return u
   } catch {
     return null
   }
