@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=135;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=136;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <script>
   /* V132 PERF GOVERNOR — یک پچِ سراسری قبل از همه‌ی اسکریپت‌های بازی.
      ۱) دستگاه ضعیف: بازه‌های نظرسنجیِ ≥۵ثانیه (presence/ذخیره/متادیتا/چت-پس‌زمینه) کشیده می‌شوند ×۱.۴
@@ -31,7 +31,7 @@
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-  <script src="/game/balance.js?v=135"></script>
+  <script src="/game/balance.js?v=136"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -66,6 +66,10 @@
   <link href="manifest.json" rel="manifest"/>
   <link href="favicon.png" rel="icon" type="image/png"/>
   <link href="icon_192.png" rel="apple-touch-icon"/>
+  <!-- V130: پیش‌بارگذاری دو اسکریپت مسدودکننده‌ی میانی — دانلود موازی با پارس HTML شروع می‌شود،
+       نه بعد از رسیدن پارس‌گر به خط آن‌ها (کاهش مستقیم زمان باز شدن صفحه) -->
+  <link as="script" href="/cdn/leaflet/leaflet.min.js" rel="preload"/>
+  <link as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js" rel="preload"/>
   <!-- V124: فونت فارسی Vazirmatn — داخل خود پروژه (نه CDN)؛ OFL. preload فقط سه وزن مصرفی -->
   <link as="font" crossorigin="" href="/game/fonts/Vazirmatn-Regular.woff2" rel="preload" type="font/woff2"/>
   <link as="font" crossorigin="" href="/game/fonts/Vazirmatn-Bold.woff2" rel="preload" type="font/woff2"/>
@@ -2267,10 +2271,15 @@ function infraCost(type) {
 function renderLobbyInfra() {
   const panel = document.getElementById("lobby-panel-infra");
   if (!panel) return;
+  /* V130: خوانش واقعی تولید نفت — بر اساس همان فرمولی که هر تیک واریز می‌شود (oilBase + terr×oilPerTick) */
+  const _terr=(typeof conqueredCountries!=='undefined'&&conqueredCountries)?conqueredCountries.size:0;
+  const _oilPm=t=>Math.round(t*(60000/(BALANCE.economy.tickMs||4000)));
+  const _oilTick=BALANCE.economy.oilBase+_terr*oilPerTick();
+  const _oilDelta=BALANCE.economy.oilPerInfraLevel; /* V130: دلتای هر سطح — به ازای هر قلمرو (+۳۶/دقیقه) */
   const html = `
     <div class="lobby-item">
       <div class="lobby-item-text">🛢️ پالایشگاه نفت — سطح ${infra.oil}
-        <div class="lobby-item-sub">افزایش تولید نفت به ${oilPerTick()} در هر تیک، به ازای هر قلمرو</div>
+        <div class="lobby-item-sub">تولید پایه‌ی نفت: ${_oilPm(_oilTick).toLocaleString()} در دقیقه • این ارتقا: +${_oilPm(_oilDelta).toLocaleString()} در دقیقه (به ازای هر قلمرو)</div>
       </div>
       <button class="lobby-item-btn btn-green" id="infra-buy-oil">ارتقا (${infraCost('oil')} 💰)</button>
     </div>
@@ -2717,7 +2726,11 @@ async function attackTarget(n){
   for(let r=1;r<=5;r++){
     txt.textContent=`⚔️ دور ${r} از ۵ — درگیری سنگین در خط مقدم`;
     const defNow=Math.max(def0*(1-occ/100*.75),def0*.2),ratio=power*(.8+Math.random()*.4)/defNow;
-    let gain=Math.max(-3,Math.min(13,(ratio-.35)*16));if(occ>75)gain*=.45;   /* محاصره‌ی پایتخت: ۲۵٪ آخر کندتر — V126 سخت‌تر */
+    /* V130 (باگ «حمله‌ی اول کشور را کامل تصرف نمی‌کند»): سقف پیشروی هر دور قبلاً ثابت ۱۳٪ بود ⇒ حداکثر
+       ۶۵٪ در یک حمله، حتی با نسبت قدرت بی‌نهایت (کشور خالی + ارتش عظیم). حالا سقف وابسته به نسبت قدرت است
+       (BALANCE.conquest.roundGain) — پیروزی قاطع در همان حمله تا ۱۰۰٪ می‌رود؛ نبرد متوازن همان طرح V126. */
+    const _RG=BALANCE.conquest.roundGain,capG=ratio>=_RG.t2?_RG.cap3:(ratio>=_RG.t1?_RG.cap2:_RG.cap1);
+    let gain=Math.max(-3,Math.min(capG,(ratio-.35)*16));if(occ>75)gain*=.45;   /* محاصره‌ی پایتخت: ۲۵٪ آخر کندتر — V126 سخت‌تر */
     const prev=occ;occ=Math.max(0,Math.min(100,occ+gain));
     bar.style.transition="width 1.2s ease";bar.style.width=occ+"%";$("battle-pct-label").textContent=Math.round(occ)+"%";
     setHatch(n,occ,true,prev);blasts(n,2);
@@ -3076,7 +3089,8 @@ const allSites=()=>SITES.concat(CUST);
 const owned=c=>typeof conqueredCountries!=='undefined'&&conqueredCountries.has(c);
 const sitesOf=c=>allSites().filter(s=>s.c===c);
 const costOf=(t,custom)=>({g:Math.round(ST[t].g*(custom?BALANCE.economy.customBuildMult:1)),o:Math.round(ST[t].o*(custom?BALANCE.economy.customBuildMult:1))}); /* V72: BALANCE */
-function fxText(k){const a=[];if(k.p.gold)a.push('💰 +'+k.p.gold);if(k.p.oil)a.push('🛢️ +'+k.p.oil);if(k.p.food)a.push('🌾 +'+k.p.food);
+function fxText(k){const _P=BALANCE.economy.psc||{};const a=[];/* V130: مقدار نمایشی = همان مقدار واقعاً واریز‌شده (×PSC) — قبلاً عدد خام ۱۴/۱۰/۴ نشان داده می‌شد ولی ۱۵٪ آن اعتبار می‌یافت */
+  if(k.p.gold)a.push('💰 +'+Math.round(k.p.gold*(_P.gold||1)*10)/10);if(k.p.oil)a.push('🛢️ +'+Math.round(k.p.oil*(_P.oil||1)*10)/10);if(k.p.food)a.push('🌾 +'+Math.round(k.p.food*(_P.food||1)*10)/10);
   if(k.calm)a.push('🕊️ کاهش ناآرامی');if(k.sea)a.push('🚢 حمله‌ی دریایی قوی‌تر');if(k.air)a.push('✈️ +۳٪ قدرت هوایی');if(k.atk)a.push('⚔️ +۲٪ قدرت ارتش');
   return a.join(' ، ')+(k.p.gold||k.p.oil||k.p.food?'  (هر ۴ ثانیه)':'')}
 const costText=(t,custom)=>{const c=costOf(t,custom);return '💰'+c.g+(c.o?' 🛢️'+c.o:'')};
@@ -3103,15 +3117,21 @@ function armyUpkeep(){
 function armyUpkeepTick(){return armyUpkeep()*BALANCE.economy.tickMs/60000}
 /* V83 §ECON (AUDIT-A P1-1): تبِ مخفی دیگر درآمد مجانی جمع نمی‌کند — همان گاردِ gameTick
    (نگهداری/شورش/تحریم در تب مخفی متوقف‌اند)؛ حالا درآمد هم متوقف می‌شود = اقتصاد متقارن */
+let __incLast=Date.now();
 setInterval(()=>{if(typeof myCountryName==='undefined'||!myCountryName||document.hidden)return;
   /* V40: تولید پایه + تولید نفت به‌ازای هر قلمرو (که UI سال‌ها وعده داده بود ولی هرگز پرداخت نمی‌شد!) */
   /* V72: تک‌حلقه‌ی درآمد (PHASE 4) — قبلاً دو setInterval موازی ۴ثانیه‌ای؛ اعداد از BALANCE */
+  /* V130: جبران تیک‌های ازدست‌رفته هنگام مخفی بودن تب — حداکثر ۳۰ تیک (۲ دقیقه؛ نگهداری برای تیک‌های توقف شارژ نمی‌شود.
+     قبلاً هر تیک مخفی برای همیشه گم می‌شد = «تولید کم است» بعد از هر سوییچ سریع تب). */
+  const __now=Date.now();
+  const __miss=Math.max(0,Math.min(30,Math.floor((__now-__incLast)/BALANCE.economy.tickMs)-1));
+  __incLast=__now;const __m=1+__miss;
   const p=prod();const _terr=conqueredCountries.size||0;const bm=boostMult();
   const EB=BALANCE.economy;
   const baseOil=EB.oilBase+_terr*oilPerTick(), baseFood=EB.foodBase+_terr*EB.foodPerTerrPlain;
-  playerRes.gold+=p.gold+Math.round(popIncomeTick()*bm);
-  playerRes.oil+=p.oil+baseOil;
-  playerRes.food+=p.food+baseFood+Math.round(EB.foodPerTerrBoosted*_terr*bm);
+  playerRes.gold+=(p.gold+Math.round(popIncomeTick()*bm))*__m;
+  playerRes.oil+=(p.oil+baseOil)*__m;
+  playerRes.food+=(p.food+baseFood+Math.round(EB.foodPerTerrBoosted*_terr*bm))*__m;
   /* V75 — P4: نگهداری ارتش (ضد گلوله‌برفی) — قدرتِ مازاد بر سهمیه‌ی رایگان، هر دقیقه طلا می‌سوزاند.
      کوچک‌ترین ارتش‌ها صفر می‌پردازند؛ ابرارتش بدون اقتصاد سالم خودش را نگه نمی‌دارد. */
   if(typeof armyUpkeepTick==='function'){const _up=armyUpkeepTick();if(_up>0)playerRes.gold=Math.max(0,playerRes.gold-_up)}
@@ -3681,9 +3701,11 @@ function otherLabel(n,o){const g=getG(n),has=OL2[n];
   try{if(window.WD130_SHIELD&&window.WD130_SHIELD.isShielded(n,o.nick))_sh=' 🛡️'}catch(e){}
   /* V131 HOST: تاج میزبان المپیک کنار نامش — برای همه دیده می‌شود */
   let _ht='';try{_ht=window.WD131_HOSTTAG?WD131_HOSTTAG(o.nick):''}catch(e){}
-  const t='⭐ '+_ht+_em+wdEscNick(o.nick)+_sh;
-  if(has){has.getElement().firstChild.innerHTML=wdOwnLabelHTML(t,wdCountOf(o.nick));if(has.getElement().firstChild.style)has.getElement().firstChild.style.borderColor=`hsl(${_hue},80%,65%)`;return}
-  const d=document.createElement('div');d.className='own oth';d.innerHTML=wdOwnLabelHTML(t,wdCountOf(o.nick));d.style.borderColor=`hsl(${_hue},80%,65%)`;
+  const t='⭐ '+_ht+_em+wdEscNick(o.nick)+_sh,h=wdOwnLabelHTML(t,wdCountOf(o.nick)),_bs='hsl('+_hue+',80%,65%)';
+  /* V136: گارد محتوا — innerHTML/بوردر فقط وقتی واقعاً عوض شوند بازنویسی می‌شوند (قبلاً هر سینک برای
+     هر بازیکن بازنویسی کامل DOM می‌شد — هزینه‌ی O(بازیکنان) در هر سینک) */
+  if(has){const _fe=has.getElement().firstChild;if(has._h!==h){has._h=h;_fe.innerHTML=h}if(_fe.style&&has._bs!==_bs){has._bs=_bs;_fe.style.borderColor=_bs}return}
+  const d=document.createElement('div');d.className='own oth';d.innerHTML=h;d._h=h;d._bs=_bs;d.style.borderColor=_bs;
   OL2[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:480,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
 /* V59 wave-2: تک‌تعریفی paintOther — رنگ V56 (اشباع ۴۲٪ روشن‌تر برای خوانایی روی گوشی) + گارد __wd56p
    (بعد از هر حمله/سینک فقط کشورهای تغییرکرده رنگ می‌خورند) + لیبل مالک؛ wrapper های 22-core و V56 حذف شدند */
@@ -3698,9 +3720,14 @@ function paintOther(n,force){const l=layersByName[n],o=OTH[n];if(!l||!o)return;
   l.setStyle({fillColor:'hsl('+_hue+',42%,52%)',fillOpacity:wdDimOf(n)(.9),
     color:'rgba(255,255,255,.85)',weight:o.cap?2:1.4});
   try{otherLabel(n,o)}catch(e){}}
-function applyOthers(nw){const old=OTH;OTH=nw;
-  Object.keys(old).forEach(n=>{if(!nw[n]){if(OL2[n]){OL2[n].remove();delete OL2[n]}try{applyCountryColor(n)}catch(e){}}});
-  Object.keys(nw).forEach(n=>paintOther(n));renderSrvChip();try{sizeFlags()}catch(e){}} /* V62: رسیدن مالکیت = پرچم‌ها بدون زوم ظاهر شوند */
+function applyOthers(nw){const old=OTH;OTH=nw;const vis=[];
+  /* V130: هزینه‌ی سینک با تعداد بازیکنان مقیاس نمی‌شود — فقط کشورهای تغییرکرده رنگ/پرچم می‌گیرند؛
+     قبلاً بعد از هر سینک sizeFlags() کامل (۱۸۰ کشور) اجرا می‌شد. */
+  Object.keys(old).forEach(n=>{if(!nw[n]){if(OL2[n]){OL2[n].remove();delete OL2[n]}try{applyCountryColor(n)}catch(e){}try{sizeFlags(n)}catch(e){}}});
+  Object.keys(nw).forEach(n=>{const o=old[n];if(!o)vis.push(n);
+    if(!o||o.nick!==nw[n].nick||!!o.cap!==!!nw[n].cap)paintOther(n,true)});
+  vis.forEach(n=>{try{sizeFlags(n)}catch(e){}});
+  renderSrvChip()} /* V62: رسیدن مالکیت = پرچم‌ها بدون زوم ظاهر شوند */
 /* V59 wave-2: paintOther برای کشورهای دیگران، پس‌هوک applyCountryColor (بعد از فیکس، پایه خودش OTH را می‌کشد؛ این هوک فقط ترمیم تغییر key مالک است) */
 try{WD_COLOR_HOOKS.after.push(function(n){if(OTH[n])paintOther(n)})}catch(e){console.error('wd-h3',e)};
 (function(){const ag=afterGeo;afterGeo=function(){ag();try{Object.keys(OTH).forEach(n=>paintOther(n));if(typeof wdLabelDeclutter==='function')wdLabelDeclutter()}catch(e){}}})();
@@ -12186,7 +12213,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=135';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=136';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -19321,7 +19348,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=135';
+              s.src='/game/cv-engine.js?v=136';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -19332,7 +19359,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=135"></script>
+<script src="/game/oly3.js?v=136"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -19346,7 +19373,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=135';
+      s.src='/game/oly3d.js?v=136';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -20612,8 +20639,8 @@ try{if(window.MutationObserver){var _aQ=false;new MutationObserver(function(){if
 setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=135"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=135"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=136"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=136"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
