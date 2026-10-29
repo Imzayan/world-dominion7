@@ -675,6 +675,9 @@ model BattleLog {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([server, createdAt])
+  /* V147 BATTLE 2.0: کول‌داون هدف / سقف فتح ساعتی / خستگی جنگ — بدون اسکن */
+  @@index([server, attacker, createdAt])
+  @@index([server, attacker, win, createdAt])
   @@map("battle_logs")
 }
 

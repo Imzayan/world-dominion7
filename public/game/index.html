@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=146;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=147;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <script>
   /* V132 PERF GOVERNOR — یک پچِ سراسری قبل از همه‌ی اسکریپت‌های بازی.
      ۱) دستگاه ضعیف: بازه‌های نظرسنجیِ ≥۵ثانیه (presence/ذخیره/متادیتا/چت-پس‌زمینه) کشیده می‌شوند ×۱.۴
@@ -31,13 +31,13 @@
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=146">
+   <link rel="preload" as="script" href="/game/balance.js?v=147">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=146">
-   <link rel="preload" as="script" href="/game/social.js?v=146">
-   <link rel="preload" as="script" href="/game/mentor.js?v=146">
-  <script src="/game/balance.js?v=146"></script>
+   <link rel="preload" as="script" href="/game/oly3.js?v=147">
+   <link rel="preload" as="script" href="/game/social.js?v=147">
+   <link rel="preload" as="script" href="/game/mentor.js?v=147">
+  <script src="/game/balance.js?v=147"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2216,7 +2216,9 @@ function onCountryClick(feature, layer) {
      می‌گرفتند (هر setStyle با رندرر Canvas = بازکشیدن کامل بوم = لگ محسوس لمس کشور و گرمای گوشی.
      حالا انتخاب فقط ۲ کشور را رنگ می‌کند: قبلی + جدید — لمس فوری و روان ۶۰fps */
 
-  const defShown = (occ > 0 && occ < 100) ? Math.round(c.def * (1 - occ / 100)) : c.def;
+  /* V147: نمایش پادگان زنده (به‌جای def خام) — با HP آسیب‌دیده و عمق اشغال */
+  const _garNow = (typeof wdGarEff === 'function') ? wdGarEff(activeEngName) : c.def * 1.42;
+  const defShown = Math.round(_garNow * ((occ > 0 && occ < 100) ? (1 - occ / 100 * 0.75) : 1));
 
   document.getElementById("c-name").textContent = c.fa;
   document.getElementById("c-pop").textContent = c.pop;
@@ -2280,7 +2282,8 @@ function claimCapital(engName) {
 // V59: dead code removed — legacy attackTarget v1 + resolveBattle (fully shadowed by the unified async attackTarget below)
 
 function applyBattleLosses(fraction) {
-  const f = Math.min(Math.max(fraction, 0.1), 0.6);
+  /* V147: کف ۱۰٪ → ۲٪ — تلفات واقعی شبیه‌ساز سرور (مثلاً ۳٪ پیروزی آسان) دیگر ۱۰٪ نمایش داده نمی‌شود */
+  const f = Math.min(Math.max(fraction, 0.02), 0.6);
   Object.keys(ARMY_UNITS).forEach(key => {
     const u = ARMY_UNITS[key];
     u.count = Math.max(0, Math.round(u.count * (1 - f)));
@@ -2730,8 +2733,12 @@ async function attackTarget(n){
   try{news(near?('⚔️ ارتش تو از مرز عبور کرد و وارد '+getCountryData(n).fa+' شد'):('🚢 نیروی اعزامی تو به سواحل '+getCountryData(n).fa+' رسید (قدرت حمله ۳۰٪ کمتر)'));snd('alert')}catch(e){}
   /* [core V52] قفل ضدتکرار فقط بعد از عبور از همه‌ی اعتبارسنجی‌ها ست می‌شود؛ مهلت ۱۵ ثانیه */
   if(window.__wd51nat&&Date.now()-(window.__wd51natAt||0)<15000){showToast('⏳ نبرد قبلی هنوز در جریان است','lose');return}
-  let power=Math.round(calculateTotalAttack()*(window.__ovs?ovsMult():1));
+  /* V147: خستگی جنگ — فتح‌های پشت‌سرهم در ۶ ساعت اخیر، حمله را تا −۲۰٪ ضعیف می‌کنند */
+  let power=Math.round(calculateTotalAttack()*(window.__ovs?ovsMult():1)*(typeof wdFatMult==='function'?wdFatMult():1));
   if(power<=0){showToast('❌ شما هیچ نیروی نظامی ندارید!','lose');return}
+  /* V147: حداقل نیروی حمله — زیر ۳۰٪ پادگانِ کشور، حمله رد می‌شود (قبل از هر هزینه‌ای، بدون اتلاف لجستیک) */
+  const _garEst=(typeof wdGarEff==='function')?wdGarEff(n):getCountryData(n).def*1.42;
+  if(power<WD_BATTLE.minForce.ratioPve*_garEst){showToast('⚔️ ارتش تو برای پادگان '+getCountryData(n).fa+' کافی نیست — حداقل قدرت لازم ≈ '+Math.round(WD_BATTLE.minForce.ratioPve*_garEst).toLocaleString('en')+' (قدرت تو: '+power.toLocaleString('en')+') — اول نیرو بساز یا هدف کوچک‌تر انتخاب کن','lose');return}
   /* V133: لجستیک مقیاس‌پذیر — هزینه با قدرت ارتش بالا می‌رود اما هرگز از ۷۵٪ ظرفیت انبار عبور نمی‌کند (ضد بن‌بست) */
   const sup=(typeof window.wdLogisticsCost==='function')?window.wdLogisticsCost(power):250+Math.round(power*.06);
   if(playerRes.food<sup||playerRes.oil<sup){const _fc=(typeof window.foodStorageCap==='function')?window.foodStorageCap():0,_oc=(typeof window.oilStorageCap==='function')?window.oilStorageCap():0;
@@ -2758,25 +2765,41 @@ async function attackTarget(n){
   if(!payOK){battleBusy=false;window.__wd51nat=false;
     txt.innerHTML='💰 <b style="color:var(--red-glow)">خزانه برای لشکرکشی کافی نیست!</b><br>هزینه‌ی این لشکرکشی: 💰'+expCost.g.toLocaleString()+' طلا + 🛢️'+expCost.o.toLocaleString()+' نفت (هر چه امپراتوری بزرگ‌تر، لشکرکشی گران‌تر)<br>اول مالیات بگیر یا معامله کن.';showToast('💰 خزانه کافی نیست — لشکرکشی هزینه دارد','lose');$("battle-close-btn").style.display="block";return}
   playerRes.gold-=expCost.g;playerRes.oil-=expCost.o;updateUI();
-  const def0=t.def*1.42*(window.__wdDebuff&&window.__wdDebuff[n]&&window.__wdDebuff[n].until>Date.now()?(1-window.__wdDebuff[n].pct):1);
+  /* V147 BATTLE 2.0 — پادگان واقع‌گرایانه به‌جای def×1.42 ثابت:
+     دِبوف عملیات‌های جم سر جایش است؛ پادگانِ آسیب‌دیده (HP) و ترکیب کلاسی به موتور می‌آید. */
+  const _deb=(window.__wdDebuff&&window.__wdDebuff[n]&&window.__wdDebuff[n].until>Date.now())?(1-window.__wdDebuff[n].pct):1;
+  const gar0=Math.max(1,wdGarEff(n)*_deb);
+  const garComp=wdGarComp(gar0),myComp=wdArmyComp();
+  const rpsA=wdRpsMult(myComp,garComp);   /* V147: سنگ‌کاغذ‌قیچی — ترکیب ارتش تو در برابر ترکیب پادگان */
+  const popN=Math.min(1,wdPopM(t.pop)/WD_BATTLE.garrison.popRef);
+  const _hp0=wdGarHp(n);
   for(let r=1;r<=5;r++){
     txt.textContent=`⚔️ دور ${r} از ۵ — درگیری سنگین در خط مقدم`;
-    const defNow=Math.max(def0*(1-occ/100*.75),def0*.2),ratio=power*(.8+Math.random()*.4)/defNow;
-    /* V130 (باگ «حمله‌ی اول کشور را کامل تصرف نمی‌کند»): سقف پیشروی هر دور قبلاً ثابت ۱۳٪ بود ⇒ حداکثر
-       ۶۵٪ در یک حمله، حتی با نسبت قدرت بی‌نهایت (کشور خالی + ارتش عظیم). حالا سقف وابسته به نسبت قدرت است
-       (BALANCE.conquest.roundGain) — پیروزی قاطع در همان حمله تا ۱۰۰٪ می‌رود؛ نبرد متوازن همان طرح V126. */
-    const _RG=BALANCE.conquest.roundGain,capG=ratio>=_RG.t2?_RG.cap3:(ratio>=_RG.t1?_RG.cap2:_RG.cap1);
-    let gain=Math.max(-3,Math.min(capG,(ratio-.35)*16));if(occ>75)gain*=.45;   /* محاصره‌ی پایتخت: ۲۵٪ آخر کندتر — V126 سخت‌تر */
+    /* دفاع مؤثر: پادگان فرسوده + عمق اشغال؛ از ۷۵٪ به بعد = محاصره‌ی پایتخت */
+    const _G=WD_BATTLE.garrison;
+    let defNow=gar0*(_G.regenFloor+(1-_G.regenFloor)*_hp0)*(1-occ/100*.75);
+    if(occ>=_G.capitalOccFrom)defNow*=_G.capitalBoost;
+    defNow=Math.max(1,defNow);
+    const ratio=power*rpsA*(.9+Math.random()*.2)/defNow;
+    const capG=wdCapG(ratio);
+    let gain=Math.max(WD_BATTLE.gain.floor,Math.min(capG,(ratio-WD_BATTLE.gain.base)*WD_BATTLE.gain.k));
+    if(occ>=_G.capitalOccFrom)gain*=_G.capitalSlow;                 /* محاصره‌ی پایتخت: ۲۵٪ آخر کندتر — V126 */
+    gain*=1-WD_BATTLE.terrain.bigPopSlow*popN;                       /* V147: زمینِ بزرگ کندتر اشغال می‌شود */
     const prev=occ;occ=Math.max(0,Math.min(100,occ+gain));
     bar.style.transition="width 1.2s ease";bar.style.width=occ+"%";$("battle-pct-label").textContent=Math.round(occ)+"%";
     setHatch(n,occ,true,prev);blasts(n,2);
-    lose(Math.min(.1,.03+.03/Math.max(ratio,.2)));power=Math.round(calculateTotalAttack()*(window.__ovs?ovsMult():1));updateUI();
+    /* V147: تلفات دو طرف — مهاجم یگان از دست می‌دهد، مدافع پادگانش فرسوده می‌شود */
+    const aFrac=Math.min(WD_BATTLE.losses.aCap,WD_BATTLE.losses.aBase+WD_BATTLE.losses.aVar/Math.max(ratio,.2));
+    const dFrac=Math.min(WD_BATTLE.losses.dCap,WD_BATTLE.losses.dK*aFrac*ratio);
+    lose(aFrac);power=Math.round(calculateTotalAttack()*(window.__ovs?ovsMult():1)*(typeof wdFatMult==='function'?wdFatMult():1));
+    wdGarDamage(n,dFrac);updateUI();
     await sleep(700);if(power<=0){txt.textContent="💀 ارتش شما نابود شد!";break}
   }
   if(line)line.remove();
   occupationPct[n]=occ;if(occ<=0)delete occupationPct[n];
   const lostPct=Math.round((1-power/power0)*100);
-  if(occ>=100){conqueredCountries.add(n);const gl=Math.round(t.gold*.4),ol=Math.round(t.oil*.4);playerRes.gold+=gl;playerRes.oil+=ol;
+  if(occ>=100){conqueredCountries.add(n);try{wdFatPush()}catch(e){}   /* V147: خستگی جنگ */
+    const gl=Math.round(t.gold*.4),ol=Math.round(t.oil*.4);playerRes.gold+=gl;playerRes.oil+=ol;
     overrides[n]={...t,def:Math.round(t.def*.1),gold:Math.round(t.gold*.5),oil:Math.round(t.oil*.5)};
     txt.innerHTML=`🏆 <b style="color:var(--green-glow)">${t.fa} سقوط کرد!</b><br>غنیمت: 💰${gl.toLocaleString()} | 🛢️${ol.toLocaleString()} — تلفات ارتش: ${lostPct}٪`;showToast(`🏆 ${t.fa} کاملاً تصرف شد!`,"win")}
   else if(occ>start){txt.innerHTML=`⚔️ <b style="color:var(--gold-glow)">${Math.round(occ-start)}٪ پیشروی</b> — کل تصرف: ${Math.round(occ)}٪<br>تلفات: ${lostPct}٪ — پیشروی حفظ می‌شود؛ ادامه بده تا فتح کامل.`;showToast(`⚔️ ${Math.round(occ-start)}٪ پیشروی در ${t.fa}`,"win")}
@@ -2868,11 +2891,13 @@ function econ(){if(!myCountryName)return;const terr=conqueredCountries.size,pw=c
   /* V40: مصرف نفت واقع‌بینانه — قبلاً pw/400 بود (در قدرت ۱۶هزار = ۶۰۰ نفت در دقیقه!) الان ≈ ۱/۵ + پژوهش لجستیک تا ۶۰٪ کاهش. V72: اعداد از BALANCE.maintenance/sanction */
   const logR=(typeof S!=='undefined'&&S.tech)?(S.tech.logistics||0):0;
   const UP=BALANCE.maintenance.oilUpkeep,SC=BALANCE.economy.sanction,UB=BALANCE.maintenance.unrest;
-  const need=Math.max(1,Math.round(Math.min(UP.cap,pw/UP.powerDiv)*(1-UP.logRPerLevel*logR)));
+  /* V147: خستگی جنگ — امپراتوریِ در حال جنگ، نگهداری و ناآرامی بیشتری دارد */
+  const _fat=(typeof wdFatN==='function')?wdFatN():0;
+  const need=Math.max(1,Math.round(Math.min(UP.cap,pw/UP.powerDiv)*(1-UP.logRPerLevel*logR)*(1+WD_BATTLE.fatigue.upkeepBoost*_fat)));
   if(need>0){if(playerRes.oil>=need)playerRes.oil-=need;else{playerRes.oil=0;lose(UP.starvationLose);news('⛽ کمبود سوخت! بخشی از یگان‌ها از کار افتادند','lose')}}
   if(sanction>0){playerRes.gold-=SC.goldPerTerr*terr;playerRes.food-=SC.foodPerTerr*terr;playerRes.oil-=Math.min(SC.oilCapPerTerr,oilPerTick()*terr*SC.oilPerTickShare);sanction-=SC.hoursPerStep;if(sanction<=0){tension=SC.tensionRelease;news('🕊️ تحریم‌ها لغو شد','win')}}
   else if(tension>=SC.tensionTrigger){sanction=SC.duration;news('🚫 تحریم‌های بین‌المللی اعمال شد: درآمد تو نصف شد','lose')}
-  conqueredCountries.forEach(n=>{if(n===myCountryName)return;if(unrest[n]==null)unrest[n]=UB.start;unrest[n]+=Math.max(UB.gainMin,UB.gainBase-pw/UB.gainPowerDiv);if(unrest[n]>=UB.revoltThreshold)revolt(n)});
+  conqueredCountries.forEach(n=>{if(n===myCountryName)return;if(unrest[n]==null)unrest[n]=UB.start;unrest[n]+=Math.max(UB.gainMin,UB.gainBase-pw/UB.gainPowerDiv)*(1+WD_BATTLE.fatigue.unrestBoost*_fat);if(unrest[n]>=UB.revoltThreshold)revolt(n)});
   ['gold','food','oil'].forEach(k=>playerRes[k]=Math.max(0,playerRes[k]));updateUI()}
 const neutrals=()=>Object.keys(layersByName).filter(k=>statusOf(k)==='neutral');
 function tweakDef(f,txt){const ks=neutrals();if(!ks.length)return;const k=ks[Math.random()*ks.length|0],t=getCountryData(k);overrides[k]=Object.assign({},t,{def:Math.round(t.def*f)});news(txt.replace('X',t.fa))}
@@ -2884,7 +2909,9 @@ const EV=[()=>{const g=150*Math.max(1,conqueredCountries.size);playerRes.gold+=g
  ()=>tweakDef(1.12,'🛡️ X ارتشش را نوسازی کرد: دفاع ۱۲٪ قوی‌تر شد')];
 function showDate(){const d=new Date(Date.UTC(2026,8,20)+GAME.days*864e5);let s;try{s=d.toLocaleDateString('fa-IR-u-ca-persian',{year:'numeric',month:'long',day:'numeric',timeZone:'UTC'})}catch(e){s=d.toISOString().slice(0,10)}H$('hud-date').textContent='📅 '+s}
 function gameTick(){GAME.days++;showDate();tension=Math.max(0,tension-.3);const tf=H$('tn-fill');if(tf)tf.style.width=tension+'%';
-  if(++tk4%4===0)econ();if(myCountryName&&--evT<=0){evT=45+(Math.random()*45|0);EV[Math.random()*EV.length|0]()}}
+  if(++tk4%4===0)econ();if(myCountryName&&--evT<=0){evT=45+(Math.random()*45|0);EV[Math.random()*EV.length|0]()}
+  /* V147: بازسازی دفاع — بدون حلقه‌ی تازه؛ هر ۶۰ ثانیه روی همان تیک بازی */
+  if((window.__wdDT=(window.__wdDT||0)+1)%60===0&&typeof wdDefenseTick==='function')wdDefenseTick()}
 function exportExt(){return{d:GAME.days,t:tension,u:unrest,s:sanction,n:NEWS,c:(typeof COS27!=='undefined'?COS27:null)}}
 function importExt(x){if(!x)return;GAME.days=x.d||0;tension=x.t||0;unrest=x.u||{};sanction=x.s||0;NEWS.length=0;(x.n||[]).forEach(m=>NEWS.push(m));if(x.c&&typeof cosRestore==='function'){try{cosRestore(x.c)}catch(e){}}const t=H$('tk');if(t)t.textContent=NEWS.slice().reverse().join('    ◆    ');showDate()}
 // --- drawer extras ---
@@ -2892,7 +2919,16 @@ function importExt(x){if(!x)return;GAME.days=x.d||0;tension=x.t||0;unrest=x.u||{
 try{WD_CLICK_HOOKS.post.push(function(f,l){if(!myCountryName)return;const n=f.properties.name,r=H$('c-role'),st=statusOf(n);
   if(st==='neutral'&&r)r.textContent+=bordersOwned(n)?' • 🚩 هم‌مرز':' • 🌊 نیاز به اعزام دریایی/هوایی';
   if(st==='conquered'&&n!==myCountryName&&r){r.textContent+=` • 🔥 ناآرامی: ${Math.round(unrest[n]||25)}٪`;const b=document.createElement('button');b.className='action-btn btn-gold';b.textContent='🕊️ آرام‌سازی (۳۰۰ طلا)';
-    b.addEventListener('click',()=>{if(playerRes.gold<300){showToast('❌ طلای کافی نیست','lose');return}playerRes.gold-=300;unrest[n]=Math.max(0,(unrest[n]||25)-40);updateUI();showToast('🕊️ ناآرامی کاهش یافت','win');onCountryClick(f,l)});H$('drawer-actions').appendChild(b)}})}catch(e){console.error('wd-c2',e)}
+    b.addEventListener('click',()=>{if(playerRes.gold<300){showToast('❌ طلای کافی نیست','lose');return}playerRes.gold-=300;unrest[n]=Math.max(0,(unrest[n]||25)-40);updateUI();showToast('🕊️ ناآرامی کاهش یافت','win');onCountryClick(f,l)});H$('drawer-actions').appendChild(b);
+    /* V147: پادگان این کشور — چند٪ از ارتش اینجا می‌ماند و دفاع می‌کند (در داوری PvP سرور می‌خواند) */
+    const gcur=Math.max(0,Math.min(60,Number(WD_GDF[n]!=null?WD_GDF[n]:50)));
+    const gb=document.createElement('div');gb.className='action-btn';gb.style.cssText='display:flex;align-items:center;gap:8px;justify-content:center;background:linear-gradient(135deg,#24344d,#16243a);color:#cfe8ff';
+    gb.innerHTML='🛡️ پادگان: <b style="color:#7dffcf">'+gcur+'٪</b>';
+    const gstep=(d)=>{const v=Math.max(0,Math.min(60,(Number(WD_GDF[n]!=null?WD_GDF[n]:50))+d));WD_GDF[n]=v;try{saveNow()}catch(e){}
+      gb.innerHTML='🛡️ پادگان: <b style="color:#7dffcf">'+v+'٪</b>';showToast('🛡️ پادگان '+getCountryData(n).fa+': '+v+'٪ از ارتش دفاع می‌کند','win')};
+    const gm=document.createElement('button');gm.textContent='−';gm.style.cssText='width:34px;font-weight:900';gm.addEventListener('click',()=>gstep(-15));
+    const gp=document.createElement('button');gp.textContent='+';gp.style.cssText='width:34px;font-weight:900';gp.addEventListener('click',()=>gstep(15));
+    gb.appendChild(gm);gb.appendChild(gp);H$('drawer-actions').appendChild(gb)}})}catch(e){console.error('wd-c2',e)}
 // --- day/night terminator + graticule ---
 /* V71: nightPts/addNight/addGrid (شب/شبکه‌ی رادار) حذف شدند — از V45/V59 نو-اپ و بدون فراخوانی زنده بودند */
 const _ag=afterGeo;afterGeo=function(){_ag()};
@@ -2904,6 +2940,78 @@ addEventListener('load',()=>{try{
   showDate();if(!NEWS.length){ const t=H$('tk'); if(t)t.textContent='در حال انتظار برای نخستین رویداد ثبت‌شده در سرور…'; }
   /* V59 wave-2 §10: ساعت/اقتصاد بازی در تب مخفی متوقف می‌شود */
   setInterval(function(){if(!document.hidden)gameTick()},1000)}catch(e){console.log(e)}});
+   </script>
+   <script>
+/* ================= V147 — BATTLE 2.0: موتور نبرد واقع‌گرایانه (کلاینت) =================
+   فتح = کمپین پرهزینه، نه یک کلیک. آینه‌ی سرور: src/lib/battleConfig.ts
+   ۱) پادگان واقع‌گرایانه از دیتای واقعی کشور (def نظامی + جمعیت + اقتصاد)
+   ۲) سنگ‌کاغذ‌قیچی کلاس‌ها (WD105_CLASS) — ترکیب ارتش مهم است، نه فقط جمع اعداد
+   ۳) آسیب‌زدن پادگان (HP) + بازسازی تدریجی → کمپینِ نصفه رهاشده بی‌فایده است
+   ۴) محاصره‌ی پایتخت (آخرین ۲۵٪) سخت‌ترین مرحله
+   ۵) خستگی جنگ + بازسازی دفاع (پیشروی رهاشده آهسته عقب می‌راند)
+   ۶) مسیر PvP دست‌نخورده: همان pvp_attack سرور؛ سرور همین فرمول‌ها را داوری می‌کند.
+   همه‌ی اعداد توازن فقط در WD_BATTLE — بدون دست‌زدن به منطق نبرد. */
+const WD_BATTLE={
+  v:2,
+  garrison:{kDef:1.42,kPop:0.18,kEco:0.10,cap:2.2,ownedK:0.12,capitalOccFrom:75,capitalBoost:1.35,capitalSlow:0.45,regenPerHour:0.14,regenFloor:0.35,popRef:300,goldRef:12000},
+  comp:{tiers:[{max:1500,s:{infantry:.7,armor:.2,air:.1}},{max:4500,s:{infantry:.55,armor:.25,air:.1,arty:.1}},{max:1e9,s:{infantry:.45,armor:.25,air:.15,arty:.1,navy:.05}}]},
+  rps:{infantry:{infantry:1.0,armor:0.75,arty:1.15,air:0.70,navy:0.80,elite:0.90},
+       armor:{infantry:1.35,armor:1.0,arty:1.25,air:0.70,navy:0.85,elite:0.95},
+       arty:{infantry:1.20,armor:0.90,arty:1.0,air:0.60,navy:1.10,elite:0.90},
+       air:{infantry:1.25,armor:1.40,arty:1.15,air:0.85,navy:0.70,elite:1.0},
+       navy:{infantry:0.90,armor:0.90,arty:1.10,air:0.75,navy:1.0,elite:0.90},
+       elite:{infantry:1.30,armor:1.10,arty:1.15,air:0.95,navy:0.90,elite:1.05}},
+  rounds:5,gain:{base:0.35,k:16,floor:-3},
+  minForce:{ratioPve:0.30,ratioPvp:0.35},
+  losses:{aBase:0.03,aVar:0.03,aCap:0.10,dK:0.7,dCap:0.30},
+  terrain:{bigPopSlow:0.15},
+  fatigue:{windowH:6,atkPenalty:0.04,minMult:0.80,unrestBoost:0.15,upkeepBoost:0.04},
+  occ:{regenPerHour:1.2},
+  pvp:{defArmyK:0.55,fortPerLevel:0.05,stance:{attack:0.95,balanced:1.0,fortress:1.08},shareBase:0.35,sharePer:0.65,shareDef:0.5,shareMax:0.6,defGenPerPoint:0.01,scoreCapBase:120,scoreCapPer:2.0,legacyFloor:0.5,shieldHours:24,shieldDefMult:1.8,peaceHours:48,targetCdMin:8,maxCapsPerHour:4,fatiguePerWin:0.04,fatigueMin:0.80,bullyRatio:4,bullyScoreMax:1000,bullyRewardMult:0.25,defLossCap:0.30,defLossWinCap:0.12,occDecayPerHour:0.15}
+};
+window.WD_BATTLE=WD_BATTLE;
+/* ---- ابزارهای خالص ---- */
+function wdPopM(ps){if(!ps)return 10;const s=String(ps),m=parseFloat(s);if(!isFinite(m))return 10;return /B/i.test(s)?m*1000:m}
+function wdGarFull(n){const t=getCountryData(n)||{};const def=Number(t.def)||2500;const gold=Number(t.gold)||1000;const pm=wdPopM(t.pop);
+  const popN=Math.min(1.4,Math.sqrt(Math.max(0.01,pm))/Math.sqrt(WD_BATTLE.garrison.popRef));
+  const ecoN=Math.min(1.2,Math.log10(1+Math.max(0,gold))/Math.log10(1+WD_BATTLE.garrison.goldRef));
+  const g=def*WD_BATTLE.garrison.kDef*(1+WD_BATTLE.garrison.kPop*popN+WD_BATTLE.garrison.kEco*ecoN);
+  return Math.min(g,def*WD_BATTLE.garrison.cap)}
+function wdGarComp(power){const T=WD_BATTLE.comp.tiers;for(let i=0;i<T.length;i++){if(power<T[i].max)return T[i].s}return T[T.length-1].s}
+function wdArmyComp(){const tot={};let n=0;Object.keys(ARMY_UNITS).forEach(k=>{const c=ARMY_UNITS[k].count;if(c<=0)return;const cls=WD105_CLASS[k]||'infantry';tot[cls]=(tot[cls]||0)+c;n+=c});
+  if(!n)return{infantry:1};const o={};Object.keys(tot).forEach(k=>o[k]=tot[k]/n);return o}
+function wdRpsMult(my,foe){const M=WD_BATTLE.rps;let m=0;Object.keys(my).forEach(a=>{let inner=0;Object.keys(foe).forEach(d=>{inner+=((M[a]&&M[a][d]!=null)?M[a][d]:1)*foe[d]});m+=(my[a]||0)*inner});
+  return Math.max(0.55,Math.min(1.45,m))}
+function wdCapG(ratio){const RG=BALANCE.conquest.roundGain;return ratio>=RG.t2?RG.cap3:(ratio>=RG.t1?RG.cap2:RG.cap1)}
+/* ---- HP پادگان: آسیب‌پذیر و بازشونده — پایدار در سیو (snapState.gar) ---- */
+let WD_GAR={};
+function wdGarHp(n){const e=WD_GAR[n];if(!e)return 1;const now=Date.now();const hp=Math.min(1,e[0]+WD_BATTLE.garrison.regenPerHour*Math.max(0,now-(e[1]||now))/36e5);e[0]=hp;e[1]=now;return hp}
+function wdGarDamage(n,f){WD_GAR[n]=[Math.max(0,wdGarHp(n)-f),Date.now()]}
+function wdGarEff(n){const G=WD_BATTLE.garrison;return Math.max(1,wdGarFull(n)*(G.regenFloor+(1-G.regenFloor)*wdGarHp(n)))}
+function wdGarExport(){const o={};Object.keys(WD_GAR).forEach(k=>{if(WD_GAR[k][0]<0.999)o[k]=[Math.round(WD_GAR[k][0]*1000)/1000,WD_GAR[k][1]]});return o}
+function wdGarImport(x){if(x&&typeof x==='object'&&!Array.isArray(x))WD_GAR=x}
+/* ---- خستگی جنگ: فتح‌های پشت‌سرهم → حمله ضعیف‌تر، ناآرامی و نگهداری بیشتر ---- */
+let WD_FAT=[];
+function wdFatN(){const cut=Date.now()-WD_BATTLE.fatigue.windowH*36e5;WD_FAT=WD_FAT.filter(t=>t>cut);return WD_FAT.length}
+function wdFatPush(){WD_FAT.push(Date.now());if(WD_FAT.length>24)WD_FAT=WD_FAT.slice(-24)}
+function wdFatMult(){return Math.max(WD_BATTLE.fatigue.minMult,1-WD_BATTLE.fatigue.atkPenalty*wdFatN())}
+function wdFatExport(){return WD_FAT.slice(-12)}
+function wdFatImport(x){if(Array.isArray(x))WD_FAT=x.filter(t=>typeof t==='number')}
+/* ---- توزیع پادگان بین کشورهای خودی (PvP — سرور می‌خواند) ---- */
+let WD_GDF={};
+function wdGdfExport(){return WD_GDF}
+function wdGdfImport(x){if(x&&typeof x==='object'&&!Array.isArray(x))WD_GDF=x}
+window.wdGdfGet=function(){return WD_GDF};
+/* ---- بازسازی دفاع: پیشروی رهاشده آهسته عقب می‌راند + timestamp پادگان تازه می‌شود ----
+   از gameTick (هر ۶۰ ثانیه) صدا زده می‌شود — حلقه‌ی تازه‌ای نمی‌سازد. */
+function wdDefenseTick(){try{
+  const keys=Object.keys(occupationPct);
+  for(let i=0;i<keys.length;i++){const n=keys[i];if(conqueredCountries.has(n))continue;
+    const o=(occupationPct[n]||0)-WD_BATTLE.occ.regenPerHour/60;
+    if(o<=0)delete occupationPct[n];else occupationPct[n]=o}
+  Object.keys(WD_GAR).forEach(n=>{try{wdGarHp(n)}catch(e){}})
+}catch(e){}}
+window.WD_BATTLE20={garrisonFull:wdGarFull,garrisonEff:wdGarEff,garrisonComp:wdGarComp,armyComp:wdArmyComp,rpsMult:wdRpsMult,fatigueN:wdFatN,fatigueMult:wdFatMult,fatiguePush:wdFatPush,garDamage:wdGarDamage,defenseTick:wdDefenseTick};
    </script>
    <style>
     #auth .modal-card{text-align:center;line-height:1.7;font-size:12px;color:#cfe8ff}
@@ -3545,10 +3653,14 @@ function resumeCooldowns(){const now=Date.now();
 /* ---------- shared UI helpers ---------- */
 function inp(id,ph,type){const i=mk('input');i.id=id;i.placeholder=ph;i.type=type||'text';i.autocomplete='off';return i}
 const PW_MIN=()=>sb?6:4;
-function snapState(){return{my:myCountryName,conq:[...conqueredCountries],occ:occupationPct,ovr:overrides,res:playerRes,infra:infra,units:Object.fromEntries(Object.keys(ARMY_UNITS).map(k=>[k,ARMY_UNITS[k].count])),ext:(typeof exportExt==='function'?exportExt():null),cool:{tax:COOL.tax,un:COOL.un},bld:(typeof SITES_STATE==='function'?SITES_STATE():null),v3:(typeof exportV3==='function'?exportV3():null)}}
+function snapState(){return{my:myCountryName,conq:[...conqueredCountries],occ:occupationPct,ovr:overrides,res:playerRes,infra:infra,units:Object.fromEntries(Object.keys(ARMY_UNITS).map(k=>[k,ARMY_UNITS[k].count])),ext:(typeof exportExt==='function'?exportExt():null),cool:{tax:COOL.tax,un:COOL.un},bld:(typeof SITES_STATE==='function'?SITES_STATE():null),v3:(typeof exportV3==='function'?exportV3():null),gar:(typeof wdGarExport==='function'?wdGarExport():null),fat:(typeof wdFatExport==='function'?wdFatExport():null),gdf:(typeof wdGdfExport==='function'?wdGdfExport():null)}}
 function restoreState(st){if(!st)return;
   myCountryName=st.my||null;conqueredCountries=new Set(st.conq||[]);occupationPct=st.occ||{};overrides=st.ovr||{};
   playerRes=Object.assign({gold:0,food:0,oil:0},st.res);infra=Object.assign({oil:0,arms:0,air:0,storage:0},st.infra);
+  /* V147: وضعیت نبرد ۲.۰ — HP پادگان/خستگی جنگ/توزیع پادگان (سیوهای قدیمی بدون این فیلدها = پیش‌فرض سالم) */
+  try{if(st.gar&&typeof wdGarImport==='function')wdGarImport(st.gar)}catch(e){}
+  try{if(st.fat&&typeof wdFatImport==='function')wdFatImport(st.fat)}catch(e){}
+  try{if(st.gdf&&typeof wdGdfImport==='function')wdGdfImport(st.gdf)}catch(e){}
   Object.keys(ARMY_UNITS).forEach(k=>ARMY_UNITS[k].count=(st.units&&st.units[k])||0);updateUI();if(st.ext&&typeof importExt==='function')importExt(st.ext);
   if(st.cool){COOL.tax=st.cool.tax||0;COOL.un=st.cool.un||0;resumeCooldowns()}
   if(typeof restoreSites==='function')restoreSites(st.bld);if(st.v3&&typeof importV3==='function')importV3(st.v3);
@@ -5037,6 +5149,8 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     if(a==='trade')return who+' با '+(whom||'بازیکن دیگر')+' معامله‌ی امن انجام داد.';
     if(a==='capture'||a==='conquer')return who+' کشور '+(fa||'نامعلوم')+' را فتح کرد.';
     if(a==='pvp_attack')return who+' به '+(fa||'نامعلوم')+' حمله کرد.';
+    /* V147 — اعلان حمله برای مدافع */
+    if(a==='pvp_incoming')return '🚨 '+(fa||'نامعلوم')+' (متعلق به '+(whom||'تو')+') مورد حمله‌ی '+who+' قرار گرفت!';
     /* V140 — رها کردن کشور */
     if(a==='country_released')return '🏳️ '+who+' کشورش را رها کرد و از صفر شروع کرد — سرزمینش آزاد است.';
     /* V34 — social layer news */
@@ -5623,12 +5737,18 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
         return;
       }
       /* V75 — P4: خطاهای هزینه/کول‌داون حمله (سرور واقعی پول و فاصله‌ی حمله را می‌سنجد) */
-      if(x.error==='res'||x.error==='cd'){
+      if(x.error==='res'||x.error==='cd'||x.error==='weak'||x.error==='rate'||x.error==='cdt'){
         battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();
         if(pvpLine){pvpLine.remove();pvpLine=null}
         hpBox.style.display='none';
         const _msg75=x.error==='res'
           ?'خزانه برای هزینه‌ی حمله کافی نیست — هر حمله '+faN(BALANCE.conquest.pvpAttack.costGold)+' طلا + '+faN(BALANCE.conquest.pvpAttack.costOil)+' نفت می‌برد.'
+          :x.error==='weak'
+          ?('نیروی تو برای این دفاع کافی نیست — حداقل قدرت لازم ≈ '+fmt(x.need||0)+' (قدرت تو: '+fmt(x.have||0)+'). اول ارتش بساز یا هدف کوچک‌تر انتخاب کن.')
+          :x.error==='rate'
+          ?('سقف فتح در ساعت پر شد ('+faN(WD_BATTLE.pvp.maxCapsPerHour)+' فتح) — دفاع سرور به تو و به حریف فرصت نفس می‌دهد.')
+          :x.error==='cdt'
+          ?('به همین هدف به‌زودی دوباره نمی‌توانی حمله کنی — کول‌داون حمله به هر هدف: '+faN(WD_BATTLE.pvp.targetCdMin)+' دقیقه.')
           :'فرمانده! بین دو حمله چند ثانیه مکث لازم است — ستاد فرماندهی دارد تجدید سازمان می‌کند.';
         log.innerHTML='<span class="wd39-round">'+(x.error==='res'?'💰 خزانه':'⏳ فرماندهی')+'</span><div class="wd39-narr">'+_msg75+'</div>';
         document.getElementById("battle-close-btn").textContent="باشه";
@@ -5641,8 +5761,9 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       const win=!!x.ok;
       const defense=Number(x.defense||target.def||0);
       if(hpDv)hpDv.textContent=fmt(defense);
-      /* طرح دورها: برد → پیشروی پلکانی تا ۱۰۰٪ | باخت → پیشروی محدود و سپس دفع */
-      const occPlan=win?[14,32,55,78,100]:[8,17,24,28,31];
+      /* V147: دورهای واقعی از داوری سرور (پیشروی/تلفات هر دور) — fallback طرح قدیمی برای پاسخ‌های کهنه */
+      const srvR=(Array.isArray(x.rounds)&&x.rounds.length)?x.rounds:null;
+      const occPlan=srvR?srvR.map(function(rr){return Math.max(0,Math.min(100,Number(rr.occ)||0))}):(win?[14,32,55,78,100]:[8,17,24,28,31]);
       const narrEl=()=>document.querySelector('#battle-result-text .wd39-narr');
       const roundEl=()=>document.querySelector('#battle-result-text .wd39-round');
 
@@ -5665,9 +5786,10 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
 
       const occ=win?100:Math.max(0,Number(x.occupation||0));
       const ratio=Number(x.ratio||0);
-      const lossFraction=ratio>=1
-        ? Math.min(.25,.5/Math.max(ratio,.2))
-        : Math.min(.6,.5/Math.max(ratio,.2));
+      /* V147: تلفات واقعی مهاجم از داوری سرور (باقی‌مانده‌ی طرح قدیمی فقط برای پاسخ‌های کهنه) */
+      const lossFraction=(typeof x.atk_loss==='number')
+        ? Math.max(.05,Math.min(.6,x.atk_loss))
+        : (ratio>=1?Math.min(.25,.5/Math.max(ratio,.2)):Math.min(.6,.5/Math.max(ratio,.2)));
 
       if(win){
         /* === لحظه‌ی سرنوشت: اسلوموشن + انفجار طلایی === */
@@ -5696,8 +5818,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
         updateUI();
         hpBox.style.display='none';
         if(win){
-          conqueredCountries.add(country);
-          delete OTH[country];
+          conqueredCountries.add(country);delete OTH[country];try{delete occupationPct[country]}catch(e){}   /* V147: فتح کامل */
           try{applyCountryColor(country)}catch(e){}
           await syncTerr();
           await saveNow();
@@ -5718,9 +5839,11 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
           setTimeout(function(){try{if(battleBusy&&modal.classList.contains('active'))cb.onclick()}catch(e){}},4800);
         }else{
           log.innerHTML=
-            '🛡️ دفاع تخمینی: <b>'+fmt(defense)+'</b><br>'+
+            '🛡️ دفاع واقعی مدافع: <b>'+fmt(defense)+'</b>'+(x.def_loss?' — تلفات مدافع: <b>'+Math.round(x.def_loss*100)+'٪</b>':'')+'<br>'+
             '🪖 تلفات خودی: '+Math.round(lossFraction*100)+'٪<br>'+
             '<span style="color:#8eb9e8">ارتش نگه داشته شد؟ «موج بعدی» را بزن — هر موج شانس تازه‌ای است.</span>';
+          /* V147: پیشروی جزئی این نبرد حفظ می‌شود (کمپین نیمه‌کاره) — سپس ضدحمله‌ی مدافع */
+          try{if(occ>0&&occ>(occupationPct[country]||0)){occupationPct[country]=Math.min(95,occ);if(typeof setHatch==='function')setHatch(country,occupationPct[country],true,0);if(typeof applyCountryColor==='function')applyCountryColor(country)}}catch(e){}
           showToast('🛡️ حمله دفع شد','lose');
           if(typeof news==='function')news('🛡️ حمله به '+escB(target.fa)+' دفع شد');
           /* V41: ضدحمله‌ی مدافع — پیشروی فقط اینجا عقب می‌راند، نه با مرور زمان */
@@ -12428,7 +12551,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=146';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=147';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -18278,7 +18401,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=146"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=147"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18304,7 +18427,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=146';
+              s.src='/game/cv-engine.js?v=147';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18315,7 +18438,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=146"></script>
+<script src="/game/oly3.js?v=147"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18329,7 +18452,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=146';
+      s.src='/game/oly3d.js?v=147';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19597,8 +19720,8 @@ try{if(window.MutationObserver){var _aQ=false;new MutationObserver(function(){if
 setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=146"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=146"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=147"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=147"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -20457,6 +20580,8 @@ function serverText(x){
   switch(String(x.action||'')){
     case 'pvp_capture':return '🏴 '+a+' کشور «'+c+'» را از دستان '+t+' بیرون کشید و به قلمرو امپراتوری‌اش افزود.';
     case 'pvp_attack':return '⚔️ '+a+' به دژ «'+c+'» (متعلق به '+t+') یورش برد؛ جبهه غرش می‌کند.';
+    /* V147 — اعلان حمله برای مدافع */
+    case 'pvp_incoming':return '🚨 دژ «'+c+'» ('+t+') زیر آتش '+a+' است!';
     /* V140 — رها کردن کشور */
     case 'country_released':return '🏳️ '+a+' کشورش را رها کرد و از صفر شروع کرد؛ سرزمین‌هایش آزاد شده و در انتظار فاتح تازه است.';
     default:return '🌍 '+a+' — '+(x.action||'رویداد')+' روی '+c}

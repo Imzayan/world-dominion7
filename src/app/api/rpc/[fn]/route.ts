@@ -23,6 +23,9 @@ import {
 import { OL_REWARDS, SPECIAL_OPS, MENTOR_REWARDS, OL_PARTICIPATION_GEMS, OL_PODIUM_REWARDS, PVP_ATTACK } from '@/lib/balance' /* V72: توازن سرور متمرکز (PHASE 4) — V75: + PVP_ATTACK */
 import { WAR_ITEMS, STARTER_PACK, WAR_RESIST_WINDOW_MS, WAR_RESIST_STEPS, PROTECTION_MIN_AGE_MS } from '@/lib/balance' /* V108: تدارک جنگی + زرادخانه تاکتیکی + پک شروع */
 import {
+  loadBattleCfg, garrisonOf, garrisonComp, armyPower, armyComp, rpsMult, simBattle, parseSaveState, COUNTRY_DEF, type BattleCfg,
+} from '@/lib/battleConfig' /* V147 BATTLE 2.0: موتور نبرد واقع‌گرایانه — آینه‌ی WD_BATTLE کلاینت */
+import {
   cvDef, cvCost, cvTimeSec, cvProdPerMin, cvCatalogPublic, cvTechMults,
   CV_TECH, CV_MAX_LEVEL, CV_OFFLINE_CAP_MS, CV_FOCUS, type CvTechLine, type CvFocus,
   cvFocusMap, cvFocusMult,
@@ -1531,6 +1534,35 @@ const lastCapture = new Map<string, number>()
 /* V75 — P4: کول‌داون حمله‌ی PvP سمت سرور (کلید: userId — پاک‌سازی وقتی بزرگ شد) */
 const lastPvpAtk = new Map<string, number>()
 let lastReleaseRun = 0
+
+/* ============================================================
+   V147 BATTLE 2.0 — پیشرویِ اشغال PvP (تک‌منبع سرور؛ ادعای کلاینت پذیرفته نمی‌شود)
+   نبرد پنج‌دوره‌ای ممکن است بدون فتح کامل تمام شود؛ پیشروی در GameSetting
+   'occv2:{uid}' با فرسایش ساعتی ذخیره می‌شود (دفاع آهسته پس می‌گیرد).
+   ============================================================ */
+async function pvpOccGet(uid: string, country: string, cfg: BattleCfg): Promise<number> {
+  try {
+    const row = await db.gameSetting.findUnique({ where: { key: 'occv2:' + uid } })
+    if (!row) return 0
+    const m = JSON.parse(row.value || '{}') || {}
+    const e = m[country]
+    if (!e || typeof e.p !== 'number') return 0
+    const decayed = e.p * Math.max(0, 1 - cfg.pvp.occDecayPerHour * (Math.max(0, Date.now() - (e.t || 0)) / 3600_000))
+    return Math.max(0, Math.min(95, decayed))
+  } catch { return 0 }
+}
+async function pvpOccSet(uid: string, country: string, p: number) {
+  try {
+    const key = 'occv2:' + uid
+    const row = await db.gameSetting.findUnique({ where: { key } })
+    const m = row ? ((JSON.parse(row.value || '{}') || {}) as Record<string, unknown>) : {}
+    if (p > 0) m[country] = { p: Math.min(95, Math.round(p * 10) / 10), t: Date.now() }
+    else delete m[country]
+    const val = JSON.stringify(m)
+    if (row) await db.gameSetting.update({ where: { key }, data: { value: val } })
+    else await db.gameSetting.create({ data: { key, value: val } })
+  } catch (e) { console.log('wdocc', e) }
+}
 
 async function transferTerritory(server: number, country: string, uid: string, nick: string): Promise<{ ok: boolean; error?: string; prevOwner?: string }> {
   const t = await db.territory.findUnique({ where: { server_country: { server, country } } })
@@ -3368,6 +3400,33 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           },
         })
         if (gamesPhase().phase === 'live' && (await evOn('olympic')) && !duel) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس المپیک — با خاموشی المپیک توسط ادمین لغو می‌شود */
+        /* ================= V147 BATTLE 2.0 — گیت‌های قبل از هر پرداختی ================= */
+        const CFG147 = await loadBattleCfg(async (k) => db.gameSetting.findUnique({ where: { key: k }, select: { value: true } }))
+        /* ۱) صلح مقدس نوآموزان (V98) — تا امروز فقط کلاینت آن را می‌شناخت و سرور هرگز error:'peace' نمی‌داد؛
+           حالا ۴۸ ساعت اول ثبت‌نام (مهاجم یا مدافع) واقعاً سمت سرور محافظت می‌شود (دوئر رسمی استثناست). */
+        if (!duel) {
+          try {
+            const meU = await db.user.findUnique({ where: { id: user.id }, select: { createdAt: true } })
+            const dfU = await db.user.findUnique({ where: { id: t.userId }, select: { createdAt: true } })
+            const hrs = (u: { createdAt: Date } | null) => (u ? (Date.now() - u.createdAt.getTime()) / 3600_000 : 1e9)
+            if (hrs(meU) < CFG147.pvp.peaceHours || hrs(dfU) < CFG147.pvp.peaceHours) return R({ ok: false, error: 'peace' })
+          } catch (e) { console.log('wdpeace', e) }
+        }
+        /* ۲) کول‌داون حمله به «همین هدف» — موج‌زدنِ پشت‌سرهم به یک دژ بسته است */
+        try {
+          const lastT = await db.battleLog.findFirst({ where: { server, attacker: user.nick, country, createdAt: { gt: new Date(Date.now() - CFG147.pvp.targetCdMin * 60_000) } }, select: { id: true } })
+          if (lastT) return R({ ok: false, error: 'cdt', cd_min: CFG147.pvp.targetCdMin })
+        } catch (e) { console.log('wdcdt', e) }
+        /* ۳) سقف فتح در ساعت — ضد موج شبانه؛ ضربه‌های شکست‌خورده حساب نمی‌شوند */
+        try {
+          const capsH = await db.battleLog.count({ where: { server, attacker: user.nick, win: true, createdAt: { gt: new Date(Date.now() - 3600_000) } } })
+          if (capsH >= CFG147.pvp.maxCapsPerHour) return R({ ok: false, error: 'rate' })
+        } catch (e) { console.log('wdrate', e) }
+        /* ۴) خستگی جنگ — فتح‌های ۶ ساعت اخیر حمله را ضعیف می‌کنند (در محاسبه‌ی قدرت پایین اعمال می‌شود) */
+        let fatN147 = 0
+        try {
+          fatN147 = await db.battleLog.count({ where: { server, attacker: user.nick, win: true, createdAt: { gt: new Date(Date.now() - CFG147.fatigue.windowH * 3600_000) } } })
+        } catch (e) { console.log('wdfat', e) }
         /* ---------------- V75 — P4: هزینه‌ی واقعی حمله + کول‌داون سرور ----------------
            تا V74 حمله برای مهاجم رایگان بود؛ حالا:
            ۱) کول‌داون ۱۰ثانیه‌ای per-user (ضد اسپم حمله)
@@ -3387,8 +3446,59 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         }
         const defScore = await db.score.findUnique({ where: { userId: t.userId } })
         const myScore = await db.score.findUnique({ where: { userId: user.id } })
-        let a = Math.max(1, myScore?.score || 100)
+        /* V147: لنگرهای قدیمی (امتیاز رتبه‌بندی) — دیگر «قدرت» نیستند؛ فقط سقف ضدتقلب و کف میراث */
+        const aLegacy = Math.max(1, myScore?.score || 100)
         const d0 = Math.max(1, (defScore?.score || 200))
+        /* ================= V147 BATTLE 2.0 — قدرت واقعی یگان‌ها، نه تخمین امتیاز =================
+           تا V146: مهاجم = امتیاز رتبه‌بندی، مدافع = تخمین امتیازِ مدافع — یگان‌های واقعی هیچ نقشی نداشتند.
+           حالا: مهاجم = توان واقعی ارتشش از سیو خودش (با سقف ضدتقلب نسبت به امتیاز).
+           مدافع (حتی آفلاین): ارتش واقعی × استحکامات/راهبرد/پادگان + پادگان ذاتی کشور + ژنرال مدافع (V105)
+           + سپر نوپدید (این بار سمت سرور) — با همان سقف ضدتقلب. مقیاس دو طرف یکسان؛ امتیاز فقط سقف/کف امنیتی. */
+        const atkSave147 = await db.save.findUnique({ where: { userId: user.id } })
+        const defSave147 = await db.save.findUnique({ where: { userId: t.userId } })
+        const atkSt147 = parseSaveState(atkSave147?.state)
+        const defSt147 = parseSaveState(defSave147?.state)
+        const atkUnits147 = (atkSt147.units && typeof atkSt147.units === 'object' ? atkSt147.units : {}) as Record<string, number>
+        const defUnits147 = (defSt147.units && typeof defSt147.units === 'object' ? defSt147.units : {}) as Record<string, number>
+        const atkInfra147 = (atkSt147.infra && typeof atkSt147.infra === 'object' ? atkSt147.infra : {}) as Record<string, number>
+        const fatMult147 = Math.max(CFG147.pvp.fatigueMin, 1 - CFG147.pvp.fatiguePerWin * fatN147)
+        /* --- مدافع: بونوس‌های دفاعی واقعی (از سیو خودش — st28 پایدار است) --- */
+        const defWd28 = (defSt147.wd28 && typeof defSt147.wd28 === 'object' ? defSt147.wd28 : {}) as Record<string, unknown>
+        const fortLvl147 = Math.min(5, Math.max(0, Number(defWd28.fort) || 0))
+        const stance147 = String(defWd28.stance || 'balanced')
+        const defCareer147 = await warCareerGet(t.userId).catch(() => null)
+        const genDef147 = defCareer147 && defCareer147.assigned && defCareer147.assigned.def ? (WAR_GENERALS[defCareer147.assigned.def]?.def || 0) : 0
+        const defTerrCnt147 = await territoryCount(t.userId, server)
+        const gdfMap147 = (defSt147.gdf && typeof defSt147.gdf === 'object' ? defSt147.gdf : {}) as Record<string, number>
+        const shareRaw147 = gdfMap147[country] != null ? Number(gdfMap147[country]) : CFG147.pvp.shareDef
+        const share147 = Math.min(CFG147.pvp.shareMax, Math.max(0, shareRaw147 / 100))
+        const shareEff147 = CFG147.pvp.shareBase + CFG147.pvp.sharePer * share147
+        const defPowerUnits147 = armyPower(defUnits147, 0, CFG147) /* زیرساخت هوایی مدافع فقط کلاینت است — بدون آن ≈ سخت‌گیرانه‌تر و امن‌تر */
+        const defArmy147 = defPowerUnits147 * CFG147.pvp.defArmyK
+          * (1 + CFG147.pvp.fortPerLevel * fortLvl147)
+          * ((CFG147.pvp.stance as Record<string, number>)[stance147] != null ? (CFG147.pvp.stance as Record<string, number>)[stance147] : 1)
+          * (defTerrCnt147 > 0 ? shareEff147 : 1)
+          * (1 + CFG147.pvp.defGenPerPoint * genDef147)
+        const garBase147 = garrisonOf(country, CFG147) * CFG147.garrison.ownedK
+        const dRaw147 = defArmy147 + garBase147
+        const dCap147 = CFG147.pvp.scoreCapBase + CFG147.pvp.scoreCapPer * d0
+        let d = Math.min(dRaw147, dCap147)                                   /* ضدتقلب: ارتشِ جعلیِ میلیونی بی‌اثر */
+        d = Math.max(d, Math.min(d0, dCap147) * CFG147.pvp.legacyFloor)      /* کف میراث: بازیکنِ بدون ارتش بی‌دفاع نمی‌ماند */
+        /* سپر نوپدید (V130) — تا امروز فقط کلاینت آن را اعمال می‌کرد و سرور نادیده می‌گرفت؛
+           حالا کشورِ تازه‌تصرف (Territory.updatedAt) واقعاً ۸۰٪ دفاع بیشتر دارد. */
+        let shield147 = false
+        try { shield147 = (Date.now() - t.updatedAt.getTime()) < CFG147.pvp.shieldHours * 3600_000; if (shield147) d = Math.round(d * CFG147.pvp.shieldDefMult) } catch (e) { console.log('wdshield', e) }
+        /* --- ترکیب کلاسی دو طرف → سنگ‌کاغذ‌قیچی (پهپاد/جنگنده علیه تانک، پیاده برای نگه‌داشتن خاک و…) --- */
+        const defComp147 = armyComp(defUnits147)
+        const atkComp147 = armyComp(atkUnits147)
+        const garComp147 = garrisonComp(garBase147 + defPowerUnits147 * 0.5, CFG147)
+        const defMix147: Record<string, number> = { ...garComp147 }
+        Object.keys(defComp147).forEach((k) => { defMix147[k] = (defMix147[k] || 0) + defComp147[k] })
+        const rpsAtk147 = rpsMult(atkComp147, defMix147, CFG147)
+        /* مهاجم: توان واقعی × خستگی جنگ × سنگ‌کاغذ‌قیچی — سقف ضدتقلب نسبت به امتیاز */
+        const aUnits147 = Math.round(armyPower(atkUnits147, Number(atkInfra147.air) || 0, CFG147) * fatMult147 * rpsAtk147)
+        const bully147 = aUnits147 > CFG147.pvp.bullyRatio * dRaw147 && d0 <= CFG147.pvp.bullyScoreMax
+        let a = Math.max(1, Math.min(aUnits147, CFG147.pvp.scoreCapBase + CFG147.pvp.scoreCapPer * aLegacy))
         /* V55: اثر واقعی عملیات‌های جم — دفاع هدفِ تحت عملیات ضعیف می‌شود، راید کماندو قدرت مهاجم را بالا می‌برد */
         let opApplied: { k: string; pct: number } | null = null
         try {
@@ -3398,7 +3508,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             else if (eff.pct > 0) { opApplied = { k: eff.k, pct: eff.pct }; }
           }
         } catch (e) { console.log('opseffr', e) }
-        let d = opApplied && opApplied.pct > 0 ? Math.max(1, Math.round(d0 * (1 - opApplied.pct))) : d0
+        if (opApplied && opApplied.pct > 0) d = Math.max(1, Math.round(d * (1 - opApplied.pct)))   /* V147: روی دفاع واقعی */
         /* V34: revenge strike — the attacker's one-shot +25% right against the player
            who took their land (72h window, consumed on use, win or lose) */
         let revenge_used = false
@@ -3421,6 +3531,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           cvDefPct = (await cvMilBonus(t.userId, country)).defPct
           if (cvDefPct > 0) d = Math.max(1, Math.round(d * (1 + cvDefPct / 100)))
         } catch (e) { console.log('cvmil', e) }
+        /* V147 — حداقل نیرو: زیر ۳۵٪ دفاعِ مؤثر، حمله در اتاق جنگ رد می‌شود
+           (بعد از همه‌ی بونوس‌ها، قبل از مصرف تدارک/هزینه‌ی دکترین V88 — هیچ اتلافی) */
+        if (a < CFG147.pvp.minForceRatio * d) return R({ ok: false, error: 'weak', need: Math.round(CFG147.pvp.minForceRatio * d), have: Math.round(a), shielded: shield147 })
         /* ================= V88 — WAR DEPTH (فقط وقتی کلاینت جدید p_atk_type بفرستد) =================
            دکترین حمله جای تاکتیک را می‌گیرد (تک‌منبع — بدون دوبار جمع‌شدن بونوس).
            همه‌ی اعداد سمت سرور؛ سقف سخت بونوس جم‌محور = +۲۲٪ کل. صفر instant-win. */
@@ -3487,8 +3600,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           await warStateSave(user.id, w88.data)
         }
         /* ================= پایان V88 ================= */
-        const chance = Math.min(0.85, Math.max(0.2, 0.5 + (a - d) / (2 * (a + d + 500))))
-        const win = Math.random() < chance
+        /* ================= V147 — داوری: شبیه‌سازی پنج‌دوره‌ای (تک‌منبع با کلاینت) =================
+           برنده = پیشروی تا ۱۰۰٪ در شبیه‌ساز؛ نه یک شانس برنولی تک‌ضرب.
+           پیشروی جزئی سروری ذخیره می‌شود (فرسایش ساعتی)؛ ادعای کلاینت پذیرفته نمی‌شود. */
+        const occ0147 = await pvpOccGet(user.id, country, CFG147)
+        const popM147 = (COUNTRY_DEF[country] || [0, 0])[1]
+        await addNews(server, 'pvp_incoming', country, user.nick, t.nick) /* V147: «کشورت مورد حمله قرار گرفت» در روزنامه‌ی مدافع */
+        const sim147 = simBattle({ A: a, D0: d, atkComp: atkComp147, defComp: defMix147, occ0: occ0147, popM: popM147, lossMult: lossMult88 }, CFG147)
+        const win = sim147.win
         /* V113 — کارنامه‌ی واقعی جنگ (فتح‌نامه): فقط از PvP داوری‌شده‌ی سرور */
         warCareerPostBattle(user.id, t.userId, win, atk88).catch(() => {})
         if (rev) await db.revengeMark.update({ where: { id: rev.id }, data: { used: true } })
@@ -3498,7 +3617,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           if (!r.ok) return R({ ok: false })
           /* V58: امتیاز رتبه‌بندی همان لحظه جلو می‌رود — بدون انتظار برای سیکل سیو کلاینت (۸ ثانیه‌ای)
              recompute سیو بعدی همان مقدار مطلق را می‌گذارد؛ این فقط سرعت دیده‌شدن رویداد در رنکینگ است */
-          try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: 1000 } } }) } catch (e) { console.log('pvpscore', e) }
+          try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: bully147 ? Math.round(1000 * CFG147.pvp.bullyRewardMult) : 1000 } } }) } catch (e) { console.log('pvpscore', e) }
           /* V65 — جهان زنده: سقوط امپراتوری — اگر مدافع آخرین خاکش را از دست داد، خبر فوری */
           try {
             const left = await territoryCount(t.userId, server)
@@ -3507,15 +3626,35 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           /* V34: the defender who just lost land earns a 72h revenge right (+25%, once) */
           try { await db.revengeMark.create({ data: { server, userId: t.userId, targetUid: user.id, targetNick: user.nick, expiresAt: new Date(Date.now() + 72 * 3600_000) } }) } catch (e) { console.log('revmk', e) }
           if (duel) { try { duelWon = await resolveDuel(server, user.id, t.userId, user.id, user.nick, t.nick) } catch (e) { console.log('duelres', e) } }
+          await pvpOccSet(user.id, country, 0) /* V147: فتح کامل — پیشروی سروری صفر */
         } else {
           await addNews(server, 'pvp_failed', country, user.nick, t.nick)
+          await pvpOccSet(user.id, country, sim147.occ) /* V147: پیشروی جزئی برای موج بعدی */
         }
+        /* V147: تلفات واقعی مدافع — ارتشش (حتی آفلاین) فرسوده می‌شود و باید دوباره ساخته شود.
+           همان مسیر تک‌نویسنده‌ی tradeApply روی سیو مدافع؛ سقف‌دار (۳۰٪ باخت / ۱۲٪ دفاع موفق). */
+        try {
+          const dlCap = win ? CFG147.pvp.defLossWinCap : CFG147.pvp.defLossCap
+          const dl = Math.min(dlCap, Math.max(0, sim147.dLost))
+          if (dl > 0 && defSave147) {
+            const stD = parseSaveState(defSave147.state)
+            const unitsD = (stD.units && typeof stD.units === 'object' ? stD.units : {}) as Record<string, number>
+            let touched = false
+            for (const k of Object.keys(unitsD)) {
+              const c = Number(unitsD[k]) || 0
+              if (c <= 0) continue
+              const nc = Math.max(0, Math.round(c * (1 - dl)))
+              if (nc !== c) { unitsD[k] = nc; touched = true }
+            }
+            if (touched) { stD.units = unitsD; await db.save.update({ where: { userId: t.userId }, data: { state: JSON.stringify(stD) } }) }
+          }
+        } catch (e) { console.log('wddefloss', e) }
         /* V34: battle log feeds the 48h war-heatmap layer */
         try { await db.battleLog.create({ data: { server, kind: 'attack', country, attacker: user.nick, defender: t.nick, win } }) } catch (e) { console.log('blog', e) }
         /* rich payload (V33.1): the tactical drawer consumes occupation/gain/ratio/
            defense/captured — before this it always computed 0% and 60% losses and
            syncTerr deleted the just-won territory */
-        return R({ ok: win, captured: win, busy: false, occupation: win ? 100 : 0, gain: win ? 100 : 0, defense: d, ratio: a / d, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88 })
+        return R({ ok: win, captured: win, busy: false, occupation: Math.round(sim147.occ), gain: Math.round(sim147.occ), defense: Math.round(d), ratio: a / d, rounds: sim147.rounds, atk_loss: sim147.aLost, def_loss: sim147.dLost, bully: bully147, shielded: shield147, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88 })
       }
       case 'pvp_capture_territory': {
         if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
