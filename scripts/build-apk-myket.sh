@@ -6,13 +6,14 @@ ROOT=/home/z/my-project
 BT=$ROOT/apk-build/tools/android-14
 PF=$ROOT/apk-build/tools/android-34/android.jar
 JDK=$ROOT/apk-build/tools/jdk-17.0.20.1+1/bin
-APP=$ROOT/devwork/apk-build/app
-B=$ROOT/devwork/apk-build/build
+APP=$ROOT/apk-build/app
+B=$ROOT/apk-build/build
 KS=$ROOT/download/keystore/world-dominion-release.keystore
 KSPASS=$(sed -n 's/^storePassword=//p' $ROOT/download/keystore/keystore.properties)
 VC=$(sed -n 's/.*android:versionCode="\([0-9]*\)".*/\1/p' $APP/AndroidManifest.xml | head -1)
 VN=$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' $APP/AndroidManifest.xml | head -1)
-OUT=$ROOT/devwork/public/apk/WorldDominion-v$VN.apk
+OUT=$ROOT/download/apk/WorldDominion-v$VN.apk
+mkdir -p "$ROOT/download/apk"
 
 echo "== World Dominion APK v$VN (vc $VC) =="
 rm -rf $B/obj $B/gen $B/dexout $B/res.zip $B/base.apk

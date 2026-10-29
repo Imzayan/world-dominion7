@@ -22,7 +22,7 @@ public class MainActivity extends Activity {
        چک‌کننده‌ی نسخه و دیالوگ «به‌روزرسانی» طبق قوانین انتشار فروشگاه‌ها به‌کلی حذف شد؛
        هیچ پیام یا مسیر به‌روزرسانی خارج از فروشگاه در برنامه وجود ندارد.
        WebView هرگز HTML قدیمی کش‌شده را سرو نمی‌کند (پارامتر نسخه) */
-    private static final int GAME_VER = 141;
+    private static final int GAME_VER = 142;
     private static final String GAME_URL = "https://world-dominion7.vercel.app/game/index.html?v=" + GAME_VER;
     private static final String GAME_HOST = "world-dominion7.vercel.app";
     private static final String ERROR_URL = "file:///android_asset/error.html";

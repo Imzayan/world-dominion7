@@ -131,15 +131,15 @@ check('news formatters: both wdNewsFa and the cinematic newspaper know country_r
 });
 
 console.log('=== C) VERSION SYNC (V141) ===');
-check('v.txt=141, beacon __WD_V=141, 12 ?v=141 refs, APK wrapper synced', () => {
+check('v.txt=142, beacon __WD_V=142, 12 ?v=142 refs, APK wrapper synced', () => {
   const vTxt = fs.readFileSync(path.join(ROOT, 'public/game/v.txt'), 'utf8').trim();
-  if (vTxt !== '141') throw new Error('v.txt=' + vTxt);
-  if (!html.includes('window.__WD_V=141;')) throw new Error('beacon not 141');
-  const n = (html.match(/\?v=141(?![0-9])/g) || []).length;
-  if (n !== 12) throw new Error('?v=141 refs=' + n);
-  if ((html.match(/\?v=140(?![0-9])/g) || []).length) throw new Error('stale ?v=140 refs');
+  if (vTxt !== '142') throw new Error('v.txt=' + vTxt);
+  if (!html.includes('window.__WD_V=142;')) throw new Error('beacon not 142');
+  const n = (html.match(/\?v=142(?![0-9])/g) || []).length;
+  if (n !== 12) throw new Error('?v=142 refs=' + n);
+  if ((html.match(/\?v=141(?![0-9])/g) || []).length) throw new Error('stale ?v=141 refs');
   const apk = fs.readFileSync(path.join(ROOT, 'apk-build/app/java/com/worlddominion/game/MainActivity.java'), 'utf8');
-  if (!apk.includes('GAME_VER = 141')) throw new Error('APK wrapper not synced');
+  if (!apk.includes('GAME_VER = 142')) throw new Error('APK wrapper not synced');
 });
 
 console.log('=== D) V141 — ☰ MENU ENTRY + APK STORE ROOT-FIX ===');
@@ -158,9 +158,13 @@ check('APK manifest restored: BILLING permission + <queries> for ir.mservices.ma
   if (!mf.includes('ir.mservices.market')) throw new Error('myket <queries> missing');
   if (!mf.includes('android:versionCode="14"')) throw new Error('versionCode not bumped');
 });
-check('shop-v2.js: 0:nomyket message covers stale-APK case (update from Myket)', () => {
+check('shop-v2.js: 0:nomyket renders actionable store-help modal (V142 — not a dead-end toast)', () => {
   const sv = fs.readFileSync(path.join(ROOT, 'public/game/shop-v2.js'), 'utf8');
-  if (!sv.includes('بازی را از داخل مایکت به‌روزرسانی کن')) throw new Error('nomyket message not updated');
+  if (!sv.includes("if(r==='0:nomyket'){wdStoreHelp();return false}")) throw new Error('nomyket branch does not route to wdStoreHelp');
+  if (!sv.includes('wdStoreHelp')) throw new Error('wdStoreHelp modal missing');
+  if (!sv.includes('myket://app?id=com.worlddominion.game')) throw new Error('myket deep-link missing');
+  if (!sv.includes('https://myket.ir/app/com.worlddominion.game')) throw new Error('store URL fallback missing');
+  if (sv.includes('بازی را از داخل مایکت به‌روزرسانی کن')) throw new Error('old dead-end toast text still present');
 });
 
 console.log('\n' + ok + ' passed, ' + fail + ' failed');

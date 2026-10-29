@@ -614,8 +614,45 @@ function wdStartPurchase(sku,plan){
   /* V141: پیام 0:nomyket دو علت دارد و هر دو صادقانه پوشش داده می‌شود:
      ۱) اپ مایکت واقعاً نصب نیست؛ ۲) نسخه‌ی APK قدیمی است (بیلدهای V123..V139 بدون مجوز BILLING/queries
      حتی با مایکتِ نصب هم bind=false می‌گیرند) — پس «به‌روزرسانی بازی از داخل مایکت» هم راه‌حل است. */
-  showToast(r==='0:nomyket'?'📱 اتصال به فروشگاه برقرار نشد — اگر مایکت را نداری نصب کن؛ اگر نصب است، بازی را از داخل مایکت به‌روزرسانی کن (نسخه‌های قدیمی به سرویس پرداخت دسترسی ندارند)':(pmsg||('❌ اتصال به فروشگاه برقرار نشد (کد: '+r+') — فروشگاه را به‌روز کن و دوباره تلاش کن')),'lose');
+  /* V142 — «فروشگاه/مایکت نصب نیست» دیگر بن‌بستِ یک‌خطی نیست (اعتراض مالک: «این چه باگ الکی‌ای است»):
+     مودال کوتاه با مسیر عملی — دکمه‌ی مستقیم به صفحه‌ی بازی در مایکت (نصبِ مایکت یا به‌روزرسانی بازی،
+     هر دو با همین یک دکمه حل می‌شود؛ نسخه‌ی جدید APK مجوز BILLING را دارد). سایر کدها همچنان toast. */
+  if(r==='0:nomyket'){wdStoreHelp();return false}
+  showToast(pmsg||('❌ اتصال به فروشگاه برقرار نشد (کد: '+r+') — فروشگاه را به‌روز کن و دوباره تلاش کن'),'lose');
   return false;
+}
+/* V142 — مودال راهنمای فروشگاه: کوتاه، صادقانه، قابل‌اقدام (بدون سرزنش کاربر) */
+var WD_STORE_URL='https://myket.ir/app/com.worlddominion.game';
+function wdStoreHelp(){
+  try{var old=document.getElementById('wd142-shelp');if(old&&old.parentNode)old.parentNode.removeChild(old)}catch(e){}
+  var m=el('div',null,'wd142-shelp');m.id='wd142-shelp';
+  m.style.cssText='position:fixed;inset:0;z-index:2147483000;background:rgba(3,7,13,.8);display:flex;align-items:center;justify-content:center;direction:rtl;font-family:inherit';
+  var box=el('div',null,'wd142-shbox');
+  box.style.cssText='width:min(92vw,360px);max-height:82vh;overflow:auto;background:linear-gradient(165deg,#111c2c,#0a111d);border:1px solid rgba(126,166,224,.38);border-radius:18px;padding:20px 16px 14px;text-align:center;box-shadow:0 22px 70px rgba(0,0,0,.65)';
+  box.append(el('div','💎','wd142-shic'));
+  box.firstChild.style.cssText='font-size:34px;line-height:1;margin-bottom:8px';
+  var ttl=el('div','خرید جم الان باز نشد','wd142-shttl');
+  ttl.style.cssText='font-size:17px;font-weight:800;color:#ffe08a;margin-bottom:10px';
+  box.append(ttl);
+  var b1=el('div','دو دلیل ساده دارد: مایکت روی گوشی نصب نیست، یا نسخه‌ی بازی که نصب کرده‌ای قدیمی است و اجازه‌ی اتصال به پرداخت را ندارد.','wd142-shtx');
+  b1.style.cssText='font-size:13.5px;color:#cfe0f5;line-height:2;margin-bottom:6px';
+  var b2=el('div','با دکمه‌ی زیر صفحه‌ی بازی در مایکت باز می‌شود — «نصب» یا «به‌روزرسانی» را بزن. بعد از آن، خرید جم بدون هیچ تغییری کار می‌کند و خریدهای قبلی‌ات هم حفظ می‌شود.','wd142-shtx');
+  b2.style.cssText='font-size:13.5px;color:#cfe0f5;line-height:2;margin-bottom:14px';
+  box.append(b1);box.append(b2); /* V142: append تک‌آرگومان — سازگار با WebViewهای قدیمی */
+  var go=el('button','📥 نصب / به‌روزرسانی از مایکت','wd142-shgo');
+  go.style.cssText='display:block;width:100%;padding:13px 10px;border:none;border-radius:12px;cursor:pointer;font-weight:800;font-size:14.5px;color:#08111c;background:linear-gradient(135deg,#ffd75e,#ffb84d);box-shadow:0 6px 18px rgba(255,190,60,.28)';
+  go.onclick=function(){
+    /* myket:// اگر اپ مایکت نصب باشد مستقیم بازش می‌کند؛ وگرنه ۱.۲ ثانیه بعد نسخه‌ی وب صفحه‌ی بازی */
+    try{window.location.href='myket://app?id=com.worlddominion.game'}catch(e){}
+    setTimeout(function(){try{window.location.href=WD_STORE_URL}catch(e){}},1200);
+  };
+  box.append(go);
+  var later=el('button','بعداً','wd142-shno');
+  later.style.cssText='display:block;width:100%;margin-top:9px;padding:10px;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:13px;color:#9fb4cc;background:rgba(120,150,190,.14)';
+  later.onclick=function(){try{m.parentNode.removeChild(m)}catch(e){}};
+  box.append(later);
+  m.onclick=function(ev){if(ev.target===m){try{m.parentNode.removeChild(m)}catch(e){}}};
+  m.append(box);D.body.appendChild(m);
 }
 function wdGemServer(o,p){
   var s=sb;if(!s){showToast('❌ برای اعمال خرید باید آنلاین باشی','lose');return}
