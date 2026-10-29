@@ -18,21 +18,21 @@
 
       start: { gold: 6000, oil: 2500, food: 4000 },   // بازی جدید
 
-      /* درآمد جمعیت (هر تیک، به‌ازای هر قلمروِ تحت کنترل) */
-      popIncomeBase: 2,                   // popIncomeTick: t += 2 + pop*0.015
-      popIncomePerPop: 0.015,
+      /* درآمد جمعیت (هر تیک، به‌ازای هر قلمروِ تحت کنترل) — V131: کمی سخت‌تر (نرخ −۳۰٪) */
+      popIncomeBase: 1.4,                 // popIncomeTick: t += 1.4 + pop*0.011
+      popIncomePerPop: 0.011,
 
-      /* غذا — ادغام دو جریان قبلی: (۴×terr با بوست) + (۴ + ۳×terr بدون بوست) */
-      foodPerTerrBoosted: 4,              // از حلقه‌ی قدیمی startIncomeLoop (بوست‌پذیر)
-      foodBase: 4,                        // از حلقه‌ی تولید (بدون بوست)
-      foodPerTerrPlain: 3,                // از حلقه‌ی تولید (بدون بوست)
+      /* غذا — ادغام دو جریان قبلی — V131: سخت‌تر (−۲۵٪) */
+      foodPerTerrBoosted: 3,              // از حلقه‌ی قدیمی startIncomeLoop (بوست‌پذیر)
+      foodBase: 3,                        // از حلقه‌ی تولید (بدون بوست)
+      foodPerTerrPlain: 2.2,              // از حلقه‌ی تولید (بدون بوست)
 
-      /* نفت پایه — هر تیک: ۲ + terr × oilPerTick() */
-      oilBase: 2,
-      oilPerInfraLevel: 1.2,              // oilPerTick: 1 + infra.oil * 1.2
+      /* نفت پایه — هر تیک: ۱٫۵ + terr × oilPerTick() — V131: سخت‌تر */
+      oilBase: 1.5,
+      oilPerInfraLevel: 0.9,              // oilPerTick: 1 + infra.oil * 0.9
 
-      /* ضریب مقیاس تولید ساختمان‌ها (PSC) */
-      psc: { gold: 0.5, oil: 0.15, food: 0.5 },
+      /* ضریب مقیاس تولید ساختمان‌ها (PSC) — V131: سخت‌تر */
+      psc: { gold: 0.38, oil: 0.11, food: 0.38 },
 
       boostMult: 2,                       // ضریب بوست فعال
 
@@ -43,16 +43,16 @@
         foodBase: 9000, foodPerTerr: 2500 // سقف غذا (هم‌تراز سرور)
       },
 
-      /* مالیات: هر قلمرو pop*0.9×(1−min(.6,un/150)) + ۶۰ ؛ سپس ×بوست×(تحریم؟ ۰٫۵) */
+      /* مالیات: هر قلمرو pop*0.72×(1−min(.6,un/150)) + ۴۵ ؛ سپس ×بوست×(تحریم؟ ۰٫۵) — V131 */
       tax: {
         foodCost: 100, cooldownSec: 120,
-        perPop: 0.9, perCountryBase: 60,
+        perPop: 0.72, perCountryBase: 45,
         unrestCutCap: 0.6, unrestDiv: 150,
         sanctionMult: 0.5
       },
 
-      /* کمک بشردوستانه سازمان ملل (فعلاً کلاینت‌پرداخت — مهاجرت به سرور در P3) */
-      unAid: { cooldownSec: 90, food: 500, gold: 300 },
+      /* کمک بشردوستانه سازمان ملل (فعلاً کلاینت‌پرداخت — مهاجرت به سرور در P3) — V131: سخت‌تر */
+      unAid: { cooldownSec: 120, food: 340, gold: 190 },
 
       /* باج وفاداری واسال‌ها (هر تیک) */
       tribute: { perPop: 0.5, tickMs: 4000 },
@@ -108,14 +108,14 @@
     /* ============ buildings — هزینه/تولید/اثر (جداول محتوایی از این تغذیه می‌شوند) ============ */
     buildings: {
       defs: {
-        refinery:   { g: 1500, o: 150, p: { oil: 14 } },
-        oilfield:   { g: 1300, o: 0,   p: { oil: 10, gold: 6 } },
+        refinery:   { g: 1500, o: 150, p: { oil: 11 } },   /* V131: سخت‌تر */
+        oilfield:   { g: 1300, o: 0,   p: { oil: 8, gold: 5 } },  /* V131: سخت‌تر */
         dam:        { g: 1400, o: 0,   p: { gold: 8, food: 12 } },
         power:      { g: 1800, o: 100, p: { gold: 18 } },
         stadium:    { g: 900,  o: 0,   p: { gold: 5 },  calm: 0.15 },
         port:       { g: 1400, o: 100, p: { gold: 9 },  sea: 0.05 },
         airport:    { g: 1400, o: 100, p: { gold: 6 },  air: 0.03 },
-        mine:       { g: 1300, o: 0,   p: { gold: 10, oil: 4 } },
+        mine:       { g: 1300, o: 0,   p: { gold: 8, oil: 3 } },  /* V131: سخت‌تر */
         landmark:   { g: 800,  o: 0,   p: { gold: 7 } },
         base:       { g: 2000, o: 300, p: {}, atk: 0.02 },
         university: { g: 1600, o: 0,   p: { gold: 9 } },

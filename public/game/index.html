@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=130;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=130"></script>
+  <script>window.__WD_V=131;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=131"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -3643,7 +3643,9 @@ function otherLabel(n,o){const g=getG(n),has=OL2[n];
   let _em='',_sh='';let _hue=nickHue(o.nick);
   try{const _c=window.WD130_COSYNC&&window.WD130_COSYNC.get(o.nick);if(_c){if(_c.e)_em=_c.e+' ';if(_c.h!=null)_hue=_c.h}}catch(e){}
   try{if(window.WD130_SHIELD&&window.WD130_SHIELD.isShielded(n,o.nick))_sh=' 🛡️'}catch(e){}
-  const t='⭐ '+_em+wdEscNick(o.nick)+_sh;
+  /* V131 HOST: تاج میزبان المپیک کنار نامش — برای همه دیده می‌شود */
+  let _ht='';try{_ht=window.WD131_HOSTTAG?WD131_HOSTTAG(o.nick):''}catch(e){}
+  const t='⭐ '+_ht+_em+wdEscNick(o.nick)+_sh;
   if(has){has.getElement().firstChild.innerHTML=wdOwnLabelHTML(t,wdCountOf(o.nick));if(has.getElement().firstChild.style)has.getElement().firstChild.style.borderColor=`hsl(${_hue},80%,65%)`;return}
   const d=document.createElement('div');d.className='own oth';d.innerHTML=wdOwnLabelHTML(t,wdCountOf(o.nick));d.style.borderColor=`hsl(${_hue},80%,65%)`;
   OL2[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:480,icon:L.divIcon({className:'own-wrap',iconSize:[0,0],html:d})}).addTo(map)}
@@ -5120,6 +5122,8 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     /* V130 SHIELD: دیوار دفاعی ۲۴ ساعته — هر کشور تازه‌فتح‌شده در برابر قدرت‌های بزرگ بسیار مقاوم است */
     const shieldLeft=window.WD130_SHIELD?window.WD130_SHIELD.shieldLeft(country,o.nick):0;
     const shieldOn=shieldLeft>0;
+    /* V131 HOST: دفاع میزبان المپیک در روزهای بازی ۲۰٪ قوی‌تر است */
+    const hostDefOn=window.WD131_HOST?window.WD131_HOST.defMult(o.nick)!==1:false;
 
     if(!$('wd39-brief')){
       const m=document.createElement('div');m.id='wd39-brief';m.className='modal';
@@ -5142,6 +5146,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       '<div class="wd39-unitrow">'+unitsHtml+'</div>'+
       (revActive?'<div class="wd39-chk good">🎯 حق انتقام فعال است — این حمله <b>+۲۵٪ قدرت</b> می‌گیرد (تا '+escB(new Date(revActive.expires).toLocaleDateString('fa-IR'))+')</div>':'')+
       (shieldOn?'<div class="wd39-chk bad">🛡️ <b>دیوار دفاعی نوپدید</b> — این کشور کمتر از '+faN(Math.ceil(shieldLeft/3600000))+' ساعت پیش فتح شده و مالکش زیر حفاظ ۲۴ ساعته است؛ قدرت مؤثر حمله‌ات <b>۵۵٪ کم می‌شود</b>. صبر کن دیوار فرسوده شود، یا با قدرت خیلی بیشتری بیا.</div>':'')+
+      (hostDefOn?'<div class="wd39-chk bad">👑 <b>'+escB(o.nick||'—')+' میزبان المپیک است</b> — دفاعش در روزهای بازی <b style="color:#ffd75e">۲۰٪ قوی‌تر</b> است؛ صحنه را به او واگذار نکن.</div>':'')+
       (armyOK?'<div class="wd39-chk good">✅ ارتش آماده است — قدرت مؤثر: <b>'+fmt(myAttack*(revActive?1.25:1))+'</b></div>'
              :'<div class="wd39-chk bad">⛔ قدرت حمله‌ات صفر است — بدون یگان نظامی نمی‌توان جنگید. از بخش «ارتش» نیرو بساز.</div>')+
       (armyOK?(supOK?'<div class="wd39-chk good">⛽ لجستیک آماده — هزینه‌ی نبرد: <b>'+fmt(sup)+'</b> غذا + <b>'+fmt(sup)+'</b> نفت</div>'
@@ -8188,28 +8193,65 @@ setTimeout(function(){try{guardAll()}catch(e){}},3000);
 })();
 </script>
 <script id="v28-chat">
-/* ============ V28 Chat 2.0: بابل‌ها، آواتار، ارسال خوش‌بینانه، بج ناخوانده ============ */
+/* ============ V28 Chat 3.0 (V131): دو کانال — 🌍 جهانی (همه سرورها) + 💠 داخلی (سرور من) ============
+   بابل‌های سینمایی، ارسال خوش‌بینانه، بج ناخوانده‌ی هر کانال، امضای زینتی V130 — بدون reflow-loop */
 (function(){
 'use strict';
 var D=document,W=window.WD28;
 var avColor=function(n){var h=11;for(var i=0;i<String(n).length;i++)h=(h*37+String(n).charCodeAt(i))%360;return h};
-var lastMsgAt=0,unread=0,menuBadge=null,lastId=0,sendCd=0;
+var sendCd=0;
+
+/* ---------- کانال‌ها ---------- */
+var CH='srv';
+var CHS={
+  srv:  {key:'srv',  fa:'داخلی',  rows:[],lastMsgAt:'',lastSig:'',unread:0,dead:false,fails:0},
+  world:{key:'world',fa:'جهانی', rows:[],lastMsgAt:'',lastSig:'',unread:0,dead:false,fails:0}
+};
+function cur(){return CHS[CH]}
+function srvN(){try{return Math.max(1,Number(window.SRV)||1)}catch(e){return 1}}
+function chServer(k){return k==='world'?0:srvN()}
+var lastId=0,unread=0,menuBadge=null;
 
 function ensureModal(){
   var m=D.getElementById('wd-chat');if(!m)return null;
   var card=m.querySelector('.modal-card');if(!card)return null;
-  if(!card.querySelector('.wd28-compose')){
-    card.innerHTML='<div class="modal-title-row"><span>💬 چت جهانی — سرور <span id="wdc-server">—</span></span>'+
+  if(!card.querySelector('.wdc-tabs')){
+    card.innerHTML='<div class="wdc-head">'+
+      '<div class="wdc-head-t"><span class="wdc-head-ic">💬</span><div><b>چت جهان‌ها</b><small id="wdc-chsub">بازیکنان همین سرور</small></div></div>'+
       '<span class="close-modal" style="cursor:pointer;font-size:18px" id="wd28-chat-x">✕</span></div>'+
-      '<div class="wd-muted" style="font-size:9.5px">پیام‌ها فقط برای بازیکنان همین سرور دیده می‌شود. با احترام بازی کن 🤝</div>'+
+      '<div class="wdc-tabs">'+
+      '<button class="wdc-tab" data-ch="world"><span class="wdc-tab-ic">🌍</span>جهانی<span class="wdc-un" id="wdc-un-world" hidden></span></button>'+
+      '<button class="wdc-tab on" data-ch="srv"><span class="wdc-tab-ic">💠</span>داخلی<small class="wdc-tab-srv">سرور '+W.fa(srvN())+'</small><span class="wdc-un" id="wdc-un-srv" hidden></span></button>'+
+      '</div>'+
       '<div id="wdc-list" class="wdc-list"></div>'+
-      '<div class="wd28-compose"><input id="wdc-input" class="wdc-input" maxlength="240" placeholder="پیامت را برای جهان بنویس..." autocomplete="off">'+
+      '<div class="wd28-compose wdc-compose2"><input id="wdc-input" class="wdc-input" maxlength="240" placeholder="پیامت را بنویس…" autocomplete="off">'+
       '<button id="wdc-send" class="wd28-send">ارسال</button></div>';
     D.getElementById('wd28-chat-x').onclick=function(){try{closeModal('wd-chat')}catch(e){}};
     D.getElementById('wdc-send').onclick=send;
     D.getElementById('wdc-input').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();send()}});
+    var tabs=card.querySelectorAll('.wdc-tab');
+    for(var i=0;i<tabs.length;i++){(function(t){
+      t.addEventListener('click',function(){switchCh(t.getAttribute('data-ch'))});
+    })(tabs[i])}
   }
   return m;
+}
+function switchCh(k){
+  if(!CHS[k]||k===CH)return;
+  CH=k;
+  var card=D.querySelector('#wd-chat .modal-card');if(card){
+    var tabs=card.querySelectorAll('.wdc-tab');
+    for(var i=0;i<tabs.length;i++)tabs[i].classList.toggle('on',tabs[i].getAttribute('data-ch')===k);
+    paintSub();
+  }
+  cur().unread=0;paintUnread();
+  renderAll();fetchChat();
+  setTimeout(function(){var ip=D.getElementById('wdc-input');if(ip)ip.focus()},120);
+}
+function paintSub(){
+  var s=D.getElementById('wdc-chsub');if(!s)return;
+  if(CH==='world'){s.textContent='همه‌ی سرورها — یک جهان، یک صدا';s.className='wdc-w'}
+  else{s.textContent='بازیکنان همین سرور ('+W.fa(srvN())+')';s.className=''}
 }
 function relTime(t){
   var d=Math.floor((Date.now()-t)/1000);
@@ -8244,11 +8286,13 @@ function bubble(x,me,pend){
   try{var c33=window.WD33_CAREER&&window.WD33_CAREER(x.nick);
     if(c33&&c33.total>0){var s33=document.createElement('span');
       if(window.WD33_LEGEND&&window.WD33_LEGEND(c33)){s33.className='wg33-legend';s33.textContent='⭐ اسطوره‌ی المپیک'}
-      else{s33.className='wd32-tag';s33.textContent='🗿 '+fa(c33.total)+' مدال'}
+      else{s33.className='wd32-tag';s33.textContent='🗿 '+W.fa(c33.total)+' مدال'}
       nick.append(s33)}}catch(e){}
   /* V34: نشان رئیس‌جمهور جهان + تگ اتحاد کنار نام در چت — همه می‌بینند */
   try{if(window.WD34_PRES&&window.WD34_PRES()===x.nick){var p34=document.createElement('span');p34.className='wd34-prestag';p34.textContent='🏛️ رئیس‌جمهور';nick.append(p34)}
     var tg34=window.WD34_TAG&&window.WD34_TAG(x.user_id);if(tg34){var a34=document.createElement('span');a34.className='wd34-allytag';a34.textContent='['+tg34+']';nick.append(a34)}}catch(e){}
+  /* V131: تاج میزبان المپیک */
+  try{if(window.WD131_HOSTTAG&&window.WD131_HOSTTAG(x.nick)){var h131=D.createElement('span');h131.className='wd32-tag';h131.textContent='👑 میزبان';nick.append(h131)}}catch(e){}
   nick.append(document.createTextNode(x.nick||'بازیکن'));
   var txt=D.createElement('div');txt.className='wd28-txt';txt.textContent=_msg; /* V130: متن بدون امضای زینتی */
   var t=D.createElement('div');t.className='wd28-t';t.textContent=relTime(new Date(x.created_at).getTime());
@@ -8256,49 +8300,70 @@ function bubble(x,me,pend){
   var row=D.createElement('div');row.className='wd28-msg'+(me?' me':'');row.append(av,bub);
   return row;
 }
-var rows=[],lastDay='',lastSig='';
+var lastDay='';
 function renderAll(){
   var list=D.getElementById('wdc-list');if(!list)return;
+  var c=cur();
   var nearBottom=list.scrollHeight-list.scrollTop-list.clientHeight<80;
   list.textContent='';
-  if(!rows.length){
-    list.innerHTML='<div class="wd28-empty"><div class="big">💬</div><b>هنوز پیامی نیست</b><div style="font-size:10px;margin-top:5px">اولین فرماندهی باش که صدایش را به جهان می‌رساند!</div></div>';
+  if(c.dead){
+    list.innerHTML='<div class="wd28-empty"><div class="big">🛰️</div><b>کانال جهانی هنوز آماده نیست</b><div style="font-size:10px;margin-top:5px">سرور در حال ارتقا است — کانال داخلی سرورت فعال و پرمخاطب است!</div></div>';
+    return;
+  }
+  if(!c.rows.length){
+    list.innerHTML='<div class="wd28-empty"><div class="big">'+(CH==='world'?'🌍':'💠')+'</div><b>'+(CH==='world'?'اولین پیامِ جهانی را تو بنویس':'هنوز پیامی نیست')+'</b><div style="font-size:10px;margin-top:5px">'+(CH==='world'?'صدایت به همه‌ی سرورها می‌رسد!':'اولین فرماندهی باش که صدایش را به جهان می‌رساند!')+'</div></div>';
     return;
   }
   lastDay='';
-  rows.forEach(function(x){
+  c.rows.forEach(function(x){
     var dl=dayLabel(new Date(x.created_at).getTime());
     if(dl&&dl!==lastDay){lastDay=dl;var dv=D.createElement('div');dv.className='wd28-day';dv.textContent=dl;list.append(dv)}
     list.append(bubble(x,(typeof ACC!=='undefined'&&ACC&&x.user_id===ACC.uid),x.__pend));
   });
   if(nearBottom)list.scrollTop=list.scrollHeight;
 }
+function paintUnread(){
+  try{
+    var uw=D.getElementById('wdc-un-world'),us=D.getElementById('wdc-un-srv');
+    if(uw){if(CHS.world.unread>0){uw.hidden=false;uw.textContent=W.fa(CHS.world.unread)}else uw.hidden=true}
+    if(us){if(CHS.srv.unread>0){us.hidden=false;us.textContent=W.fa(CHS.srv.unread)}else us.hidden=true}
+  }catch(e){}
+  badge();
+}
 async function fetchChat(){
   if(typeof sb==='undefined'||!sb||typeof SRV==='undefined')return;
+  var c=cur();
   try{
-    var r=await sb.rpc('get_world_chat',{p_server:SRV,p_limit:80,p_blockof:(typeof ACC!=='undefined'&&ACC&&ACC.uid)?ACC.uid:null});
+    var r=await sb.rpc('get_world_chat',{p_server:chServer(CH),p_limit:80,p_blockof:(typeof ACC!=='undefined'&&ACC&&ACC.uid)?ACC.uid:null});
     if(r.error)throw r.error;
+    c.fails=0;c.dead=false;
     var fresh=(r.data||[]).slice().reverse();
-    if(fresh.length&&fresh[fresh.length-1].created_at!==lastMsgAt){
+    if(fresh.length&&fresh[fresh.length-1].created_at!==c.lastMsgAt){
       var isOpen=false;try{var m=D.getElementById('wd-chat');isOpen=!!(m&&m.classList.contains('active'))}catch(e){}
-      if(!isOpen&&lastMsgAt&&fresh[fresh.length-1].user_id!==(typeof ACC!=='undefined'?ACC.uid:null)){
-        unread++;badge();
+      if(!isOpen&&c.lastMsgAt&&fresh[fresh.length-1].user_id!==(typeof ACC!=='undefined'?ACC.uid:null)){
+        c.unread++;paintUnread();
       }
-      lastMsgAt=fresh.length?fresh[fresh.length-1].created_at:'';
+      c.lastMsgAt=fresh.length?fresh[fresh.length-1].created_at:'';
     }
     var sig='';for(var i=0;i<fresh.length;i++)sig+=fresh[i].created_at+','+fresh[i].user_id+'|';
-    if(sig!==lastSig){lastSig=sig;rows=fresh;renderAll()}
-  }catch(e){console.log('chat28',e);var list=D.getElementById('wdc-list');if(list&&!rows.length)list.innerHTML='<div class="wd28-err">📡 اتصال چت برقرار نشد — چند لحظه دیگر دوباره تلاش می‌کنیم…</div>'}
+    if(sig!==c.lastSig){c.lastSig=sig;c.rows=fresh;renderAll()}
+  }catch(e){
+    console.log('chat28',e);
+    c.fails=(c.fails||0)+1;
+    if(CH==='world'&&c.fails>=2&&!c.rows.length)c.dead=true;
+    renderAll();
+  }
 }
 function badge(){
   try{
     var sheet=D.getElementById('wd-menu');if(!sheet)return;
     var items=sheet.querySelectorAll('.wd-menu-item');
+    var total=(CHS.srv.unread||0)+(CHS.world.unread||0);
     for(var i=0;i<items.length;i++){
       var b=items[i].querySelector('b');
       if(b&&b.textContent.indexOf('چت جهانی')>-1){
         var old=items[i].querySelector('.wd28-badge');if(old)old.remove();
-        if(unread>0){var bd=D.createElement('span');bd.className='wd28-badge';bd.textContent=W.fa(unread);items[i].appendChild(bd)}
+        if(total>0){var bd=D.createElement('span');bd.className='wd28-badge';bd.textContent=W.fa(total);items[i].appendChild(bd)}
         break;
       }
     }
@@ -8310,55 +8375,99 @@ async function send(){
   var msg=input.value.trim();
   if(!msg)return;
   if(typeof sb==='undefined'||!sb||typeof ACC==='undefined'||!ACC||!ACC.uid){try{showToast('❌ برای چت باید با حساب وارد شوی','lose')}catch(e){}return}
+  var c=cur();
+  if(c.dead){try{showToast('🛰️ کانال جهانی موقتاً در دسترس نیست — کانال داخلی فعال است','lose')}catch(e){}return}
   var now=Date.now();
   if(now-sendCd<1400){try{showToast('⏳ آرام‌تر بنویس…','lose')}catch(e){}return}
   sendCd=now;btn.disabled=true;
   input.value='';
-  /* V130 COSYNC: امضای زینتی (نشان/لقب/رنگ) انتهای پیام در موتور چت WD28 — همه‌ی کلاینت‌ها آن را جدا می‌کنند */
+  /* V130 COSYNC: امضای زینتی (نشان/لقب/رنگ/اسکین) انتهای پیام — همه‌ی کلاینت‌ها آن را جدا می‌کنند */
   try{if(window.WD130_COSYNC)msg=window.WD130_COSYNC.withSigil(msg)}catch(e){}
-  rows.push({user_id:ACC.uid,nick:(typeof ACC!=='undefined'&&ACC.nick)||'بازیکن',message:msg,created_at:new Date().toISOString(),__pend:true});
+  c.rows.push({user_id:ACC.uid,nick:(typeof ACC!=='undefined'&&ACC.nick)||'بازیکن',message:msg,created_at:new Date().toISOString(),__pend:true});
   renderAll();
   try{
-    var r=await sb.from('world_chat').insert({server:(typeof SRV!=='undefined')?SRV:1,user_id:ACC.uid,nick:ACC.nick||'بازیکن',message:msg}).select().single();
+    var r=await sb.from('world_chat').insert({server:chServer(CH),user_id:ACC.uid,nick:ACC.nick||'بازیکن',message:msg}).select().single();
     if(r.error)throw r.error;
     await fetchChat();
   }catch(e){
     console.log(e);
-    rows=rows.filter(function(x){return !x.__pend});
+    c.rows=c.rows.filter(function(x){return !x.__pend});
     renderAll();input.value=msg;
-    try{showToast('❌ پیام ارسال نشد — دوباره تلاش کن','lose')}catch(e2){}
+    if(CH==='world'){
+      c.fails=(c.fails||0)+1;
+      if(c.fails>=2)c.dead=true;
+      try{showToast('🛰️ پیام جهانی ثبت نشد — سرور در حال ارتقای کانال جهانی است','lose')}catch(e2){}
+    }else{
+      try{showToast('❌ پیام ارسال نشد — دوباره تلاش کن','lose')}catch(e2){}
+    }
   }
   btn.disabled=false;try{input.focus()}catch(e){}
 }
 window.WD28Chat={
   open:function(){
     var m=ensureModal();if(!m)return;
-    unread=0;badge();
-    try{if(typeof SRV!=='undefined')D.getElementById('wdc-server').textContent=W.fa(SRV)}catch(e){}
+    cur().unread=0;paintUnread();
+    try{paintSub()}catch(e){}
     try{openModal('wd-chat')}catch(e){}
     fetchChat();
     setTimeout(function(){var i=D.getElementById('wdc-input');if(i)i.focus()},120);
-  }
+  },
+  ch:function(){return CH}
 };
-/* auto-refresh while open + light poll while closed (for unread badge) */
+/* auto-refresh open channel + light poll while closed (unread badges) */
 setInterval(function(){
   try{var m=D.getElementById('wd-chat');if(m&&m.classList.contains('active'))fetchChat();
-  else if(typeof sb!=='undefined'&&sb&&typeof ACC!=='undefined'&&ACC&&ACC.uid&&lastMsgAt)pollLight()}catch(e){}
+  else if(typeof sb!=='undefined'&&sb&&typeof ACC!=='undefined'&&ACC&&ACC.uid)pollLight()}catch(e){}
 },5000);
-var pollT=0;
+var pollT=0,worldT=0;
 async function pollLight(){
+  /* کانال داخلی — هر ۲۵ثانیه سبک */
   if(Date.now()-pollT<25000)return;pollT=Date.now();
   try{
-    var r=await sb.rpc('get_world_chat',{p_server:(typeof SRV!=='undefined')?SRV:1,p_limit:1,p_blockof:(typeof ACC!=='undefined'&&ACC&&ACC.uid)?ACC.uid:null});
+    var r=await sb.rpc('get_world_chat',{p_server:srvN(),p_limit:1,p_blockof:(typeof ACC!=='undefined'&&ACC&&ACC.uid)?ACC.uid:null});
     if(r.error)return;
     var last=(r.data||[])[0];
-    if(last&&last.created_at!==lastMsgAt&&last.user_id!==(typeof ACC!=='undefined'?ACC.uid:null)){unread++;badge()}
+    if(last&&last.created_at!==CHS.srv.lastMsgAt&&last.user_id!==(typeof ACC!=='undefined'?ACC.uid:null)){CHS.srv.unread++;paintUnread()}
   }catch(e){}
 }
+async function pollWorld(){
+  /* کانال جهانی — هر ۷۰ثانیه سبک */
+  if(Date.now()-worldT<70000)return;worldT=Date.now();
+  if(CHS.world.dead)return;
+  try{
+    var r=await sb.rpc('get_world_chat',{p_server:0,p_limit:1,p_blockof:(typeof ACC!=='undefined'&&ACC&&ACC.uid)?ACC.uid:null});
+    if(r.error)return;
+    var last=(r.data||[])[0];
+    if(last&&last.created_at!==CHS.world.lastMsgAt&&last.user_id!==(typeof ACC!=='undefined'?ACC.uid:null)){CHS.world.unread++;paintUnread()}
+  }catch(e){}
+}
+setInterval(function(){if(!D.hidden)pollWorld()},35000);
 /* menu badge refresh hook (menu is rebuilt each open) */
 setInterval(function(){if(!document.hidden)badge()},3000);
 })();
 </script>
+<style id="v131-chatcss">
+/* ===== V131 — چت دوکاناله سینمایی (transform/opacity فقط) ===== */
+.wdc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+.wdc-head-t{display:flex;align-items:center;gap:9px;min-width:0}
+.wdc-head-ic{font-size:21px;filter:drop-shadow(0 0 8px rgba(110,210,255,.75))}
+.wdc-head-t b{display:block;font-size:14px;font-weight:900;color:#eaf8ff;letter-spacing:.2px}
+.wdc-head-t small{display:block;font-size:9px;color:#8fb8dd;margin-top:1px}
+.wdc-head-t small.wdc-w{color:#7dff9e}
+.wdc-tabs{display:flex;gap:7px;margin-bottom:9px;background:rgba(4,10,24,.6);border:1px solid rgba(120,190,255,.16);border-radius:14px;padding:5px}
+.wdc-tab{flex:1;position:relative;display:flex;align-items:center;justify-content:center;gap:6px;min-height:38px;
+  border:1px solid transparent;border-radius:10px;background:transparent;color:#9fb8d8;font-weight:900;font-size:11.5px;
+  font-family:inherit;cursor:pointer;transition:background .25s ease,color .25s ease,border-color .25s ease}
+.wdc-tab .wdc-tab-ic{font-size:15px}
+.wdc-tab .wdc-tab-srv{font-size:8.5px;font-weight:800;color:#6f93bd;margin-inline-start:2px}
+.wdc-tab.on{background:linear-gradient(140deg,rgba(40,90,170,.4),rgba(70,40,150,.42));border-color:rgba(140,200,255,.5);color:#fff;box-shadow:0 4px 16px rgba(20,60,140,.35)}
+.wdc-tab.on .wdc-tab-srv{color:#cfe6ff}
+.wdc-tab[data-ch="world"].on{background:linear-gradient(140deg,rgba(14,90,60,.45),rgba(20,110,80,.4));border-color:rgba(110,255,180,.5);box-shadow:0 4px 16px rgba(10,90,60,.3)}
+.wdc-un{position:absolute;top:3px;inset-inline-end:8px;min-width:16px;height:16px;padding:0 4px;border-radius:99px;
+  background:linear-gradient(140deg,#ff5f8a,#e0356b);color:#fff;font-size:8.5px;font-weight:900;line-height:16px;text-align:center;
+  box-shadow:0 0 8px rgba(255,90,130,.6)}
+.wdc-compose2{margin-top:9px}
+</style>
 <script id="v28-advisor-rank">
 /* ============ V28: رتبه‌بندی پریمیوم + چرخ رنگ فروشگاه (مشاور → mentor.js V99) ============ */
 (function(){
@@ -10629,6 +10738,15 @@ window.GD33=GD33; /* V69 §29: تک‌منبع جدول رشته‌ها — اس
 const SCHED33=[['sprint','archery','hurdles','highjump','javelin','discus','shotput','reaction'],['swim','gym','swim50','diving','rowing','kayak','boxing'],['weight','cycling','moto','rally','formula','boat','fencing'],['chess','volley','shooting','movingtarget','sniper','rapidtarget','judo'],['lj','wrestle','football','balance','timing','memory','run400']];
 const HOSTS33=[{c:'توکیو',n:'ژاپن',f:'jp'},{c:'پاریس',n:'فرانسه',f:'fr'},{c:'لس‌آنجلس',n:'آمریکا',f:'us'},{c:'لندن',n:'بریتانیا',f:'gb'},{c:'ریودوژانیرو',n:'برزیل',f:'br'},{c:'پکن',n:'چین',f:'cn'},{c:'آتن',n:'یونان',f:'gr'},{c:'سیدنی',n:'استرالیا',f:'au'},{c:'بارسلونا',n:'اسپانیا',f:'es'},{c:'سئول',n:'کره‌ی جنوبی',f:'kr'},{c:'مسکو',n:'روسیه',f:'ru'},{c:'مونترال',n:'کانادا',f:'ca'},{c:'مونیخ',n:'آلمان',f:'de'},{c:'مکزیکوسیتی',n:'مکزیک',f:'mx'},{c:'رم',n:'ایتالیا',f:'it'},{c:'هلزینکی',n:'فنلاند',f:'fi'},{c:'آمستردام',n:'هلند',f:'nl'},{c:'استکهلم',n:'سوئد',f:'se'},{c:'استانبول',n:'ترکیه',f:'tr'},{c:'قاهره',n:'مصر',f:'eg'},{c:'دهلی‌نو',n:'هند',f:'in'},{c:'بوئنوس‌آیرس',n:'آرژانتین',f:'ar'},{c:'نایروبی',n:'کنیا',f:'ke'},{c:'دبی',n:'امارات',f:'ae'},{c:'سنگاپور',n:'سنگاپور',f:'sg'},{c:'کیپ‌تاون',n:'آفریقای جنوبی',f:'za'},{c:'لیما',n:'پرو',f:'pe'},{c:'ورشو',n:'لهستان',f:'pl'},{c:'لیسبون',n:'پرتغال',f:'pt'},{c:'لاگوس',n:'نیجریه',f:'ng'},{c:'کوالالامپور',n:'مالزی',f:'my'},{c:'دوحه',n:'قطر',f:'qa'}];
 function hostOf33(e){let h=(e*2654435761)>>>0;h^=h>>>13;h=Math.imul(h,1274126177)>>>0;return HOSTS33[h%HOSTS33.length]}
+/* V131 OLY-RESET — عصر تازه‌ی المپیک: شماره‌ی «نمایش» دوره از ۱ شروع می‌شود؛
+   دوره‌های خامِ کوچک‌تر از watermark = دورانِ قبل از ریست (رکورد/آرشیو/مدالشان پنهان می‌شود).
+   شماره‌ی خام سروری دست‌نخورده می‌ماند (کلید همه‌ی RPCها/ذخیره‌ها همان است) — فقط نمایش تازه می‌شود. */
+var WD131_ED_BASE=12; /* خامِ فعلی ~۱۱ → اولین دوره‌ی عصر تازه = ۱۲ */
+try{var _wdb=Number(localStorage.getItem('wd131_ed_base')||0)||0;if(_wdb>WD131_ED_BASE)WD131_ED_BASE=_wdb}catch(e){}
+function edShow33(raw){raw=Number(raw)||0;return raw>=WD131_ED_BASE?(raw-WD131_ED_BASE+1):1}
+function isLegacy33(raw){return (Number(raw)||0)<WD131_ED_BASE}
+window.WD131_OLY={base:function(){return WD131_ED_BASE},edShow:edShow33,isLegacy:isLegacy33};
+window.edShow33=edShow33; /* V131: برای کارت مزایده و خط وضعیت ادمین (اسکریپت‌های هم‌سایه) */
 function flagUrl33(cc){try{return (typeof flagUrl==='function')?flagUrl(cc):('/cdn/flags/w80/'+cc+'.png')}catch(e){return '/cdn/flags/w80/'+cc+'.png'}}
 /* client phase mirror — identical anchors to server; wd33toff = E2E time offset
    V55 FIX (ریشه‌ای): فاز از سرور authoritative است. قبلاً این تابع فقط از تقویم محلی می‌خواند و
@@ -10777,17 +10895,18 @@ function medalTable(t){
     '<td class="m mg">'+faN(r.g)+'</td><td class="m ms">'+faN(r.s)+'</td><td class="m mb">'+faN(r.b)+'</td><td class="m">'+faN(r.total)+'</td><td class="m" style="color:#ffe08a;font-weight:900">'+faN(pts)+'</td></tr>'}).join('')+'</tbody></table>';
 }
 function recordsBox(recs){
-  const rr=(recs||[]).filter(x=>x&&x.nick);
-  if(!rr.length)return '<div class="wd31-mini" style="margin-top:8px">هنوز رکوردی ثبت نشده — اولین قهرمانی می‌تواند نام تو را در تاریخ ثبت کند ⚡</div>';
+  const rr=(recs||[]).filter(x=>x&&x.nick&&!isLegacy33(x.edition||0)); /* V131: فقط عصر تازه */
+  if(!rr.length)return '<div class="wd31-mini" style="margin-top:8px">⚡ عصر تازه‌ی المپیک آغاز شد — همه‌ی رکوردها صفر و از نو؛ اولین رکورد تاریخ تازه را تو ثبت کن!</div>';
   return rr.map(x=>{const m=GD33[x.discipline]||{ic:'🏅',fa:x.discipline};
     /* O3: نسخه‌ی مقیاس امتیاز — صداقت تاریخی (نسبت رکوردهای نسل‌های مختلف) */
     const sv=x.sv>=2?' <span class="chip33" style="font-size:7.5px;color:#7dff9e">⚖ مقیاس ۲</span>':'';
-    return '<div class="wg33-rec"><span class="ric">'+m.ic+'</span><span><span class="rn">'+esc(x.nick)+'</span><br><span class="rc">'+esc(m.fa)+(x.country?' • '+esc(x.country):'')+' • دوره‌ی '+faN(x.edition||0)+sv+'</span></span><span class="rv">'+faN(x.score)+'</span></div>'}).join('');
+    return '<div class="wg33-rec"><span class="ric">'+m.ic+'</span><span><span class="rn">'+esc(x.nick)+'</span><br><span class="rc">'+esc(m.fa)+(x.country?' • '+esc(x.country):'')+' • دوره‌ی '+faN(edShow33(x.edition||0))+sv+'</span></span><span class="rv">'+faN(x.score)+'</span></div>'}).join('');
 }
 function archiveBox(arch){
-  const aa=(arch||[]);if(!aa.length)return '<div class="wd31-mini" style="margin-top:8px">هنوز دوره‌ای کامل نشده — صفحه‌ی تاریخ با اولین اختتامیه باز می‌شود 📜</div>';
+  const aa=(arch||[]).filter(a=>a&&!isLegacy33(a.edition||0)); /* V131: فقط عصر تازه */
+  if(!aa.length)return '<div class="wd31-mini" style="margin-top:8px">📜 تاریخ با اولین اختتامیه‌ی عصر تازه باز می‌شود — دوره‌ی ۱ در راه است!</div>';
   return aa.map(a=>{const fl=a.host_cc?'<img src="'+flagUrl33(a.host_cc)+'" alt="">':'';
-    return '<details class="wg33-arch"><summary><div class="at">📜 دوره‌ی '+faN(a.edition)+' • میزبان: '+fl+esc(a.host_city)+'، '+esc(a.host_country)+
+    return '<details class="wg33-arch"><summary><div class="at">📜 دوره‌ی '+faN(edShow33(a.edition))+' • میزبان: '+fl+esc(a.host_city)+'، '+esc(a.host_country)+
       (a.champion_country?(' • 🏆 قهرمان: '+esc(a.champion_country)+(a.champion_nick?(' ('+esc(a.champion_nick)+')'):'')):' • بدون قهرمان')+
       '<span style="margin-inline-start:auto;font-size:9.5px;color:#8fb8dd">👥 '+faN(a.participants||0)+'</span></div></summary><div class="apo">'+
       Object.keys(a.podiums||{}).map(k=>{const m=GD33[k]||{ic:'🏅',fa:k};
@@ -10830,7 +10949,7 @@ async function wgLoadRank(k){
   let rh='';
   rh+='<div style="display:flex;align-items:center;gap:8px;margin:2px 0 8px">'+
     '<span style="font-size:17px">'+m.ic+'</span><b style="font-size:13px;color:#ffe08a">'+esc(m.fa)+'</b>'+
-    (frozen?'<span class="chip33 wd32-tag" style="font-size:8.5px">نهایی — دوره‌ی '+faN(r.d.edition||0)+'</span>':'<span class="chip33" style="font-size:8.5px;color:#7dff9e">زنده</span>')+
+    (frozen?'<span class="chip33 wd32-tag" style="font-size:8.5px">نهایی — دوره‌ی '+faN(edShow33(r.d.edition||0))+'</span>':'<span class="chip33" style="font-size:8.5px;color:#7dff9e">زنده</span>')+
     '<span class="wd31-mini" style="margin-inline-start:auto">'+faN(total)+' شرکت‌کننده</span></div>';
   if(!rows.length&&!my)rh+='<div class="wd31-mini">هنوز کسی در این رشته امتیازی نگرفته — اولین نفر باش!</div>';
   else{
@@ -11026,7 +11145,7 @@ function renderHub(){
   const g=gPhase33();const d=WG33||{};
   if(d.disabled){
     let hh='<section class="wg33-hero2"><span class="wg33-big">'+(window.WD33_ICON?window.WD33_ICON(64):'🏅')+'</span>'+
-      '<h1 class="wd31-title">المپیک جهانی — دوره‌ی '+faN(d.edition||g.edition)+'</h1>'+
+      '<h1 class="wd31-title">المپیک جهانی — دوره‌ی '+faN(edShow33(d.edition||g.edition))+'</h1>'+
       '<div class="wg33-ph" style="display:inline-block;margin-top:10px;background:rgba(60,64,74,.75);border-color:rgba(150,155,170,.5);color:#c7cedd">⛔ این ایونت توسط مدیر بازی موقتاً غیرفعال شده است</div>'+
       '<div class="wd31-mini" style="margin-top:10px">ثبت‌نام، بازی‌ها و آتش‌بس مقدس تا فعال شدن دوباره متوقف است • جنگ آزاد است • برای سؤال از مدیر بپرس</div></section>'+
       '<div class="wd31-card">'+secTitle('⚡','رکوردهای همه‌ی دوران')+'<div>'+recordsBox(d.records)+'</div></div>'+
@@ -11039,7 +11158,7 @@ function renderHub(){
   const REGCAP=(Number(d.reg_cap)||12);const ATTMAX=(Number(d.my&&d.my.att_max)||5);
   let h='<section class="wg33-hero2"><span class="wg33-big">'+(window.WD33_ICON?window.WD33_ICON(64):'🏅')+'</span>'+
     '<div class="wd31-kicker" style="margin-top:10px">WORLD DOMINION OLYMPIC GAMES — V2</div>'+
-    '<h1 class="wd31-title">المپیک جهانی — دوره‌ی '+faN(g.edition)+'</h1>'+
+    '<h1 class="wd31-title">المپیک جهانی — دوره‌ی '+faN(edShow33(g.edition))+'</h1>'+
     '<div class="wg33-host"><img src="'+flagUrl33(g.host.f)+'" alt="">میزبان این دوره: '+esc(g.host.c)+'، '+esc(g.host.n)+'</div>';
   if(g.phase==='pre')h+='<span class="wg33-ph pre">⏳ ثبت‌نام باز نشده</span><div class="wg33-cd">🕊️ آتش‌بس و بازی‌ها از '+cdTxt(g.openAt)+' دیگر شروع می‌شود</div><div class="wd31-mini" style="margin-top:4px">باز شدن ثبت‌نام ('+faN(REGCAP)+' رشته از '+faN(GD_KEYS.length)+'): '+cdTxt(g.regAt)+' دیگر</div>';
   else if(g.phase==='reg')h+='<span class="wg33-ph reg">📝 ثبت‌نام باز است</span><div class="wg33-cd">افتتاحیه و شروع بازی‌ها: '+cdTxt(g.openAt)+' دیگر</div>';
@@ -11089,7 +11208,7 @@ function renderHub(){
     if(g.phase==='after'){
       const rec=(d.archive||[]).find(a=>a.edition===g.edition);
       const ch=d.reigning;
-      h+='<div class="wd31-card wd32-champbox">'+secTitle('🏁','اختتامیه‌ی دوره‌ی '+faN(g.edition))+
+      h+='<div class="wd31-card wd32-champbox">'+secTitle('🏁','اختتامیه‌ی دوره‌ی '+faN(edShow33(g.edition)))+
         (rec&&rec.champion_country?'<div class="wd32-crownline" style="text-align:center">🏆 قهرمان جهان: <b>'+esc(rec.champion_country)+'</b></div>'+
         '<div class="wd31-mini" style="text-align:center;margin-top:4px">نفر برتر: <b style="color:#ffe08a">'+esc(rec.champion_nick||'—')+'</b> • میزبان: '+esc(rec.host_city)+'، '+esc(rec.host_country)+' • شرکت‌کننده: '+faN(rec.participants||0)+'</div>':
         '<div class="wd31-mini" style="text-align:center">این دوره بدون مدال‌آور تمام شد — دوره‌ی بعد مال توست 🌱</div>')+'</div>';
@@ -11425,7 +11544,7 @@ function strip33Update(d){
   if(!d||((g.phase!=='live')&&(g.phase!=='after'))){stripEl.classList.remove('on');if(stripT){clearInterval(stripT);stripT=null}return}
   stripMsgs=stripBuild(d);
   if(!stripMsgs.length){stripEl.classList.remove('on');return}
-  stripMsgs.unshift(g.phase==='live'?'المپیک جهانی زنده است — دوره‌ی '+faN(g.edition):'پایان المپیک — دوره‌ی '+faN(g.edition));
+  stripMsgs.unshift(g.phase==='live'?'المپیک جهانی زنده است — دوره‌ی '+faN(edShow33(g.edition)):'پایان المپیک — دوره‌ی '+faN(edShow33(g.edition)));
   stripIx=0;stripRotate();
   if(stripT)clearInterval(stripT);
   stripT=setInterval(()=>{if(!D.hidden)stripRotate()},4200);
@@ -11984,7 +12103,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=130';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=131';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -16094,6 +16213,8 @@ var PATS=[
    +"<circle cx='10' cy='10' r='1.6' fill='hsla(30,100%,60%,.8)'/><circle cx='30' cy='8' r='1.2' fill='hsla(30,100%,65%,.7)'/>"}}
 ];
 var PATMAP={};PATS.forEach(function(p){PATMAP[p.id]=p});
+/* V131 SKINS: فهرست طرح‌های معتبر برای اعتبارسنجی امضای زینتی در COSYNC */
+window.WD131_PATIDS={};PATS.forEach(function(p){window.WD131_PATIDS[p.id]=1});
 
 /* V52: تایل با رزولوشن ۳× رستر می‌شود (viewBox همان، width/height ۳×) —
    روی نمایشگرهای DPI-بالا موبایل دیگر محو/سفید دیده نمی‌شود */
@@ -16119,15 +16240,36 @@ function patR_ensure(){try{
   if(typeof map!=='undefined'&&map)map.addLayer(patR); /* کانتینر SVG فوراً ساخته شود */
   return patR;
 }catch(e){return null}}
-function patDefs_ensure(){
+/* V131 SKINS: اسکینِ «سایر امپراتوری‌ها» — از رجیستری COSYNC (امضای چت/بیو) خوانده می‌شود؛
+   دیگران طرحِ رنگی را که یک بازیکن برای کشورهایش خریده، روی نقشه می‌بینند */
+function othersSkins(){
+  var out={},CS=window.WD130_COSYNC;
+  try{
+    if(!CS||typeof OTH==='undefined'||!OTH)return out;
+    var seen={};
+    Object.keys(OTH).forEach(function(n){var o=OTH[n];if(o&&o.nick)seen[o.nick]=1});
+    Object.keys(seen).forEach(function(nick){
+      var c=CS.get(nick);
+      if(c&&c.p&&PATMAP[c.p])out[nick]={pat:c.p,hue:(c.h!=null?c.h:205)};
+    });
+  }catch(e){}
+  return out;
+}
+function patDefs_ensure(others){
   try{
     if(!patR||!patR._container)return false;
-    var C=window.COS||window.COS27;if(!C||!C.pat)return false;
-    var p=PATMAP[C.pat];if(!p)return false;
-    var h=curHue();
+    var defs='',C=window.COS||window.COS27;
+    if(C&&C.pat&&PATMAP[C.pat])defs+=patDefStr(PATMAP[C.pat],curHue(),'wdp-'+C.pat);
+    /* V131: defs هر مالک دیگر با (طرح،رنگ) خودش — یک def برای هر ترکیب یکتا */
+    var done={};
+    Object.keys(others||{}).forEach(function(nick){
+      var s=others[nick],key=s.pat+'_'+s.hue;
+      if(done[key])return;done[key]=1;
+      defs+=patDefStr(PATMAP[s.pat],s.hue,'wdpO-'+key);
+    });
     var old=D.getElementById('wd-pat-defs');if(old)old.remove();
-    patR._container.insertAdjacentHTML('afterbegin','<defs id="wd-pat-defs">'+patDefStr(p,h,'wdp-'+C.pat)+'</defs>');
-    return true;
+    patR._container.insertAdjacentHTML('afterbegin','<defs id="wd-pat-defs">'+defs+'</defs>');
+    return !!defs;
   }catch(e){return false}
 }
 function patOv_clear(){for(var k in patOv){try{patOv[k].remove()}catch(e){}}patOv={};
@@ -16137,15 +16279,16 @@ function patOv_rebuild(force){
   try{
     if(typeof map==='undefined'||!map||typeof statusOf!=='function')return;
     var C=window.COS||window.COS27;
-    var sig=(C&&C.pat?C.pat:'none')+'|'+curHue()+'|'+patTargets().join(',');
+    /* V131: امضا = طرح خودم + رنگ + قلمروهایم + اسکین همه‌ی مالک‌های دیگر */
+    var oth=othersSkins(),osig='';
+    Object.keys(oth).sort().forEach(function(nick){osig+=nick+':'+oth[nick].pat+','+oth[nick].hue+';'});
+    var sig=(C&&C.pat?C.pat:'none')+'|'+curHue()+'|'+patTargets().join(',')+'|'+osig;
     if(!force&&sig===patSig)return;
     patSig=sig;
     patOv_clear();
-    if(!C||!C.pat)return;
     if(!patR_ensure())return;
-    if(!patDefs_ensure())return;
-    var url='url(#wdp-'+C.pat+')';
-    patTargets().forEach(function(n){
+    if(!patDefs_ensure(oth))return;
+    var mk=function(n,url){
       try{
         if(statusOf(n)==='neutral')return;
         var l=(typeof layersByName!=='undefined')?layersByName[n]:null;
@@ -16153,7 +16296,19 @@ function patOv_rebuild(force){
         var m=L.polygon(l.getLatLngs(),{renderer:patR,interactive:false,keyboard:false,stroke:false,fill:true,fillColor:url,fillOpacity:.88,className:'wd-pat-ov',bubblingMouseEvents:false,smoothFactor:3,noClip:true}).addTo(map);
         patOv[n]=m;
       }catch(e){}
-    });
+    };
+    /* ۱) قلمرو خودم — همان مسیر V50 */
+    if(C&&C.pat){var myUrl='url(#wdp-'+C.pat+')';patTargets().forEach(function(n){mk(n,myUrl)})}
+    /* ۲) V131 SKINS: قلمرو امپراتوری‌های دیگر — اسکینِ خریداری‌شده‌ی مالک، این‌بار برای همه قابل دیدن */
+    if(typeof OTH!=='undefined'&&OTH){
+      var mine={},pt=patTargets();pt.forEach(function(n){mine[n]=1});
+      Object.keys(OTH).forEach(function(n){
+        if(mine[n])return;
+        var o=OTH[n],s=(o&&o.nick)?oth[o.nick]:null;
+        if(!s)return;
+        mk(n,'url(#wdpO-'+s.pat+'_'+s.hue+')');
+      });
+    }
   }catch(e){}
 }
 window.wdPatOvRebuild=patOv_rebuild;
@@ -16462,6 +16617,53 @@ try{ensureChip();
 .wd53-olyad{display:grid;gap:7px}
 #wd53-olybox{margin-top:12px;padding:10px;border-radius:13px;border:1px solid rgba(0,240,255,.35);background:rgba(3,12,26,.6)}
 #wd53-olybox .wd53-ph{font-size:11px;font-weight:800;color:#dff6ff;margin-bottom:8px}
+/* ===== V131 — مزایده‌ی سینمایی میزبانی المپیک ===== */
+.wd53-ax{background:linear-gradient(155deg,rgba(38,26,6,.94),rgba(24,10,26,.96) 55%,rgba(10,8,22,.97));border:1.5px solid rgba(255,200,70,.55);border-radius:18px;padding:12px;box-shadow:0 10px 34px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,230,160,.18)}
+.wd53-ax-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.wd53-ax-torch{font-size:26px;filter:drop-shadow(0 0 10px rgba(255,150,40,.85));animation:wd53torch 2.4s ease-in-out infinite}
+@keyframes wd53torch{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.07)}}
+.wd53-ax-tt{flex:1;min-width:0}
+.wd53-ax-tt b{display:block;font-size:13.5px;font-weight:900;color:#ffe08a;letter-spacing:.2px}
+.wd53-ax-tt small{display:block;font-size:9.5px;color:#c9b08a;margin-top:2px}
+.wd53-ax-cd{font-size:9.5px;font-weight:900;color:#ffd75e;background:rgba(255,200,60,.1);border:1px solid rgba(255,200,60,.4);padding:5px 9px;border-radius:99px;white-space:nowrap}
+.wd53-throne{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:15px;margin-bottom:9px;background:linear-gradient(140deg,rgba(12,18,40,.9),rgba(20,12,44,.92));border:1px solid rgba(255,255,255,.08)}
+.wd53-throne.has{border-color:rgba(255,208,70,.55);background:linear-gradient(140deg,rgba(46,34,6,.85),rgba(30,16,40,.9));box-shadow:0 0 22px rgba(255,190,50,.14)}
+.wd53-throne-ic{font-size:24px;filter:drop-shadow(0 0 9px rgba(255,200,70,.8))}
+.wd53-throne-mid{flex:1;min-width:0}
+.wd53-throne-mid b{display:block;font-size:12.5px;font-weight:900;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wd53-throne-mid small{font-size:9px;color:#b9a487}
+.wd53-throne-amt{font-size:15px;font-weight:900;color:#ffd75e;white-space:nowrap}
+.wd53-throne-amt small{font-size:9px;color:#c9b08a}
+.wd53-ax-custom{display:flex;gap:7px;margin-top:8px}
+.wd53-ax-custom input{flex:1;min-width:0;background:rgba(4,10,22,.85);border:1.5px solid rgba(255,208,70,.35);border-radius:12px;color:#ffe9a8;font-weight:800;font-size:11.5px;padding:9px 11px;font-family:inherit;outline:none}
+.wd53-ax-custom input:focus{border-color:rgba(255,208,70,.75)}
+.wd53-cx-go{flex:0 0 74px}
+.wd53-wallet{margin-top:8px;font-size:9.8px;color:#cfe0d8;line-height:1.8}
+.wd53-wallet b{color:#9effc7}
+.wd53-perks{margin-top:10px;padding:10px;border-radius:14px;background:rgba(255,214,60,.05);border:1px dashed rgba(255,208,70,.4)}
+.wd53-perks-t{font-size:11px;font-weight:900;color:#ffe08a;margin-bottom:7px}
+.wd53-perks-g{display:flex;flex-wrap:wrap;gap:6px}
+.wd53-pk{font-size:9.8px;font-weight:800;color:#ffe9a8;background:rgba(255,208,70,.09);border:1px solid rgba(255,208,70,.35);padding:5px 9px;border-radius:99px;white-space:nowrap}
+.wd53-perks-n{margin-top:7px;font-size:9.3px;color:#b9a487;line-height:1.85}
+/* ===== V131 — پیل شناور مزایده‌ی میزبانی روی نقشه (فقط transform/opacity — بدون reflow) ===== */
+#wd131-axpill{position:absolute;bottom:96px;left:12px;z-index:640;display:flex;align-items:center;gap:8px;
+  padding:8px 12px 8px 9px;border-radius:99px;cursor:pointer;pointer-events:auto;
+  background:linear-gradient(140deg,rgba(40,26,5,.92),rgba(26,12,30,.95));
+  border:1.2px solid rgba(255,200,70,.6);color:#ffe9a8;font-family:inherit;
+  box-shadow:0 8px 26px rgba(0,0,0,.5),0 0 18px rgba(255,180,50,.18),inset 0 1px 0 rgba(255,230,160,.2);
+  opacity:0;transform:translateY(14px) scale(.9);pointer-events:none;
+  transition:opacity .45s ease,transform .45s cubic-bezier(.2,.9,.25,1.2)}
+#wd131-axpill.on{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;animation:wd131axp 3.4s ease-in-out infinite}
+@keyframes wd131axp{0%,100%{box-shadow:0 8px 26px rgba(0,0,0,.5),0 0 14px rgba(255,180,50,.14),inset 0 1px 0 rgba(255,230,160,.2)}50%{box-shadow:0 8px 26px rgba(0,0,0,.5),0 0 26px rgba(255,190,60,.3),inset 0 1px 0 rgba(255,230,160,.2)}}
+#wd131-axpill .wd131-axp-ic{font-size:17px;filter:drop-shadow(0 0 7px rgba(255,150,40,.85))}
+#wd131-axpill .wd131-axp-tx{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left}
+#wd131-axpill .wd131-axp-tx b{font-size:10.5px;font-weight:900;color:#ffe08a;white-space:nowrap}
+#wd131-axpill .wd131-axp-tx small{font-size:8.5px;color:#cdb08e;font-weight:700;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+#wd131-axpill.me{border-color:rgba(140,255,170,.65);box-shadow:0 8px 26px rgba(0,0,0,.5),0 0 20px rgba(90,255,150,.22)}
+#wd131-axpill.me .wd131-axp-tx b{color:#a5ffc9}
+html.wd-quiet #wd131-axpill.on{animation:none}
+html.wd-tabhidden #wd131-axpill{opacity:0!important;pointer-events:none!important}
+@media (max-width:360px){#wd131-axpill .wd131-axp-tx small{max-width:110px}}
    </style>
    <script id="v53-host-auction">
 (function(){
@@ -16493,48 +16695,83 @@ function ensureCard(){
         var d=r&&r.data;
         if(!d||!d.ok){if(card)card.style.display='none';done();return} /* سرور هنوز آپدیت نشده — بدون خطا مخفی */
         var top=d.host;
+        var myGems=0;try{myGems=Number((typeof GEMS!=='undefined'&&GEMS)||0)||0}catch(e){}
+        var ed131='۱';try{ed131=faN(window.edShow33?edShow33(d.edition||1):(d.edition||1))}catch(e){}
         var h='';
         if(d.auction_open){
-          h='<div class="wd31-card" style="border-color:rgba(255,214,60,.5)">'+
-            '<div style="font-size:12.5px;font-weight:900;color:#ffd75e;margin-bottom:8px">🎪 مزایده‌ی میزبانی المپیک — دوره‌ی '+faN(d.edition)+'</div>'+
-            '<div class="wd53-hostrow"><span style="font-size:20px">👑</span><div style="flex:1">'+
-            (top?('<b>بهترین پیشنهاد: '+esc(top.nick)+'</b><br><small style="color:#ffd75e">'+faN(top.amount)+' جم</small>')
-                :('<b>هنوز پیشنهادی ثبت نشده</b><br><small style="color:#8fb8dd">اولین پیشنهاد: فقط ۵ جم</small>'))+'</div></div>'+
-            '<div class="wd53-bidbtns">'+
-            '<button class="wd53-bid" data-d="5">+۵ جم</button><button class="wd53-bid" data-d="25">+۲۵ جم</button><button class="wd53-bid" data-d="100">+۱۰۰ جم</button>'+
+          /* V131 AUCTION — مزایده‌ی حرفه‌ای: شمارش معکوس، تخته‌ی پیشنهاد، نردبان جم و آپشن‌های میزبان */
+          var cd='—';
+          try{var g=(window.WD33_PHASE?WD33_PHASE():null);
+            if(g&&g.regAt){var lft=Math.max(0,g.regAt-Date.now());var dd=Math.floor(lft/864e5),hh=Math.floor((lft%864e5)/36e5),mm=Math.floor((lft%36e5)/6e4);
+              cd=dd>0?(faN(dd)+' روز و '+faN(hh)+' ساعت'):(hh>0?(faN(hh)+' ساعت و '+faN(mm)+' دقیقه'):(faN(mm)+' دقیقه'))}}catch(e){}
+          var nextMin=(top?5:5);
+          h='<div class="wd53-ax">'+
+            '<div class="wd53-ax-head"><span class="wd53-ax-torch">🔥</span>'+
+            '<div class="wd53-ax-tt"><b>مزایده‌ی میزبانی المپیک</b><small>دوره‌ی '+ed131+' • صاحبِ سکانِ بازی‌های جهانی شو</small></div>'+
+            '<span class="wd53-ax-cd">⏳ '+cd+'</span></div>'+
+            '<div class="wd53-throne'+(top?' has':'')+'">'+(top?
+              ('<span class="wd53-throne-ic">👑</span><div class="wd53-throne-mid"><b>'+esc(top.nick)+'</b><small>پیشتاز مزایده</small></div><span class="wd53-throne-amt">'+faN(top.amount)+'<small> جم</small></span>'):
+              ('<span class="wd53-throne-ic">🏟️</span><div class="wd53-throne-mid"><b>تخت میزبانی خالی است</b><small>اولین پیشنهاد: فقط ۵ جم</small></div><span class="wd53-throne-amt">۵<small> جم</small></span>'))+
             '</div>'+
-            '<div class="wd31-mini" style="margin-top:8px">میزبان شو: تاج طلایی کنار نام • معرفی در مراسم افتتاحیه • یک تلاش اضافه در هر رشته • ۵۰ جم هدیه‌ی اختتامیه.<br>اگر کسی از تو جلو بزند، جم‌هایت کامل و فوری برمی‌گردد.</div></div>';
+            '<div class="wd53-bidbtns">'+
+            '<button class="wd53-bid" data-d="5">+۵ جم</button><button class="wd53-bid" data-d="25">+۲۵ جم</button><button class="wd53-bid" data-d="100">+۱۰۰ جم</button><button class="wd53-bid" data-d="500">+۵۰۰ جم</button>'+
+            '</div>'+
+            '<div class="wd53-ax-custom"><input id="wd53-cx" type="number" min="5" step="5" inputmode="numeric" placeholder="پیشنهاد دلخواه (جم)"><button class="wd53-bid wd53-cx-go" id="wd53-cx-go">ثبت</button></div>'+
+            '<div class="wd53-wallet">💎 جم تو: <b>'+faN(myGems)+'</b> • اگر کسی از تو جلو بزند، جم‌هایت کامل و فوری برمی‌گردد</div>'+
+            '<div class="wd53-perks"><div class="wd53-perks-t">🏆 آپشن‌های میزبان — مهم ولی محدود (فقط روزهای بازی)</div>'+
+            '<div class="wd53-perks-g">'+
+            '<span class="wd53-pk">💰 +۱۵٪ درآمد</span>'+
+            '<span class="wd53-pk">🛡️ +۲۰٪ دفاع</span>'+
+            '<span class="wd53-pk">🎟️ +۱ تلاش در هر رشته</span>'+
+            '<span class="wd53-pk">👑 تاج طلایی + افتتاحیه</span>'+
+            '<span class="wd53-pk">🎁 ۵۰ جم هدیه‌ی اختتامیه</span>'+
+            '</div><div class="wd53-perks-n">میزبان یک قدم از همه جلوتر است — اما هیچ برتری ابدی‌ای ندارد؛ با پایان بازی‌ها، صحنه از نو رقابتی می‌شود.</div></div>'+
+            '</div>';
         }else if(d.phase==='live'){
           h='<div class="wd31-card" style="border-color:rgba(255,214,60,.5)">'+
-            '<div style="font-size:12.5px;font-weight:900;color:#ffd75e;margin-bottom:8px">👑 میزبان المپیک — دوره‌ی '+faN(d.edition)+'</div>'+
+            '<div style="font-size:12.5px;font-weight:900;color:#ffd75e;margin-bottom:8px">👑 میزبان المپیک — دوره‌ی '+ed131+'</div>'+
             '<div class="wd53-hostrow"><span style="font-size:20px">'+(top?'👑':'🏟️')+'</span><div style="flex:1">'+
             (top?('<b>'+esc(top.nick)+'</b><br><small style="color:#ffd75e">برنده‌ی مزایده با '+faN(top.amount)+' جم</small>')
                 :('<b>'+esc((window.__wg33data&&window.__wg33data.host&&window.__wg33data.host.c)||'—')+'</b><br><small style="color:#8fb8dd">میزبان پیش‌فرض (مزایده‌ای برگزار نشد)</small>'))+
             '</div></div></div>';
         }else{if(card)card.style.display='none';done();return}
         if(card){card.style.display='';card.innerHTML=h;
+          var doBid=function(dd,btn){
+            if(btn.disabled)return;busy(true,btn);
+            sb.rpc('oly_host_bid',{p_server:srv(),p_delta:dd}).then(function(rr){
+              try{
+                var x=rr&&rr.data;
+                if(!x){showToast('❌ مزایده در دسترس نیست','lose')}
+                else if(!x.ok){
+                  if(x.reason==='funds')showToast('❌ جم کافی نداری — موجودی: '+faN(x.gems||0),'lose');
+                  else if(x.reason==='window')showToast('⏳ زمان مزایده به پایان رسید','lose');
+                  else showToast('❌ پیشنهاد ثبت نشد','lose');
+                }else{
+                  showToast('👑 پیشنهاد ثبت شد — بهترین پیشنهاد: '+esc(x.top.nick)+' ('+faN(x.top.amount)+' جم)','win');
+                  try{if(typeof loadWallet==='function')loadWallet()}catch(e){}
+                }
+              }catch(e){}
+              busy(false,btn);cardBusy=false;setTimeout(ensureCard,300);
+            }).catch(function(){showToast('❌ خطای اتصال','lose');busy(false,btn)});
+          };
           var btns=card.querySelectorAll('.wd53-bid');
           for(var i=0;i<btns.length;i++){(function(btn){
             btn.addEventListener('click',function(){
-              if(btn.disabled)return;busy(true,btn);
+              if(btn.disabled)return;
               var dd=Number(btn.getAttribute('data-d'))||0;
-              sb.rpc('oly_host_bid',{p_server:srv(),p_delta:dd}).then(function(rr){
-                try{
-                  var x=rr&&rr.data;
-                  if(!x){showToast('❌ مزایده در دسترس نیست','lose')}
-                  else if(!x.ok){
-                    if(x.reason==='funds')showToast('❌ جم کافی نداری — موجودی: '+faN(x.gems||0),'lose');
-                    else if(x.reason==='window')showToast('⏳ زمان مزایده به پایان رسید','lose');
-                    else showToast('❌ پیشنهاد ثبت نشد','lose');
-                  }else{
-                    showToast('👑 پیشنهاد ثبت شد — بهترین پیشنهاد: '+esc(x.top.nick)+' ('+faN(x.top.amount)+' جم)','win');
-                    try{if(typeof loadWallet==='function')loadWallet()}catch(e){}
-                  }
-                }catch(e){}
-                busy(false,btn);cardBusy=false;setTimeout(ensureCard,300);
-              }).catch(function(){showToast('❌ خطای اتصال','lose');busy(false,btn)});
+              if(dd>myGems){showToast('❌ جم کافی نداری — موجودی: '+faN(myGems),'lose');return}
+              doBid(dd,btn);
             });
-          })(btns[i])}}
+          })(btns[i])}
+          var cx=card.querySelector('#wd53-cx-go');
+          if(cx)cx.addEventListener('click',function(){
+            var inp=card.querySelector('#wd53-cx');if(!inp)return;
+            var v=Math.floor(Number(inp.value)||0);
+            if(v<5){showToast('❌ کمترین پیشنهاد ۵ جم است','lose');return}
+            if(v>myGems){showToast('❌ جم کافی نداری — موجودی: '+faN(myGems),'lose');return}
+            doBid(v,cx);
+          });
+        }
         done();
       }catch(e){done()}
     }).catch(function(){if(card)card.style.display='none';done()});
@@ -16598,6 +16835,7 @@ function ensureAdminBox(){
       '<button class="action-btn btn-green" id="wd53-olyopen">▶️ شروع فوری بازی‌ها (افتتاحیه + آتش‌بس)</button>'+
       '<button class="action-btn btn-red" id="wd53-olyclose">🏁 پایان فوری دوره (اختتامیه + قهرمانی)</button>'+
       '<button class="action-btn btn-cyan" id="wd53-olyreset">↩️ بازگشت به برنامه‌ی زمانی عادی</button>'+
+      '<button class="action-btn btn-red" id="wd131-olyera" style="margin-top:2px">🔄 شروع عصر تازه‌ی المپیک — دوره ۱ (ریست مدال‌ها و رکوردها)</button>'+
       '</div>';
     b.appendChild(box);
     var shift=function(mode,btn){
@@ -16637,7 +16875,7 @@ function ensureAdminBox(){
           /* V55: همین پاسخ، فاز authoritative سراسری را هم تازه می‌کند */
           if(x&&g&&typeof window.WD55_SETPHASE==='function')window.WD55_SETPHASE(g);
           var el=D.getElementById('wd53-olyph');
-          if(el&&g&&g.phase){el.textContent='وضعیت فعلی: '+(PH[g.phase]||g.phase)+' • دوره‌ی '+faN(g.edition||0);
+          if(el&&g&&g.phase){el.textContent='وضعیت فعلی: '+(PH[g.phase]||g.phase)+' • دوره‌ی '+faN(window.edShow33?edShow33(g.edition||0):(g.edition||0));
             var bo=D.getElementById('wd53-olyopen'),bc=D.getElementById('wd53-olyclose');
             /* V58: افتتاحیه از فاز after هم کار می‌کند — دور جدید واقعی (شماره‌ی دوره جلو می‌رود) */
             if(bo){bo.disabled=(g.phase==='live');
@@ -16653,6 +16891,33 @@ function ensureAdminBox(){
     if(bo)bo.addEventListener('click',function(){shift('open',bo)});
     if(bc)bc.addEventListener('click',function(){shift('close',bc)});
     if(br)br.addEventListener('click',function(){shift('reset',br)});
+    /* V131 OLY-RESET — دکمه‌ی «عصر تازه»: دوره‌ی ۱ + صفر شدن مدال‌ها/رکوردها برای همه‌ی کلاینت‌ها */
+    var era=D.getElementById('wd131-olyera');
+    if(era){var eraArmed=false,eraT=null;
+      var eraDis=function(){eraArmed=false;era.classList.remove('wd87-armed');if(eraT){clearTimeout(eraT);eraT=null}
+        era.textContent='🔄 شروع عصر تازه‌ی المپیک — دوره ۱ (ریست مدال‌ها و رکوردها)'};
+      era.addEventListener('click',function(){
+        if(era.disabled)return;
+        if(!eraArmed){eraArmed=true;era.classList.add('wd87-armed');
+          era.textContent='⚠️ همه‌ی مدال‌ها و رکوردهای المپیک صفر می‌شود و شماره‌ی دوره از ۱ شروع می‌شود — برای اجرا دوباره بزن';
+          if(eraT)clearTimeout(eraT);eraT=setTimeout(eraDis,5200);return}
+        if(eraT){clearTimeout(eraT);eraT=null}
+        eraArmed=false;era.classList.remove('wd87-armed');era.disabled=true;
+        era.textContent='⏳ در حال شروع عصر تازه…';
+        var rawEd=0;try{rawEd=(window.WD33_PHASE?WD33_PHASE().edition:0)||0}catch(e){}
+        var fin=function(){try{
+          try{localStorage.setItem('wd131_ed_base',String(rawEd+1))}catch(e){}
+          var kill=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);
+            if(k&&(k.indexOf('wd60rk_')===0||k.indexOf('wd33open_')===0))kill.push(k)}
+          kill.forEach(function(k){try{localStorage.removeItem(k)}catch(e){}});
+          try{localStorage.removeItem('wd33sp')}catch(e){}
+          try{localStorage.removeItem('wd33toff')}catch(e){}
+        }catch(e){}
+          showToast('🔄 عصر تازه‌ی المپیک آغاز شد — دوره‌ی ۱؛ مدال‌ها و رکوردهای قبلی به تاریخ پیوست','win');
+          setTimeout(function(){try{location.reload()}catch(e){}},1800)};
+        sb.rpc('oly_admin_shift',{p_mode:'reset'}).then(function(){fin()}).catch(function(){fin()});
+      });
+    }
     adminCheck().then(function(okad){
       var ph=D.getElementById('wd53-olyph');
       if(!okad&&ph&&ph.textContent.indexOf('وضعیت')!==0)ph.textContent='⛔ سرور هنوز حساب تو را ادمین نمی‌شناسد — دکمه‌ها جواب نمی‌دهند (ADMIN_NICKS سرور)';
@@ -18973,7 +19238,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=130';
+              s.src='/game/cv-engine.js?v=131';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18984,7 +19249,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=130"></script>
+<script src="/game/oly3.js?v=131"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18998,7 +19263,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=130';
+      s.src='/game/oly3d.js?v=131';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -20238,8 +20503,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=130"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=130"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=131"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=131"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -20924,6 +21189,8 @@ function sigOf(nick){
   if(c&&c.hue!=null)parts.push('h'+c.hue);
   if(c&&c.emblem)parts.push('e'+c.emblem);
   if(c&&c.title)parts.push('t'+c.title);
+  /* V131 SKINS: طرح زینتی (اسکین) هم در امضا سفر می‌کند — همه‌ی کلاینت‌ها اسکینِ مالک را روی کشورهایش می‌بینند */
+  if(c&&c.pat&&window.WD131_PATIDS&&window.WD131_PATIDS[c.pat])parts.push('p'+c.pat);
   if(!parts.length)return '';
   var n=String(nick||'');
   return '[[wd130:'+parts.join(';')+']]';
@@ -20936,14 +21203,16 @@ var C={get:function(nick){return REG[nick]||null},
     m=m.replace(SIG_RE,function(_,body){hit=body;return ''}).replace(/\s{2,}/g,' ').trim();
     if(hit){var o={};hit.split(';').forEach(function(p){if(!p)return;var k=p.charAt(0),v=p.slice(1);
       if(k==='h'&&/^-?\d+$/.test(v))o.h=Math.max(0,Math.min(360,+v));
-      else if(k==='e'||k==='t')o[k==='e'?'e':'t']=v});
-      if(o.h!=null||o.e||o.t)C.put(nick,o)}
+      else if(k==='e'||k==='t')o[k==='e'?'e':'t']=v
+      else if(k==='p'&&window.WD131_PATIDS&&window.WD131_PATIDS[v])o.p=v});
+      if(o.h!=null||o.e||o.t||o.p)C.put(nick,o)}
     return m},
   withSigil:function(t){var base=C.strip(t);var s=sigOf();if(!s)return base;return (base+' '+s).trim()},
   fromProfile:function(p){try{if(!p||!p.nick)return;var bio=String(p.bio||'');var m=bio.match(SIG_RE);
     if(m){var o={};m[1].split(';').forEach(function(pp){if(!pp)return;var k=pp.charAt(0),v=pp.slice(1);
       if(k==='h'&&/^-?\d+$/.test(v))o.h=Math.max(0,Math.min(360,+v));
-      else if(k==='e'||k==='t')o[k==='e'?'e':'t']=v});
+      else if(k==='e'||k==='t')o[k==='e'?'e':'t']=v
+      else if(k==='p'&&window.WD131_PATIDS&&window.WD131_PATIDS[v])o.p=v});
       C.put(p.nick,o)}
     else if(p.self){var s=sigOf(p.nick);if(s){var nb=C.strip(bio)+' '+s;try{if(typeof sb!=='undefined'&&sb&&sb.rpc)sb.rpc('wd_profile_set',{p_bio:nb,p_server:(typeof SRV!=='undefined'?SRV:1)})}catch(e){}}}
     else{C.put(p.nick,{}) /* پروفایل بدون امضا = ثبت‌شده؛ دوباره پرسیده نشود */}
@@ -20955,12 +21224,13 @@ window.WD130_COSYNC=C;
 var _fp='';
 setInterval(function(){
   try{
-    var c=cosOf();var fp=[c.hue,c.emblem,c.title].join('|');
+    var c=cosOf();var fp=[c.hue,c.emblem,c.title,c.pat].join('|');
     var nick=(typeof ACC!=='undefined'&&ACC&&ACC.nick)?ACC.nick:null;
     if(!nick)return;
     if(fp!==_fp){_fp=fp;
       var o={};if(c.hue!=null)o.h=c.hue;if(c.emblem)o.e=c.emblem;if(c.title)o.t=c.title;
-      if(o.h!=null||o.e||o.t)C.put(nick,o);
+      if(c.pat&&window.WD131_PATIDS&&window.WD131_PATIDS[c.pat])o.p=c.pat;
+      if(o.h!=null||o.e||o.t||o.p)C.put(nick,o);
       else C.put(nick,{});
       /* امضای بیو — با فاصله‌ی ۳ثانیه‌ای تا سیو خود بازی اول برسد */
       setTimeout(function(){try{
@@ -21007,6 +21277,8 @@ function repaintSoon(){if(_pend)return;_pend=true;
   setTimeout(function(){_pend=false;
     if(now()-_lastRepaint<30000)return;_lastRepaint=now();
     try{if(typeof OTH!=='undefined'&&typeof paintOther==='function')Object.keys(OTH).forEach(function(n){paintOther(n,true)})}catch(e){}
+    /* V131 SKINS: رسیدن امضای تازه (مثلاً اسکین تازه‌ی یک مالک) → بازسازی فوری اورلی طرح‌ها */
+    try{window.wdPatOvRebuild&&window.wdPatOvRebuild(true)}catch(e){}
   },1200)}
 
 /* ═══════════ ② SHIELD — دیوار دفاعی ۲۴ ساعته ═══════════ */
@@ -21147,6 +21419,128 @@ function swap(){
   return done;
 }
 var tries=0;(function w(){if(swap()||++tries>40)return;setTimeout(w,600)})();
+})();
+</script>
+<script id="v131-core">
+/* ═══════════════════════════════════════════════════════════════
+   V131 CORE — چهار موتور مستقل:
+   ① HOST-PERKS : میزبان المپیک یک قدم جلوتر — مهم ولی محدود
+      (+۱۵٪ درآمد و +۲۰٪ دفاع فقط در روزهای بازی؛ با اختتامیه تمام می‌شود)
+   ② CAREER-GATE: ریست نمایشی مدال‌های عصر قبل (ادغام با WD131_OLY)
+   ③ AX-PILL   : پیل شناور «مزایده‌ی میزبانی» روی نقشه — مزایده دیده می‌شود
+   ④ CROWN     : تاج میزبان کنار نامش برای همه دیده می‌شود
+   هیچ حلقه‌ی انیمیشنی JS وجود ندارد؛ فقط polling سبک + CSS کامپوزیتری
+   ═══════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+if(window.__WD131)return;window.__WD131=true;
+var D=document;
+function now(){return Date.now()}
+function myNick(){try{return (typeof ACC!=='undefined'&&ACC&&ACC.nick)||''}catch(e){return ''}}
+
+/* ═══════════ ① HOST-PERKS — میزبان المپیک ═══════════ */
+var HP={live:false,nick:'',amt:0,at:0};
+function hostNick(){try{return (window.__wd33host&&window.__wd33host.nick)||''}catch(e){return ''}}
+function isLive(){try{var p=window.WD33_PHASE&&WD33_PHASE();return !!(p&&p.phase==='live')}catch(e){return false}}
+function isHost(nick){try{return !!(nick&&hostNick()&&nick===hostNick())}catch(e){return false}}
+/* واکشی سبک وضعیت میزبان — هر ۴۵ثانیه (وقتی صفحه پنهان است نه) */
+function hostState(force){
+  try{
+    if(!force&&HP.at&&now()-HP.at<45000)return Promise.resolve(HP);
+    if(typeof sb==='undefined'||!sb||!sb.rpc||typeof SRV==='undefined')return Promise.resolve(HP);
+    return sb.rpc('oly_host_state',{p_server:Math.max(1,Number(SRV)||1)}).then(function(r){
+      var d=r&&r.data;
+      if(d&&d.ok){HP.live=!!d.auction_open?false:(d.phase==='live');HP.nick=(d.host&&d.host.nick)||'';HP.amt=(d.host&&d.host.amount)||0;HP.at=now();
+        try{if(HP.nick&&d.phase==='live')window.__wd33host={nick:HP.nick,amount:HP.amt}}catch(e){}}
+      return HP;
+    }).catch(function(){return HP});
+  }catch(e){return Promise.resolve(HP)}
+}
+window.WD131_HOST={
+  isHost:isHost,
+  nick:hostNick,
+  /* درآمد میزبان: فقط وقتی بازی‌ها زنده است و من میزبانم */
+  incomeMult:function(){try{return (isLive()&&isHost(myNick()))?1.15:1}catch(e){return 1}},
+  /* دفاع میزبان: حمله به کشورِ میزبان در روزهای بازی ۲۰٪ ضعیف‌تر می‌شود */
+  defMult:function(defNick){try{return (isLive()&&isHost(defNick))?0.80:1}catch(e){return 1}},
+  refresh:function(){return hostState(false)}
+};
+/* هوک درآمد — تک‌نقطه‌های محاسبه‌ی درآمد (V72) بدون دست‌زدن به منطق پایه.
+   پرچم __WD131_HOOKS: اثبات اعمال زنجیره (wrapperهای بعدی منبع را در کلوزور می‌پوشانند) */
+window.__WD131_HOOKS={prod:false,tax:false,pit:false};
+try{
+  var _prod=prod;
+  prod=function(){var p=_prod();var m=window.WD131_HOST.incomeMult();
+    if(m!==1){p.gold=Math.round(p.gold*m);p.oil=Math.round(p.oil*m);p.food=Math.round(p.food*m)}
+    return p};
+  window.__WD131_HOOKS.prod=true;
+  var _pit=popIncomeTick;
+  popIncomeTick=function(){return _pit()*window.WD131_HOST.incomeMult()};
+  window.__WD131_HOOKS.pit=true;
+  var _tax=taxAmount;
+  taxAmount=function(){return _tax()*window.WD131_HOST.incomeMult()};
+  window.__WD131_HOOKS.tax=true;
+}catch(e){console.log('wd131-income',e)}
+/* هوک دفاع — زنجیره‌ی WD130_SHIELD.effAttack (سپر ۲۴ساعته → دفاع میزبان) */
+try{
+  if(window.WD130_SHIELD&&window.WD130_SHIELD.effAttack){
+    var _eff=window.WD130_SHIELD.effAttack;
+    window.WD130_SHIELD.effAttack=function(atk,country,nick){
+      var a=_eff(atk,country,nick);
+      return Math.round(a*window.WD131_HOST.defMult(nick));
+    };
+  }else{setTimeout(function(){try{
+    var _eff2=window.WD130_SHIELD.effAttack;
+    window.WD130_SHIELD.effAttack=function(atk,country,nick){var a=_eff2(atk,country,nick);return Math.round(a*window.WD131_HOST.defMult(nick))};
+  }catch(e){}},6000)}
+}catch(e){console.log('wd131-def',e)}
+/* بریفینگ حمله: هشدار «دفاع میزبان» به‌صورت بومی در wd39-brief (خط hostDefOn) تزریق شده است */
+
+/* ═══════════ ② CAREER-GATE — ریست نمایشی مدال‌های عصر قبل ═══════════ */
+try{
+  var _careerReal=null;
+  var careerWrap=function(n){
+    var legacy=true;
+    try{var g=window.WD33_PHASE&&WD33_PHASE();legacy=!(g&&Number(g.edition||0)>=window.WD131_OLY.base())}catch(e){}
+    if(legacy)return {g:0,s:0,b:0,total:0};
+    return _careerReal?_careerReal(n):null;
+  };
+  var _c0=window.WD33_CAREER||null;
+  Object.defineProperty(window,'WD33_CAREER',{configurable:true,get:function(){return careerWrap},set:function(v){_careerReal=v}});
+  window.WD33_CAREER=_c0;
+}catch(e){console.log('wd131-career',e)}
+
+/* ═══════════ ③ AX-PILL — پیل شناور مزایده‌ی میزبانی روی نقشه ═══════════ */
+var pill=null,pillState=null;
+function pillEnsure(){
+  try{
+    var host=D.querySelector('#map')||D.body;if(!host)return;
+    if(!pill){pill=D.createElement('button');pill.id='wd131-axpill';pill.type='button';
+      pill.innerHTML='<span class="wd131-axp-ic">🔥</span><span class="wd131-axp-tx"><b>مزایده‌ی میزبانی المپیک</b><small></small></span>';
+      pill.addEventListener('click',function(){try{window.WD31_OLYMPICS&&window.WD31_OLYMPICS()}catch(e){}});
+      host.appendChild(pill)}
+  }catch(e){}
+}
+function pillPaint(st){
+  try{
+    var phase='';try{var g=window.WD33_PHASE&&WD33_PHASE();phase=g?g.phase:''}catch(e){}
+    var show=st&&st.ok&&st.auction_open&&phase!=='live';
+    if(!pill)pillEnsure();
+    if(!pill)return;
+    if(!show){pill.classList.remove('on');return}
+    var amt=(st.host&&st.host.amount)||0,nk=(st.host&&st.host.nick)||'';
+    var me=window.WD131_HOST&&window.WD131_HOST.isHost(nk);
+    pill.querySelector('.wd131-axp-tx small').textContent=amt?('پیشتاز: '+nk+' — '+String(amt).replace(/\d/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[d]})+' جم'):'بدون پیشنهاد — از ۵ جم';
+    pill.classList.toggle('me',!!me);
+    pill.classList.add('on');
+  }catch(e){}
+}
+hostState(true).then(function(st){pillState=st;pillPaint(st)});
+setInterval(function(){if(!D.hidden)hostState(false).then(function(st){pillState=st;pillPaint(st)})},45000);
+
+/* ═══════════ ④ CROWN — تاج میزبان کنار نام مالک در لیبل پایتخت ═══════════ */
+/* otherLabel در هسته، هر تغییر مالکیت دوباره ساخته می‌شود؛ اینجا فقط منبع تاج را می‌دهیم */
+window.WD131_HOSTTAG=function(nick){try{return isHost(nick)?'👑 ':''}catch(e){return ''}}
 })();
 </script>
 </body>
