@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=127;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
-  <script src="/game/balance.js?v=127"></script>
+  <script>window.__WD_V=128;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script src="/game/balance.js?v=128"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2019,12 +2019,23 @@ function armsDiscount() { const A=BALANCE.army; return Math.min(A.armsDiscountCa
 function airBonus() { return 1 + infra.air * BALANCE.conquest.combat.airInfraPerLevel; } /* V72: BALANCE */
 function oilPerTick() { return 1 + infra.oil * BALANCE.economy.oilPerInfraLevel; } /* V72: BALANCE */
 
+/* V128: بازده نزولی پیاده‌نظام — ضد «سلطه‌ی جمعیت».
+   تا infSoftK یگان، قدرت خطی است؛ بعد از آن هر یگانِ اضافه فقط (n/K)^infSoftExp بازده دارد
+   → جمعیت ۱۰ برابر ≈ ۳ برابر قدرت، نه ۱۰ برابر. مورب‌نویسیِ نرم: کوچک‌ها جریمه نمی‌شوند. */
+function effInfCount(n) {
+  let K = 150, E = 0.78;
+  try { const R = BALANCE.army.recruit; if (R) { K = R.infSoftK || K; E = R.infSoftExp || E; } } catch (e) {}
+  return n <= K ? n : K * Math.pow(n / K, E);
+}
+
 function calculateTotalAttack() {
   let total = 0;
   Object.keys(ARMY_UNITS).forEach(key => {
     const u = ARMY_UNITS[key];
     const mult = u.air ? airBonus() : 1;
-    total += u.count * u.attack * mult;
+    /* V128: پیاده‌نظام با بازده نزولی حساب می‌شود؛ بقیه‌ی یگان‌ها خطی */
+    const c = key === 'infantry' ? effInfCount(u.count) : u.count;
+    total += c * u.attack * mult;
   });
   try{if(WD_ATTACK_HOOKS.atkMult)WD_ATTACK_HOOKS.atkMult.forEach(f=>{total=Math.round(total*f())})}catch(e){} /* V65: ضریب تمدن/فرمانده/تاکتیک */
   return Math.round(total);
@@ -4236,13 +4247,21 @@ async function rankOnlineBy(box,cat){
 #recruit-panel .rq i{flex:0 0 90px;height:6px;border-radius:4px;background:#0c2748;overflow:hidden;display:block}
 #recruit-panel .rq i b{display:block;height:100%;background:linear-gradient(90deg,var(--cyan-glow),var(--green-glow))}
 #recruit-panel .rp-e,#recruit-panel .rp-n{color:#7fa6cf;font-size:9px;margin-top:5px}
+/* V128: سرتیترهای گروه کلاس یگان — رابط کاربری دسته‌بندی‌شده و خلوت */
+.wd128-clsh{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:10px;padding-bottom:4px;border-bottom:1px solid rgba(0,240,255,.22)}
+.wd128-clsh b{font-size:11.5px;font-weight:900;color:#7fe7ff}
+.wd128-clsh span{font-size:9px;font-weight:700;color:#8ab4f8;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.25);border-radius:99px;padding:1px 8px;white-space:nowrap}
+.wd128-clsd{grid-column:1/-1;font-size:9px;line-height:1.7;color:#7fa6cf;margin:2px 0 4px}
+.wd128-note{font-size:8.5px;color:#ffd75e;background:rgba(255,215,94,.08);border:1px dashed rgba(255,215,94,.35);border-radius:8px;padding:4px 7px;margin-top:4px;text-align:center}
    </style>
    <script>
     /* ===== Recruitment: units are trained in a queue; speed depends on the population you control ===== */
+/* V128: پیاده‌نظام خریدنی نیست — خودکار از جمعیت تولید می‌شود (سرعت متوسط، BALANCE.army.recruit) */
 (function(){
+const RC=(function(){try{const r=BALANCE.army.recruit;if(r)return r}catch(e){}return{infCapPerM:2.5,infCapMin:2,autoBase:0.02,autoPerSqrtPopM:0.006,infSoftK:150,infSoftExp:0.78}})();
 const W={infantry:.4,tank:2,bomber:6,fighter:4,heli:3,missile:4,drone:1,transport:1.5,destroyer:10,carrier:25,immortal:8}; // training work per unit (V105B: جاودانگان ۸)
 window.totalRecruits=window.totalRecruits||0;
-let Q=[],lastT=Date.now();
+let Q=[],lastT=Date.now(),infPool=0;
 const MAXQ=200;
 function popTotal(){let t=0;if(myCountryName)conqueredCountries.forEach(n=>{try{t+=popM(n)}catch(e){}});return t}
 function rate(){return(0.15+0.06*Math.sqrt(popTotal()))*(1+(infra.arms||0)*.08)} // work per second
@@ -4250,44 +4269,71 @@ const fmtT=s=>s<60?Math.ceil(s)+' ثانیه':Math.floor(s/60)+':'+String(Math.c
 const fmtPop=P=>P>=1000?(P/1000).toFixed(2)+' میلیارد':Math.round(P)+' میلیون';
 const queued=()=>Q.reduce((s,x)=>s+x.n,0);
 const queuedHeavy=()=>Q.filter(x=>x.k!=='infantry').reduce((s,x)=>s+x.n,0);
-const INF_PER_M=20;                                   // 2% of the population you control can serve as infantry (1 unit = 1000 soldiers)
-const infCap=()=>Math.floor(popTotal()*INF_PER_M);
+/* V128: ظرفیت پیاده ≈ ۰٫۲۵٪ جمعیت (نسبت واقعی نیروی نظامی به جمعیت) — سقف کف برای کوچک‌ترین کشورها */
+const infCap=()=>Math.max(RC.infCapMin||2,Math.floor(popTotal()*(RC.infCapPerM||2.5)));
 const infUsed=()=>ARMY_UNITS.infantry.count+Q.filter(x=>x.k==='infantry').reduce((s,x)=>s+x.n,0);
+/* V128: سرعت تولید خودکار پیاده از جمعیت — نه سریع، نه کند (ایران ≈۴.۶ یگان/دقیقه، هند ≈۱۴.۸/دقیقه) */
+function autoRate(){return (RC.autoBase||0.02)+(RC.autoPerSqrtPopM||0.006)*Math.sqrt(popTotal())} // units per second
 
 window.buyUnit=function(key,qty){qty=qty||1;const u=ARMY_UNITS[key];
   if(!myCountryName){showToast('❌ اول باید یک پایتخت انتخاب کنید!','lose');return}
   if(key==='immortal'&&conqueredCountries.size<5){showToast('🔒 جاودانگان با فتح ۵ کشور به سپاه تو می‌پیوندند ('+conqueredCountries.size+'/5)','lose');return}
-  if(key==='infantry'){const room=infCap()-infUsed();
-    if(room<=0){showToast('❌ جمعیت کافی برای سرباز جدید نداری؛ کشور بیشتری تصرف کن','lose');return}
-    if(qty>room)qty=room}
-  else if(queuedHeavy()+qty>MAXQ){showToast('❌ صف آموزش پر است (حداکثر '+MAXQ+' یگان)','lose');return}
+  if(key==='infantry'){showToast('👥 پیاده‌نظام خریدنی نیست — خودکار و متناسب با جمعیت قلمروهایت تولید می‌شود','info');return} /* V128 */
+  if(queuedHeavy()+qty>MAXQ){showToast('❌ صف آموزش پر است (حداکثر '+MAXQ+' یگان)','lose');return}
   const cg=Math.round(u.costGold*(1-armsDiscount()))*qty,co=u.costOil*qty;
   if(playerRes.gold<cg||playerRes.oil<co){showToast('❌ منابع کافی نیست!','lose');return}
   playerRes.gold-=cg;playerRes.oil-=co;
   const last=Q[Q.length-1];if(last&&last.k===key)last.n+=qty;else Q.push({k:key,n:qty,p:0});
   updateUI();renderRecruitPanel()};
 
-function step(dt){if(!Q.length||!myCountryName)return;let w=rate()*dt,done=0;
+function step(dt){let done=0;
+  /* V128: تولید خودکار پیاده‌نظام — از جمعیت، با سرعت متوسط، تا سقف ظرفیت */
+  if(myCountryName&&typeof ARMY_UNITS!=='undefined'&&ARMY_UNITS.infantry){
+    const cap=infCap();
+    if(ARMY_UNITS.infantry.count<cap){infPool+=autoRate()*dt;
+      while(infPool>=1&&ARMY_UNITS.infantry.count<cap){infPool-=1;ARMY_UNITS.infantry.count++;done++;window.totalRecruits++}
+      if(ARMY_UNITS.infantry.count>=cap)infPool=Math.min(infPool,1)}
+    else infPool=0}
+  if(!Q.length||!myCountryName){if(done)updateUI();return}
+  let w=rate()*dt;
   while(w>0&&Q.length){const f=Q[0],need=W[f.k]||2,left=need-f.p;
     if(w>=left){w-=left;f.p=0;f.n--;ARMY_UNITS[f.k].count++;done++;window.totalRecruits++;if(f.n<=0)Q.shift()}
     else{f.p+=w;w=0}}
   if(done)updateUI()}
 
-function renderRecruitPanel(){const el=document.getElementById('recruit-panel');if(!el)return;const P=popTotal(),r=rate();
+function renderRecruitPanel(){const el=document.getElementById('recruit-panel');if(!el)return;const P=popTotal(),r=rate(),ar=autoRate();
   const items=Q.slice(0,4).map((x,i)=>{const u=ARMY_UNITS[x.k],pc=i===0?Math.min(100,x.p/(W[x.k]||2)*100):0;
     return `<div class="rq"><span>${u.icon} ${u.name} ×${x.n}</span><i><b style="width:${pc}%"></b></i></div>`}).join('')+(Q.length>4?`<div class="rp-e">و ${Q.length-4} سفارش دیگر...</div>`:'');
+  const cap=infCap(),cnt=ARMY_UNITS.infantry.count,pcap=cap?Math.min(100,cnt/cap*100):0;
   el.innerHTML=`<div class="rp-h">🪖 مرکز آموزش نیرو</div>
-   <div class="rp-s"><span>👥 جمعیت تحت کنترل: <b>${fmtPop(P)}</b></span><span>⚡ ≈ <b>${(r*60/2).toFixed(0)}</b> تانک/دقیقه</span></div>
+   <div class="rp-s"><span>👥 جمعیت تحت کنترل: <b>${fmtPop(P)}</b></span><span>⚡ ≈ <b>${(r*60).toFixed(0)}</b> تانک/دقیقه</span></div>
    <div class="rp-s"><span>📥 در صف: <b>${queued()}</b></span><span>🎖️ کل نیروی آموزش‌دیده: <b>${window.totalRecruits.toLocaleString()}</b></span></div>
-   <div class="rp-s"><span>🪖 پیاده‌نظام: <b>${infUsed().toLocaleString()}</b> از <b>${infCap().toLocaleString()}</b> (هر واحد ۱۰۰۰ سرباز؛ ظرفیت ۲٪ جمعیت)</span></div>
-   ${items||'<div class="rp-e">صف خالی است؛ یگان بساز.</div>'}
-   <div class="rp-n">سرعت آموزش با جمعیت کشورهای تحت کنترل (و سطح کارخانه تسلیحات) بالا می‌رود. یگان‌های سنگین‌تر زمان بیشتری می‌برند.</div>`}
+   <div class="rq"><span>🪖 پیاده‌نظام خودکار: <b>${cnt.toLocaleString()}</b> از <b>${cap.toLocaleString()}</b> (۰٫۲۵٪ جمعیت)</span><i><b style="width:${pcap}%"></b></i></div>
+   <div class="rp-s"><span>⚙️ سرعت تولید پیاده: <b>${ar.toFixed(1).replace('.','٫')} یگان/دقیقه</b></span><span>👥 هر یگان = ۱۰۰۰ سرباز</span></div>
+   ${items||'<div class="rp-e">صف یگان‌های سنگین خالی است — از کارت‌های پایین سفارش بده.</div>'}
+   <div class="rp-n">پیاده‌نظام را نمی‌خرند؛ خودکار از جمعیت می‌روید. یگان‌های سنگین با طلا و نفت در صف آموزش ساخته می‌شوند — هرچه امپراتوری بزرگ‌تر و کارخانه‌ی تسلیحات بالاتر، آموزش سریع‌تر.</div>`}
+
+/* V128: گروه‌بندی یگان‌ها بر پایه‌ی کلاس — هر بخش «برای چیست» را روشن می‌کند (رابط کاربری خلوت‌تر) */
+const WD128_CLS_ORDER=['infantry','armor','arty','air','navy','elite'];
+const WD128_CLS_HEAD={
+  infantry:{t:'🪖 پیاده‌نظام — خط مقدم',d:'خریدنی نیست؛ خودکار و متناسب با جمعیت قلمروهایت تولید می‌شود. ستون فقرات ارتش و شرط هم‌افزایی.'},
+  armor:{t:'🛡️ زره‌پوش — مشت تهاجم',d:'تانک ستون حمله است و نیروبر سرباز را آن‌سوی مرز می‌رساند؛ برای لشکرکشی سریع لازم‌اند.'},
+  arty:{t:'☄️ توپخانه — ضربه‌ی سنگین',d:'موشک دفاع هدف را می‌شکند و پیشروی را تضمین می‌کند؛ پیش از حمله‌ی بزرگ بخر.'},
+  air:{t:'✈️ نیروی هوایی — برتری آسمان',d:'از پهپاد سبک تا بمب‌افکن سنگین؛ با فرودگاه قوی‌تر عمل می‌کنند و مرزها را می‌پرند.'},
+  navy:{t:'⚓ دریانورد — قدرت فراسرزمینی',d:'ناوشکن و ناو هواپیمابر برای حمله به کشورهای غیرهم‌مرز لازم‌اند؛ گران اما تعیین‌کننده.'},
+  elite:{t:'🎖️ نخبه — گارد ویژه',d:'جاودانگان با فتح ۵ کشور آزاد می‌شوند؛ دفاعِ بالا و آموزشِ کند — افتخار سپاه تو.'}};
 
 window.renderUnits=function(){
   const c=document.getElementById('units-container');if(!c)return;
   if(!document.getElementById('recruit-panel')){const d=document.createElement('div');d.id='recruit-panel';c.parentNode.insertBefore(d,c)}
   const disc=armsDiscount(),r=rate();let html='';
-  Object.keys(ARMY_UNITS).forEach(k=>{const u=ARMY_UNITS[k],cg=Math.round(u.costGold*(1-disc)),ok=playerRes.gold>=cg&&playerRes.oil>=u.costOil,ok10=playerRes.gold>=cg*10&&playerRes.oil>=u.costOil*10,ok100=playerRes.gold>=cg*100&&playerRes.oil>=u.costOil*100;
+  WD128_CLS_ORDER.forEach(cls=>{
+    const keys=Object.keys(ARMY_UNITS).filter(k=>(WD105_CLASS[k]||'infantry')===cls);
+    if(!keys.length)return;
+    const H=WD128_CLS_HEAD[cls]||{t:cls,d:''};
+    const tot=keys.reduce((s,k)=>s+ARMY_UNITS[k].count,0);
+    html+=`<div class="wd128-clsh"><b>${H.t}</b><span>${tot.toLocaleString()} یگان</span></div><div class="wd128-clsd">${H.d}</div>`;
+    keys.forEach(k=>{const u=ARMY_UNITS[k],cg=Math.round(u.costGold*(1-disc)),ok=playerRes.gold>=cg&&playerRes.oil>=u.costOil,ok10=playerRes.gold>=cg*10&&playerRes.oil>=u.costOil*10;
     const q=Q.filter(x=>x.k===k).reduce((s,x)=>s+x.n,0);
     const _ux=(window.WD105&&window.WD105.cache&&window.WD105.cache.unit_xp&&(window.WD105.cache.unit_xp[k]||0))||0;
     const _tier=_ux>=2500?4:_ux>=1200?3:_ux>=500?2:_ux>=150?1:0;
@@ -4295,28 +4341,32 @@ window.renderUnits=function(){
     const _ic=(window.WD105_ICONS&&window.WD105_ICONS[k])||'';
     const _st4=(u.def!=null)?`<div class="unit-stats wd105-st4"><span>🛡️ ${u.def}</span><span>⚡ ${u.spd}</span><span>📦 ${u.log}</span>${u.elite?'<span class="wd105-elite">نخبه</span>':''}</div>`:'';
     const _bdg=(_tier&&window.WD105&&window.WD105.cache)?`<span>🎖️ نشان: <b>${(window.WD105.cache.unit_badges||{})[k]||''}</b></span>`:'';
+    /* V128: کارت پیاده‌نظام — بدون دکمه خرید؛ نمایش تولید خودکار */
+    const _inf=(k==='infantry')?`<div class="unit-stats"><span>⚙️ <b>${(autoRate()*60).toFixed(1).replace('.','٫')}</b> یگان/دقیقه خودکار</span><span>👥 ${infUsed().toLocaleString()} / ${infCap().toLocaleString()}</span></div>
+      <div class="wd128-note">از جمعیتت خودکار می‌روید — خرید ندارد</div>`:'';
     html+=`<div class="unit-card${_tier?' wd105-b'+_tier:''}">
       <div class="unit-head"><span class="unit-title">${_ic?`<span class="wd105-uic">${_ic}</span>`:u.icon} ${u.name}</span><span class="unit-count">${u.count} عدد</span></div>
-      <div class="unit-stats"><span>🏷 ${(WD105_CLS_FA[WD105_CLASS[k]]||"—")}</span><span>⚔️ قدرت: ${Math.round(u.attack*(u.air?airBonus():1))}</span><span>💰 ${cg} | 🛢️ ${u.costOil}</span></div>
+      <div class="unit-stats"><span>⚔️ قدرت: ${Math.round(u.attack*(u.air?airBonus():1))}</span><span>💰 ${cg} | 🛢️ ${u.costOil}</span></div>
       ${_st4}
       <div class="unit-stats"><span>⏱ ${fmtT((W[k]||2)/r)} / یگان</span><span>${q?'📥 در صف: '+q:''}</span>${_bdg}</div>
-      ${k==='infantry'?`<div class="unit-stats"><span>👥 ظرفیت جمعیت: ${infUsed().toLocaleString()} / ${infCap().toLocaleString()}</span></div>`:''}
-      ${_lock?`<button class="buy-btn" disabled>🔒 جاودانگان با فتح ۵ کشور (${conqueredCountries.size}/5)</button>`
+      ${_inf}
+      ${k!=='infantry'?(_lock?`<button class="buy-btn" disabled>🔒 جاودانگان با فتح ۵ کشور (${conqueredCountries.size}/5)</button>`
       :`<button class="buy-btn" data-key="${k}" ${ok?'':'disabled'}>ساخت یگان</button>
-      <button class="buy-btn buy10" data-key="${k}" style="margin-top:4px" ${ok10?'':'disabled'}>ساخت ×۱۰</button>${k==='infantry'?`<button class="buy-btn buy100" data-key="${k}" style="margin-top:4px" ${ok100?'':'disabled'}>ساخت ×۱۰۰</button>`:''}`}</div>`});
+      <button class="buy-btn buy10" data-key="${k}" style="margin-top:4px" ${ok10?'':'disabled'}>ساخت ×۱۰</button>`):''}</div>`});
+  });
   if(c._h2!==html){c._h2=html;c.innerHTML=html;
     c.querySelectorAll('.buy-btn').forEach(btn=>btn.addEventListener('click',()=>buyUnit(btn.dataset.key,btn.classList.contains('buy100')?100:btn.classList.contains('buy10')?10:1)))}
   renderRecruitPanel()};
 
-setInterval(()=>{const n=Date.now(),dt=Math.min(600,(n-lastT)/1000);lastT=n;step(dt);
+setInterval(()=>{const n=Date.now(),dt=Math.min(1300,(n-lastT)/1000);lastT=n;step(dt); /* V128: سقف ۶۰۰→۱۳۰۰ms — قبلاً تولید نصف سرعت واقعی حساب می‌شد */
   const m=document.getElementById('m-army');if(m&&m.classList.contains('active'))renderRecruitPanel()},1200);
 
 /* persistence (queue survives refresh; progress continues for up to 1 hour offline) */
 const _sn=snapState;
-snapState=function(){const s=_sn();s.rec=window.totalRecruits||0;
+snapState=function(){const s=_sn();s.rec=window.totalRecruits||0;s.ipool=Math.round(infPool*100)/100;
   if(Q.length){s.rq=Q.map(x=>({k:x.k,n:x.n,p:Math.round(x.p*100)/100}));s.rqt=Math.floor(Date.now()/1000)}return s};
 const _rs=restoreState;
-restoreState=function(st){_rs(st);window.totalRecruits=(st&&st.rec)||0;
+restoreState=function(st){_rs(st);window.totalRecruits=(st&&st.rec)||0;infPool=Math.min(1,Math.max(0,(st&&st.ipool)||0));
   Q=((st&&st.rq)||[]).filter(x=>ARMY_UNITS[x.k]&&x.n>0).map(x=>({k:x.k,n:x.n,p:x.p||0}));
   const el=st&&st.rqt?Math.min(3600,Math.max(0,Date.now()/1000-st.rqt)):0;if(el>0)step(el);lastT=Date.now();updateUI()};
 })();
@@ -7125,6 +7175,10 @@ window.renderAdmin=async function(){
 .wd-menu-item i{font-style:normal;font-size:19px;flex:0 0 auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center}
 .wd-menu-item b{font-size:12.5px;color:#eef8ff;display:block}
 .wd-menu-item small{display:block;font-size:9px;color:var(--g-mut);margin-top:1px}
+/* V128: سرتیترهای بخش منو — دسته‌بندی واضح: هر آیتم برای چیست */
+.wd-menu-sect{grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:12px 2px 2px;font-size:9.5px;font-weight:900;color:#7fb7e8;letter-spacing:.4px}
+.wd-menu-sect::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(127,183,232,.35),transparent)}
+.wd-menu-sect:first-child{margin-top:2px}
 .wd-menu-item.gold{border-color:rgba(255,201,60,.45)}
 .wd-menu-back{cursor:pointer;color:#8fd0ff;font-size:12px;font-weight:800;margin-bottom:9px}
 .wd-menu-terr{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 11px;border-radius:12px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07);margin:5px 0;cursor:pointer;font-size:11.5px;color:#d7ecff}
@@ -7256,16 +7310,21 @@ function flyToCountry(n){
 function viewHome(){
   var b=menuBody();b.innerHTML='';menuHead();
   var g=D.createElement('div');g.className='wd-menu-grid';
-  g.appendChild(item((window.MI100?MI100.land:'🏴'),'قلمروهای من','پرش سریع روی نقشه',function(){viewTerr()}));
-  g.appendChild(item((window.MI100?MI100.rank:'🏆'),'رتبه‌بندی','برترین فرماندهان',function(){triggerBtn('btn-m-rank')},1));
-  g.appendChild(item((window.MI100?MI100.gem:'💎'),'فروشگاه جم','بوست و منابع',function(){if(!triggerBtn('btn-m-shop')){try{renderShop();openModal('m-shop');sClose()}catch(e){}}}));
-  g.appendChild(item((window.MI100?MI100.chat:'💬'),'چت جهانی','با بازیکنان سرور',function(){if(!triggerBtn('wd-chat-btn')){if(window.WD28Chat){window.WD28Chat.open();sClose()}else{sClose()}}}));
+  /* V128: منو دسته‌بندی شد — چهار بخش شفاف به‌جای ۱۳ آیتم شناور */
+  function sect(t){var s=D.createElement('div');s.className='wd-menu-sect';s.textContent=t;g.appendChild(s)}
+  sect('🏛️ حکومت و اقتصاد');
+  g.appendChild(item((window.MI100?MI100.lobby:'🏢'),'لابی','مدیریت و ارتقای کشور',function(){triggerBtn('btn-m-lobby')}));
   g.appendChild(item((window.MI100?MI100.infra:'🏗️'),'زیرساخت‌ها','پالایشگاه، کارخانه، فرودگاه',function(){try{openSites(null);sClose()}catch(e){}},1));
-  g.appendChild(item((window.MI100?MI100.lobby:'🏢'),'لابی','مدیریت و ارتقا',function(){triggerBtn('btn-m-lobby')}));
-  g.appendChild(item((window.MI100?MI100.army:'🪖'),'ارتش','استخدام نیرو',function(){triggerBtn('btn-m-army')}));
-  /* V65 — جهان زنده: امپراتوری و شکوه در منوی اصلی بازی */
+  g.appendChild(item((window.MI100?MI100.gem:'💎'),'فروشگاه جم','بوست و منابع',function(){if(!triggerBtn('btn-m-shop')){try{renderShop();openModal('m-shop');sClose()}catch(e){}}}));
+  sect('⚔️ قدرت نظامی');
+  g.appendChild(item((window.MI100?MI100.army:'🪖'),'ارتش','استخدام و آموزش نیرو',function(){triggerBtn('btn-m-army')}));
+  g.appendChild(item((window.MI100?MI100.land:'🏴'),'قلمروهای من','پرش سریع روی نقشه',function(){viewTerr()}));
+  sect('🌍 جامعه و رقابت');
+  g.appendChild(item((window.MI100?MI100.rank:'🏆'),'رتبه‌بندی','برترین فرماندهان',function(){triggerBtn('btn-m-rank')},1));
+  g.appendChild(item((window.MI100?MI100.chat:'💬'),'چت جهانی','با بازیکنان سرور',function(){if(!triggerBtn('wd-chat-btn')){if(window.WD28Chat){window.WD28Chat.open();sClose()}else{sClose()}}}));
   g.appendChild(item((window.MI100?MI100.empire:'🏛️'),'امپراتوری','جمعیت، سیاست‌ها، استان‌ها و برنامه‌ی نبرد',function(){sClose();if(window.WD65)WD65.open('empire')}));
   g.appendChild(item((window.MI100?MI100.glory:'🏆'),'شکوه','اهداف، رقیب، تالار افتخارات و تاریخچه',function(){sClose();if(window.WD65)WD65.open('glory')},1));
+  sect('⚙️ سیستم');
   g.appendChild(item((window.MI100?MI100.advisor:'🧭'),'مشاور','آموزش کامل با علیرضا',function(){sClose();try{window.WD98_ADVISOR&&window.WD98_ADVISOR.open()}catch(e){}}));
   g.appendChild(item((window.MI100?MI100.settings:'⚙️'),'تنظیمات','صدا، کارایی، برچسب‌ها',function(){viewSettings()}));
   g.appendChild(item((window.MI100?MI100.logout:'🚪'),'خروج از حساب','تعویض کاربری',function(){doLogout()}));
@@ -7332,20 +7391,19 @@ setTimeout(bindMenu,5300);
 </script>
 <style id="wd26-css">
 /* ============ V26: tap feedback + rank podium ============ */
-/* -- tap pulse on map -- */
+/* -- tap feedback on map -- */
 .wd26-pulse-wrap{pointer-events:none}
-/* V126: قفل هدف دو لایه‌ای — t1 حلقه‌ی انبساطی نرم، t2 حلقه‌ی خط‌چین چرخان، spark برق مرکزی.
-   رنگ طلایی (خنثی/خودی) و قرمز نظامی (حریف OTH)؛ فقط transform/opacity — کامپوزیتور GPU */
-.wd26-pulse{position:absolute;left:0;top:0;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;
-  border:2px solid rgba(255,225,120,.9);opacity:0;animation:wd26Expand .8s cubic-bezier(.2,.8,.3,1) forwards}
-.wd26-pulse.foe{border-color:rgba(255,92,70,.95);box-shadow:0 0 12px rgba(255,70,40,.6)}
-.wd26-pulse.t2{border-style:dashed;border-width:2.5px;animation:wd26LockSpin .85s cubic-bezier(.2,.8,.3,1) forwards}
-.wd26-spark{position:absolute;left:0;top:0;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;
-  background:radial-gradient(circle,#fffde8,#ffcf5a 55%,transparent 80%);box-shadow:0 0 12px 3px rgba(255,204,0,.8);
-  animation:wd26Spark .5s ease-out forwards}
-@keyframes wd26Expand{0%{transform:scale(.25);opacity:1}70%{opacity:.85}100%{transform:scale(2.6);opacity:0}}
-@keyframes wd26LockSpin{0%{transform:scale(.5) rotate(0deg);opacity:1}100%{transform:scale(2.1) rotate(150deg);opacity:0}}
-@keyframes wd26Spark{0%{transform:scale(.4);opacity:1}100%{transform:scale(2.4);opacity:0}}
+/* V128: حلقه‌های زرد تزئینی حذف شدند — به‌جایشان «چیپ نام کشور»:
+   لمس هر کشور، نامش را همان‌جا نشان می‌دهد (نقطه‌ی رنگی: طلایی خودی/نفرتی، قرمز حریف OTH)
+   و لمس دریا هیچ چیزی نمی‌دهد. فقط transform/opacity — کامپوزیتور GPU، یک المان، ~۱٫۱ ثانیه */
+.wd26-chip{position:absolute;left:0;top:0;white-space:nowrap;pointer-events:none;
+  padding:4px 11px;border-radius:999px;background:rgba(4,14,28,.9);border:1px solid rgba(120,200,255,.45);
+  color:#eaf6ff;font-size:11.5px;font-weight:800;font-style:normal;box-shadow:0 4px 16px rgba(0,0,0,.5);
+  opacity:0;animation:wd26chip 1.15s cubic-bezier(.2,.8,.3,1) forwards}
+.wd26-chip.foe{border-color:rgba(255,92,70,.6)}
+.wd26-chip i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-inline-end:6px;background:#ffd75e;vertical-align:.5px;font-style:normal}
+.wd26-chip.foe i{background:#ff5c46;box-shadow:0 0 6px rgba(255,80,50,.85)}
+@keyframes wd26chip{0%{opacity:0;transform:translate(-50%,-14%) scale(.82)}14%{opacity:1;transform:translate(-50%,-50%) scale(1)}72%{opacity:1;transform:translate(-50%,-62%) scale(1)}100%{opacity:0;transform:translate(-50%,-105%) scale(.96)}}
 /* -- rank podium (GeoWar style + WD gold signature) -- */
 .wd26-podium{display:flex;gap:6px;align-items:flex-end;margin:10px 0 12px;direction:rtl}
 .wd26-pc{flex:1;min-width:0;border-radius:16px;padding:11px 5px 10px;text-align:center;position:relative;
@@ -7376,16 +7434,16 @@ if(window.__wd26)return;window.__wd26=true;
 var D=document;
 function toast26(m,t){try{if(typeof showToast==='function')showToast(m,t||'')}catch(e){}}
 
-/* ============ 1) فیدبک تاپ: قفل هدف سینمایی + ویبره — V126 بازطراحی ============
-   قبلاً یک حلقه‌ی زرد ساده بود («دایره‌ی اضافی و زشت» به‌گفته‌ی مالک).
-   حالا: قفل هدف دو لایه‌ای — حلقه‌ی خط‌چین چرخان + هاله‌ی انبساطی + برق مرکزی؛
-   طلایی برای کشور خنثی/خودی، قرمز نظامی برای کشور حریف (OTH). فقط transform/opacity. */
-function pulseAt(latlng,foe){
+/* ============ 1) فیدبک تاپ: چیپ نام کشور + ویبره — V128 ============
+   حلقه‌های زرد تزئینی (که مالک «اضافه» می‌خواندش) حذف شدند؛ حالا چیپِ کاربردی:
+   نام فارسی کشورِ لمس‌شده + نقطه‌ی رنگی مالکیت. لمس دریا چیزی نشان نمی‌دهد.
+   یک المان، فقط transform/opacity، ۱٫۱ ثانیه — صفر لگ. */
+function esc26(s){return String(s==null?'':s).replace(/[<>&]/g,'')}
+function tapChip(latlng,name,foe){
   try{
-    var cls='wd26-pulse'+(foe?' foe':'');
     var m=L.marker(latlng,{interactive:false,keyboard:false,zIndexOffset:1200,
-      icon:L.divIcon({className:'wd26-pulse-wrap',iconSize:[0,0],html:'<i class="'+cls+' t1"></i><i class="'+cls+' t2"></i><b class="wd26-spark"></b>'})}).addTo(map);
-    setTimeout(function(){try{m.remove()}catch(e){}},860);
+      icon:L.divIcon({className:'wd26-pulse-wrap',iconSize:[0,0],html:'<b class="wd26-chip'+(foe?' foe':'')+'"><i></i>'+esc26(name||'')+'</b>'})}).addTo(map);
+    setTimeout(function(){try{m.remove()}catch(e){}},1180);
   }catch(e){}
 }
 function haptic(){try{if(navigator.vibrate)navigator.vibrate(12)}catch(e){}}
@@ -7452,7 +7510,12 @@ function drawerIsOpen(){var d=D.getElementById('country-drawer');return !!(d&&d.
     if(typeof map==='undefined'||!map||!map.on||map.__wd26bound)return;
     clearInterval(t);map.__wd26bound=true;
     map.on('click',function(e){
-      pulseAt(e.latlng);haptic();
+      /* V128: چیپ نام کشور همان لحظه — hit-test سبک با ایندکس bbox؛ دریا چیزی نشان نمی‌دهد */
+      var hit0=null;try{hit0=hitTest(e.latlng)}catch(err){}
+      if(hit0){var _fa=hit0.name;try{_fa=getCountryData(hit0.name).fa||hit0.name}catch(err){}
+        var _foe=false;try{_foe=!!(typeof OTH!=='undefined'&&OTH&&OTH[hit0.name])}catch(err){}
+        tapChip(e.latlng,_fa,_foe)}
+      haptic();
       var beforeName='';try{beforeName=(D.getElementById('c-name')||{}).textContent||''}catch(err){}
       var wasOpen=drawerIsOpen();
       setTimeout(function(){ /* V125: ۲۸۰→۱۲۰ میلی‌ثانیه — لغو با لمس دریا سریع‌تر حس می‌شود */
@@ -7484,7 +7547,9 @@ function drawerIsOpen(){var d=D.getElementById('country-drawer');return !!(d&&d.
 (function wrapOCC(){
   if(typeof onCountryClick!=='function'){setTimeout(wrapOCC,500);return}
   try{if(WD_CLICK_HOOKS){
-    WD_CLICK_HOOKS.pre.push(function(f,l){try{var g=(typeof getG==='function')?getG(f.properties.name):null;var foe=false;try{foe=!!(typeof OTH!=='undefined'&&OTH&&OTH[f.properties.name])}catch(e0){}if(g)pulseAt(g.c,foe);haptic()}catch(e){}});
+    WD_CLICK_HOOKS.pre.push(function(f,l){try{var g=(typeof getG==='function')?getG(f.properties.name):null;var foe=false;try{foe=!!(typeof OTH!=='undefined'&&OTH&&OTH[f.properties.name])}catch(e0){}
+      var _fa=f.properties.name;try{_fa=getCountryData(f.properties.name).fa||f.properties.name}catch(e0){}
+      if(g)tapChip(g.c,_fa,foe);haptic()}catch(e){}});
   }}catch(e){console.error('wd-c11',e)}
 })();
 
@@ -9552,7 +9617,7 @@ async function doOp(kind,n){const op=WD54_OPS[kind];if(!op)return;const fa=getCo
     snd(op.snd);
     /* V55: سینمای تمام‌صفحه‌ی اختصاصی هر عملیات — کارت نتیجه بعد از صحنه می‌آید */
     try{if(typeof window.WD55_OPFX==='function')window.WD55_OPFX(kind,fa)}catch(e){}
-    setTimeout(function(){try{WD30CINE(op.cine[0],op.cine[1],op.cine[2].replace('%C',fa),op.cine[3],op.cine[4])}catch(e){}},kind==='nuke'?2600:2100);
+    setTimeout(function(){try{WD30CINE(op.cine[0],op.cine[1],op.cine[2].replace('%C',fa),op.cine[3],op.cine[4])}catch(e){}},kind==='nuke'?3600:2100);
     WD30BC(kind,{country:fa,target:d.owner_nick||''});
     news(op.ic+' '+op.fa+' بر '+fa+(d.owner_nick?' (خاک '+d.owner_nick+')':'')+' انجام شد — '+op.fa+' ثبت شد');
     WD30HIST({t:Date.now(),type:'epic',txt:op.fa+' روی '+fa+' اجرا کردی'+(d.owner_nick?' (خاک '+d.owner_nick+')':''),ico:op.ic});
@@ -11905,7 +11970,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=127';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=128';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -16679,47 +16744,76 @@ setInterval(function(){if(!D.hidden)adminCheck().then(function(okad){if(okad||is
 @keyframes wd55ring{0%{opacity:.95;transform:translate(-50%,-50%) scale(.2)}100%{opacity:0;transform:translate(-50%,-50%) scale(26)}}
 .wd55-boom{position:absolute;top:50vh;left:50%;font-size:clamp(44px,13vw,84px);transform:translate(-50%,-50%) scale(.4);opacity:0;animation:wd55boom 1.2s cubic-bezier(.2,1.2,.3,1) 1.32s forwards}
 @keyframes wd55boom{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}30%{opacity:1;transform:translate(-50%,-50%) scale(1.25)}100%{opacity:.95;transform:translate(-50%,-50%) scale(1)}}
-/* — nuke V126: بازسازی کامل — فقط transform/opacity (کامپوزیتور GPU، صفر layout thrash).
-   توالی: هشدار → سقوط کلاهک → فلش → ۳ موج انفجار → قارچ اتمی لایه‌لایه → جرقه‌ها → سرخ‌شدن آسمان */
-.wd55-opfx.k-nuke{background:radial-gradient(ellipse at 50% 88%,#33110a 0%,#12040a 46%,#06010a 100%)}
+/* — nuke V128: سینمای کامل — فقط transform/opacity (کامپوزیتور GPU، صفر layout thrash).
+   توالی سینمایی: تاریک‌شدن آسمان + آژیر → بارش ۳ کلاهک MIRV → WHITEOUT → لرزش دوربین →
+   گوی آتش + ۴ موج انفجار → قارچ اتمی لایه‌لایه (کلاهک/هسته‌ی داغ/حلقه‌ی تراکم/دامن غبار) →
+   دو موج جرقه + خرده‌سنگ‌های پرتابی → سوختن سرخ آسمان → محو */
+.wd55-opfx.k-nuke{background:radial-gradient(ellipse at 50% 88%,#2a0c08 0%,#100309 46%,#050109 100%)}
+.wd55-nsky{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 100%,rgba(120,18,8,.55),rgba(40,4,10,.65) 55%,rgba(4,1,8,.75));opacity:0;animation:wd55nsky 1.4s ease-out .05s forwards}
+@keyframes wd55nsky{0%{opacity:0}30%{opacity:.85}100%{opacity:.9}}
+.wd55-siren{position:absolute;left:0;right:0;height:9px;overflow:hidden;opacity:0;animation:wd55sirenon .4s linear .1s forwards}
+@keyframes wd55sirenon{to{opacity:.85}}
+.wd55-siren::before{content:"";position:absolute;top:0;bottom:0;left:0;width:200%;
+  background:repeating-linear-gradient(45deg,rgba(255,60,40,.85) 0 18px,rgba(20,4,4,.9) 18px 36px);animation:wd55siren 1.1s linear infinite}
+@keyframes wd55siren{from{transform:translateX(0)}to{transform:translateX(-36px)}}
 .wd55-alertbar{position:absolute;top:14vh;left:50%;transform:translateX(-50%);padding:7px 22px;border-radius:999px;
   background:rgba(90,8,8,.9);border:1px solid rgba(255,110,70,.75);color:#ffd9c2;font-weight:900;font-size:12px;letter-spacing:1px;
-  opacity:0;animation:wd55alert 1.1s ease-out .05s forwards}
+  opacity:0;animation:wd55alert 1.3s ease-out .05s forwards}
 @keyframes wd55alert{0%{opacity:0;transform:translateX(-50%) scale(.8)}18%{opacity:1;transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateX(-50%) scale(1.04)}}
-.wd55-warhead{position:absolute;top:-8vh;left:50%;width:3px;height:11vh;margin-left:-1.5px;border-radius:3px;
+.wd55-warhead{position:absolute;top:-8vh;width:3px;height:11vh;border-radius:3px;margin-left:-1.5px;
   background:linear-gradient(180deg,rgba(255,240,200,0),#ffe9b0 30%,#fff 92%);box-shadow:0 0 18px 4px rgba(255,190,90,.75);
-  animation:wd55drop .95s cubic-bezier(.55,0,.9,.6) .75s forwards}
-@keyframes wd55drop{0%{transform:translateY(0);opacity:0}12%{opacity:1}100%{transform:translateY(58vh);opacity:1}}
-.wd55-nflash{position:absolute;inset:0;background:radial-gradient(circle at 50% 62%,#fff 0%,#fff8e0 34%,rgba(255,220,150,.6) 60%,transparent 82%);opacity:0;animation:wd55nflash 1.5s ease-out 1.62s forwards}
-@keyframes wd55nflash{0%{opacity:0}9%{opacity:1}100%{opacity:0}}
+  opacity:0;animation:wd55drop .85s cubic-bezier(.55,0,.9,.6) .6s forwards}
+.wd55-warhead:nth-of-type(1){left:46vw;animation-delay:.6s}
+.wd55-warhead:nth-of-type(2){left:50vw;animation-delay:.78s}
+.wd55-warhead:nth-of-type(3){left:54vw;animation-delay:.96s}
+@keyframes wd55drop{0%{transform:translateY(0) rotate(9deg);opacity:0}12%{opacity:1}88%{transform:translateY(70vh) rotate(-2deg);opacity:1}100%{transform:translateY(72vh) rotate(0deg);opacity:1}}
+.wd55-nflash{position:absolute;inset:0;background:radial-gradient(circle at 50% 74%,#fff 0%,#fff8e0 34%,rgba(255,220,150,.6) 60%,transparent 82%);opacity:0;animation:wd55nflash 2.2s ease-out 1.6s forwards;z-index:3}
+@keyframes wd55nflash{0%{opacity:0}5%{opacity:1}34%{opacity:.92}100%{opacity:0}}
+.wd55-core{position:absolute;top:74vh;left:50%;width:34vw;max-width:250px;aspect-ratio:1;margin:-17vw 0 0 calc(-17vw * .72);border-radius:50%;
+  background:radial-gradient(circle,#fff 0%,#fff3c0 22%,#ffb545 48%,#ff6a1e 70%,rgba(180,40,8,0) 78%);opacity:0;
+  animation:wd55core 2.6s cubic-bezier(.2,.8,.3,1) 1.62s forwards;z-index:2}
+@keyframes wd55core{0%{opacity:0;transform:scale(.12)}10%{opacity:1;transform:scale(1.28)}34%{transform:scale(1.06)}100%{opacity:.92;transform:scale(1.16)}}
 .wd55-ground{position:absolute;bottom:-6vh;left:50%;width:120vw;max-width:760px;height:26vh;transform:translateX(-50%) scale(.35);border-radius:50%;
-  background:radial-gradient(ellipse,rgba(255,196,88,.85) 0%,rgba(255,110,30,.5) 38%,transparent 70%);opacity:0;animation:wd55ground 2.6s ease-out 1.68s forwards}
-@keyframes wd55ground{0%{opacity:0;transform:translateX(-50%) scale(.35)}22%{opacity:.95;transform:translateX(-50%) scale(1)}100%{opacity:.4;transform:translateX(-50%) scale(1.12)}}
-.wd55-nring{position:absolute;top:62vh;left:50%;width:16px;height:16px;margin:-8px;border-radius:50%;border:3px solid rgba(255,214,140,.95);
-  transform:translate(0,0) scale(.2);opacity:0;animation:wd55nring 1.9s ease-out 1.72s forwards}
-.wd55-nring.n2{border-color:rgba(255,140,70,.85);border-width:5px;animation-delay:1.95s;animation-duration:2.3s}
-.wd55-nring.n3{border-color:rgba(255,90,40,.75);border-width:8px;animation-delay:2.3s;animation-duration:2.7s}
-@keyframes wd55nring{0%{opacity:.95;transform:scale(.2)}100%{opacity:0;transform:scale(34)}}
+  background:radial-gradient(ellipse,rgba(255,196,88,.85) 0%,rgba(255,110,30,.5) 38%,transparent 70%);opacity:0;animation:wd55ground 2.8s ease-out 1.66s forwards}
+@keyframes wd55ground{0%{opacity:0;transform:translateX(-50%) scale(.35)}22%{opacity:.95;transform:translateX(-50%) scale(1)}100%{opacity:.45;transform:translateX(-50%) scale(1.14)}}
+.wd55-nring{position:absolute;top:74vh;left:50%;width:16px;height:16px;margin:-8px;border-radius:50%;border:3px solid rgba(255,214,140,.95);
+  transform:translate(0,0) scale(.2);opacity:0;animation:wd55nring 2s ease-out 1.7s forwards}
+.wd55-nring.n2{border-color:rgba(255,140,70,.85);border-width:5px;animation-delay:1.95s;animation-duration:2.4s}
+.wd55-nring.n3{border-color:rgba(255,90,40,.75);border-width:8px;animation-delay:2.28s;animation-duration:2.8s}
+.wd55-nring.n4{border-color:rgba(255,220,180,.6);border-width:2px;animation-delay:2.7s;animation-duration:3.2s}
+@keyframes wd55nring{0%{opacity:.95;transform:scale(.2)}100%{opacity:0;transform:scale(36)}}
 .wd55-mush{position:absolute;bottom:16vh;left:50%;width:62vw;max-width:430px;transform:translateX(-50%) translateY(24vh) scale(.35);opacity:0;
-  display:flex;flex-direction:column;align-items:center;animation:wd55mush 3.1s cubic-bezier(.2,.75,.3,1) 1.75s forwards}
-@keyframes wd55mush{0%{opacity:0;transform:translateX(-50%) translateY(24vh) scale(.35)}14%{opacity:1}62%{transform:translateX(-50%) translateY(-6vh) scale(1.06)}100%{opacity:.96;transform:translateX(-50%) translateY(-13vh) scale(1.12)}}
+  display:flex;flex-direction:column;align-items:center;animation:wd55mush 3.3s cubic-bezier(.2,.75,.3,1) 1.78s forwards;z-index:2}
+@keyframes wd55mush{0%{opacity:0;transform:translateX(-50%) translateY(24vh) scale(.35)}13%{opacity:1}60%{transform:translateX(-50%) translateY(-7vh) scale(1.07)}100%{opacity:.97;transform:translateX(-50%) translateY(-15vh) scale(1.14)}}
 .wd55-cap{width:100%;aspect-ratio:2/1.12;border-radius:50% 50% 13% 13%;position:relative;overflow:hidden;
   background:radial-gradient(circle at 40% 26%,#fff3cf 0%,#ffd27a 20%,#ff8a34 46%,#c23c12 72%,#4c1106 96%)}
 .wd55-cap::before{content:"";position:absolute;inset:-22%;background:radial-gradient(circle at 66% 74%,rgba(60,8,4,.72),transparent 56%);animation:wd55capsw 3.4s ease-in-out 1.9s infinite alternate}
 @keyframes wd55capsw{from{transform:translate(-3%,1%) scale(1)}to{transform:translate(3%,-2%) scale(1.09)}}
 .wd55-cap::after{content:"";position:absolute;left:14%;top:8%;width:26%;height:15%;border-radius:50%;background:rgba(255,255,240,.85);filter:blur(4px);opacity:.8;animation:wd55hl 3s ease-in-out 2s infinite alternate}
 @keyframes wd55hl{from{opacity:.8;transform:scale(1)}to{opacity:.35;transform:scale(1.25)}}
+.wd55-torus{position:absolute;left:50%;top:-3.5vh;width:128%;aspect-ratio:2/.5;margin-left:-64%;border-radius:50%;border:3px solid rgba(255,240,210,.5);
+  transform:scale(.3);opacity:0;animation:wd55torus 2.9s ease-out 2.15s forwards;z-index:3}
+@keyframes wd55torus{0%{opacity:0;transform:scale(.3)}18%{opacity:.85}100%{opacity:0;transform:scale(1.55)}}
 .wd55-stem{width:15%;height:26vh;transform-origin:top;transform:scaleY(.4);margin-top:-2vh;
   background:linear-gradient(90deg,#5c1a08 0%,#e07a2c 34%,#ffb45e 50%,#c25516 68%,#40100a 100%);border-radius:12px;opacity:.92;animation:wd55stem 2.9s cubic-bezier(.2,.8,.3,1) 1.85s forwards}
 @keyframes wd55stem{to{transform:scaleY(1)}}
+.wd55-skirt{position:absolute;bottom:13vh;left:50%;width:56vw;max-width:380px;height:8vh;margin-left:-28vw;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(255,150,70,.55),rgba(90,26,10,.5) 55%,transparent 78%);transform:scale(.4);opacity:0;
+  animation:wd55skirt 3s ease-out 2.1s forwards;z-index:1}
+@keyframes wd55skirt{0%{opacity:0;transform:scale(.4)}25%{opacity:.95}100%{opacity:.55;transform:scale(1.5)}}
 .wd55-skr{position:absolute;bottom:14vh;left:50%;width:74vw;max-width:520px;height:9vh;transform:translateX(-50%) scaleX(.4);border-radius:50%;
   background:radial-gradient(ellipse,rgba(70,20,8,.85),rgba(30,8,4,.4) 62%,transparent 78%);opacity:0;animation:wd55skr 2.8s ease-out 1.9s forwards}
 @keyframes wd55skr{to{opacity:.9;transform:translateX(-50%) scaleX(1)}}
 .wd55-ember{position:absolute;bottom:20vh;width:5px;height:5px;border-radius:50%;background:radial-gradient(circle,#fff3b0,#ff8a2a 60%,transparent);
   box-shadow:0 0 9px 2px rgba(255,150,50,.85);opacity:0;animation:wd55ember 2.9s ease-out forwards}
 @keyframes wd55ember{0%{opacity:0;transform:translate(0,0) scale(1)}12%{opacity:1}100%{opacity:0;transform:translate(var(--ex),var(--ey)) scale(.35)}}
-.wd55-opol{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 90%,rgba(255,84,34,.34),rgba(120,16,8,.2) 55%,transparent 85%);opacity:0;animation:wd55opol 2.6s ease-in 2s forwards}
+.wd55-debris{position:absolute;bottom:22vh;left:50%;width:2px;height:14px;border-radius:2px;
+  background:linear-gradient(180deg,rgba(255,240,200,.95),rgba(255,120,40,.6));opacity:0;animation:wd55debris 2.2s cubic-bezier(.15,.6,.4,1) forwards}
+@keyframes wd55debris{0%{opacity:0;transform:translate(0,0) rotate(var(--dr))}10%{opacity:1}100%{opacity:0;transform:translate(var(--ex),var(--ey)) rotate(var(--dr))}}
+.wd55-opol{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 90%,rgba(255,84,34,.34),rgba(120,16,8,.2) 55%,transparent 85%);opacity:0;animation:wd55opol 2.8s ease-in 2.1s forwards;z-index:4}
 @keyframes wd55opol{to{opacity:1}}
+.wd55-shakewrap{animation:wd55shake .6s cubic-bezier(.36,.07,.19,.97) 1.62s both}
+@keyframes wd55shake{0%,100%{transform:translate(0,0)}12%{transform:translate(-11px,7px)}24%{transform:translate(9px,-6px)}36%{transform:translate(-7px,-5px)}48%{transform:translate(6px,5px)}60%{transform:translate(-4px,3px)}72%{transform:translate(3px,-2px)}86%{transform:translate(-2px,1px)}}
 body.wd-autolite #wd55-opfx{display:none!important}
 body.wd-autolite .wd55-op-t{display:none}
 @media (prefers-reduced-motion:reduce){#wd55-opfx{display:none!important}}
@@ -16755,23 +16849,28 @@ window.WD55_OPFX=function(kind,fa){
       inn+='<div class="wd55-alert"></div><div class="wd55-trail" style="top:12vh"></div><div class="wd55-rocket">🚀</div>';
       inn+='<div class="wd55-flash"></div><div class="wd55-ring"></div><div class="wd55-ring r2"></div><div class="wd55-boom">💥</div><div class="wd55-ground"></div>';
     }else if(kind==='nuke'){
-      /* V126: صحنه‌ی سینمایی هسته‌ای — ۱۸ المان، همه transform/opacity */
-      inn+='<div class="wd55-alertbar">⚠️ هشدار موشکی — پناه بگیرید</div>';
-      inn+='<div class="wd55-warhead"></div>';
-      inn+='<div class="wd55-ground"></div><div class="wd55-skr"></div>';
+      /* V128: صحنه‌ی سینمایی هسته‌ای — آسمان + آژیر، ۳ کلاهک MIRV، WHITEOUT، لرزش دوربین،
+         گوی آتش، ۴ موج، قارچ لایه‌لایه (کلاهک/حلقه‌ی تراکم/دامن)، جرقه و خرده‌سنگ — همه transform/opacity */
+      inn+='<div class="wd55-nsky"></div>';
+      inn+='<div class="wd55-siren" style="top:9vh"></div><div class="wd55-siren" style="bottom:9vh"></div>';
+      inn+='<div class="wd55-alertbar">⚠️ هشدار حمله‌ی هسته‌ای — پناه بگیرید</div>';
+      inn+='<div class="wd55-warhead"></div><div class="wd55-warhead"></div><div class="wd55-warhead"></div>';
+      inn+='<div class="wd55-ground"></div><div class="wd55-skr"></div><div class="wd55-core"></div>';
       inn+='<div class="wd55-nflash"></div>';
-      inn+='<div class="wd55-nring"></div><div class="wd55-nring n2"></div><div class="wd55-nring n3"></div>';
-      inn+='<div class="wd55-mush"><div class="wd55-cap"></div><div class="wd55-stem"></div></div>';
-      for(i=0;i<8;i++)inn+='<div class="wd55-ember" style="left:'+Math.round(rand(30,70))+'vw;animation-delay:'+(1.85+rand(0,.9)).toFixed(2)+'s;--ex:'+Math.round(rand(-90,90))+'px;--ey:-'+Math.round(rand(90,240))+'px"></div>';
+      inn+='<div class="wd55-nring"></div><div class="wd55-nring n2"></div><div class="wd55-nring n3"></div><div class="wd55-nring n4"></div>';
+      inn+='<div class="wd55-mush"><div class="wd55-torus"></div><div class="wd55-cap"></div><div class="wd55-stem"></div></div>';
+      inn+='<div class="wd55-skirt"></div>';
+      for(i=0;i<10;i++)inn+='<div class="wd55-ember" style="left:'+Math.round(rand(30,70))+'vw;animation-delay:'+(1.85+rand(0,1.3)).toFixed(2)+'s;--ex:'+Math.round(rand(-110,110))+'px;--ey:-'+Math.round(rand(90,260))+'px"></div>';
+      for(i=0;i<5;i++)inn+='<div class="wd55-debris" style="left:'+Math.round(rand(42,58))+'vw;animation-delay:'+(1.7+rand(0,.7)).toFixed(2)+'s;--ex:'+Math.round(rand(-190,190))+'px;--ey:-'+Math.round(rand(150,330))+'px;--dr:'+Math.round(rand(-70,70))+'deg"></div>';
       inn+='<div class="wd55-opol"></div>';
     }else return;
     inn+='<div class="wd55-op-t">'+ic55(kind)+' '+esc55(fa)+'</div><div class="wd55-op-sk">برای رد کردن، صفحه را بزن ✕</div>';
-    root.innerHTML='<div style="position:absolute;inset:0">'+inn+'</div>';
+    root.innerHTML='<div style="position:absolute;inset:0"'+(kind==='nuke'?' class="wd55-shakewrap"':'')+'>'+inn+'</div>';
     D.body.appendChild(root);
     requestAnimationFrame(function(){try{root.classList.add('on')}catch(e){}});
     var kill=function(){if(ended)return;ended=true;try{root.classList.remove('on');root.classList.add('out');setTimeout(function(){try{root.remove()}catch(e){}},360)}catch(e){}};
     root.addEventListener('click',kill);
-    setTimeout(kill,kind==='nuke'?5200:(kind==='missile'?3400:3200));
+    setTimeout(kill,kind==='nuke'?6900:(kind==='missile'?3400:3200));
   }catch(e){}
 };
 function esc55(s){return String(s==null?'':s).replace(/[<>&]/g,'')}
@@ -18860,7 +18959,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=127';
+              s.src='/game/cv-engine.js?v=128';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18871,7 +18970,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=127"></script>
+<script src="/game/oly3.js?v=128"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18885,7 +18984,7 @@ try{renderShop=function(){try{render()}catch(e){}}}catch(e){}
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=127';
+      s.src='/game/oly3d.js?v=128';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -20125,8 +20224,8 @@ try{if(window.MutationObserver)new MutationObserver(function(){try{arm()}catch(e
 setInterval(function(){try{arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=127"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=127"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=128"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=128"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
