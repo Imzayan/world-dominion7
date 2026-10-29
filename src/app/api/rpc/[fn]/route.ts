@@ -33,7 +33,7 @@ export const dynamic = 'force-dynamic'
    Supabase-compatible RPC endpoint.
    Implements every sb.rpc(...) call the game makes:
    get_wallet, spend_gems, is_admin, claim_admin_grants,
-   claim_weekly_rewards, release_inactive_territories,
+   claim_weekly_rewards, release_inactive_territories, country_release (V140),
    pvp_attack, pvp_capture_territory, territory_sync (V60sec), get_world_news,
    get_world_chat, wd_init_player, wd_get_state, olympics (V31)
    ============================================================ */
@@ -441,8 +441,16 @@ const SHOP_PACKS = [
 /* V122 — خاموشی کامل پرداخت واقعی (تصمیم مالک برای عبور روان از بررسی فروشگاه‌ها):
    هیچ محصول پولی به کلاینت تبلیغ نمی‌شود — packs خالی می‌آید و پک شروع مخفی می‌شود (phase='expired').
    تمام مسیر خرید/راستی‌آزمایی/بازیابی دست‌نخورده می‌ماند؛ فعال‌سازی دوباره = فقط PAY_OFF=false.
-   پرداخت‌های قبلاً انجام‌شده همچنان از طریق wdRestore/بازیابی به‌صورت صادقانه اعمال می‌شوند. */
-const PAY_OFF = true
+   پرداخت‌های قبلاً انجام‌شده همچنان از طریق wdRestore/بازیابی به‌صورت صادقانه اعمال می‌شوند.
+
+   V140 — بازگشت پرداخت واقعی (خواسته‌ی مالک): «خرید جم همون‌طور که به شکل قدیم بود با همون
+   اتصالات به مایکت». PAY_OFF=false ⇒ چهار پک جم (شروع/جنگاور/فاتح/امپراتور) با همان SKUهای
+   مایکت (gems_100/300/550/1000) به کاتالوگ برمی‌گردند و پک شروع امپراتور (۲۸۰ تومان،
+   emperor_starter) دوباره برای همه‌ی حساب‌های خرید نکرده «آفر» می‌شود (قانون V114).
+   هیچ مسیر دیگری عوض نشده — راستی‌آزمایی رسمی مایکت، Idempotency، بازیابی wdRestore و
+   رندر کاتالوگ از همان کد V118–V121 اجرا می‌شوند. پیش‌نیاز محیط: MYKET_ACCESS_TOKEN یا
+   MYKET_CLIENT_ID/MYKET_CLIENT_SECRET روی سرور (مستند در .env.example). */
+const PAY_OFF = false
 
 /* مجموعه‌ها — members فقط شناسه‌های سرور-شناخته (medal_s1* = هر مدال فصلی) */
 const SHOP_COLLECTIONS: { id: string; fa: string; icon: string; members: string[]; reward: string }[] = [
@@ -3217,6 +3225,60 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           }
         }
         return R(null)
+      }
+
+      /* ============================================================
+         V140 — رها کردن کشور (خواسته‌ی مالک): خروج داوطلبانه از قلمرو + شروع تازه.
+         ورودی: p_target_server (0 = در همین سرور می‌مانم؛ N = به سرور N منتقل شو).
+         داوری فقط این‌جاست:
+         ۱) اعتبارسنجی مقصد قبل از هر تغییری — سرور تستی برای غیرادمین ممنوع،
+            سرورِ ۹۰کشوریِ پر ممنوع (SRV_CAP_GLOBAL = قانون V139). شکست = هیچ ردیفی دست نمی‌خورد.
+         ۲) کل قلمروهای کاربر در همه‌ی سرورها آزاد می‌شود (کشورها برای بقیه باز می‌شوند)
+            و آمار taken/players هر سرورِ متأثر بازشماری می‌شود.
+         ۳) پیشرفتِ «این جهان» = دقیقاً وضعیت بازیکن تازه‌وارد: سیو '{}' (کلاینت با
+            restoreState خالی بوت می‌شود)، ستون‌های بازیِ رتبه‌بندی صفر (conquered/score/
+            kills/economy/recruits) — قدرت مهاجم در pvp_attack از score می‌آید و نگه‌داشتن
+            score قدیمی یعنی سواری رایگان با ارتش استارتر؛ سازه‌های Country View هم پاک.
+         ۴) دارایی‌های حسابی دست‌نخورده: جم/والت، خریدها و انبار کازمتیک (ShopInventory/
+            Purchase)، کارنامه‌ی جنگ (ژنرال‌ها/شکوه/تدارک)، پاس فصل، مجموعه‌ها، منتور،
+            استریک روزانه — رها کردن سرزمین است، نه مصادره‌ی حساب.
+         ۵) Idempotent: اجرای دوباره بی‌ضرر (حذف صفر ردیف + ریست تکراری).
+         ============================================================ */
+      case 'country_release': {
+        const tgtRel = Math.max(0, Math.floor(Number(args.p_target_server) || 0))
+        /* ۱) مقصد اول — هیچ تغییری قبل از تأیید مقصد */
+        let moveTo: number | null = null
+        if (tgtRel > 0) {
+          const curSrv = await warUserServer(user.id).catch(() => 1)
+          if (tgtRel !== curSrv) {
+            if ((await testSrvsGet()).includes(tgtRel) && !user.isAdmin) return R({ ok: false, error: 'test_server' })
+            const takenT = await db.territory.count({ where: { server: tgtRel } })
+            if (takenT >= SRV_CAP_GLOBAL) return R({ ok: false, error: 'full' })
+            moveTo = tgtRel
+          }
+        }
+        /* ۲) آزادسازی همه‌ی قلمروها + بازشماری آمار سرورهای متأثر */
+        const mineRel = await db.territory.findMany({ where: { userId: user.id }, select: { server: true } })
+        const affectedRel = [...new Set(mineRel.map((t) => t.server))]
+        await db.territory.deleteMany({ where: { userId: user.id } })
+        for (const s of affectedRel) {
+          const rowsRel = await db.territory.groupBy({ by: ['userId'], where: { server: s } })
+          const takenRel = await db.territory.count({ where: { server: s } })
+          await db.serverStat.upsert({ where: { server: s }, create: { server: s, taken: takenRel, players: rowsRel.length }, update: { taken: takenRel, players: rowsRel.length } }).catch(() => {})
+        }
+        /* ۳) شروع تازه — سیو خالی (وضعیت طبیعی بازیکنِ بدون کشور؛ claimCapital بعدی همه‌چیز را استارتر می‌چیند) */
+        await db.save.upsert({ where: { userId: user.id }, create: { userId: user.id, nick: user.nick, state: '{}' }, update: { state: '{}' } })
+        await db.score.upsert({
+          where: { userId: user.id },
+          create: { userId: user.id, nick: user.nick, server: moveTo || 1, conquered: 0, score: 0, kills: 0, economy: 0, recruits: 0 },
+          update: { conquered: 0, score: 0, kills: 0, economy: 0, recruits: 0, ...(moveTo ? { server: moveTo } : {}) },
+        })
+        await db.cvBuilding.deleteMany({ where: { userId: user.id } }).catch(() => {})
+        await db.cvCountry.deleteMany({ where: { userId: user.id } }).catch(() => {})
+        /* ۴) خبر جهان — زمین آزاد شد (فرمت‌کننده‌ی کلاینت: wdNewsFa خط country_released) */
+        const newsSrv = moveTo || affectedRel[0] || 1
+        try { await addNews(newsSrv, 'country_released', null, user.nick, null) } catch (e) {}
+        return R({ ok: true, released: mineRel.length, servers: affectedRel, server: moveTo || newsSrv })
       }
 
       /* ---------------- PvP ---------------- */

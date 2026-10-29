@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=139;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=140;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <script>
   /* V132 PERF GOVERNOR — یک پچِ سراسری قبل از همه‌ی اسکریپت‌های بازی.
      ۱) دستگاه ضعیف: بازه‌های نظرسنجیِ ≥۵ثانیه (presence/ذخیره/متادیتا/چت-پس‌زمینه) کشیده می‌شوند ×۱.۴
@@ -31,13 +31,13 @@
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=139">
+   <link rel="preload" as="script" href="/game/balance.js?v=140">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=139">
-   <link rel="preload" as="script" href="/game/social.js?v=139">
-   <link rel="preload" as="script" href="/game/mentor.js?v=139">
-  <script src="/game/balance.js?v=139"></script>
+   <link rel="preload" as="script" href="/game/oly3.js?v=140">
+   <link rel="preload" as="script" href="/game/social.js?v=140">
+   <link rel="preload" as="script" href="/game/mentor.js?v=140">
+  <script src="/game/balance.js?v=140"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2991,6 +2991,12 @@ html,body{color:#e8f4ff}
 .lobby-item{color:#e8f4ff;border:1px solid rgba(0,240,255,.12);animation:rowIn .35s ease both}
 .lobby-item-text{color:#eaf6ff;font-weight:600}
 #m-market .modal-card>div{animation:rowIn .35s ease both}
+/* V140 — رها کردن کشور: ردیف هشدار سرخ در بالای پنجره سرورها — عمداً کلاس lobby-item نیست
+   تا غنی‌ساز V96 (augmentSrvList که ردیف‌ها را ایندکسی به سرورها مپ می‌کند) دست به آن نزند */
+.wd140-rel{color:#ffd9d9;border:1px solid rgba(255,120,120,.38);background:linear-gradient(160deg,rgba(120,34,34,.30),rgba(46,16,24,.30));border-radius:14px;padding:10px 12px;margin:8px 0 4px;cursor:pointer;animation:rowIn .35s ease both}
+.wd140-rel:hover{border-color:rgba(255,150,150,.65)}
+.wd140-rel .t{color:#ffe2e2;font-weight:700;font-size:13px}
+.wd140-rel .s{color:#e9b8b8;font-size:10.5px;line-height:1.7;margin-top:3px;display:block}
 
 /* Modal pop-in animation everywhere */
 .modal-card{transform:scale(.9) translateY(6px);opacity:0;transition:transform .3s cubic-bezier(.16,1,.3,1),opacity .22s ease}
@@ -3680,7 +3686,7 @@ async function rankOnline(box){box.append(mk('div','🌍 رتبه‌بندی ج�
   catch(e){console.log(e);load.textContent='دریافت رتبه‌بندی ناموفق بود'}}
 
 /* ---------- glue ---------- */
-async function saveNow(){if(!ACC.ready||!myCountryName)return;if(sb)await saveOnline();else saveLocal()}
+async function saveNow(){if(window.__wdRel||!ACC.ready||!myCountryName)return;if(sb)await saveOnline();else saveLocal()}
 setInterval(()=>{if(!document.hidden)saveNow()},8000);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow()});addEventListener('pagehide',saveNow);
 A$('auth').addEventListener('click',e=>e.stopImmediatePropagation());
 A$('acc-chip').addEventListener('click',async()=>{if(!await wdConfirm('از حساب خارج می‌شوی؟','خروج'))return;await saveNow();try{localStorage.removeItem('wd_last')}catch(e){}try{if(sb)await sb.auth.signOut()}catch(e){}location.reload()});
@@ -3774,7 +3780,7 @@ try{WD_COLOR_HOOKS.after.push(function(n){if(OTH[n])paintOther(n)})}catch(e){con
    آتش‌بس المپیک، سقف ۱۵ کشور، نرخ تصرف و اثبات سیو را دور می‌زد؛ داوری فقط سمت سرور است.
    رفتارهای سالم حفظ شد: بوت‌استرپ پایتخت، first-come-first-served (lost)، سینک آفلاین (تریکل ۵تایی)،
    رهاکردن زمین‌های ازدست‌رفته، بیرق پایتخت تک‌تایی (حالا سمت سرور نرمال می‌شود) */
-async function syncTerr(){if(syncBusy||!sb||!ACC.uid||!ACC.ready||MP_OK!==true)return;syncBusy=true;
+async function syncTerr(){if(window.__wdRel||syncBusy||!sb||!ACC.uid||!ACC.ready||MP_OK!==true)return;syncBusy=true;
   try{try{await saveNow()}catch(e){} /* سیو تازه ⇒ اثبات مالکیت برای داور سرور */
     await loadStats();let f=await fetchTerr();DBMINE=f.mine;
     const held=new Set(conqueredCountries);if(myCountryName)held.add(myCountryName);const lost=[];
@@ -3864,6 +3870,14 @@ rankOnline=async function(box){box.append(mk('div','🌍 رتبه‌بندی س�
   m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span>🖥️ سرورها</span><span class="close-modal" style="cursor:pointer;font-size:18px;">✕</span></div><div id="srv-body"></div></div>';document.body.appendChild(m)})();
 function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';b.__wd139pick=null;
   b.append(el('div','هر سرور یک دنیای مشترک است. وقتی ۹۰ کشور در یک سرور تصرف شود، آن سرور «شلوغ» می‌شود و سرور بعدیِ خالی خودکار باز می‌شود. سرور 🧪 تستی برای عرضه‌ی عمومی نگه داشته شده و ورود به آن بسته است.','sites-sub'));
+  /* V140 — رها کردن کشور: فقط آنلاین + فقط وقتی چیزی برای رها کردن دارد. کلاس اختصاصی
+     wd140-rel (نه lobby-item) تا غنی‌ساز V96 ردیف‌ها را ایندکسی به سرورها مپ نکند */
+  try{if(typeof sb!=='undefined'&&sb&&ACC.uid&&MP_OK===true&&(myCountryName||(DBMINE&&DBMINE.size))){
+    const rb=el('div','','wd140-rel');
+    rb.append(el('div','🚪 رها کردن کشورم و شروع تازه','t'));
+    rb.append(el('span','قلمروهایت آزاد می‌شود و از صفر کشور جدید انتخاب می‌کنی — همین‌جا یا سرور دیگر. جم‌ها و خریدها و نشان‌هایت حفظ می‌شود.','s'));
+    rb.addEventListener('click',function(){wdReleaseCountry()});
+    b.append(rb)}}catch(e){}
   const O=window.WD_ONLINE||null;
   for(let k=1;k<=Math.max(srvMax()+1,SRV);k++){const t=taken(k),p=(STATS[k]&&STATS[k].players)||0,open=srvOpen(k),full=t>=SRV_CAP,ts=isTst(k);
     const onl=O&&O.at?O.servers[k]:undefined;
@@ -3900,6 +3914,51 @@ function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';b.__wd
     const ps=Object.keys(cnt).sort((a,c)=>cnt[c]-cnt[a]);
     if(!ps.length)pl.append(el('div','برای دیدن بازیکنان باید آنلاین باشی.','sites-sub'));
     ps.forEach(n=>{const r=el('div','','lr-row'+(n===ACC.nick?' me':''));r.append(el('span',n),el('span',faNum(cnt[n])+' کشور'));pl.append(r)})}
+}
+/* V140 — رها کردن کشور: دو مسیر — ماندن در همین سرور یا رفتن به سرور دیگر (حق انتخاب آزاد).
+   داوری فقط سرور (country_release): قلمروها آزاد، سیو/امتیاز صفر = دقیقاً شروع تازه؛
+   جم‌ها، خریدها و نشان‌های حساب حفظ می‌شوند. بعد از موفقیت رفرش کامل صفحه تا بوتِ تمیز =
+   همان مسیر بازیکن جدید (انتخاب کشور روی نقشه / در حالت انتقال، سرور تازه خودش لود می‌شود).
+   گارد __wdRel: از لحظه‌ی تأیید تا رفرش هیچ سیو/سینکی وضعیت قدیمی را دوباره نمی‌نویسد —
+   سیوی که درست در لحظه‌ی رفرش دیسپچ شود (pagehide/اتوسِ ۸ثانیه‌ای) نباید امپراتوریِ
+   رهاشده را در سرور زنده کند و رفرش را بی‌اثر کند. */
+async function wdReleaseCountry(){
+  if(window.__wdRel)return;
+  if(!sb||!ACC.uid||MP_OK!==true){showToast('⚠️ برای رها کردن کشور باید آنلاین باشی','lose');return}
+  if(!myCountryName&&!(DBMINE&&DBMINE.size)){showToast('🏳️ هنوز کشوری نداری — روی نقشه یک کشور آزاد انتخاب کن','lose');return}
+  const b=S$('srv-body');if(!b)return;
+  const mode=await new Promise(function(res){
+    b.textContent='';b.__wd139pick=null;
+    b.append(el('div','🚪 رها کردن کشور','sites-h'));
+    b.append(el('div','کشورها و قلمروهایت آزاد می‌شوند تا هر بازیکنی بگیردشان؛ پیشرفت امپراتوری در این جهان (منابع، ارتش، سازه‌ها، امتیاز رتبه‌بندی) مثل شروع تازه صفر می‌شود. جم‌ها و خریدها و نشان‌های حسابت حفظ می‌شوند. این کار برگشت ندارد.','sites-sub'));
+    const mkOpt=function(t,sub,val){const r=el('div','','lobby-item');r.style.cursor='pointer';
+      r.append(el('div',t,'lobby-item-text'));if(sub)r.append(el('span',sub,'lobby-item-sub'));
+      r.addEventListener('click',function(){res(val)});b.append(r)};
+    mkOpt('🏠 رها می‌کنم و همین‌جا کشور جدید انتخاب می‌کنم','در سرور '+faNum(SRV)+' می‌مانی — بعد از تأیید، روی نقشه یک کشور آزاد بزن','stay');
+    mkOpt('🚀 رها می‌کنم و به سرور دیگری می‌روم','سرور تازه‌ی خالی یا هر سرور بازِ دیگر — انتخاب با خودت','move');
+    const cc=el('div','✖ انصراف — برمی‌گردم','lobby-item');cc.style.cursor='pointer';cc.addEventListener('click',function(){res(null)});b.append(cc);
+  });
+  if(!mode){renderSrv();return}
+  let target=0;
+  if(mode==='move'){target=await chooseSrv()||pickServer();if(!target){renderSrv();return}}
+  const finalOk=await wdConfirm((target&&target!==SRV)
+    ? ('مطمئنی؟ همه‌ی قلمروهایت در سرور '+faNum(SRV)+' آزاد می‌شود، پیشرفتت در این جهان صفر می‌شود و در سرور '+faNum(target)+' از صفر شروع می‌کنی. برگشت ندارد.')
+    : 'مطمئنی؟ همه‌ی قلمروهایت آزاد می‌شود و پیشرفت امپراتوریت در این جهان از صفر شروع می‌شود. برگشت ندارد.','بله، رها کن');
+  if(!finalOk){renderSrv();return}
+  /* سیوِ درجریان اول تمام شود — بعد از پاک‌سازی سرور، هیچ بلاب قدیمی نباید بنشیند */
+  const t0=Date.now();while(ACC.busy&&Date.now()-t0<2500)await new Promise(function(r){setTimeout(r,60)});
+  window.__wdRel=1;
+  showToast('⏳ در حال آزادسازی قلمروها…','win');
+  let r=null;try{r=await sb.rpc('country_release',{p_target_server:target})}catch(e){}
+  const d=r&&r.data;
+  if(!d||!d.ok){
+    window.__wdRel=0;
+    const e=(d&&d.error)||'x';
+    showToast(e==='full'?'❌ آن سرور پُر است — یک سرور بازِ دیگر انتخاب کن':e==='test_server'?'🔒 ورود به سرور تستی برای بازیکنان عادی بسته است':'❌ انجام نشد — دوباره تلاش کن','lose');
+    renderSrv();return;
+  }
+  showToast(d.released>0?('🏳️ '+faNum(d.released)+' کشور آزاد شد — جهان خبردار می‌شود'):'🏳️ کشورت رها شد — حالا کشور جدیدت را انتخاب کن','win');
+  setTimeout(function(){location.reload()},600);
 }
 function renderSrvChip(){const c=S$('hud-srv'),t=S$('hud-t2');if(c)c.textContent=(window.WDS&&window.WDS.srvLabel)?window.WDS.srvLabel():(MP_OK===true?'🖥️ '+SRV+' ('+taken(SRV)+'/'+SRV_CAP+')':'🖥️ —');
   if(t){const n=conqueredCountries.size;t.textContent='🏴 '+n;t.title=n+' کشور'}}
@@ -4888,6 +4947,8 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
     if(a==='trade')return who+' با '+(whom||'بازیکن دیگر')+' معامله‌ی امن انجام داد.';
     if(a==='capture'||a==='conquer')return who+' کشور '+(fa||'نامعلوم')+' را فتح کرد.';
     if(a==='pvp_attack')return who+' به '+(fa||'نامعلوم')+' حمله کرد.';
+    /* V140 — رها کردن کشور */
+    if(a==='country_released')return '🏳️ '+who+' کشورش را رها کرد و از صفر شروع کرد — سرزمینش آزاد است.';
     /* V34 — social layer news */
     if(a==='streak_day')return '🔥 '+who+' استریک روز '+(String(Number(whom)||1).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]))+' ورود روزانه را گرفت.';
     if(a==='duel_open')return '⚔️ '+who+' به '+whom+' دعوت دوئر داد — شرط‌بندی روی برد در میدان دوئل باز است.';
@@ -12288,7 +12349,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=139';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=140';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -18138,7 +18199,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=139"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=140"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18164,7 +18225,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=139';
+              s.src='/game/cv-engine.js?v=140';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18175,7 +18236,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=139"></script>
+<script src="/game/oly3.js?v=140"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18189,7 +18250,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=139';
+      s.src='/game/oly3d.js?v=140';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19455,8 +19516,8 @@ try{if(window.MutationObserver){var _aQ=false;new MutationObserver(function(){if
 setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=139"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=139"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=140"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=140"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -20315,6 +20376,8 @@ function serverText(x){
   switch(String(x.action||'')){
     case 'pvp_capture':return '🏴 '+a+' کشور «'+c+'» را از دستان '+t+' بیرون کشید و به قلمرو امپراتوری‌اش افزود.';
     case 'pvp_attack':return '⚔️ '+a+' به دژ «'+c+'» (متعلق به '+t+') یورش برد؛ جبهه غرش می‌کند.';
+    /* V140 — رها کردن کشور */
+    case 'country_released':return '🏳️ '+a+' کشورش را رها کرد و از صفر شروع کرد؛ سرزمین‌هایش آزاد شده و در انتظار فاتح تازه است.';
     default:return '🌍 '+a+' — '+(x.action||'رویداد')+' روی '+c}
 }
 var N1={render:function(b){
