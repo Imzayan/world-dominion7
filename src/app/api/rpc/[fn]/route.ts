@@ -1320,22 +1320,13 @@ async function testSrvsSet(list: number[]) {
   TST_CACHE = { at: Date.now(), list }
 }
 
-/* V143 — قفل زنجیره‌ای سرورها (دستور صریح مالک: «الکی سرور اضافه نکن؛ هر وقت سرور قبلی به نود کشور
-   رسید بعد سرور جدید بساز»): سرور k فقط وقتی «باز» است که همه‌ی سرورهای غیرتستیِ قبلش ۹۰/۹۰ پُر
-   شده باشند. سمت کلاینت (srvOpen) همین قانون را در فهرست‌ها اعمال می‌کند؛ این نسخه‌ی سمت سرور
-   همان داوری را روی مسیر نوشتن قلمرو تکرار می‌کند تا هیچ ادعای تازه‌ای روی سرورِ قفل ممکن نشود. */
-async function srvChainOpen(server: number): Promise<boolean> {
-  const tst = await testSrvsGet()
-  if (tst.includes(server)) return false
-  if (server <= 1) return !tst.includes(1)
-  const stats = await db.serverStat.findMany({ where: { server: { lt: server } }, select: { server: true, taken: true } })
-  const takenOf = new Map(stats.map((s) => [s.server, s.taken]))
-  for (let k = 1; k < server; k++) {
-    if (tst.includes(k)) continue /* سرور تستی زنجیره را نمی‌بندد — فقط درِ ورودش بسته است */
-    if ((takenOf.get(k) || 0) < SRV_CAP_GLOBAL) return false
-  }
-  return true
-}
+/* V144 — داوری سرورمحررِ انتخاب سرور (دستور تازه‌ی مالک: «پلیرهای جدید که کشور انتخاب نکردن آزادانه
+   به سرورها رفت‌وآمد داشته باشن، فضای درون سرورها رو ببینن و انتخاب کنن در کدوم سرور باشن»):
+   هر سرورِ غیرتستیِ غیرپُر برای ادعای تازه باز است — قفلِ زنجیره‌ایِ V143 برداشته شد.
+   قانونِ ۹۰ کشور فقط برای «ساختنِ» سرورِ بعدی است (wd_servers: سرور خالی فقط وقتی همه‌ی
+   سرورهای غیرتستیِ شناخته‌شده ۹۰/۹۰ پُر باشند به فهرست اضافه می‌شود) — نه برای قفلِ انتخاب.
+   مستثنا (ساکنانِ واقعی): کسی که عضو همین سرور است (score.server) یا قلمروی دارد؛ و سرورِ
+   پُرشده فقط جلوی تازه‌وارد را می‌گیرد — ساکنانش دست‌نخورده به بازی ادامه می‌دهند. */
 
 /** daily login bonus: +20 gems per calendar day (atomic — no double-claim race) */
 async function dailyBonus(userId: string) {
@@ -3539,14 +3530,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if ((await testSrvsGet()).includes(server) && !user.isAdmin && current.length === 0) {
           return R({ ok: false, test_server: true, granted: [], denied: [], lost: [], mine: [] })
         }
-        /* V143 — قفل زنجیره‌ای ۹۰کشوری: ادعای تازه فقط روی سرورِ بازِ زنجیره. مستثنا (ساکنانِ واقعی):
-           کسی که همین حالا در این سرور عضو است (سطر score.server) یا قلمروی دارد — ساکنانِ
-           پیشین دست‌نخورده بازی می‌کنند؛ فقط پرش به سرورهایِ جلوی زنجیره بسته می‌شود */
+        /* V144 — انتخاب آزادِ سرور (دستور مالک): ادعای تازه روی هر سرورِ غیرتستیِ غیرپُر مجاز است.
+           ساکنانِ واقعی (score.server = همین سرور، یا قلمروی موجود) همیشه مجاز — حتی سرورِ پُر.
+           سرورِ پُر (۹۰/۹۰) فقط جلوی تازه‌وارد را می‌گیرد: server_full — جا نیست */
         if (current.length === 0) {
           const scRow = await db.score.findUnique({ where: { userId: user.id }, select: { server: true } })
-          const isMember = scRow?.server === server
-          if (!isMember && !(await srvChainOpen(server))) {
-            return R({ ok: false, server_locked: true, granted: [], denied: [], lost: [], mine: [] })
+          const isMember = !!scRow && scRow.server === server
+          if (!isMember) {
+            const stRow = await db.serverStat.findUnique({ where: { server }, select: { taken: true } })
+            if ((stRow?.taken || 0) >= SRV_CAP_GLOBAL) {
+              return R({ ok: false, server_full: true, granted: [], denied: [], lost: [], mine: [] })
+            }
           }
         }
         const mine = new Set(current.map((t) => t.country))
@@ -5702,12 +5696,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const tst = await testSrvsGet()
         const stats = await db.serverStat.findMany()
         const takenOf = new Map(stats.map((s) => [s.server, s.taken]))
-        /* V139 — سرورهای پویا: فهرست دیگر به ۵ سرور محدود نیست؛ آخرین سرورِ شناخته‌شده (آمار + حضور) +
-           سرورِ بعدیِ خالی همیشه در فهرست است. سقف هر سرور ۹۰ کشور است؛ با پرشدن، سرور بعدی بلافاصله «باز» می‌شود */
+        /* V139 — سرورهای پویا: فهرست دیگر به ۵ سرور محدود نیست؛ آخرین سرورِ شناخته‌شده (آمار + حضور)
+           سقف فهرست است. V144 — قانون «الکی سرور اضافه نکن» (دستور مالک): سرورِ خالیِ بعدی فقط وقتی
+           به فهرست اضافه می‌شود که همه‌ی سرورهایِ شناخته‌شده‌ی غیرتستی ۹۰/۹۰ پُر شده باشند —
+           نه یک سرور خالیِ همیشگی در انتهای فهرست. انتخاب بین سرورهای موجود آزاد است. */
         let maxKnown = 1
         for (const s of stats) if (s.server > maxKnown) maxKnown = s.server
         for (const k of Object.keys(bySrv)) { const n = Number(k); if (n > maxKnown) maxKnown = n }
-        const SRV_COUNT = maxKnown + 1 /* +۱: سرور بعدیِ خالی هم در فهرست دیده شود */
+        let allKnownFull = true
+        for (let k = 1; k <= maxKnown; k++) {
+          if (tst.includes(k)) continue /* سرور تستی در پُر بودن جهان حساب نمی‌شود */
+          if ((takenOf.get(k) || 0) < SRV_CAP_GLOBAL) { allKnownFull = false; break }
+        }
+        const SRV_COUNT = allKnownFull ? maxKnown + 1 : maxKnown /* +۱ فقط وقتی کل جهان پُر است */
         /* نگهداری‌ها یکجا — به‌جای یک کوئری به‌ازای هر سرور (تعداد سرورها حالا نامحدود است) */
         const maintRows = await db.gameSetting.findMany({ where: { key: { startsWith: 'srv_maint_' } } })
         const maintOf = new Map<number, boolean>()

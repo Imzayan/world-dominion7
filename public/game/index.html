@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=143;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=144;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <script>
   /* V132 PERF GOVERNOR — یک پچِ سراسری قبل از همه‌ی اسکریپت‌های بازی.
      ۱) دستگاه ضعیف: بازه‌های نظرسنجیِ ≥۵ثانیه (presence/ذخیره/متادیتا/چت-پس‌زمینه) کشیده می‌شوند ×۱.۴
@@ -31,13 +31,13 @@
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=143">
+   <link rel="preload" as="script" href="/game/balance.js?v=144">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=143">
-   <link rel="preload" as="script" href="/game/social.js?v=143">
-   <link rel="preload" as="script" href="/game/mentor.js?v=143">
-  <script src="/game/balance.js?v=143"></script>
+   <link rel="preload" as="script" href="/game/oly3.js?v=144">
+   <link rel="preload" as="script" href="/game/social.js?v=144">
+   <link rel="preload" as="script" href="/game/mentor.js?v=144">
+  <script src="/game/balance.js?v=144"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -3728,19 +3728,25 @@ const nickHue=n=>{let h=11;for(const c of String(n))h=(h*37+c.charCodeAt(0))%360
 const taken=k=>(STATS[k]&&STATS[k].taken)||0;
 /* V139: بیشترین شماره‌ی سرورِ شناخته‌شده (آمار + آنلاین‌ها) — فهرست/انتخاب سرور دیگر به ۵ محدود نیست */
 const srvMax=()=>{let m=1;for(const k in STATS){const n=Number(k);if(n>m)m=n}const S=window.WD_ONLINE&&window.WD_ONLINE.servers;if(S)for(const k in S){const n=Number(k);if(n>m)m=n}return m};
-/* V143 — بازگشت به قفل زنجیره‌ای ۹۰کشوری (دستور صریح مالک: «الکی سرور اضافه نکن؛ هر وقت سرور قبلی
-   به نود کشور رسید بعد سرور جدید بساز که پلیرها بتونن اونجا برن»): سرور k فقط وقتی باز است که
-   همه‌ی سرورهای غیرتستیِ قبلش ۹۰/۹۰ پُر شده باشند. سرورِ تازه دقیقاً همان لحظه‌ای که آخرین
-   سرور پُر شود خودکار ظاهر می‌شود (نه زودتر، نه سرور الکی). سرور پُرشده «شلوغ» برچسب می‌خورد
-   و برای انتخاب کشورِ جدید قابل قبول نیست (جا نیست). ساکنان فعلی هر سرور دست‌نخورده می‌مانند.
+/* V144 — انتخابِ آزادِ سرور (دستور مالک: «پلیرهای جدید که کشور انتخاب نکردن آزادانه به سرورها
+   رفت‌وآمد داشته باشن، فضای درون سرورها رو ببینن و انتخاب کنن در کدوم سرور میخوان باشن —
+   رو هر سرور بزنن وارد نقشه همون سرور بشن»): هر سرورِ غیرتستی برای ورود/انتخابِ کشورِ تازه
+   باز است؛ قفلِ زنجیره‌ایِ V143 برداشته شد. قانونِ ۹۰ کشور فقط برای «ساختنِ» سرورِ بعدی
+   می‌ماند (srvListTop): سرورِ خالیِ تازه فقط وقتی به فهرست اضافه می‌شود که همه‌ی سرورهای
+   شناخته‌شده‌ی غیرتستی ۹۰/۹۰ پُر شده باشند — «الکی سرور اضافه نشود». سرورِ پُر «شلوغ» است
+   و جایی برای تازه‌وارد ندارد؛ ساکنانِ خودش دست‌نخورده بازی می‌کنند.
    هر سرور دنیای مستقل خودش را دارد (مالکیت/جنگ/اتحاد/چت/اخبار/رتبه — همه کلید server دارند). */
-const srvOpen=k=>{k=Number(k);if(!(k>=1))return false;if(k===1)return !isTst(1);
-  for(let i=1;i<k;i++){if(isTst(i))continue;if(!srvOpen(i)||taken(i)<SRV_CAP)return false}
-  return !isTst(k)};
-/* V143: آخرین سرورِ بازِ زنجیره — فهرست‌ها فقط همین پیشوند را نشان می‌دهند (بدون سرورِ الکیِ قفل) */
-function srvFrontier(){let M=1;const lim=srvMax()+1;for(let k=1;k<=lim;k++)if(srvOpen(k))M=k;return M}
-/* V139: پیش‌فرضِ ورود = نخستین سرورِ بازِ پُرنشده (تازه‌ترین سرورِ خالی)؛ اگر همه‌ی بازها پُر بودند، سرور بعدی همان لحظه ساخته می‌شود */
-function pickServer(){for(let k=1;k<=srvMax()+1;k++)if(srvOpen(k)&&taken(k)<SRV_CAP)return k;return srvMax()+1}
+const srvOpen=k=>{k=Number(k);return k>=1&&!isTst(k)};
+/* V144: بالاترین شماره‌ی سروری که در فهرست‌ها نمایش داده می‌شود — سرورهای شناخته‌شده (آمار +
+   آنلاین‌ها) + سرورِ خودِ بازیکن؛ و سرورِ خالیِ بعدی فقط وقتی که همه‌ی غیرتستی‌ها پُر شده باشند.
+   این همان قانون «هر وقت سرور قبلی به نود کشور رسید بعد سرور جدید بساز» است — نه زودتر، نه سرور الکی */
+function srvListTop(){let M=1;for(const k in STATS){const n=Number(k);if(n>M)M=n}
+  const S=window.WD_ONLINE&&window.WD_ONLINE.servers;if(S)for(const k in S){const n=Number(k);if(n>M)M=n}
+  let allFull=true;for(let k=1;k<=M;k++){if(isTst(k))continue;if(taken(k)<SRV_CAP){allFull=false;break}}
+  if(allFull&&M<500)M=M+1; /* همه‌ی جهان پُر است ⇒ سرور جدید همان لحظه ساخته می‌شود */
+  return Math.max(M,Number(SRV)||1)}
+/* V144: پیش‌فرضِ ورود = نخستین سرورِ غیرتستیِ پُرنشده (پیشنهاد)؛ اگر همه پُر بودند، سرور تازه‌ی ساخته‌شده */
+function pickServer(){const N=srvListTop();for(let k=1;k<=N;k++)if(srvOpen(k)&&taken(k)<SRV_CAP)return k;return N}
 async function loadStats(){try{const r=await sb.from('server_stats').select('server,taken,players');if(r.error)throw r.error;STATS={};(r.data||[]).forEach(x=>STATS[x.server]=x);MP_OK=true}catch(e){MP_OK=false;console.log(e)}}
 async function fetchTerr(){const r=await sb.from('territories').select('country,user_id,nick,is_capital').eq('server',SRV).limit(400);if(r.error)throw r.error;
   const oth={},mine=new Set();(r.data||[]).forEach(x=>{if(x.user_id===ACC.uid)mine.add(x.country);else oth[x.country]={nick:x.nick,cap:x.is_capital,uid:x.user_id}});return{oth,mine}} /* V107: uid برای شناسنامه/پیوی */
@@ -3810,37 +3816,45 @@ async function syncTerr(){if(window.__wdRel||syncBusy||!sb||!ACC.uid||!ACC.ready
     if(!SRV_OK&&myCountryName){const r2=await sb.from('scores').update({server:SRV}).eq('user_id',ACC.uid).select('server');if(!r2.error&&r2.data&&r2.data.length)SRV_OK=true}}
   catch(e){console.log(e)}
   syncBusy=false}
-/* V143 — انتخابگر سرور برای بازیکنِ بدون کشور (نصب تازه یا هر دلیل دیگر — دستور مالک):
-   فقط سرورهایِ بازِ زنجیره در فهرست‌اند (پیشوند ۱..M — هیچ سرورِ الکیِ قفلی لیست نمی‌شود)؛
-   سرورِ بعدی دقیقاً وقتی ظاهر می‌شود که سرور قبلی ۹۰/۹۰ شود. لمس هر سرور = ورود به نقشه‌ی
-   همان سرور برای انتخاب کشور. سرور پُر (شلوغ) قابل انتخاب نیست — جا ندارد.
-   پیش‌فرض و پیشنهاد = نخستین سرورِ بازِ پُرنشده (pickServer). بستن پنجره به هر روشی
-   (✕ / بک‌دراپ / Escape) = انتخاب خودکارِ سرور پیشنهادی — بدون بن‌بست. */
+/* V144 — صفحه‌ی انتخاب سرور برای بازیکنِ بدونِ کشور (نصب تازه یا هر دلیل — دستور مالک:
+   «میخوام پلیر های جدید که بازیو نصب میکنن صفحه‌ی انتخاب سرور رو ببینن و خودشون انتخاب کنن»):
+   • همه‌ی سرورهای موجود با فضایِ درونشان فهرست می‌شوند: X/۹۰ کشور، تعداد بازیکن و آنلاینِ زنده‌ی
+     هر سرور («بتونن فضای درون سرور هارو ببینن») — شمارنده‌ی آنلاین هر ردیف با ضربان presence
+     درجا تازه می‌شود (id=wdonl-K → wdPaintOnlineCounts) پس دیگر عددِ کهنه/سرورِ دیگر دیده نمی‌شود.
+   • لمس هر سرورِ باز = ورود به نقشه‌ی همان سرور برای انتخاب کشور («رو هر سرور بزنن وارد نقشه همون سرور بشن»).
+   • سرورِ پُر (شلوغ) قابل انتخاب نیست — جا ندارد؛ سرور تستی درِ ورودش بسته است.
+   • پیش‌فرض و پیشنهاد = نخستین سرورِ پُرنشده (pickServer). بستن پنجره به هر روشی
+     (✕ / بک‌دراپ / Escape) = انتخاب خودکارِ سرور پیشنهادی — بدون بن‌بست.
+   • سرورِ خالیِ جدید فقط وقتی در فهرست می‌آید که همه‌ی سرورهای موجود ۹۰/۹۰ پُر شوند (srvListTop). */
 function chooseSrv(){
   return new Promise(function(resolve){
     let settled=false,guard=null;const rec=pickServer();
     const settle=function(k){if(settled)return;settled=true;if(guard){clearInterval(guard);guard=null}
       try{const b2=S$('srv-body');if(b2)b2.__wd139pick=null}catch(e){}
-      try{closeModal('m-srv')}catch(e){}resolve(k)};
+      try{closeModal('m-srv')}catch(e){}
+      resolve(k)};
     const b=S$('srv-body'),mm=S$('m-srv');
     if(!b||!mm||MP_OK!==true){resolve(rec);return}
-    b.__wd139pick=1; /* انتخابگر فعال — غنی‌ساز V96 (augmentSrvList) دست به این ردیف‌ها نمی‌زند */
-    const O=window.WD_ONLINE||null,mt=Math.max(srvFrontier(),rec);
+    b.__wd139pick=1; /* انتخابگر فعال — غنی‌ساز V96 (augmentSrvList) و رندرِ مجددِ ضربان دست به این بدنه نمی‌زنند */
+    const N=Math.max(srvListTop(),rec);
     try{const t2=mm.querySelector('.modal-title-row span');if(t2)t2.textContent='🖥️ سرورت را انتخاب کن'}catch(e){}
     b.textContent='';
-    b.append(el('div','هر سرور یک دنیای مستقل است — مالکیت، جنگ‌ها، اتحادها، چت، اخبار و رتبه‌بندی هر سرور مالِ خودش است. سرورها قفل زنجیره‌ای دارند: سرور بعدی فقط وقتی باز می‌شود که سرور قبلی ۹۰ کشور تصرف شده باشد. روی سرورِ باز بزن تا وارد نقشه‌ی همان سرور بشوی و کشورت را انتخاب کنی.','sites-sub'));
-    for(let k=1;k<=mt;k++){
-      const t=taken(k),p=(STATS[k]&&STATS[k].players)||0,open=srvOpen(k),full=t>=SRV_CAP,ts=isTst(k),onl=O&&O.at?O.servers[k]:undefined;
+    b.append(el('div','هر سرور یک دنیای مستقل است — مالکیت، جنگ‌ها، اتحادها، چت، اخبار و رتبه‌بندی هر سرور مالِ خودش است. آزادانه بین سرورها رفت‌وآمد کن و فضای هر سرور را ببین؛ روی هر سروری که جا دارد بزن تا وارد نقشه‌ی همان سرور بشوی و کشورت را آنجا انتخاب کنی. سرورِ جدید فقط وقتی ساخته می‌شود که همه‌ی سرورهای فعلی ۹۰ کشورِ تصرف‌شده داشته باشند.','sites-sub'));
+    for(let k=1;k<=N;k++){
+      const t=taken(k),p=(STATS[k]&&STATS[k].players)||0,open=srvOpen(k),full=t>=SRV_CAP,ts=isTst(k),O=window.WD_ONLINE||null;
+      const onl=(O&&O.at)?O.servers[k]:undefined;
       const r=el('div','','lobby-item'+(k===rec?' me':''));
       r.append(el('div','سرور '+faNum(k)+(ts?' 🧪':'')+' — '+faNum(t)+'/'+faNum(SRV_CAP)+' کشور • '+faNum(p)+' بازیکن','lobby-item-text'));
-      r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':!open?'🔒 قفل — بعد از پُر شدن سرورهای قبلی باز می‌شود':full?'🔴 شلوغ — ۹۰/۹۰؛ سرور جدید باز شده، همان را انتخاب کن':(k===rec?'🟢 خالی — پیشنهادی برای شروع':'🟢 باز — برای ورود بزن'),'lobby-item-sub'));
-      if(typeof onl==='number')r.append(el('div','🟢 '+faNum(onl)+' بازیکن آنلاین همین حالا','lobby-item-sub'));
+      r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':full?'🔴 شلوغ — ۹۰/۹۰؛ برای تازه‌واردها جا ندارد':(k===rec?'🟢 خالی — پیشنهادی برای شروع':'🟢 باز — برای ورود بزن'),'lobby-item-sub'));
+      const ol=el('div','🟢 '+(typeof onl==='number'?faNum(onl)+' بازیکن آنلاین همین حالا':'در حال دریافت آنلاین‌ها…'),'lobby-item-sub');
+      ol.id='wdonl-'+k;r.append(ol);
       if(open&&!ts&&!full){r.style.cursor='pointer';r.addEventListener('click',function(){settle(k)})}
       b.append(r)}
     const auto=el('div','✅ ببرم به سرورِ پیشنهادی (سرور '+faNum(rec)+')','lobby-item');
     auto.style.cursor='pointer';auto.addEventListener('click',function(){settle(rec)});b.append(auto);
     b.append(el('div','اگر پنجره را ببندی، خودکار به سرور پیشنهادی می‌روی.','sites-sub'));
     openModal('m-srv');
+    try{wdPresenceBeat(true)}catch(e){} /* شمارنده‌های آنلاین هر ردیف با پاسخ ضربان درجا تازه می‌شوند */
     guard=setInterval(function(){const m2=S$('m-srv');if(!m2||!m2.classList.contains('active'))settle(rec)},350);
   })}
 async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
@@ -3855,13 +3869,21 @@ async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
   /* V86: تازه‌سازی لیست سرورهای تستی از سرور — بعد از «حالت عرضه‌ی مایکت» سرور ۱ خودکار باز می‌شود.
      V139: سقف ۹۰کشوری هم از srv_meta همگام می‌شود (تک‌منبع = سرور) */
   try{const m=await sb.rpc('srv_meta');const md=(m&&m.data)||{};const tl=md.test_srvs;if(Array.isArray(tl))WD_TST=tl.map(Number).filter(n=>n>=1);const mc=Number(md.cap);if(mc>=10&&mc<=180)SRV_CAP=mc}catch(e){}
-  /* V139: بازیکنِ بدون‌سرور = پلیر جدید — پنجره‌ی انتخاب سرور باز می‌شود (پیشنهاد: تازه‌ترین سرورِ خالی) */
+  /* V139/V144: بازیکنِ بدونِ سرور (server=0 «انتخاب‌نشده» — حالا واقعاً حالتِ نصبِ تازه) = پلیر جدید —
+     صفحه‌ی انتخاب سرور باز می‌شود (پیشنهاد: نخستین سرورِ پُرنشده) */
   try{const r=await sb.from('scores').select('server').eq('user_id',ACC.uid).maybeSingle();
     if(r.data&&r.data.server){SRV=r.data.server;SRV_OK=true}
     else{SRV_OK=false;SRV=(MP_OK===true)?await chooseSrv():pickServer();
-      /* V143: عضویت سرورِ انتخاب‌شده بلافاصله ثبت می‌شود (قبل از ادعای کشور) تا territory_sync
-         سمت سرور و بوت‌های بعدی همان سرور را بشناسند — بدون این، انتخابگر بعد از هر رفرش تکرار می‌شد */
-      try{const pr=await sb.from('scores').update({server:SRV}).eq('user_id',ACC.uid).select('server');if(pr&&!pr.error&&pr.data&&pr.data.length)SRV_OK=true}catch(pe){console.log(pe)}}}catch(e){SRV_OK=false;SRV=pickServer()}
+      /* V143/V144: عضویت سرورِ انتخاب‌شده بلافاصله ثبت می‌شود (قبل از ادعای کشور) تا territory_sync
+         سمت سرور و بوت‌های بعدی همان سرور را بشناسند — بدون این، انتخابگر بعد از هر رفرش تکرار می‌شد.
+         V144: اگر سطر scores اصلاً وجود نداشت، همین‌جا ساخته می‌شود تا انتخابِ بازیکن گم نشود */
+      try{const pr=await sb.from('scores').update({server:SRV}).eq('user_id',ACC.uid).select('server');
+        if(pr&&!pr.error&&pr.data&&pr.data.length)SRV_OK=true;
+        else{const ir=await sb.from('scores').insert({user_id:ACC.uid,nick:ACC.nick||'بازیکن',server:SRV,conquered:0,score:0,kills:0,economy:0,recruits:0});if(ir&&!ir.error)SRV_OK=true}}catch(pe){console.log(pe)}}}catch(e){SRV_OK=false;SRV=pickServer()}
+  /* V144: حضورِ آنی در سرورِ انتخابی — ردیف presence بی‌درنگ جابه‌جا می‌شود (دیگر تا ۵۰ ثانیه روی
+     سرور قبلی باقی نمی‌ماند) و گوش‌دهنده‌های ماژول اجتماعی (social.js) همین حالا تازه می‌شوند */
+  try{window.dispatchEvent(new CustomEvent('wd-srv-changed',{detail:SRV}))}catch(e){}
+  try{wdPresenceBeat(true)}catch(e){}
   renderSrvChip();try{await sb.rpc('release_inactive_territories')}catch(e){}await syncTerr();
   if(!window.__wdSyncLoop){window.__wdSyncLoop=true; /* V71: گارد یک‌بار — قبلاً هر لاگین +۱ interval و +۱ listener انباشته می‌شد */
     setInterval(()=>{if(!document.hidden)syncTerr()},SYNC_MS);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncTerr()})}}
@@ -3886,18 +3908,17 @@ rankOnline=async function(box){box.append(mk('div','🌍 رتبه‌بندی س�
 /* servers window + chips */
 (function(){const m=document.createElement('div');m.id='m-srv';m.className='modal';
   m.innerHTML='<div class="modal-card"><div class="modal-title-row"><span>🖥️ سرورها</span><span class="close-modal" style="cursor:pointer;font-size:18px;">✕</span></div><div id="srv-body"></div></div>';document.body.appendChild(m)})();
-/* V143 — لمس هر سرور در فهرست = ورود به نقشه‌ی همان سرور (دستور مالک).
+/* V144 — لمس هر سرور در فهرست = ورود به نقشه‌ی همان سرور (دستور مالک؛ رفت‌وآمدِ آزاد).
    • بی‌کشور (نصب تازه یا هر دلیل): عضویت همان‌جا ثبت، بوتِ تمیز، و نقشه‌ی همان سرور باز می‌شود —
-     (وارد نقشه‌ی همان سرور می‌شوی و کشور آزاد انتخاب می‌کنی)
+     (وارد نقشه‌ی همان سرور می‌شوی و کشور آزاد انتخاب می‌کنی) — هر تعداد جابه‌جایی تا قبل از ادعای کشور آزاد است
    • دارای کشور: دو کشور در دو سرور نداریم — اول باید کشور را رها کنی (مسیر V140 خودکار باز می‌شود)
-   • سرور تستی/پُر/قفلِ زنجیره: با پیام دقیق رد می‌شود */
+   • سرور تستی/پُر: با پیام دقیق رد می‌شود؛ سرورِ قفلِ زنجیره‌ای دیگر وجود ندارد (انتخاب آزاد است) */
 async function wdEnterSrv(k){
   k=Number(k);if(!(k>=1))return;
   if(k===SRV){try{closeModal('m-srv')}catch(e){}
     showToast(myCountryName||(DBMINE&&DBMINE.size)?'🖥️ همین حالا در سرور '+faNum(k)+' هستی':'🖥️ در سرور '+faNum(k)+' هستی — روی نقشه یک کشور آزاد بزن','win');return}
   if(isTst(k)){showToast('🔒 سرور تستی — درِ ورود بسته است','lose');return}
-  if(!srvOpen(k)){showToast('🔒 سرور '+faNum(k)+' هنوز باز نشده — سرورهای قبلی هنوز پُر نشده‌اند','lose');return}
-  if(taken(k)>=SRV_CAP){showToast('🔴 سرور '+faNum(k)+' پُر است (۹۰/۹۰) — سرور جدید خودکار باز شده؛ همان را انتخاب کن','lose');return}
+  if(taken(k)>=SRV_CAP){showToast('🔴 سرور '+faNum(k)+' پُر است (۹۰/۹۰) — برای تازه‌واردها جا ندارد؛ سرور جدید وقتی همه‌ی سرورها پُر شوند باز می‌شود','lose');return}
   if(myCountryName||(DBMINE&&DBMINE.size)){
     showToast('🚪 برای رفتن به سرور '+faNum(k)+' اول باید کشورت را رها کنی — دو کشور در دو سرور نداریم','lose');
     try{wdReleaseCountry()}catch(e){}
@@ -3908,12 +3929,16 @@ async function wdEnterSrv(k){
     const r=await sb.from('scores').update({server:k}).eq('user_id',ACC.uid).select('server');
     if(!r.error&&r.data&&r.data.length)SRV_OK=true;
     try{window.SRV=k}catch(e){}
+    /* V144: حضور آنی — ردیف presence قبل از رفرش به سرور تازه می‌رود (دیگر چند ثانیه
+       «آنلاین بودن من» روی سرور قبلی باقی نمی‌ماند) + ماژول اجتماعی بلافاصله تازه می‌شود */
+    try{window.dispatchEvent(new CustomEvent('wd-srv-changed',{detail:k}))}catch(e){}
+    try{wdPresenceBeat(true)}catch(e){}
   }catch(e){console.log(e)}
   showToast('🖥️ وارد سرور '+faNum(k)+' شدی — نقشه‌اش را برایت باز می‌کنیم…','win');
   setTimeout(function(){location.reload()},700);
 }
-function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';b.__wd139pick=null;
-  b.append(el('div','هر سرور یک دنیای مستقل است — اطلاعات، آنلاین‌ها و برترها فقط مالِ همان سرور. سرورها قفل زنجیره‌ای دارند: سرور بعدی فقط وقتی باز می‌شود که سرور قبلی ۹۰ کشور تصرف شده باشد. روی سرورِ باز بزن تا وارد نقشه‌ی همان سرور بشوی.','sites-sub'));
+function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';b.__wd139pick=null;b.__wdRelFlow=null;
+  b.append(el('div','هر سرور یک دنیای مستقل است — اطلاعات، آنلاین‌ها و برترها فقط مالِ همان سرور. اگر کشور نداری آزادانه هر سروری را که جا دارد انتخاب کنی و با لمسش وارد نقشه‌ی همان سرور بشوی؛ سرورِ جدید هم فقط وقتی ساخته می‌شود که همه‌ی سرورهای فعلی ۹۰ کشورِ تصرف‌شده داشته باشند.','sites-sub'));
   /* V140 — رها کردن کشور: فقط آنلاین + فقط وقتی چیزی برای رها کردن دارد. کلاس اختصاصی
      wd140-rel (نه lobby-item) تا غنی‌ساز V96 ردیف‌ها را ایندکسی به سرورها مپ نکند */
   try{if(typeof sb!=='undefined'&&sb&&ACC.uid&&MP_OK===true&&(myCountryName||(DBMINE&&DBMINE.size))){
@@ -3923,17 +3948,17 @@ function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';b.__wd
     rb.addEventListener('click',function(){wdReleaseCountry()});
     b.append(rb)}}catch(e){}
   const O=window.WD_ONLINE||null;
-  /* V143: فقط پیشوندِ بازِ زنجیره + سرور خودِ بازیکن (اگر ساکنِ سروری خارج از پیشوند باشد — عصر انتخاب-آزاد)
-     هیچ سرورِ الکیِ قفلی رندر نمی‌شود؛ ترتیب ۱..M حفظ می‌شود تا غنی‌ساز V96 (ایندکسی) سالم بماند */
-  let M2=1;{const lim=srvMax()+1;for(let k=1;k<=lim;k++)if(srvOpen(k))M2=k}
-  M2=Math.max(M2,Number(SRV)||1);
+  /* V144: همه‌ی سرورهای شناخته‌شده + سرورِ خودِ بازیکن (srvListTop: سرورِ خالیِ تازه فقط وقتی
+     کل جهان پُر است اضافه می‌شود) — بدون ردیفِ قفلی؛ ترتیب ۱..M حفظ می‌شود تا غنی‌ساز V96 (ایندکسی) سالم بماند */
+  const M2=srvListTop();
   for(let k=1;k<=M2;k++){const t=taken(k),p=(STATS[k]&&STATS[k].players)||0,open=srvOpen(k),full=t>=SRV_CAP,ts=isTst(k);
-    const onl=O&&O.at?O.servers[k]:undefined;
+    const onl=(O&&O.at)?O.servers[k]:undefined;
     const mine2=(k===SRV);
     const r=el('div','','lobby-item'+(mine2?' me':''));
     r.append(el('div','سرور '+faNum(k)+(mine2?' (تو اینجایی)':'')+(ts?' 🧪':'')+' — '+faNum(t)+'/'+faNum(SRV_CAP)+' کشور • '+faNum(p)+' بازیکن','lobby-item-text'));
-    r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':mine2?(full?'🏠 سرور فعلی تو — 🔴 پُر شده (۹۰/۹۰)':'🏠 سرور فعلی تو'):!open?'🔒 قفل — بعد از پُر شدن سرورهای قبلی باز می‌شود':full?'🔴 شلوغ — ۹۰/۹۰؛ سرور جدید باز شده':'🟢 باز — برای ورود به نقشه بزن','lobby-item-sub'));
-    if(typeof onl==='number')r.append(el('div','🟢 '+faNum(onl)+' بازیکن آنلاین همین حالا','lobby-item-sub')); /* V125 */
+    r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':mine2?(full?'🏠 سرور فعلی تو — 🔴 پُر شده (۹۰/۹۰)':'🏠 سرور فعلی تو'):full?'🔴 شلوغ — ۹۰/۹۰؛ برای تازه‌واردها جا ندارد':(myCountryName||(DBMINE&&DBMINE.size))?'🏠 برای ورود اول کشورت را رها کن':'🟢 باز — برای ورود به نقشه بزن','lobby-item-sub'));
+    const ol=el('div','🟢 '+(typeof onl==='number'?faNum(onl)+' بازیکن آنلاین همین حالا':'در حال دریافت آنلاین‌ها…'),'lobby-item-sub');
+    ol.id='wdonl-'+k;r.append(ol); /* V144: شمارنده با هر ضربان presence درجا تازه می‌شود */
     if(!ts&&open&&!full&&!mine2){r.style.cursor='pointer';r.addEventListener('click',function(){wdEnterSrv(k)})}
     b.append(r)}
   /* V125 BUGFIX «فقط خودم را نشان می‌دهد»: تا امروز این فهرست از حافظه‌ی محلی مرورگر (OTH)
@@ -3981,7 +4006,7 @@ async function wdReleaseCountry(){
   try{const md=S$('m-srv');if(md&&!md.classList.contains('active')){renderSrv();openModal('m-srv')}}catch(e){}
   const b=S$('srv-body');if(!b)return;
   const mode=await new Promise(function(res){
-    b.textContent='';b.__wd139pick=null;
+    b.textContent='';b.__wd139pick=null;b.__wdRelFlow=1; /* V144: ضربانِ presence وسط این جریان بدنه را از نو نمی‌سازد */
     b.append(el('div','🚪 رها کردن کشور','sites-h'));
     b.append(el('div','کشورها و قلمروهایت آزاد می‌شوند تا هر بازیکنی بگیردشان؛ پیشرفت امپراتوری در این جهان (منابع، ارتش، سازه‌ها، امتیاز رتبه‌بندی) مثل شروع تازه صفر می‌شود. جم‌ها و خریدها و نشان‌های حسابت حفظ می‌شوند. این کار برگشت ندارد.','sites-sub'));
     const mkOpt=function(t,sub,val){const r=el('div','','lobby-item');r.style.cursor='pointer';
@@ -4041,7 +4066,12 @@ window.wdPresenceBeat=async function(force){
       window.WD_ONLINE.players=(d.players||[]).map(p=>p.nick).filter(Boolean);
       window.WD_ONLINE.at=Date.now();
       try{window.wdPaintOnlineCounts()}catch(e){}
-      try{const m=document.getElementById('m-srv');if(m&&m.classList.contains('active'))renderSrv()}catch(e){}
+      /* V144 FIX «اطلاعات سرور یک در سرورهای بعدی نشون داده میشه»: پاسخِ ضربان دیگر بدنه‌ی پنجره‌ی
+         سرورها را از نو نمی‌سازد وقتی انتخابگرِ بازیکنِ تازه (chooseSrv) یا جریانِ «رها کردن کشور»
+         باز است — رندرِ مجددِ قبلی انتخابِ بازیکن را می‌دزدید و پنجره را نیمه‌کاره به سرورِ
+         پیشنهادی می‌بست. در عوض شمارنده‌های هر ردیف درجا پچ می‌شوند (wdPaintOnlineCounts). */
+      try{const m=document.getElementById('m-srv'),bb=document.getElementById('srv-body');
+        if(m&&m.classList.contains('active')&&bb&&!bb.__wd139pick&&!bb.__wdRelFlow)renderSrv()}catch(e){}
     }
   }catch(e){console.log('presence',e)}
 };
@@ -4051,6 +4081,13 @@ window.wdPaintOnlineCounts=function(){ /* هر شمارنده‌ی «بازیک�
     document.querySelectorAll('[id^="wd96-onl-"]').forEach(b=>{
       const k=Number(String(b.id).replace('wd96-onl-',''));if(!k)return;
       const n=O.servers[k];if(typeof n==='number')b.textContent=faNum(n);
+    });
+    /* V144: شمارنده‌های ردیفیِ پنجره‌ی سرورها و انتخابگر (id=wdonl-K) — فقط عددِ «همین» سرور،
+       بلادرنگ بعد از هر ضربان؛ تا پاسخِ تازه برسد متنِ «در حال دریافت آنلاین‌ها…» می‌ماند */
+    document.querySelectorAll('[id^="wdonl-"]').forEach(b=>{
+      const k=Number(String(b.id).slice('wdonl-'.length));if(!k)return;
+      const n=O.servers[k];
+      if(typeof n==='number'){const t='🟢 '+faNum(n)+' بازیکن آنلاین همین حالا';if(b.textContent!==t)b.textContent=t}
     });
     const hb=document.getElementById('wd-onl-total');
     if(hb)hb.textContent=faNum(O.total||0);
@@ -10402,7 +10439,7 @@ async function refreshServer(){
     const cap=H('wdsp-cap');if(cap)cap.textContent=faN(tk)+' از '+faN(CAP)+' کشور تصرف شده — وقتی پر شود، جهان بعدی باز می‌شود';
     const bg=H('wdsp-badges');
     if(bg){const full=tk>=CAP;
-      bg.innerHTML='<span class="wd31-live"><i></i>زنده</span> '+(full?'<span class="wd96-pill st-full"><i class="wd96-orb"></i>شلوغ — سرور بعدی باز شد</span>':'<span class="wd96-pill st-on"><i class="wd96-orb"></i>باز — سرور فعلی تو</span>')}
+      bg.innerHTML='<span class="wd31-live"><i></i>زنده</span> '+(full?'<span class="wd96-pill st-full"><i class="wd96-orb"></i>شلوغ — ۹۰/۹۰؛ برای تازه‌واردها جا ندارد</span>':'<span class="wd96-pill st-on"><i class="wd96-orb"></i>باز — سرور فعلی تو</span>')}
     const ss=(window.WD30_SEASON&&window.WD30_SEASON())||{no:1,day:1,left:0};
     countUp(H('wdsp-n-sn'),ss.no||1);
     const hh=Math.max(0,Math.floor((ss.left||0)/3600000)),mm=Math.max(0,Math.floor(((ss.left||0)%3600000)/60000));
@@ -10454,9 +10491,9 @@ async function refreshServer(){
         pb.appendChild(r)})}
     const sg=H('wdsp-srvs');
     if(sg){sg.textContent='';
-      /* V143: فقط پیشوندِ بازِ زنجیره + سرور خودِ بازیکن — هیچ سرورِ الکیِ قفلی رندر نمی‌شود؛
-         لمس هر کارت = ورود به نقشه‌ی همان سرور (بی‌کشور) یا مسیر رها کردن (دارای کشور) */
-      let M31=1;{const lim=(typeof srvMax==='function')?srvMax()+1:5;for(let k=1;k<=lim;k++){try{if(srvOpen(k))M31=k}catch(e){}}}
+      /* V144: همه‌ی سرورهای شناخته‌شده + سرورِ خودِ بازیکن (srvListTop — سرور خالی فقط وقتی کل جهان پُر است)؛
+         لمس هر کارتِ باز = ورود به نقشه‌ی همان سرور (بی‌کشور) یا مسیر رها کردن (دارای کشور) */
+      let M31=(typeof srvListTop==='function')?srvListTop():(typeof srvMax==='function'?srvMax()+1:5);
       M31=Math.max(M31,S||1);
       const N=M31;
       for(let k=1;k<=N;k++){let t=0,p2=0;
@@ -10471,7 +10508,7 @@ async function refreshServer(){
           '<div class="wd96-onl" style="margin-top:7px"><i class="wd96-orb"></i><b id="wd96-onl-'+k+'">…</b>&nbsp;بازیکن آنلاین</div>'+
           '<div class="wd31-bar" style="height:8px;margin-top:7px"><i style="width:'+Math.min(100,t/CAP*100)+'%"></i></div>'+
           '<div class="wd31-mini" style="margin-top:5px">🏴 '+faN(t)+'/'+faN(CAP)+' کشور • 👥 '+faN(p2)+' بازیکن</div>';
-        if(!mine31&&!full&&(typeof wdEnterSrv==='function')){c.style.cursor='pointer';c.title='ورود به نقشه‌ی جهان '+faN(k);c.addEventListener('click',function(){wdEnterSrv(k)})}
+        if(!mine31&&!full&&!(typeof isTst==='function'&&isTst(k))&&(typeof wdEnterSrv==='function')){c.style.cursor='pointer';c.title='ورود به نقشه‌ی جهان '+faN(k);c.addEventListener('click',function(){wdEnterSrv(k)})}
         sg.appendChild(c)}}
       try{window.WDSI_SRV&&window.WDSI_SRV.paint()}catch(e){}
       try{window.wdPaintOnlineCounts&&window.wdPaintOnlineCounts()}catch(e){} /* V125: شمارنده‌ی آنلاین هر سرور */
@@ -12391,7 +12428,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=143';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=144';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -18237,7 +18274,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=143"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=144"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18263,7 +18300,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=143';
+              s.src='/game/cv-engine.js?v=144';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18274,7 +18311,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=143"></script>
+<script src="/game/oly3.js?v=144"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18288,7 +18325,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=143';
+      s.src='/game/oly3d.js?v=144';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19554,8 +19591,8 @@ try{if(window.MutationObserver){var _aQ=false;new MutationObserver(function(){if
 setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=143"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=143"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=144"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=144"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);

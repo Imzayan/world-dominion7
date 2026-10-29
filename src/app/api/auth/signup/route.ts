@@ -71,15 +71,12 @@ export async function POST(req: NextRequest) {
     })
     // welcome wallet: 40 gems
     await db.wallet.create({ data: { userId: user.id, gems: 40 } })
-    /* V86: تازه‌واردها به نخستین سرور «غیرتستی» می‌روند — تا وقتی wd_test_srvs=[1] است یعنی سرور ۲؛
-       بعد از «حالت عرضه‌ی مایکت» (لیست خالی) همه از سرور ۱ صفر شروع می‌کنند */
-    let srv0 = 1
-    try {
-      const gs = await db.gameSetting.findUnique({ where: { key: 'wd_test_srvs' } })
-      const tst: number[] = gs ? JSON.parse(gs.value) : [1]
-      if (Array.isArray(tst)) { for (let k = 1; k <= 20; k++) { if (!tst.includes(k)) { srv0 = k; break } } }
-    } catch { /* پیش‌فرض: سرور ۱ */ }
-    await db.score.create({ data: { userId: user.id, nick, server: srv0 } })
+    /* V144 — دستور مالک: «میخوام پلیر های جدید که بازیو نصب میکنن صفحه‌ی انتخاب سرور رو ببینن
+       و خودشون انتخاب کنن در کدوم سرور میخوان باشن.» تازه‌وارد با server=0 («انتخاب‌نشده»)
+       ساخته می‌شود تا انتخابگرِ سرور (chooseSrv) در اولین بوت واقعاً باز شود؛ انتخابِ بازیکن
+       همان‌جا روی همین سطر ثبت می‌شود (initServer → update scores.server). تا V143 سرورِ
+       اول از قبل جاگذاری می‌شد (srv0) و صفحه‌ی انتخاب هرگز برای نصبِ تازه دیده نمی‌شد. */
+    await db.score.create({ data: { userId: user.id, nick, server: 0 } })
 
     const token = newToken()
     await db.session.create({

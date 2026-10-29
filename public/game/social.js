@@ -277,6 +277,10 @@ function hbWatch(){
   setInterval(function(){if(!D.hidden)heartbeat();else if(ST._idleSent)return;},45000);
 }
 setInterval(hbWatch,3000);
+/* V144 FIX «آنلاین بودم در حد چند ثانیه باگ میخوره و در سرور های بعدی نشون داده میشه»: با هر تغییرِ
+   سرور (انتخابگر/ورود به سرور) ضربانِ حضور همان لحظه با سرورِ تازه زده می‌شود — ردیفِ حضور
+   دیگر تا ۴۵ ثانیه روی سرور قبلی باقی نمی‌ماند و شمارنده‌ها همان لحظه درست می‌شوند */
+window.addEventListener('wd-srv-changed',function(){try{if(myUid())heartbeat()}catch(e){}});
 D.addEventListener('visibilitychange',function(){ST._idleSent=D.hidden});
 
 /* ---------- V96: نمایشگر آنلاین سینمایی — FAB مستقل زیر دکمه‌ی المپیک ----------
@@ -396,8 +400,10 @@ async function refreshSrvs(){
   try{var r=await rpc('wd_servers');ST.srvs={};(r.servers||[]).forEach(function(s){ST.srvs[s.server]=s});renderLive()}catch(e){}
 }
 if(typeof wdModalHook==='function')wdModalHook('m-srv',function(){
-  if(!ST.srvs){refreshSrvs().then(function(){augmentSrvList()});return}
-  augmentSrvList();
+  /* V144 FIX «اطلاعات آنلاین بودن هر سرور یکم دیر نشون داده میشه»: هر بار پنجره‌ی سرورها باز شود،
+     فهرستِ وضعیت/آنلاینِ هر سرور از سرور تازه گرفته می‌شود (قبلاً فقط وقتی حافظه خالی بود گرفته
+     می‌شد و تا ۶۰ ثانیه عددِ کهنه‌ی دور قبل نمایش داده می‌شد) */
+  refreshSrvs().then(function(){augmentSrvList()});
 });
 /* V96: غنی‌سازی سینمایی ردیف‌های سرور — قرص وضعیت درخشان + شمارنده‌ی آنلاین واقعی هر سرور (به‌جای خط متنی اموجی) */
 function augmentSrvList(){
@@ -407,7 +413,7 @@ function augmentSrvList(){
     ts.innerHTML=WDSI_ICON('globeCine',18)+'<span> سرورهای جهان</span>';
     ts.style.display='inline-flex';ts.style.alignItems='center';ts.style.gap='6px'}}}catch(e){}
   var items=body.querySelectorAll('.lobby-item');
-  var STC={online:['st-on','آنلاین'],busy:['st-busy','شلوغ'],full:['st-full','شلوغ — سرور بعدی باز شد'],maintenance:['st-maint','تعمیر']};
+  var STC={online:['st-on','آنلاین'],busy:['st-busy','شلوغ'],full:['st-full','پُر — ۹۰/۹۰'],maintenance:['st-maint','تعمیر']};
   items.forEach(function(item,i){
     var k=i+1,s=ST.srvs[k];if(!s)return;
     var sub=item.querySelector('.lobby-item-sub');if(!sub)return;
