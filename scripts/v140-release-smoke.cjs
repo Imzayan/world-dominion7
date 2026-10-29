@@ -130,16 +130,37 @@ check('news formatters: both wdNewsFa and the cinematic newspaper know country_r
   if (!html.includes("case 'country_released':")) throw new Error('newspaper case missing');
 });
 
-console.log('=== C) VERSION SYNC (V140) ===');
-check('v.txt=140, beacon __WD_V=140, 12 ?v=140 refs, APK wrapper synced', () => {
+console.log('=== C) VERSION SYNC (V141) ===');
+check('v.txt=141, beacon __WD_V=141, 12 ?v=141 refs, APK wrapper synced', () => {
   const vTxt = fs.readFileSync(path.join(ROOT, 'public/game/v.txt'), 'utf8').trim();
-  if (vTxt !== '140') throw new Error('v.txt=' + vTxt);
-  if (!html.includes('window.__WD_V=140;')) throw new Error('beacon not 140');
-  const n = (html.match(/\?v=140(?![0-9])/g) || []).length;
-  if (n !== 12) throw new Error('?v=140 refs=' + n);
-  if ((html.match(/\?v=139(?![0-9])/g) || []).length) throw new Error('stale ?v=139 refs');
+  if (vTxt !== '141') throw new Error('v.txt=' + vTxt);
+  if (!html.includes('window.__WD_V=141;')) throw new Error('beacon not 141');
+  const n = (html.match(/\?v=141(?![0-9])/g) || []).length;
+  if (n !== 12) throw new Error('?v=141 refs=' + n);
+  if ((html.match(/\?v=140(?![0-9])/g) || []).length) throw new Error('stale ?v=140 refs');
   const apk = fs.readFileSync(path.join(ROOT, 'apk-build/app/java/com/worlddominion/game/MainActivity.java'), 'utf8');
-  if (!apk.includes('GAME_VER = 140')) throw new Error('APK wrapper not synced');
+  if (!apk.includes('GAME_VER = 141')) throw new Error('APK wrapper not synced');
+});
+
+console.log('=== D) V141 — ☰ MENU ENTRY + APK STORE ROOT-FIX ===');
+check('release entry exists in ☰ game menu (wd-menu) AND wd22 command center', () => {
+  if (!html.includes("var rel141=item('🚪','رها کردن کشور'")) throw new Error('☰ menu item missing');
+  if (!html.includes("rel141.classList.add('wd141-rel')")) throw new Error('danger class not applied');
+  if (!html.includes("['door','رها کردن کشور'")) throw new Error('wd22 item missing');
+  if (!html.includes('.wd-menu-item.wd141-rel')) throw new Error('danger CSS missing');
+});
+check('wdReleaseCountry self-bootstraps the servers window (auto-open m-srv when inactive)', () => {
+  if (!html.includes("if(md&&!md.classList.contains('active')){renderSrv();openModal('m-srv')}")) throw new Error('auto-open missing');
+});
+check('APK manifest restored: BILLING permission + <queries> for ir.mservices.market', () => {
+  const mf = fs.readFileSync(path.join(ROOT, 'apk-build/app/AndroidManifest.xml'), 'utf8');
+  if (!mf.includes('com.android.vending.BILLING')) throw new Error('BILLING permission missing');
+  if (!mf.includes('ir.mservices.market')) throw new Error('myket <queries> missing');
+  if (!mf.includes('android:versionCode="14"')) throw new Error('versionCode not bumped');
+});
+check('shop-v2.js: 0:nomyket message covers stale-APK case (update from Myket)', () => {
+  const sv = fs.readFileSync(path.join(ROOT, 'public/game/shop-v2.js'), 'utf8');
+  if (!sv.includes('بازی را از داخل مایکت به‌روزرسانی کن')) throw new Error('nomyket message not updated');
 });
 
 console.log('\n' + ok + ' passed, ' + fail + ' failed');

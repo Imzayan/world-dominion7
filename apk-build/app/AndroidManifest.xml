@@ -1,15 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.worlddominion.game"
-    android:versionCode="13"
-    android:versionName="1.0.12">
+    android:versionCode="14"
+    android:versionName="1.0.13">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34"/>
 
-    <!-- V123: بازی رایگان است (پرداخت با PAY_OFF خاموش) — فقط اینترنت؛
-         مجوز BILLING و بلاک queries مایکت حذف شد تا بررسی‌کننده صرفاً یک بازی وب‌محور ببیند.
-         بازگشت پرداخت = بیلد بعدی با myket-billing-client:1.6 + افزودن مجوز (بدون تداخل امضا) -->
+    <!-- V123: بازی رایگان است — فقط اینترنت -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- V141: بازگشت پرداخت مایکت (PAY_OFF=false از V140) — بدون این دو، پل پرداخت عملاً کار نمی‌کند:
+         ۱) مجوز BILLING برای bind کردن سرویس IAB مایکت الزامی است؛
+         ۲) بلاک queries: از Android 11 (targetSdk 30+) بدون آن اپ نمی‌تواند پکیج مایکت را «ببیند» ⇒
+            bindService=false ⇒ کلاینت پیام «فروشگاه نصب نیست» می‌دهد حتی وقتی مایکت نصب است.
+            ★ این ریشه‌ی باگ گزارش‌شده‌ی کاربر بود: «خرید جم نوشته فروشگاه نصب نشده تو گوشی». -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
+    <queries>
+        <package android:name="ir.mservices.market" />
+    </queries>
 
     <application
         android:label="@string/app_name"
