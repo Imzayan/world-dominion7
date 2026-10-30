@@ -663,21 +663,27 @@ function wdStarterServer(o,p){
 }
 /* بازیابی خریدهای باز: پرداخت موفق ولی اعمال‌نشده (برنامه وسط کار بسته شد) — یک‌بار در هر سشن.
    V146 (مورد ۱ گزارش پرداخت): بدنه به wdRestoreItems جداشد تا مسیر استارتِ بازی هم از همان
-   منطق رسمی استفاده کند؛ هر آیتم فقط بعد از راستی‌آزمایی سرور اعمال می‌شود — کلاینت هرگز جم نمی‌دهد. */
+   منطق رسمی استفاده کند؛ هر آیتم فقط بعد از راستی‌آزمایی سرور اعمال می‌شود — کلاینت هرگز جم نمی‌دهد.
+   V151 (G1): دو شکل ورودی — APK v1.0.14 آبجکت {raw,sig} می‌دهد (امضای رسید برای مسیر RSA سرور؛
+   رشته‌ی raw عمداً دست‌نخورده می‌ماند — RSA روی متنِ دقیق است)؛ APK قدیم v1.0.13 آبجکت مستقیم
+   بدون امضا می‌دهد (همان مسیر API قبلی). p_json/p_sig فقط وقتی امضا واقعا موجود است پر می‌شود. */
 function wdRestoreItems(arr){
-  (Array.isArray(arr)?arr:[]).forEach(function(o){
+  (Array.isArray(arr)?arr:[]).forEach(function(x){
+      var o=x,raw='',sig='';
+      if(x&&typeof x==='object'&&typeof x.raw==='string'){raw=x.raw;sig=String(x.sig||'');try{o=JSON.parse(raw)}catch(e){return}}
+      if(!o||typeof o!=='object')return;
       var sku=String(o.productId||''),tok=String(o.purchaseToken||'');
       if(!tok||!sb)return;
       /* V119: بازیابی پک شروعِ پرداخت‌شده ولی اعمال‌نشده (کلیدها دیر فعال شدند / وسط کار بسته شد) —
          سرور با txId دوباره‌گرنت نمی‌دهد؛ duplicate یعنی قبلاً اعمال شده */
       if(sku==='emperor_starter'){
-        sb.rpc('starter_claim',{p_provider:'myket',p_receipt:tok,p_request_id:'rest'+Date.now().toString(36)}).then(function(r){
+        sb.rpc('starter_claim',{p_provider:'myket',p_receipt:tok,p_request_id:'rest'+Date.now().toString(36),p_json:raw,p_sig:sig}).then(function(r){
           if(r&&r.data&&r.data.ok&&!r.data.duplicate){showToast('✅ خرید پیشین‌ات اعمال شد — پک شروع امپراتور','win');try{updateUI()}catch(e){}try{render()}catch(e){}}
         }).catch(function(){});
         return;
       }
       if(sku.indexOf('gems_')!==0)return;
-      sb.rpc('shop_gem_topup',{p_sku:sku,p_token:tok,p_order_id:String(o.orderId||'')}).then(function(r2){
+      sb.rpc('shop_gem_topup',{p_sku:sku,p_token:tok,p_order_id:String(o.orderId||''),p_json:raw,p_sig:sig}).then(function(r2){
         var d=r2&&r2.data;
         if(d&&d.ok){
           try{window.WDAndroid.consumePurchase(tok)}catch(e){}

@@ -1,19 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.worlddominion.game"
-    android:versionCode="14"
-    android:versionName="1.0.13">
+    android:versionCode="15"
+    android:versionName="1.0.14">
 
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34"/>
 
     <!-- V123: بازی رایگان است — فقط اینترنت -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- V141: بازگشت پرداخت مایکت (PAY_OFF=false از V140) — بدون این دو، پل پرداخت عملاً کار نمی‌کند:
-         ۱) مجوز BILLING برای bind کردن سرویس IAB مایکت الزامی است؛
-         ۲) بلاک queries: از Android 11 (targetSdk 30+) بدون آن اپ نمی‌تواند پکیج مایکت را «ببیند» ⇒
-            bindService=false ⇒ کلاینت پیام «فروشگاه نصب نیست» می‌دهد حتی وقتی مایکت نصب است.
-            ★ این ریشه‌ی باگ گزارش‌شده‌ی کاربر بود: «خرید جم نوشته فروشگاه نصب نشده تو گوشی». -->
+    <!-- V146 — ریشه‌ی واقعیِ «اتصال به مایکت برقرار نشد» پیدا و بسته شد:
+         مستند رسمی مایکت (myket.ir/kb «Implementing Myket In-App Purchase») صراحتاً می‌گوید
+         مجوز com.android.vending.BILLING مال گوگل‌پلی است و باید با مجوز خودِ مایکت جایگزین شود:
+           <uses-permission android:name="ir.mservices.market.BILLING" />
+         سرویس IAB مایکت با همین مجوز محافظت می‌شود؛ بدون آن bindService از ابتدا false/SecurityException
+         می‌دهد ⇒ WDIab.setup=false ⇒ «0:nomyket» ⇒ مودال «خرید جم الان باز نشد» — حتی با مایکت نصب و
+         نسخه‌ی درست بازی. هیچ‌کدام از بیلدهای قبلی (تا vc14) این مجوز را نداشتند؛ به همین دلیل خرید جم
+         هیچ‌وقت به صفحه‌ی پرداخت مایکت نرسید. مجوز گوگل هم بدلایل سازگاری چند-استوری نگه داشته می‌شود. -->
+    <uses-permission android:name="ir.mservices.market.BILLING"/>
     <uses-permission android:name="com.android.vending.BILLING"/>
+    <!-- V141: از Android 11 (targetSdk 30+) بدون queries اپ نمی‌تواند پکیج مایکت را «ببیند» ⇒ bindService=false -->
     <queries>
         <package android:name="ir.mservices.market" />
     </queries>

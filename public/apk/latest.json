@@ -1,8 +1,8 @@
 {
-  "versionCode": 14,
-  "versionName": "1.0.13",
-  "url": "https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.13.apk",
-  "sha256": "ca3839fbfde3c4a579c4a59b1cce902aa9173a80df8ebdd6d46c1cc117119c66",
-  "notes": "نسخه جدید با پشتیبانی کامل خرید جم (مجوز پرداخت مایکت) — به‌روزرسانی فقط از طریق مایکت.",
-  "releasedAt": "2026-10-29"
+  "versionCode": 15,
+  "versionName": "1.0.14",
+  "url": "https://world-dominion7.vercel.app/apk/WorldDominion-v1.0.14.apk",
+  "sha256": "76174b1790912a0cd1fcbfd62692d7a519b6c37965a242db2d2ba731347a885f",
+  "notes": "رفع ریشه‌ای خطای «اتصال به مایکت برقرار نشد» — مجوز رسمی پرداخت مایکت (ir.mservices.market.BILLING) طبق مستند رسمی مایکت اضافه شد؛ بازیابی خریدهای باز حالا امضادار است. به‌روزرسانی فقط از طریق مایکت.",
+  "releasedAt": "2026-10-30"
 }

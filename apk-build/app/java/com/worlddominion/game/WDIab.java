@@ -223,7 +223,11 @@ public final class WDIab {
         }
     }
 
-    /* بازیابی خریدهای پرداخت‌شده ولی مصرف‌نشده (برنامه وسط پرداخت بسته شد / callback دیر رسید) */
+    /* بازیابی خریدهای پرداخت‌شده ولی مصرف‌نشده (برنامه وسط پرداخت بسته شد / callback دیر رسید)
+       V146 (G1): امضای هر رسید هم برگردد — خروجی: [{"raw":"<رشته‌ی خام دقیق مایکت>","sig":"<امضا>"},…]
+       رشته‌ی raw عمداً دست‌نخورده می‌ماند (parse/re-serialize ممنوع — امضای RSA روی همان متن خام است)
+       تا سرور بتواند مسیر کلید عمومی (SHA1withRSA) را بدون MYKET_ACCESS_TOKEN اجرا کند.
+       سازگاری: JS سمت قدیم (آرایه‌ی مستقیم آبجکت‌ها) در کلاینت V146 هر دو شکل را می‌فهمد. */
     public static String ownedPurchases() {
         try {
             if (!ready() || actRef.get() == null) return "[]";
@@ -231,13 +235,17 @@ public final class WDIab {
             if (b == null) return "[]";
             ArrayList<String> items = b.getStringArrayList("INAPP_PURCHASE_DATA_LIST");
             if (items == null || items.isEmpty()) return "[]";
+            ArrayList<String> sigs = b.getStringArrayList("INAPP_DATA_SIGNATURE_LIST");
             StringBuilder sb = new StringBuilder("[");
             for (int i = 0; i < items.size(); i++) {
                 if (i > 0) sb.append(',');
-                sb.append(items.get(i));
+                JSONObject w = new JSONObject();
+                w.put("raw", items.get(i));
+                w.put("sig", (sigs != null && i < sigs.size()) ? sigs.get(i) : "");
+                sb.append(w.toString());
             }
             sb.append("]");
-            Log.i(TAG, "PURCHASE_RESULT owned=" + items.size());
+            Log.i(TAG, "PURCHASE_RESULT owned=" + items.size() + " signed=" + (sigs == null ? 0 : sigs.size()));
             return sb.toString();
         } catch (Exception e) {
             Log.w(TAG, "ownedPurchases error " + e.getClass().getSimpleName());

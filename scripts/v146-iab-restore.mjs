@@ -53,20 +53,21 @@ check('shop-v2: boot66 بازیابی استارت را زمان‌بندی می
 check('shop-v2: بازیابی مسیر gem و starter سرور-مأخذ ماند', shop.includes("rpc('shop_gem_topup',{p_sku:sku,p_token:tok") && shop.includes("rpc('starter_claim',{p_provider:'myket',p_receipt:tok"));
 check('shop-v2: مصرف فقط بعد از ok سرور', /if\(d&&d\.ok\)\{\s*try\{window\.WDAndroid\.consumePurchase\(tok\)\}/.test(shop));
 
-/* ---------- جاوا (APK) دست‌نخورده — همان نسخه‌ی مایکت ---------- */
+/* ---------- جاوا (APK) — V151: ریشه‌ی اصلی بسته شد + بازیابی امضادار ---------- */
 const iab = read('apk-build/app/java/com/worlddominion/game/WDIab.java');
 const bridge = read('apk-build/app/java/com/worlddominion/game/WDBridge.java');
 const manifest = read('apk-build/app/AndroidManifest.xml');
-check('WDIab.java: منطق bind/buy/consume/ownedPurchases دست‌نخورده', ['bindService', 'getBuyIntent', 'consumePurchase', 'getPurchases', 'queuedSku'].every((s) => iab.includes(s)));
+check('WDIab.java: منطق bind/buy/consume/ownedPurchases سر جایش', ['bindService', 'getBuyIntent', 'consumePurchase', 'getPurchases', 'queuedSku'].every((s) => iab.includes(s)));
+check('WDIab.java: ownedPurchases امضای رسید را برمی‌گرداند (G1 — INAPP_DATA_SIGNATURE_LIST)', iab.includes('INAPP_DATA_SIGNATURE_LIST') && iab.includes('"raw"') && iab.includes('"sig"'));
 check('WDBridge.java: پل WDAndroid دست‌نخورده', bridge.includes('startPurchase') && bridge.includes('billingAvailable'));
-check('Manifest: BILLING + queries مایکت سر جایش (همان v1.0.13)', manifest.includes('com.android.vending.BILLING') && manifest.includes('ir.mservices.market'));
+check('Manifest: مجوز پرداخت خودِ مایکت (ir.mservices.market.BILLING — ریشه‌ی «اتصال برقرار نشد» طبق مستند رسمی مایکت) + queries', manifest.includes('ir.mservices.market.BILLING') && manifest.includes('ir.mservices.market"'));
 
-/* ---------- نسخه (renumber: ۱۴۶ توسط سشن موازی مصرف شد → ۱۵۰ روی V149) ---------- */
-check('v.txt=150', vtxt === '150', vtxt);
-check('index.html: __WD_V=150', html.includes('__WD_V=150') && !html.includes('__WD_V=149') && !html.includes('__WD_V=146'));
-const v150 = (html.match(/\?v=150/g) || []).length;
-check('index.html: ۱۲ × ?v=150', v150 === 12, String(v150));
-check('index.html: صفر باقی‌مانده‌ی v145/149/146', !html.includes('?v=145') && !html.includes('?v=149') && !html.includes('?v=146'));
+/* ---------- نسخه (renumber دوم: ۱۴۶ محلی توسط V150 ریموت مصرف شد → ۱۵۱ روی V150) ---------- */
+check('v.txt=151', vtxt === '151', vtxt);
+check('index.html: __WD_V=151', html.includes('__WD_V=151') && !html.includes('__WD_V=150') && !html.includes('__WD_V=149'));
+const v151 = (html.match(/\?v=151/g) || []).length;
+check('index.html: ۱۲ × ?v=151', v151 === 12, String(v151));
+check('index.html: صفر باقی‌مانده‌ی v145/146/149/150', !html.includes('?v=145') && !html.includes('?v=146') && !html.includes('?v=149') && !html.includes('?v=150'));
 check('index.html: فیکس‌های کارایی V148/V149 در ربیب دست‌نخورده', html.includes('wd-terr-') || html.includes('wd_srv_cache'));
 
 /* ---------- سینتکس ---------- */
