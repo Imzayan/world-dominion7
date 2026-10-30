@@ -2559,20 +2559,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         await db.perfDaily.upsert({ where: { userId_dayKey: { userId: user.id, dayKey } }, create: { userId: user.id, dayKey, samples: JSON.stringify(merged), avgFps, minFps, worstEngine, device }, update: { samples: JSON.stringify(merged), avgFps, minFps, worstEngine, device } })
         return R({ ok: true, stored: merged.length })
       }
-      /* U8 — گزارش تجمیعی ۱۴ روز اخیر (فقط ادمین) */
-      case 'perf_report': {
-        if (!user.isAdmin) return R({ ok: false, reason: 'admin' })
-        const since = new Date(Date.now() - 14 * 86400000)
-        const rows = await db.perfDaily.findMany({ where: { updatedAt: { gte: since } }, orderBy: { updatedAt: 'desc' }, take: 400 })
-        const byDay: Record<string, { n: number; sum: number; min: number; eng: Record<string, number> }> = {}
-        for (const r2 of rows) {
-          const d = r2.dayKey
-          byDay[d] = byDay[d] || { n: 0, sum: 0, min: 240, eng: {} }
-          byDay[d].n++; byDay[d].sum += r2.avgFps; byDay[d].min = Math.min(byDay[d].min, r2.minFps)
-          byDay[d].eng[r2.worstEngine] = (byDay[d].eng[r2.worstEngine] || 0) + 1
-        }
-        return R({ ok: true, days: Object.entries(byDay).map(([day, v]) => ({ day, users: v.n, avg: Math.round(v.sum / v.n), min: v.min, worst: v.eng })).sort((a, b) => a.day.localeCompare(b.day)) })
-      }
+      /* V157: case 'perf_report' حذف شد — صفر ارجاع در کلاینت/اسکریپت‌ها (گزارش ادمی هرگز سیم‌کشی نشد) */
       case 'get_wallet': {
         const serverW = Math.max(1, Number(args.p_server) || 1)
         const { w, granted, vipGranted } = await dailyBonus(user.id)
@@ -2678,15 +2665,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           owned: inv.map((r) => ({ item_id: r.itemId, source: r.source, rarity: r.rarity, expires_at: r.expiresAt ? r.expiresAt.toISOString() : null, created_at: r.createdAt.toISOString() })),
         })
       }
-      case 'shop_inventory': {
-        const w = await ensureWallet(user.id)
-        const inv = await shopOwnedRows(user.id)
-        return R({
-          ok: true,
-          items: inv.map((r) => ({ item_id: r.itemId, source: r.source, rarity: r.rarity, expires_at: r.expiresAt ? r.expiresAt.toISOString() : null, created_at: r.createdAt.toISOString() })),
-          vip_until: w.vipUntil ? w.vipUntil.toISOString() : null,
-        })
-      }
+      /* V157: case 'shop_inventory' حذف شد — همان داده در shop_load (فیلد owned) می‌آید؛ صفر ارجاع در کلاینت */
       /* V157-RESTORE: توسط گیت‌های QA صدا زده می‌شود — حذف نشدنی */
       case 'shop_history': {
         const lim = Math.min(50, Math.max(5, Number(args.p_limit) || 30))
@@ -3019,7 +2998,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({ ok: true, used: useN, supply: Math.round(after.data.supply), stock: take.now, supply_max: SUPPLY_MAX })
       }
 
-      /* ---------------- V108 — پک شروع امپراتور (سرور-مأخذ) ---------------- */
+      /* ---------------- V108 — پک شروع امپراتور (سرور-مأخذ) ----------------
+         V157-RESTORE: توسط گیت‌های QA (wd108/v140) صدا زده می‌شود — حذف نشدنی */
       case 'starter_state': {
         const st = await starterStateOf(user.id)
         /* تله‌متری نمایش — فقط وقتی پیشنهاد واقعاً فعال است و حداقل ۱۰ دقیقه از آخرین نمایش گذشته باشد */
@@ -3469,8 +3449,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const refundAtk157 = async (extraG?: number, extraO?: number) => {
           try { await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) + PVP_ATTACK.costGold + (extraG || 0); r.oil = resNum(r.oil) + PVP_ATTACK.costOil + (extraO || 0) }) } catch (e) { console.log('wdrefund', e) }
         }
-        const defScore = await db.score.findUnique({ where: { userId: t.userId } })
-        const myScore = await db.score.findUnique({ where: { userId: user.id } })
+        /* V157-SCALE: شش خواندن مستقل DB که پشت‌سرهم await می‌شدند → یک Promise.all
+           (۶ راند‌تریپ متوالی → ۱؛ روی داغ‌ترین مسیر PvP، هر ۵۰ms تأخیرِ هر هاپ حذف می‌شود) */
+        const [defScore, myScore, atkSave147, defSave147, defCareer147, defTerrCnt147] = await Promise.all([
+          db.score.findUnique({ where: { userId: t.userId } }),
+          db.score.findUnique({ where: { userId: user.id } }),
+          db.save.findUnique({ where: { userId: user.id } }),
+          db.save.findUnique({ where: { userId: t.userId } }),
+          warCareerGet(t.userId).catch(() => null),
+          territoryCount(t.userId, server),
+        ])
         /* V147: لنگرهای قدیمی (امتیاز رتبه‌بندی) — دیگر «قدرت» نیستند؛ فقط سقف ضدتقلب و کف میراث */
         const aLegacy = Math.max(1, myScore?.score || 100)
         const d0 = Math.max(1, (defScore?.score || 200))
@@ -3479,8 +3467,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
            حالا: مهاجم = توان واقعی ارتشش از سیو خودش (با سقف ضدتقلب نسبت به امتیاز).
            مدافع (حتی آفلاین): ارتش واقعی × استحکامات/راهبرد/پادگان + پادگان ذاتی کشور + ژنرال مدافع (V105)
            + سپر نوپدید (این بار سمت سرور) — با همان سقف ضدتقلب. مقیاس دو طرف یکسان؛ امتیاز فقط سقف/کف امنیتی. */
-        const atkSave147 = await db.save.findUnique({ where: { userId: user.id } })
-        const defSave147 = await db.save.findUnique({ where: { userId: t.userId } })
         const atkSt147 = parseSaveState(atkSave147?.state)
         const defSt147 = parseSaveState(defSave147?.state)
         const atkUnits147 = (atkSt147.units && typeof atkSt147.units === 'object' ? atkSt147.units : {}) as Record<string, number>
@@ -3491,9 +3477,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const defWd28 = (defSt147.wd28 && typeof defSt147.wd28 === 'object' ? defSt147.wd28 : {}) as Record<string, unknown>
         const fortLvl147 = Math.min(5, Math.max(0, Number(defWd28.fort) || 0))
         const stance147 = String(defWd28.stance || 'balanced')
-        const defCareer147 = await warCareerGet(t.userId).catch(() => null)
         const genDef147 = defCareer147 && defCareer147.assigned && defCareer147.assigned.def ? (WAR_GENERALS[defCareer147.assigned.def]?.def || 0) : 0
-        const defTerrCnt147 = await territoryCount(t.userId, server)
         const gdfMap147 = (defSt147.gdf && typeof defSt147.gdf === 'object' ? defSt147.gdf : {}) as Record<string, number>
         const shareRaw147 = gdfMap147[country] != null ? Number(gdfMap147[country]) : CFG147.pvp.shareDef
         const share147 = Math.min(CFG147.pvp.shareMax, Math.max(0, shareRaw147 / 100))
