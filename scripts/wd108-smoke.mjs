@@ -126,12 +126,9 @@ const e1 = await rpc(page, 'war_use_item', { p_item: 'tactical_emp', p_target: t
 check('EMP #1 lands 100%', !!(e1 && e1.ok && e1.step === 0 && e1.mult === 1 && e1.stock === 1), JSON.stringify(e1).slice(0, 120))
 const tWs1 = JSON.parse((await db.warState.findUnique({ where: { userId: tu.id } }))?.data || '{}')
 check('target fx emp + res n=1 + target notified via news', !!(tWs1.fx || []).find(f => f.k === 'emp') && ((tWs1.res || {}).tactical_emp || {}).n === 1, JSON.stringify(tWs1).slice(0, 160))
-/* clear attacker cooldown between uses (db-level; cooldown itself verified by cd error below) */
-const cdNo = await rpc(page, 'war_use_item', { p_item: 'tactical_emp', p_target: tNick })
-check('attacker cooldown enforced', !!(cdNo && cdNo.ok === false && cdNo.error === 'cd'), JSON.stringify(cdNo).slice(0, 60))
-await db.warState.update({ where: { userId: u.id }, data: { data: JSON.stringify(Object.assign(JSON.parse((await db.warState.findUnique({ where: { userId: u.id } })).data), { cd: {} })) } })
+/* V159: attacker cooldown REMOVED — #2 lands immediately at the resist ladder's 60% step */
 const e2 = await rpc(page, 'war_use_item', { p_item: 'tactical_emp', p_target: tNick })
-check('EMP #2 diminished to 60%', !!(e2 && e2.ok && e2.mult === 0.6 && e2.step === 1), JSON.stringify(e2).slice(0, 100))
+check('V159 EMP #2 lands immediately (no cd) diminished to 60%', !!(e2 && e2.ok && e2.mult === 0.6 && e2.step === 1), JSON.stringify(e2).slice(0, 100))
 await db.warState.update({ where: { userId: u.id }, data: { data: JSON.stringify(Object.assign(JSON.parse((await db.warState.findUnique({ where: { userId: u.id } })).data), { cd: {} })) } })
 {
   const raw = (await db.warState.findUnique({ where: { userId: u.id } })).data
@@ -163,7 +160,7 @@ check('cyber disruption ok', !!(c1 && c1.ok), JSON.stringify(c1).slice(0, 90))
 const tWs2 = JSON.parse((await db.warState.findUnique({ where: { userId: tu.id } }))?.data || '{}')
 check('target carries defbreak+precision+cyberdis fx', ['defbreak', 'precision', 'cyberdis'].every(k => (tWs2.fx || []).some(f => f.k === k)), JSON.stringify((tWs2.fx || []).map(f => f.k)))
 
-/* ---------- daily cap (emp dailyCap=6; 3 used + 3 seeded) ---------- */
+/* ---------- V159: daily cap REMOVED (owner directive) — the victim-side staged resist is now the real anti-spam shield ---------- */
 for (let i = 0; i < 3; i++) await db.specialUse.create({ data: { userId: u.id, item: 'wi_tactical_emp' } })
 {
   const raw = (await db.warState.findUnique({ where: { userId: u.id } })).data
@@ -173,7 +170,9 @@ for (let i = 0; i < 3; i++) await db.specialUse.create({ data: { userId: u.id, i
   await db.warState.update({ where: { userId: u.id }, data: { data: JSON.stringify(j) } })
 }
 const cap = await rpc(page, 'war_use_item', { p_item: 'tactical_emp', p_target: tNick })
-check('daily cap enforced (6/day)', !!(cap && cap.ok === false && cap.error === 'cap'), JSON.stringify(cap).slice(0, 70))
+check('V159 daily cap gone — 4th strike in resist window refused as resistant (victim shield kept)', !!(cap && cap.ok === false && cap.error === 'resistant'), JSON.stringify(cap).slice(0, 70))
+const cap2 = await rpc(page, 'war_use_item', { p_item: 'tactical_emp', p_target: 'wd108nosuchuser' })
+check('V159 no error "cap" exists anymore (cd/cap world deleted)', !(cap2 && cap2.error === 'cap') && !(cap2 && cap2.error === 'cd'), JSON.stringify(cap2).slice(0, 70))
 
 /* ---------- war supply use: stock → live logistics, capped at 100 ---------- */
 {

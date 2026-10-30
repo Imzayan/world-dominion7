@@ -21,7 +21,9 @@ import {
   resolveSocialTarget, cleanBody, presenceTouch, presenceStateOf, badgeCounts, ladderOf, rankOf, olyRankOf, olyMedals,
 } from '@/lib/social' /* V124: بک‌اند واقعی اجتماعی */
 import { OL_REWARDS, SPECIAL_OPS, MENTOR_REWARDS, OL_PARTICIPATION_GEMS, OL_PODIUM_REWARDS, PVP_ATTACK } from '@/lib/balance' /* V72: توازن سرور متمرکز (PHASE 4) — V75: + PVP_ATTACK */
-import { WAR_ITEMS, STARTER_PACK, WAR_RESIST_WINDOW_MS, WAR_RESIST_STEPS, PROTECTION_MIN_AGE_MS } from '@/lib/balance' /* V108: تدارک جنگی + زرادخانه تاکتیکی + پک شروع */
+import { WAR_ITEMS, STARTER_PACK, WAR_RESIST_WINDOW_MS, WAR_RESIST_STEPS, PROTECTION_MIN_AGE_MS, TENSION_CFG, WMD_SPECIAL_OPS, WMD_WAR_ITEMS } from '@/lib/balance' /* V108: تدارک جنگی + زرادخانه تاکتیکی + پک شروع — V159: تنش جهانی */
+import { tensionOf, tensionBump } from '@/lib/tension' /* V159: شاخص تنش جهانی (سرور-مأخذ) */
+import { publish } from '@/lib/realtime' /* V159: هشدار هسته‌ای فوری روی کانال سرور */
 import {
   loadBattleCfg, garrisonOf, garrisonComp, armyPower, armyComp, rpsMult, simBattle, parseSaveState, COUNTRY_DEF, type BattleCfg,
 } from '@/lib/battleConfig' /* V147 BATTLE 2.0: موتور نبرد واقع‌گرایانه — آینه‌ی WD_BATTLE کلاینت */
@@ -333,7 +335,7 @@ const SUPPLY_REGEN_MS = 6 * 60_000 /* +۱ تدارک هر ۶ دقیقه */
 const SUPPLY_MAX = 100
 
 type WarFx = { k: string; until: number; data?: Record<string, unknown> }
-type WarData = { supply?: number; supplyAt?: number; cd?: Record<string, number>; fx?: WarFx[]; blk?: Record<string, number>; atkt?: string; stock?: Record<string, number>; res?: Record<string, { n: number; until: number }> }
+type WarData = { supply?: number; supplyAt?: number; cd?: Record<string, number>; fx?: WarFx[]; blk?: Record<string, number>; atkt?: string; stock?: Record<string, number>; res?: Record<string, { n: number; until: number }>; rogue?: { until: number; at: number; by: string } } /* V159: + rogue state */
 
 function warStateRow(userId: string) {
   return db.warState.upsert({ where: { userId }, update: {}, create: { userId } })
@@ -2706,19 +2708,26 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const { data } = await warStateOf(user.id)
         const now = Date.now()
         const inv = await db.shopInventory.findMany({ where: { userId: user.id, itemId: { in: ['tactical_slot'] } }, select: { itemId: true } })
+        /* V159 — دولت سرکش + تنش جهانی: کلاینت فقط حقیقت سرور را نشان می‌دهد */
+        const rogue159 = (data as { rogue?: { until?: number } }).rogue
+        const rogueUntil159 = rogue159 && Number(rogue159.until) > now ? Number(rogue159.until) : null
+        const srv159 = await warUserServer(user.id).catch(() => 1)
         return R({
           ok: true,
           supply: Math.max(0, Math.min(SUPPLY_MAX, Math.round(data.supply || SUPPLY_MAX))),
           supply_max: SUPPLY_MAX,
           atk_type: data.atkt || 'balanced',
           fx: (data.fx || []).filter((f) => f.until > now).map((f) => ({ k: f.k, until: f.until, data: f.data || null })),
-          cd: Object.fromEntries(Object.entries(data.cd || {}).filter(([, t]) => t > now)),
+          cd: {}, /* V159: کول‌داون حذف شد — همیشه خالی (شکل پاسخ برای سازگاری حفظ شد) */
           blk: Object.fromEntries(Object.entries(data.blk || {}).filter(([, t]) => t > now)),
           slots: inv.length ? 2 : 1,
           /* V108 — انبار شمارشی + پیکربندی نمایشی (عدد واقعی همیشه سرور) */
           stock: Object.fromEntries(Object.entries(data.stock || {}).filter(([, n]) => n > 0)),
           war_items: WAR_ITEMS,
           cfg: { atk_types: ATK_TYPES, orders: WAR_ORDERS, intel_fa: WAR_INTEL_FA },
+          tension: await tensionOf(srv159).catch(() => 0), /* V159 */
+          rogue_until: rogueUntil159, /* V159: تحریم دولت سرکش تا این زمان */
+          sanctioned: !!rogueUntil159, /* V159 */
         })
       }
       case 'war_order': {
@@ -2879,16 +2888,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         const myData = warParse(myRow.data)
         if (((myData.stock || {})[item] || 0) < 1) return R({ ok: false, error: 'stock' })
 
-        /* ۳) کول‌داون استفاده */
-        const cdAt = (myData.cd || {})[item] || 0
-        if (nowU < cdAt) return R({ ok: false, error: 'cd', cd_ms: cdAt - nowU })
+        /* V159 — کول‌داون (گام ۳) و سقف روزانه (گام ۴) حذف شدند (دستور مالک).
+           تنها محدودیت‌های واقعی: موجودی انبار + مقاومت پلکانی هدف (گام ۵، حفظ شد —
+           سپر قربانی است، نه کول‌داون مهاجم: ضربه‌ی ۴ به بعد تا پایان پنجره بی‌اثر می‌شود) */
 
-        /* ۴) سقف روزانه (ضد آزار هدف — حتی با انبار پر) */
-        const dayStartU = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z')
-        const usedToday = await db.specialUse.count({ where: { userId: user.id, item: 'wi_' + item, usedAt: { gte: dayStartU } } })
-        if (usedToday >= wdef.dailyCap) return R({ ok: false, error: 'cap', cap: wdef.dailyCap })
-
-        /* ۵) مقاومت پلکانی هدف (§8) — ضربه‌ی ۴ به بعد تا پایان پنجره بی‌اثر و رد می‌شود */
+        /* ۵) مقاومت پلکانی هدف (§8) — ضربه‌ی ۴ به بعد تا پایان پنجره بی‌اثر و رد می‌شود
+           (V159: این سپرِ قربانی است و با حذف کول‌داون، نقش ضداسپمِ واقعی را بازی می‌کند) */
         let step = 0
         let mult = 1
         if (wdef.resist && targetUid) {
@@ -2949,11 +2954,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             } catch (e) { console.log('wi_fort', e) }
           }
 
-          /* ۸) کول‌داون + مصرف روزانه + اخبار + دفتر نبرد + تله‌متری */
-          const mine2 = await warStateRow(user.id)
-          const md = warParse(mine2.data)
-          md.cd = { ...(md.cd || {}), [item]: nowU + wdef.cd }
-          await warStateSave(user.id, md)
+          /* ۸) مصرف روزانه (تلومتری) + اخبار + دفتر نبرد + تله‌متری — V159: نوشتن کول‌داون حذف شد */
           await db.specialUse.create({ data: { userId: user.id, item: 'wi_' + item } }).catch(() => {})
           const newsAct = { tactical_emp: 'war_emp', tactical_jammer: 'war_jam', tactical_precision: 'war_precision', tactical_defbreak: 'war_defbreak', tactical_cyber: 'war_cyber' }[item] || 'war_item'
           const srvU = await warUserServer(user.id).catch(() => 1)
@@ -2965,12 +2966,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           if (item === 'tactical_precision') void telem('precision_used', user.id, srvU, item, { step, fort: !!fortHit })
           if (item === 'tactical_defbreak') void telem('defense_breaker_used', user.id, srvU, item, { step })
           if (item === 'tactical_cyber') void telem('cyber_disruption_used', user.id, srvU, item, { step })
+          /* V159 — WMD-class (EMP): شاخص تنش جهانی +۱۵ (بدون rogue — تنها هسته‌ای دولت سرکش می‌سازد) */
+          if ((WMD_WAR_ITEMS as readonly string[]).includes(item)) {
+            try { await tensionBump(srvU, TENSION_CFG.perWmd) } catch (e) { console.log('tension159wi', e) }
+          }
 
           return R({
             ok: true, item, stock: take.now,
             target: targetNick || null, fx: effKey, dur_ms: Math.round(wdef.dur * mult),
             step, mult, pct, fort_hit: fortHit,
-            cd_until: nowU + wdef.cd, next_ok: new Date(nowU + wdef.cd).toISOString(),
+            tension: await tensionOf(srvU).catch(() => null), /* V159 */
           })
         } catch (e) {
           /* rollback: افکت ثبت نشد → موجودی برمی‌گردد */
@@ -3629,7 +3634,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           if (!r.ok) { await refundAtk157(docG157, docO157); return R({ ok: false, refunded: true }) }
           /* V58: امتیاز رتبه‌بندی همان لحظه جلو می‌رود — بدون انتظار برای سیکل سیو کلاینت (۸ ثانیه‌ای)
              recompute سیو بعدی همان مقدار مطلق را می‌گذارد؛ این فقط سرعت دیده‌شدن رویداد در رنکینگ است */
-          try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: bully147 ? Math.round(1000 * CFG147.pvp.bullyRewardMult) : 1000 } } }) } catch (e) { console.log('pvpscore', e) }
+          /* V159 — ائتلاف جهانی: فتحِ دولتِ سرکش پاداش ×۲ (TENSION_CFG.bountyMult) — مشوق واقعی به‌جای خبر خالی */
+          let bounty159 = 1
+          try {
+            const rw159 = await warStateRow(t.userId)
+            const rd159 = warParse(rw159.data)
+            const rog159 = (rd159 as { rogue?: { until?: number } }).rogue
+            if (rog159 && Number(rog159.until) > Date.now()) bounty159 = TENSION_CFG.bountyMult
+          } catch (e) { console.log('rogue159b', e) }
+          try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: Math.round(1000 * bounty159 * (bully147 ? CFG147.pvp.bullyRewardMult : 1)) } } }) } catch (e) { console.log('pvpscore', e) }
           /* V65 — جهان زنده: سقوط امپراتوری — اگر مدافع آخرین خاکش را از دست داد، خبر فوری */
           try {
             const left = await territoryCount(t.userId, server)
@@ -3837,7 +3850,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
          cyber    نفوذ سایبری        ۲۰۰ جم، هر ۱۲ ساعت، حداکثر ۶۰ در هفته
          commando راید کماندویی     ۲۸۰ جم، هر ۲۴ ساعت، حداکثر ۴۰ در هفته
          missile  موشک پنچر           ۳۵۰ جم، هر ۲۴ ساعت، حداکثر ۳۰ در هفته
-         nuke     ضربه‌ی هسته‌ای      ۵۰۰ جم، هر ۴۸ ساعت، حداکثر ۲۰ در هفته */
+         nuke     ضربه‌ی هسته‌ای      ۵۰۰ جم — V159: بدون کول‌داون/سقف؛ پیامد واقعی (تنش+دولت سرکش) */
       case 'use_special': {
         if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
         const item = String(args.p_item || '')
@@ -3846,31 +3859,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (!Object.keys(SPECIAL_OPS).includes(item)) return R({ ok: false, error: 'item' })
         if (!country) return R({ ok: false, error: 'country' })
         const cost = SPECIAL_OPS[item].cost
-        const cooldownMs = SPECIAL_OPS[item].cd
+        /* V159 — کول‌داون و سقف هفتگی حذف شدند (دستور مالک: «بازیکن هرچقدر سلاح دارد، همان‌قدر می‌تواند شلیک کند»)
+           بازدارندگی مصنوعی (انتظار) جای خود را به پیامد واقعی جهانی می‌دهد:
+           تنش جهانی +۱۵ (WMD) + دولت سرکش ۴۸ ساعته (تحریم/انزوا) + ائتلاف جهانی با پاداش ×۲.
+           تنها سقف واقعی: جم (هزینه‌ی اقتصادی) + آتش‌بس المپیک + حفاظت نوآموز. */
         /* V33.1: validate the TARGET before any charge — gems were burning on no-op strikes */
         const terr = await db.territory.findUnique({ where: { server_country: { server, country } } })
         if (!terr) return R({ ok: false, error: 'country' })
         if (terr.userId === user.id) return R({ ok: false, error: 'own' })
         const w = await ensureWallet(user.id)
         if (w.gems < cost) return R({ ok: false, error: 'funds' })
-        const last = await db.specialUse.findFirst({ where: { userId: user.id, item }, orderBy: { usedAt: 'desc' } })
-        if (last && Date.now() - last.usedAt.getTime() < cooldownMs) {
-          return R({ ok: false, error: 'cooldown', next_ok: new Date(last.usedAt.getTime() + cooldownMs).toISOString() })
-        }
-        /* V54: rolling-week global cap per op (سقف هفتگی هر عملیات روی کل سرور) */
-        {
-          const weekly = SPECIAL_OPS[item].weekly
-          const since = new Date(Date.now() - 7 * 24 * 3600_000)
-          const used = await db.specialUse.count({ where: { item, usedAt: { gte: since } } })
-          if (used >= weekly) {
-            const oldest = await db.specialUse.findFirst({ where: { item, usedAt: { gte: since } }, orderBy: { usedAt: 'asc' } })
-            return R({ ok: false, error: 'weekly_cap', next_ok: oldest ? new Date(oldest.usedAt.getTime() + 7 * 24 * 3600_000).toISOString() : null })
-          }
-        }
         const dec = await db.wallet.updateMany({ where: { userId: user.id, gems: { gte: cost } }, data: { gems: { decrement: cost } } })
         if (dec.count === 0) return R({ ok: false, error: 'funds' })
         try {
-          await db.specialUse.create({ data: { userId: user.id, item } })
+          await db.specialUse.create({ data: { userId: user.id, item } }) /* تلومتری/هیت‌مپ — دیگر هیچ گیتِ سقفی پشتش نیست */
         } catch (e) {
           await db.wallet.update({ where: { userId: user.id }, data: { gems: { increment: cost } } }).catch(() => {})
           throw e
@@ -3886,26 +3888,68 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         } catch (e) { console.log('opseffw', e) }
         /* V34: special strikes also feed the war-heatmap */
         try { await db.battleLog.create({ data: { server, kind: item, country, attacker: user.nick, defender: terr.nick || null, win: true } }) } catch (e) { console.log('blog', e) }
-        return R({ ok: true, gems: nw.gems, owner_nick: terr.nick ? terr.nick : null, next_ok: new Date(Date.now() + cooldownMs).toISOString(), op_dur: durMin, op_pct: OP_PCT[item] || 0 })
+        /* ================= V159 — GLOBAL TENSION / ROGUE STATE ================= */
+        let tension159: number | null = null
+        let rogueUntil159: number | null = null
+        let coalition159 = false
+        if ((WMD_SPECIAL_OPS as readonly string[]).includes(item)) {
+          try {
+            tension159 = await tensionBump(server, TENSION_CFG.perWmd)
+            /* دولت سرکش: پرتاب هسته‌ای ۴۸ ساعت تحریم/انزوا می‌آورد */
+            const r159 = await warStateOf(user.id)
+            r159.data.rogue = { until: Date.now() + TENSION_CFG.rogueHours * 3600_000, at: Date.now(), by: item }
+            await warStateSave(user.id, r159.data)
+            rogueUntil159 = Number(r159.data.rogue.until) || null
+            /* ضربه به ارتش مدافع — سقف‌دار (nukeArmyLossFrac)، همان ساختار مسیر تلفات V147؛
+               «پاک‌سازی مطلق» عمداً نشد: doctrine ضدفرسودگی برای قربانی حفظ می‌شود */
+            if (TENSION_CFG.nukeArmyLossFrac > 0 && terr.userId) {
+              try {
+                const defSave159 = await db.save.findUnique({ where: { userId: terr.userId }, select: { state: true } })
+                if (defSave159) {
+                  const stD159 = parseSaveState(defSave159.state)
+                  const unitsD159 = (stD159.units && typeof stD159.units === 'object' ? stD159.units : {}) as Record<string, number>
+                  let touched159 = false
+                  for (const k of Object.keys(unitsD159)) {
+                    const c = Number(unitsD159[k]) || 0
+                    if (c <= 0) continue
+                    const nc = Math.max(0, Math.round(c * (1 - TENSION_CFG.nukeArmyLossFrac)))
+                    if (nc !== c) { unitsD159[k] = nc; touched159 = true }
+                  }
+                  if (touched159) {
+                    stD159.units = unitsD159
+                    await db.save.update({ where: { userId: terr.userId }, data: { state: JSON.stringify(stD159) } })
+                  }
+                }
+              } catch (e) { console.log('nuke159army', e) }
+            }
+            /* ائتلاف جهانی: از آستانه‌ی تنش، روزنامه‌ی همه‌ی سرور اعلام جنگ پاداش‌دار می‌کند */
+            if (tension159 !== null && tension159 >= TENSION_CFG.coalitionAt) {
+              coalition159 = true
+              await addNews(server, 'rogue_coalition', country, user.nick, terr.nick || null)
+            }
+            /* هشدار هسته‌ای فوری روی کانال زنده‌ی سرور — مودال قرمز + آژیر روی کلاینت قربانی، خبر برای بقیه */
+            try {
+              publish('wd-terr-' + server, 'nuke_alert', { srv: server, country, by: user.nick, target: terr.nick || null, until: Date.now() + durMin * 60_000, tension: tension159 }, 'system')
+            } catch (e) { console.log('nuke159pub', e) }
+          } catch (e) { console.log('tension159', e) }
+        }
+        return R({
+          ok: true, gems: nw.gems, owner_nick: terr.nick ? terr.nick : null,
+          next_ok: null, /* V159: کول‌داون حذف شد — همیشه بلافاصله آماده */
+          op_dur: durMin, op_pct: OP_PCT[item] || 0,
+          tension: tension159, rogue_until: rogueUntil159, coalition: coalition159, /* V159 */
+        })
       }
 
-      /* ---------------- V54 special ops live status (کول‌داون/سقف واقعی برای هر ۴ عملیات) ---------------- */
+      /* ---------------- V54/V159 special ops live status — کول‌داون/سقف حذف شد؛ فقط تنش جهانی ---------------- */
       case 'special_status': {
         const server = Math.max(1, Number(args.p_server) || 1)
         void server
-        const since = new Date(Date.now() - 7 * 24 * 3600_000)
-        const out: Record<string, unknown> = { ok: true }
-        for (const [kind, cfg] of Object.entries(SPECIAL_OPS)) {
-          const last = await db.specialUse.findFirst({ where: { userId: user.id, item: kind }, orderBy: { usedAt: 'desc' } })
-          const usedWeek = await db.specialUse.count({ where: { item: kind, usedAt: { gte: since } } })
-          let reset: string | null = null
-          if (usedWeek >= cfg.weekly) {
-            const oldest = await db.specialUse.findFirst({ where: { item: kind, usedAt: { gte: since } }, orderBy: { usedAt: 'asc' } })
-            reset = oldest ? new Date(oldest.usedAt.getTime() + 7 * 24 * 3600_000).toISOString() : null
-          }
-          out[kind + '_next'] = last ? new Date(last.usedAt.getTime() + cfg.cd).toISOString() : null
-          out[kind + '_left'] = Math.max(0, cfg.weekly - usedWeek)
-          out[kind + '_reset'] = reset
+        const out: Record<string, unknown> = { ok: true, tension: await tensionOf(server).catch(() => 0) } /* V159 */
+        for (const kind of Object.keys(SPECIAL_OPS)) {
+          out[kind + '_next'] = null      /* V159: کول‌داون حذف شد — همیشه آماده */
+          out[kind + '_left'] = 9999      /* V159: سقف هفتگی حذف شد */
+          out[kind + '_reset'] = null
         }
         return R(out)
       }
@@ -3945,6 +3989,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         try {
           const myW = await warStateOf(user.id)
           if (warFxOf(myW.data, Date.now()).cyberdis) return R({ ok: false, reason: 'cyber_disrupted' })
+          /* V159 — تحریم دولت سرکش: بازار جهانی روی دولت سرکش بسته است */
+          const rog159 = (myW.data as { rogue?: { until?: number } }).rogue
+          if (rog159 && Number(rog159.until) > Date.now()) return R({ ok: false, reason: 'sanctioned' })
         } catch (e) { console.log('wi_cyber', e) }
         const giveQty = Math.round(Number(args.p_give_qty) || 0), wantQty = Math.round(Number(args.p_want_qty) || 0)
         if (!TRADE_RES.has(giveRes) || !TRADE_RES.has(wantRes) || giveRes === wantRes || giveQty < 10 || wantQty < 10)
@@ -3988,6 +4035,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       }
       case 'trade_offer_accept': {
         const id = String(args.p_id || '')
+        /* V159 — تحریم دولت سرکش: معامله‌ی جدید بسته است (پیشنهادهای قبلی باز می‌مانند) */
+        try {
+          const myA = await warStateOf(user.id)
+          const rogA = (myA.data as { rogue?: { until?: number } }).rogue
+          if (rogA && Number(rogA.until) > Date.now()) return R({ ok: false, reason: 'sanctioned' })
+        } catch (e) { console.log('rogue_tracc', e) }
         const off = await db.tradeOffer.findUnique({ where: { id } })
         if (!off || off.status !== 'open' || off.ownerUid === user.id) return R({ ok: false, reason: 'gone' })
         const acceptor = await db.save.findUnique({ where: { userId: user.id } })
@@ -5261,6 +5314,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (name.length < 3 || tag.length < 2) return R({ ok: false, error: 'bad' })
         const mine = await db.allianceMember.findUnique({ where: { userId: user.id } })
         if (mine) return R({ ok: false, error: 'member' })
+        /* V159 — انزوای دولت سرکش: ساخت اتحاد بسته است (۴۸ ساعت از آخرین پرتاب هسته‌ای) */
+        try {
+          const wR = await warStateOf(user.id)
+          const rogR = (wR.data as { rogue?: { until?: number } }).rogue
+          if (rogR && Number(rogR.until) > Date.now()) return R({ ok: false, error: 'rogue' })
+        } catch (e) { console.log('rogue_ally', e) }
         const cost = 10000
         const okPay = await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) - cost })
         if (!okPay) return R({ ok: false, error: 'funds' })
@@ -5311,6 +5370,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (!a || a.server !== server) return R({ ok: false, error: 'gone' })
         const mine = await db.allianceMember.findUnique({ where: { userId: user.id } })
         if (mine) return R({ ok: false, error: 'member' })
+        /* V159 — انزوای دولت سرکش: پیوستن به اتحاد بسته است */
+        try {
+          const wJ = await warStateOf(user.id)
+          const rogJ = (wJ.data as { rogue?: { until?: number } }).rogue
+          if (rogJ && Number(rogJ.until) > Date.now()) return R({ ok: false, error: 'rogue' })
+        } catch (e) { console.log('rogue_allyJ', e) }
         const cnt = await db.allianceMember.count({ where: { allianceId: id } })
         if (cnt >= 10) return R({ ok: false, error: 'full' })
         try { await db.allianceMember.create({ data: { allianceId: id, userId: user.id, nick: user.nick } }) } catch (e) {
