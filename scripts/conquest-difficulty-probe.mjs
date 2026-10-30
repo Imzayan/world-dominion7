@@ -3,7 +3,7 @@
  * Neutral PvE model exactly as the client's 5-round loop (index.html wd attack):
  *   minForce gate → 5 rounds of simBattle vs full garrison (HP=1, occ0) → win if occ>=100.
  * usage: node scripts/conquest-difficulty-probe.mjs [neutralK] [minForcePve]
- *   (defaults: 1.0 / 0.30 = current live values — prints the BEFORE table)
+ *   (no args = live V159 values 1.35/0.40; pass "1.0 0.30" to reproduce the pre-V159 BEFORE table)
  */
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'file:/home/z/my-project/db/custom.db';
 import fs from 'node:fs';
@@ -17,8 +17,8 @@ const _tmp = path.join(os.tmpdir(), 'probe-battleConfig.mts');
 fs.writeFileSync(_tmp, _src);
 const { BATTLE_CFG, garrisonOf, simBattle, armyPower, garrisonComp } = await import(_tmp);
 
-const NEUTRAL_K = Number(process.argv[2] || 1.0);       /* 1.0 = live */
-const MIN_RATIO = Number(process.argv[3] || 0.30);      /* 0.30 = live */
+const NEUTRAL_K = Number(process.argv[2] || 1.35);       /* 1.35 = live V159 (pre-V159: 1.0) */
+const MIN_RATIO = Number(process.argv[3] || 0.40);      /* 0.40 = live V159 (pre-V159: 0.30) */
 const cfg = JSON.parse(JSON.stringify(BATTLE_CFG));
 cfg.garrison = { ...cfg.garrison };                      /* local tune space */
 
@@ -39,7 +39,7 @@ const COUNTRIES = [
 
 const med = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 
-console.log(`NEUTRAL_K=${NEUTRAL_K}  minForce.ratioPve=${MIN_RATIO}  (1.0/0.30 = live V158)`);
+console.log(`NEUTRAL_K=${NEUTRAL_K}  minForce.ratioPve=${MIN_RATIO}  (1.35/0.40 = live V159)`);
 console.log('garrison(full) = def×1.42×(1+0.18×popN+0.10×ecoN) cap def×2.2' + (NEUTRAL_K !== 1 ? ` × ${NEUTRAL_K} (proposed neutralK)` : ''));
 const gar = {};
 for (const [label, c] of COUNTRIES) gar[label] = Math.round(garrisonOf(c, cfg) * NEUTRAL_K);
