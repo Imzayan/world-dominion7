@@ -1539,7 +1539,6 @@ async function passAddXp(userId: string, mission: string) {
 }
 
 /* ---------- capture transfer shared by pvp_attack success & pvp_capture_territory ---------- */
-const lastCapture = new Map<string, number>()
 /* V75 — P4: کول‌داون حمله‌ی PvP سمت سرور (کلید: userId — پاک‌سازی وقتی بزرگ شد) */
 const lastPvpAtk = new Map<string, number>()
 let lastReleaseRun = 0
@@ -2679,49 +2678,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           owned: inv.map((r) => ({ item_id: r.itemId, source: r.source, rarity: r.rarity, expires_at: r.expiresAt ? r.expiresAt.toISOString() : null, created_at: r.createdAt.toISOString() })),
         })
       }
-      case 'shop_inventory': {
-        const w = await ensureWallet(user.id)
-        const inv = await shopOwnedRows(user.id)
-        return R({
-          ok: true,
-          items: inv.map((r) => ({ item_id: r.itemId, source: r.source, rarity: r.rarity, expires_at: r.expiresAt ? r.expiresAt.toISOString() : null, created_at: r.createdAt.toISOString() })),
-          vip_until: w.vipUntil ? w.vipUntil.toISOString() : null,
-        })
-      }
-      case 'shop_history': {
-        const lim = Math.min(50, Math.max(5, Number(args.p_limit) || 30))
-        const rows = await db.shopPurchase.findMany({
-          where: { userId: user.id, status: 'ok' }, orderBy: { createdAt: 'desc' }, take: lim,
-          select: { itemId: true, price: true, currency: true, status: true, provider: true, createdAt: true, meta: true },
-        })
-        return R({ ok: true, rows: rows.map((r) => ({ item_id: r.itemId, price: r.price, currency: r.currency, provider: r.provider, created_at: r.createdAt.toISOString(), meta: r.meta })) })
-      }
-      case 'shop_collection_claim': {
-        const cid = String(args.p_collection || '')
-        const col = SHOP_COLLECTIONS.find((c) => c.id === cid)
-        if (!col) return R({ ok: false, error: 'collection' })
-        const inv = await shopOwnedRows(user.id)
-        const ownedIds = new Set(inv.map((r) => r.itemId))
-        const missing = col.members.filter((mid) => {
-          if (mid.endsWith('*')) {
-            const base = mid.slice(0, -1)
-            return ![...ownedIds].some((o) => o === base || o.startsWith(base + '@'))
-          }
-          return !ownedIds.has(mid)
-        })
-        if (missing.length) return R({ ok: false, error: 'incomplete', missing })
-        const rewardDef = SHOP_ITEM_MAP.get(col.reward)
-        if (!rewardDef) return R({ ok: false, error: 'reward' })
-        const already = ownedIds.has(col.reward)
-        if (!already) {
-          await shopGrant(user.id, col.reward, 'collection', rewardDef.rar, null, { collection: cid })
-          await db.shopPurchase.create({ data: { userId: user.id, itemId: col.reward, price: 0, status: 'ok', provider: 'collection', meta: JSON.stringify({ collection: cid }) } })
-          /* V88 — تکمیل مجموعه خبر جهانی دارد (ضد اسپم: فقط هنگام تکمیل واقعی) */
-          try { await addNews(await warUserServer(user.id), 'col_done', null, user.nick, col.fa) } catch (e) { console.log('colnews', e) }
-        }
-        return R({ ok: true, already, reward: col.reward, fa: rewardDef.fa, icon: rewardDef.icon })
-      }
-
+      /* V157: case 'shop_inventory' حذف شد — ۰ ارجاع در کلاینت. shop_catalog همان داده را می‌دهد */
       /* ---------------- V88 — WAR DEPTH RPCs (سرور-مأخذ، ضدتقلب) ---------------- */
       case 'war_state': {
         const { data } = await warStateOf(user.id)
@@ -2803,7 +2760,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (!targetNick || targetNick.toLowerCase() === String(user.nick).toLowerCase()) return R({ ok: false, error: 'target' })
         const tu = await db.user.findFirst({
           where: { nickLower: targetNick.toLowerCase() },
-          select: { id: true, nick: true, score: { select: { score: true, conquered: true, kills: true, economy: true } } },
+          select: { id: true, nick: true, score: { select: { server: true, score: true, conquered: true, kills: true, economy: true } } },
         })
         if (!tu) return R({ ok: false, error: 'target' })
         const now = Date.now()
@@ -2848,8 +2805,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           } catch {}
         }
         if (level >= 4) {
+          /* V157-SCALE: قبلاً بدون فیلتر server = اسکن کامل کل تاریخ جنگ (همه سرورها)؛
+             حالا سرور خودِ هدف + ایندکس [server,defender,createdAt] / [server,attacker,createdAt] */
           const recent = await db.battleLog.findMany({
-            where: { OR: [{ attacker: tu.nick }, { defender: tu.nick }] },
+            where: { ...(tu.score?.server != null ? { server: tu.score.server } : {}), OR: [{ attacker: tu.nick }, { defender: tu.nick }] },
             orderBy: { createdAt: 'desc' }, take: 5,
             select: { kind: true, country: true, win: true, createdAt: true, attacker: true, defender: true },
           })
@@ -3019,31 +2978,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       }
 
       /* ---------------- V108 — پک شروع امپراتور (سرور-مأخذ) ---------------- */
-      case 'starter_state': {
-        const st = await starterStateOf(user.id)
-        /* تله‌متری نمایش — فقط وقتی پیشنهاد واقعاً فعال است و حداقل ۱۰ دقیقه از آخرین نمایش گذشته باشد */
-        if (st.phase === 'offer') {
-          const rowV = await db.starterOffer.findUnique({ where: { userId: user.id }, select: { lastViewAt: true, viewCount: true } })
-          if (!rowV?.lastViewAt || Date.now() - rowV.lastViewAt.getTime() > 10 * 60_000) {
-            await db.starterOffer.update({ where: { userId: user.id }, data: { viewCount: { increment: 1 }, lastViewAt: new Date() } }).catch(() => {})
-            const srvV = await warUserServer(user.id).catch(() => 1)
-            void telem('starter_offer_viewed', user.id, srvV, 'emperor_starter', {})
-          }
-        }
-        return R({
-          ok: true, phase: PAY_OFF ? 'expired' : st.phase,
-          /* V114: آفر نامحدود — دیگر پنجره‌ی ۴۸ ساعته وجود ندارد */
-          unlimited: true,
-          ends_in_ms: 0,
-          purchased_at: st.purchasedAt ? st.purchasedAt.toISOString() : null,
-          price_fa: STARTER_PACK.priceFa,
-          price_toman: STARTER_PACK.priceToman,
-          contents: starterContents(),
-          /* ارزش نمایشی فقط از قیمت واقعی پک‌های جم محاسبه می‌شود (ضد قیمت جعلی) */
-          value_note: STARTER_PACK.gems + ' جم — ارزش جم بر اساس نرخ بهترین بسته‌ی واقعی فروشگاه',
-        })
-      }
-
+      /* V157: case 'starter_state' حذف شد — ۰ ارجاع در کلاینت. shop_catalog بلوک شروع را برمی‌گرداند */
       case 'starter_claim': {
         const provider = String(args.p_provider || '')
         const receipt = String(args.p_receipt || '').slice(0, 200)
@@ -3241,9 +3176,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       case 'claim_admin_grants': {
         const grants = await db.adminGrant.findMany({ where: { userId: user.id, claimed: false }, orderBy: { createdAt: 'asc' } })
         if (!grants.length) return R(null)
+        /* V157: اتمی — قبلاً دو درخواست موازی هر دو findMany می‌خواندند و هر دو واریز می‌کردند
+           (هدیه ادمین دوبار پرداخت می‌شد). updateMany شرطیِ claimed:false رزرو می‌کند؛
+           ناهم‌خوانی count ⇒ درخواست دوم بی‌پاداش بی‌رون می‌شود (قفل ردیفی Postgres). */
+        const claim157 = await db.adminGrant.updateMany({ where: { id: { in: grants.map((x) => x.id) }, claimed: false }, data: { claimed: true } })
+        if (claim157.count !== grants.length) return R(null)
         let g = 0, o = 0, f = 0
         for (const gr of grants) { g += gr.gold; o += gr.oil; f += gr.food }
-        await db.adminGrant.updateMany({ where: { id: { in: grants.map((x) => x.id) } }, data: { claimed: true } })
         /* V75 — P3: پاداش حالا سرور خودش به خزانه‌ی واقعی واریز می‌کند (tradeApply تک‌نویسنده).
            قبلاً «سرور محاسبه، کلاینت اعمال» بود — کلاینت عدد را به بلاب می‌افزود؛ همان شکار اعتماد.
            پاسخ برای «نمایش» کلاینت دست‌نخورده ماند؛ کلاینت دیگر منبع را محلی جمع نمی‌زند. */
@@ -3272,7 +3211,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             where: { userId_weekKey_category: { userId: user.id, weekKey: wk, category: cat } },
           })
           if (already) continue
-          await db.weeklyClaim.create({ data: { userId: user.id, weekKey: wk, category: cat, rank, rewardGold: reward } })
+          try {
+            await db.weeklyClaim.create({ data: { userId: user.id, weekKey: wk, category: cat, rank, rewardGold: reward } })
+          } catch (e) {
+            /* V157: درخواست موازی همین هفته را قبلاً برد — «قبلاً گرفته» است، نه خطای server_busy */
+            if ((e as { code?: string })?.code === 'P2002') continue
+            throw e
+          }
           /* V75 — P3: واریز سمت سرور (تک‌نویسنده) — کلاینت فقط اعلان نشان می‌دهد */
           await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) + reward }).catch(() => {})
           out.push({ rank, reward_gold: reward, category: cat })
@@ -3453,6 +3398,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           if (lastPvpAtk.size > 5000) lastPvpAtk.clear()
           lastPvpAtk.set(user.id, now75)
         }
+        /* V157: هر مسیرِ ردِ بعد از پرداخت (weak/supply/res/باختِ انتقال) هزینه را برمی‌گرداند —
+           قبلاً «حمله رد شد و طلا/نفت هم سوخت»؛ وعده V75: کسر فقط هنگام داوری. */
+        const refundAtk157 = async (extraG?: number, extraO?: number) => {
+          try { await tradeApply(user.id, (r) => { r.gold = resNum(r.gold) + PVP_ATTACK.costGold + (extraG || 0); r.oil = resNum(r.oil) + PVP_ATTACK.costOil + (extraO || 0) }) } catch (e) { console.log('wdrefund', e) }
+        }
         const defScore = await db.score.findUnique({ where: { userId: t.userId } })
         const myScore = await db.score.findUnique({ where: { userId: user.id } })
         /* V147: لنگرهای قدیمی (امتیاز رتبه‌بندی) — دیگر «قدرت» نیستند؛ فقط سقف ضدتقلب و کف میراث */
@@ -3542,11 +3492,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         } catch (e) { console.log('cvmil', e) }
         /* V147 — حداقل نیرو: زیر ۳۵٪ دفاعِ مؤثر، حمله در اتاق جنگ رد می‌شود
            (بعد از همه‌ی بونوس‌ها، قبل از مصرف تدارک/هزینه‌ی دکترین V88 — هیچ اتلافی) */
-        if (a < CFG147.pvp.minForceRatio * d) return R({ ok: false, error: 'weak', need: Math.round(CFG147.pvp.minForceRatio * d), have: Math.round(a), shielded: shield147 })
+        if (a < CFG147.pvp.minForceRatio * d) { await refundAtk157(); return R({ ok: false, error: 'weak', need: Math.round(CFG147.pvp.minForceRatio * d), have: Math.round(a), shielded: shield147, refunded: true }) }
         /* ================= V88 — WAR DEPTH (فقط وقتی کلاینت جدید p_atk_type بفرستد) =================
            دکترین حمله جای تاکتیک را می‌گیرد (تک‌منبع — بدون دوبار جمع‌شدن بونوس).
            همه‌ی اعداد سمت سرور؛ سقف سخت بونوس جم‌محور = +۲۲٪ کل. صفر instant-win. */
         let lossMult88 = 1, fxUsed88: string[] = [], supplyAfter88: number | null = null, atk88: string | null = null
+        let docG157 = 0, docO157 = 0 /* V157: هزینه لجستیک دکترینِ پرداخت‌شده — برای بازگشت کامل */
         const rawAtk88 = String(args.p_atk_type || '')
         if (rawAtk88) {
           atk88 = ATK_TYPES[rawAtk88] ? rawAtk88 : 'balanced'
@@ -3557,13 +3508,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
               if (AT.gold) r.gold = resNum(r.gold) - AT.gold
               if (AT.oil) r.oil = resNum(r.oil) - AT.oil
             })
-            if (!paid88) return R({ ok: false, error: 'res' })
+            if (!paid88) { await refundAtk157(); return R({ ok: false, error: 'res', refunded: true }) }
+            docG157 = AT.gold || 0; docO157 = AT.oil || 0
           }
           /* ۲) تدارک (supply) — بازیابی تنبل + مصرف دکترین */
           const w88 = await warStateOf(user.id)
           const now88 = Date.now()
           const supply88 = w88.data.supply || SUPPLY_MAX
-          if (supply88 < AT.supply) return R({ ok: false, error: 'supply', need: AT.supply, have: Math.round(supply88) })
+          if (supply88 < AT.supply) { await refundAtk157(docG157, docO157); return R({ ok: false, error: 'supply', need: AT.supply, have: Math.round(supply88), refunded: true }) }
           w88.data.supply = supply88 - AT.supply
           w88.data.atkt = atk88
           const fx88 = warFxOf(w88.data, now88)
@@ -3623,7 +3575,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         let duelWon: { duel_id: string; prize_gold: number; prize_gems: number } | null = null
         if (win) {
           const r = await transferTerritory(server, country, user.id, user.nick)
-          if (!r.ok) return R({ ok: false })
+          if (!r.ok) { await refundAtk157(docG157, docO157); return R({ ok: false, refunded: true }) }
           /* V58: امتیاز رتبه‌بندی همان لحظه جلو می‌رود — بدون انتظار برای سیکل سیو کلاینت (۸ ثانیه‌ای)
              recompute سیو بعدی همان مقدار مطلق را می‌گذارد؛ این فقط سرعت دیده‌شدن رویداد در رنکینگ است */
           try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: bully147 ? Math.round(1000 * CFG147.pvp.bullyRewardMult) : 1000 } } }) } catch (e) { console.log('pvpscore', e) }
@@ -3665,29 +3617,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
            syncTerr deleted the just-won territory */
         return R({ ok: win, captured: win, busy: false, occupation: Math.round(sim147.occ), gain: Math.round(sim147.occ), defense: Math.round(d), ratio: a / d, rounds: sim147.rounds, atk_loss: sim147.aLost, def_loss: sim147.dLost, bully: bully147, shielded: shield147, duel_won: duelWon, revenge_used, op_applied: opApplied, tactic: tac65 || null, cv_atk_pct: cvAtkPct, cv_def_pct: cvDefPct, atk_type: atk88, loss_mult: Math.round(lossMult88 * 100) / 100, fx_used: fxUsed88, supply_after: supplyAfter88 })
       }
-      case 'pvp_capture_territory': {
-        if (gamesPhase().phase === 'live' && (await evOn('olympic'))) return R({ ok: false, error: 'truce' }) /* V33 آتش‌بس — با سوئیچ ادمین لغو می‌شود */
-        const server = Math.max(1, Number(args.p_server) || 1)
-        const country = String(args.p_country || '')
-        /* V86 — قفل سرور تستی: تصرف آزاد برای ورودِ تازه (کسی که در این سرور قلمرو ندارد) روی سرور تستی رد می‌شود */
-        if ((await testSrvsGet()).includes(server) && !user.isAdmin && (await territoryCount(user.id, server)) === 0) return R({ ok: false, error: 'test' })
-        /* V33.1: free capture is for NEUTRAL land only — owned territories must be
-           fought for via pvp_attack (this was a free-steal of any player's land) */
-        const t0 = await db.territory.findUnique({ where: { server_country: { server, country } } })
-        if (!t0) return R(false)
-        if (t0.userId && t0.userId !== user.id) return R({ ok: false, error: 'owned' })
-        /* V59 wave-2 (§8): territory cap on free capture too */
-        if ((await territoryCount(user.id, server)) >= MAX_COUNTRIES) return R({ ok: false, error: 'cap' })
-        const now = Date.now()
-        const last = lastCapture.get(user.id) || 0
-        if (now - last < 15_000) return R(false)
-        lastCapture.set(user.id, now)
-        const r = await transferTerritory(server, country, user.id, user.nick)
-        /* V58: تصرف سرزمین آزاد هم فوراً در رتبه‌بندی دیده شود */
-        if (r.ok) { try { await db.score.update({ where: { userId: user.id }, data: { conquered: { increment: 1 }, score: { increment: 1000 } } }) } catch (e) { console.log('capscore', e) } }
-        return R(r.ok)
-      }
-
+      /* V157: case 'pvp_capture_territory' حذف شد — ۰ ارجاع در کلاینت. V60sec نوشتن قلمرو را تک‌مسیر territory_sync کرده بود؛ این مسیر مرده فقط سطح حمله اضافی بود */
       /* ---------------- V60sec — فتح تک‌نفره‌ی سرورمحرر (تک‌مسیر نوشتن قلمرو) ----------------
          تا V60 کلاینت ردیف‌های territories را مستقیم می‌نوشت (insert/delete از shim جدول) —
          مسیری که آتش‌بس المپیک، سقف ۱۵ کشور، نرخ تصرف و یکنواختی سیو را دور می‌زد.
@@ -5358,7 +5288,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       case 'get_world_chat': {
         const server = Number(args.p_server || 1)
         const limit = Math.min(200, Math.max(1, Number(args.p_limit || 100)))
-        const rows = await db.worldChat.findMany({ where: { server }, orderBy: { createdAt: 'desc' }, take: limit })
+        /* V157: پیام کاربر مسدودشده به گیرنده می‌رسید — حالا در خود کوئری حذف می‌شود (ایندکس یکتای [userId,blockedId]) */
+        const blk157 = await db.block.findMany({ where: { userId: user.id }, select: { blockedId: true }, take: 300 })
+        const rows = await db.worldChat.findMany({ where: { server, ...(blk157.length ? { userId: { notIn: blk157.map((b) => b.blockedId) } } : {}) }, orderBy: { createdAt: 'desc' }, take: limit })
         return R(rows.map((r) => ({
           user_id: r.userId,
           nick: r.nick,
