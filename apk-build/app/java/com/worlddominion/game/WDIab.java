@@ -20,7 +20,7 @@ import java.util.List;
 import ir.mservices.market.IInAppBillingService;
 
 /* ============================================================
-   V118 — WDIab: مدیر پرداخت درون‌برنامه‌ای واقعی مایکت (IAB v3)
+   V153 — WDIab: مدیر پرداخت درون‌برنامه‌ای واقعی مایکت (IAB v3)
    جریان رسمی: bind سرویس مایکت → isBillingSupported → getBuyIntent
    → PendingIntent مایکت → صفحه‌ی پرداخت واقعی مایکت → onActivityResult
    → purchaseToken به جاوااسکریپت → راستی‌آزمایی سرور → گرنت جم → consume
@@ -64,26 +64,55 @@ public final class WDIab {
             new java.util.concurrent.atomic.AtomicReference<Activity>();
     private static volatile ResultSink actSink;
 
+    /* V153: پیش‌چک PackageManager — آیا اپ مایکت روی دستگاه دیده می‌شود؟
+       دقت: روی Android 11+ بدون <queries> این چک همیشه false می‌دهد حتی با نصب بودن مایکت
+       (پکیج برای اپ نامرئی است) — لاگ هر دو حالت را جداجدا ثبت می‌کند. */
+    private static boolean myketVisible(Context c) {
+        try { c.getPackageManager().getPackageInfo(IAB_PKG, 0); return true; }
+        catch (Exception e) { return false; }
+    }
+
     /* اتصال به سرویس مایکت — در onCreate و در صورت نیاز دوباره.
-       V119: خروجی boolean — false یعنی اپ مایکت روی دستگاه نیست (bindService فوراً false)؛
-       true یعنی وصل شد یا در حال اتصال است (نتیجه‌ی async از onServiceConnected می‌آید). */
-    public static boolean setup(Activity act) {
+       V153: خروجی کد وضعیت دقیق است تا buy() بتواند علت شکست را جدا کند:
+       'ok'       = وصل شد یا در حال اتصال است (نتیجه‌ی async از onServiceConnected می‌آید)
+       'nomyket'  = اپ مایکت قبل از bind دیده نشد (نصب نیست، یا Android 11+ بدون <queries>)
+       'bindfail' = مایکت نصب و دیده می‌شود ولی bindService رد شد
+                    ⇒ تقریباً همیشه: این APK مجوز ir.mservices.market.BILLING را اعلام نکرده (بیلد قدیمی)
+                    یا اپ فروشگاه force-stop/معیوب است
+       'error'    = استثنای غیرمنتظره در setup */
+    public static String setupStatus(Activity act) {
         try {
-            if (bound && svc != null) return true;
-            if (connecting) return true; /* اتصال در جریان است */
+            if (bound && svc != null) return "ok";
+            if (connecting) return "ok"; /* اتصال در جریان است */
+            boolean vis = myketVisible(act);
+            Log.i(TAG, "PAYMENT_INIT myket visible=" + vis);
+            if (!vis) {
+                Log.w(TAG, "PURCHASE_FAILED myket app not visible to this app (not installed, or Android 11+ without <queries> in old builds)");
+                return "nomyket"; /* قبل از bind — بدون تلاش بی‌فایده */
+            }
             connecting = true;
             Intent i = new Intent(IAB_ACTION);
             i.setPackage(IAB_PKG);
             boolean ok = act.bindService(i, conn, Context.BIND_AUTO_CREATE);
             Log.i(TAG, "PAYMENT_INIT bind myket iab=" + ok);
-            if (!ok) { connecting = false; return false; }
-            return true;
+            if (!ok) {
+                connecting = false;
+                /* مایکت نصب و قابل‌مشاهده است ولی bind رد شد ⇒ علت تقریباً قطعی:
+                   مجوز BILLING مایکت در مانیفست همین APK اعلام نشده (بیلدهای تا vc14) —
+                   حالت ثانویه: فروشگاه force-stop شده. این خط، علت دقیق را در لاگ می‌گذارد. */
+                Log.w(TAG, "PURCHASE_FAILED bind=false while myket IS installed ⇒ this APK almost certainly lacks ir.mservices.market.BILLING permission (old build) or store app is force-stopped");
+                return "bindfail";
+            }
+            return "ok";
         } catch (Exception e) {
             connecting = false;
             Log.w(TAG, "PAYMENT_INIT bind error " + e.getClass().getSimpleName());
-            return false;
+            return "error";
         }
     }
+
+    /* سازگاری با MainActivity (onCreate) — خلاصه‌ی boolean همان وضعیت دقیق */
+    public static boolean setup(Activity act) { return "ok".equals(setupStatus(act)); }
 
     public static void unbind(Activity act) {
         try { if (bound) act.unbindService(conn); } catch (Exception ignored) { }
@@ -103,11 +132,21 @@ public final class WDIab {
         if (actRef.get() != null && actRef.get() != act) return "0:busy";
         actRef.set(act); actSink = sink;
         if (!bound || svc == null) {
-            /* V119: اگر اپ مایکت اصلاً نصب نیست، بلافاصله خطای واضح — نه انتظار بی‌پایان */
-            if (!setup(act)) {
+            /* V153: پیش‌چک PackageManager قبل از bind — کدِ برگشتی علت دقیق را می‌گوید:
+               0:nomyket = مایکت دیده نمی‌شود | 0:bind = مایکت هست ولی bind رد شد (مجوز؟) */
+            String st = setupStatus(act);
+            if (!"ok".equals(st)) {
                 clearRequest();
-                Log.w(TAG, "PURCHASE_FAILED myket app not installed (bind=false)");
-                return "0:nomyket";
+                if ("nomyket".equals(st)) {
+                    Log.w(TAG, "PURCHASE_FAILED myket app not installed/not visible (pre-check) — bind not attempted");
+                    return "0:nomyket";
+                }
+                if ("bindfail".equals(st)) {
+                    Log.w(TAG, "PURCHASE_FAILED myket installed but bindService refused (most likely missing BILLING permission in this APK)");
+                    return "0:bind";
+                }
+                Log.w(TAG, "PURCHASE_FAILED iab setup exception");
+                return "0:error:IabSetup";
             }
             queuedSku = sku;
             Log.w(TAG, "PURCHASE_START queued (service not connected yet)");

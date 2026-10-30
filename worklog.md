@@ -3056,3 +3056,16 @@ v.txt=145، __WD_V=145، ۱۲×?v=145 (APK wrapper GAME_VER=142 ثابت — Web
 
 ### نسخه و دروازه‌ها
 v.txt=150، __WD_V=150، ۱۲×?v=150 (صفر ۱۴۹؛ rebase روی V149 با resolution سمت remote برای index/v.txt — فیکس‌های V146-PERF/V148/V149 دست‌نخورده) • check-html-js **104/0** • shop-v2 node --check تمیز • **v146-iab-restore static 30/30** (با ادعاهای نسخه‌ی ۱۵۰ + اسکن نشت توکن) • سینمای نبرد/بوت-فست‌پث V148/V149 تحت تأثیر نیست (فقط بخش پرداخت shop-v2.js)
+
+## V153 — 2026-10-30 — تشخیص دقیق علت «اتصال به مایکت برقرار نشد» + APK v1.0.15 (vc16)
+درخواست مالک (چک‌لیست کامل IAB): پیش‌چک PackageManager قبل از bind، لاگ علت دقیق شکست (نصب‌نبودن / نبود مجوز / timeout)، جداسازی پیام «مایکت نصب نیست» از «مجوز پرداخت در این APK نیست»، بومپ نسخه، دستور بیلد در گزارش نهایی. (تغییرات درخواستیِ دیگر از قبل موجود و راستی‌آزمایی شد: manifest BILLING+queries از V146/V151، bind با action+setPackage، setup در onCreate / unbind در onDestroy، getBuyIntent+payload+onActivityResult، برگرداندن json+sig به JS، consume بعد از تأیید سرور، getPurchases در استارت (wdRestoreBoot)، SKUهای پنل gems_100/800/1500/emperor_starter هم‌تراز در SHOP_PACKS، endpoint راستی‌آزمایی سرور shop_gem_topup/starter_claim با دو مسیر X-Access-Token و RSA + dedup purchaseToken.)
+
+### تغییرات
+- (A) WDIab.java — V153: پیش‌چک `myketVisible()` با PackageManager قبل از هر bind (اگر Android 11+ بدون queries هم false می‌دهد، لاگ جدا می‌گوید). `setup()` قبلی به `setupStatus()` با ۴ وضعیت تبدیل شد: ok/nomyket/bindfail/error — `setup()` boolean برای MainActivity سازگار ماند. در `buy()`: nomyket→`0:nomyket` (bind اصلاً تلاش نمی‌شود)، bindfail→`0:bind` جدید (مایکت هست ولی bind رد شد ⇒ تقریباً همیشه نبود مجوز BILLING در بیلد قدیمی)، timeout همان نگهبان ۱۰ثانیه‌ای (code -2). لاگ‌های دقیق WD-PAY برای هر سه علت.
+- (B) shop-v2.js — PAYERR['0:bind']: پیام صادقانه‌ی جدید «مایکت روی گوشی هست ولی بازی اجازه‌ی اتصال نگرفت — نسخه‌ی بازی قدیمی است؛ به ۱.۰.۱۵+ به‌روز کن». بقیه‌ی نقشه‌ی خطا دست‌نخورده.
+- (C) AndroidManifest.xml — versionCode 15→16، versionName 1.0.14→1.0.15. هیچ چیز دیگری.
+- (D) وب 152→153: v.txt، __WD_V، ۱۲×?v= (شامل shop-v2.js?v=153). APK wrapper GAME_VER=142 طبق رسم دست‌نخورده (WebView revalidate).
+- (E) APK v1.0.15 بیلد و امضا شد (scripts/build-apk-myket.sh — aapt2/javac17/d8/zipalign/apksigner v1+v2): package com.worlddominion.game، minSdk 21، targetSdk 34، cert SHA-256 69a82c17…06a0636f (همان ریشه‌ی vc11..vc15). badging: uses-permission ir.mservices.market.BILLING ✓ + com.android.vending.BILLING ✓؛ باینری: queries مایکت ✓، 0:bind/setupStatus در dex ✓. sha256=e413688e…f971c4 → public/apk/WorldDominion-v1.0.15.apk + latest.json (vc16/1.0.15).
+
+### نسخه و دروازه‌ها
+v.txt=153، __WD_V=153، ۱۲×?v=153 (صفر ۱۵۲) • check-html-js 104/0 • v146-iab-restore static 39/0 • node --check shop-v2 ✓ • apksigner verify ✓
