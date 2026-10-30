@@ -318,6 +318,9 @@ function ensureFab(){
 }
 /* جای‌گذاری پویا: دقیقا زیر FAB المپیک — با جابه‌جایی المپیک (رفلوی نواری HUD) همگام می‌ماند؛ بدون هم‌پوشانی */
 function fabPlace(){
+  /* V156-PERF: حین پن/زوم نقشه، ریلayout اجباری (getBoundingClientRect) ممنوع —
+     بعد از پایان ژست، جهشِ epoch هوک busy-clear fabPlace._ep را باطل و یک بار جای‌گذاری می‌کند */
+  if(window.__wdMapBusy)return;
   var f=$('wd96-fab');if(!f)return;
   var oly=$('hud-olympic');
   if(!oly){f.style.top='234px';return}

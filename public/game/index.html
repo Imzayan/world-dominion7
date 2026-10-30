@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=155;/* V64 version beacon — self-heal swap uses /game/v.txt */
+  <script>window.__WD_V=156;/* V64 version beacon — self-heal swap uses /game/v.txt */
 /* V154 BOOT FAST — بارگذاری تنبل ماژول‌های سنگین (oly3/social/mentor ≈۳۴۵KB) بعد از آماده‌شدن نقشه؛
    بایت‌ها از قبل با preload می‌آیند (هدر) — فقط parse/exec از مسیر بحرانی بوت خارج می‌شود.
    ایمنی: اگر نقشه هرگز آماده نشد، حداکثر ۱۲ ثانیه بعد هر چه بود لود می‌شود (هیچ قفلی وجود ندارد). */
@@ -36,16 +36,16 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=155">
+   <link rel="preload" as="script" href="/game/balance.js?v=156">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=155">
-   <link rel="preload" as="script" href="/game/social.js?v=155">
-   <link rel="preload" as="script" href="/game/mentor.js?v=155">
+   <link rel="preload" as="script" href="/game/oly3.js?v=156">
+   <link rel="preload" as="script" href="/game/social.js?v=156">
+   <link rel="preload" as="script" href="/game/mentor.js?v=156">
    <!-- V155 BOOT: هندسه‌ی ۲۱۶KB کشورها از لحظه‌ی صفر دانلود می‌شود (موازی با parse اسکریپت‌ها)،
         نه بعد از init نقشه — متقارن با fetch same-origin cors (crossorigin لازم است تا cache match شود) -->
    <link rel="preload" as="fetch" href="/cdn/geo/countries.geo.json" crossorigin>
-  <script src="/game/balance.js?v=155"></script>
+  <script src="/game/balance.js?v=156"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1947,6 +1947,64 @@ function initGame() {
     } catch (e) { }
     /* V134: wheelDebounceTime 0 — قبلاً ۴۰ms تأخیر مصنوعی روی زوم چرخ موس بود (Leaflet default) */
     map = L.map('map', { center: [25, 15], zoom: 2.5, minZoom: 2, maxZoom: 6, markerZoomAnimation: false, fadeAnimation: false, zoomAnimation: false, preferCanvas: true, inertia: true, wheelDebounceTime: 0 });
+    /* V156-PERF: یک رندرر Canvas مشترک برای «همه‌ی» وکتورهای نقشه (کشورها + شبکه‌ی جغرافیایی).
+       قبلاً کشورها بومِ خودشان را داشتند و ۲۷ خطِ گراتیکول بومِ دومی در tilePane — یعنی هر
+       moveend/zoomend «دو» بازکشی کامل بوم + یک لایه‌ی کامپوزیت اضافه روی گوشی ضعیف.
+       حالا تک‌بوم: یک بازکشی به‌جای دو، یک لایه‌ی GPU به‌جای دو. گراتیکول روی رنگ کشورها
+       می‌نشیند (کدرتی ۱۰-۱۶٪، نامحسوس) و هیچ گِیتی به pane قدیمی وابسته نیست. */
+    window.WD_VEC = L.canvas({ padding: 0.25 });
+    /* V156-PERF — بازکشیِ افزایشیِ پن (ریشه‌ی «هنگ» پایان هر فلیک روی گوشی ضعیف):
+       Leaflet 1.9.4 در Canvas._update «بدون قید» بوم را resize می‌کند (تخصیص/صفربُریِ ~۳MB)
+       و «همه‌ی» کشورها را از نو می‌کشد — بعد از هر فلیک یک حفره‌ی ۶۰-۱۵۰ms روی گوشی.
+       حالا: در پنِ خالص (همان زوم) محتوای معتبر بوم با drawImage سرِ جای خودش کپی می‌شود و
+       «فقط نوارِ تازه‌رودیده» با clip+culle رندر می‌شود (موتور _redrawBounds خودِ Leaflet).
+       زوم/ریتینا/پنِ مورب/تله‌پورت/تغییر اندازه = مسیر کاملِ اصلی (بدون ریسک بصری). */
+    try {
+      (function () {
+        var V = window.WD_VEC; if (!V || !window.L) return;
+        var CP = Object.getPrototypeOf(V), oU = CP._update;
+        if (!oU || CP.__wdFastPan) return;
+        CP.__wdFastPan = 1;
+        CP._update = function () {
+          var map = this._map, c = this._container, ctx = this._ctx;
+          if (!map || !c || !ctx || map._animatingZoom || this._postponeUpdatePaths || !this._bounds || !this._center || L.Browser.retina) { oU.apply(this, arguments); return; }
+          if (this._zoom !== map.getZoom()) { oU.apply(this, arguments); return; }
+          var pad = this.options.padding, size = map.getSize(),
+            min = map.containerPointToLayerPoint(size.multiplyBy(-pad)).round(),
+            nB = new L.Bounds(min, min.add(size.multiplyBy(1 + 2 * pad)).round()),
+            oB = this._bounds;
+          var W = Math.round(nB.getSize().x), H = Math.round(nB.getSize().y);
+          if (c.width !== W || c.height !== H) { oU.apply(this, arguments); return; }
+          var dx = oB.min.x - nB.min.x, dy = oB.min.y - nB.min.y;
+          var movesX = dx !== 0, movesY = dy !== 0;
+          if ((movesX && movesY) || Math.abs(dx) >= W || Math.abs(dy) >= H || (!movesX && !movesY)) { oU.apply(this, arguments); return; }
+          this._bounds = nB; this._center = map.getCenter(); this._zoom = map.getZoom();
+          L.DomUtil.setPosition(c, nB.min);
+          var tmp = this._wdTmp || (this._wdTmp = document.createElement('canvas'));
+          if (tmp.width !== W || tmp.height !== H) { tmp.width = W; tmp.height = H; }
+          var tc = tmp.getContext('2d');
+          tc.setTransform(1, 0, 0, 1, 0, 0);
+          tc.clearRect(0, 0, W, H);
+          tc.drawImage(c, 0, 0);
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, W, H);
+          ctx.drawImage(tmp, dx, dy);
+          ctx.translate(-nB.min.x, -nB.min.y);
+          var rb = movesX ? (nB.min.x < oB.min.x
+            ? L.bounds(L.point(nB.min.x, nB.min.y), L.point(oB.min.x, nB.max.y))
+            : L.bounds(L.point(oB.max.x, nB.min.y), L.point(nB.max.x, nB.max.y)))
+            : (nB.min.y < oB.min.y
+              ? L.bounds(L.point(nB.min.x, nB.min.y), L.point(nB.max.x, oB.min.y))
+              : L.bounds(L.point(nB.min.x, oB.max.y), L.point(nB.max.x, nB.max.y)));
+          rb.min._floor(); rb.max._ceil();
+          this._redrawBounds = rb;
+          this._clear();
+          this._draw();
+          this._redrawBounds = null;
+          this.fire('update');
+        };
+      })();
+    } catch (e) { console.log('wd-fastpan', e); }
     /* V124 پرف: حین پن/زوم، کارهای تزئینی سبک روی لایه‌ها (مثل پالس مرز درخشان) متوقف می‌شوند
        تا بازکشی بوم با انیمیشن حرکت رقابت نکند — ۴۰۰ms بعد از پایان حرکت دوباره آزاد می‌شود
        V134: کلاس wd-dragging هم روی html — توقف compositor-only انیمیشن‌های تزئینی در طول ژست
@@ -1958,7 +2016,9 @@ function initGame() {
        invalidation ژست نیستند (انیمیشن‌هایشان compositor-only است و با پن رقابت نمی‌کند — doctrine V135). */
     try{
       map.on('movestart zoomstart',function(){window.__wdMapBusy=true;try{map.getContainer().classList.add('wd-dragging')}catch(e){}});
-      map.on('moveend zoomend',function(){clearTimeout(window.__wdMapBusyT);window.__wdMapBusyT=setTimeout(function(){window.__wdMapBusy=false;try{if(map&&map.getContainer)map.getContainer().classList.remove('wd-dragging')}catch(e){}},400)});
+      map.on('moveend zoomend',function(){clearTimeout(window.__wdMapBusyT);window.__wdMapBusyT=setTimeout(function(){window.__wdMapBusy=false;try{if(map&&map.getContainer)map.getContainer().classList.remove('wd-dragging')}catch(e){}
+          /* V156-PERF: جهش‌های epoch جمع‌شده در طول ژست — یک اسکن پس از پایان حرکت */
+          if(window.__wdEpPend){window.__wdEpPend=0;window.__wdDomEpoch=(window.__wdDomEpoch||0)+1}},400)});
     }catch(e){}
 
     /* V69 §23/§29: تک‌هندلر zoomend — فقط یک listener روی map؛ بقیه هوک‌های سبک رجیستری.
@@ -2056,7 +2116,7 @@ function initGame() {
             while (fi < feats.length) { wdSimplifyFeature(feats[fi]); fi++; if (performance.now() - t0 > 12) break; }
             if (fi < feats.length) { setTimeout(wdSimpStep, 0); return; }
             geoJsonLayer = L.geoJSON(null, {
-              renderer: L.canvas({padding: 0.25}),
+              renderer: window.WD_VEC,
               style: f => Object.assign({smoothFactor: 1, noClip: false}, typeof baseStyle === 'function' ? baseStyle(f.properties.name) : { color: '#00f0ff', weight: 1, fillColor: '#05182e', fillOpacity: 0.6 }),
               onEachFeature: function (feature, layer) {
                 layersByName[feature.properties.name] = layer;
@@ -2928,7 +2988,10 @@ function econ(){if(!myCountryName)return;const terr=conqueredCountries.size,pw=c
   if(sanction>0){playerRes.gold-=SC.goldPerTerr*terr;playerRes.food-=SC.foodPerTerr*terr;playerRes.oil-=Math.min(SC.oilCapPerTerr,oilPerTick()*terr*SC.oilPerTickShare);sanction-=SC.hoursPerStep;if(sanction<=0){tension=SC.tensionRelease;news('🕊️ تحریم‌ها لغو شد','win')}}
   else if(tension>=SC.tensionTrigger){sanction=SC.duration;news('🚫 تحریم‌های بین‌المللی اعمال شد: درآمد تو نصف شد','lose')}
   conqueredCountries.forEach(n=>{if(n===myCountryName)return;if(unrest[n]==null)unrest[n]=UB.start;unrest[n]+=Math.max(UB.gainMin,UB.gainBase-pw/UB.gainPowerDiv)*(1+WD_BATTLE.fatigue.unrestBoost*_fat);if(unrest[n]>=UB.revoltThreshold)revolt(n)});
-  ['gold','food','oil'].forEach(k=>playerRes[k]=Math.max(0,playerRes[k]));updateUI()}
+  /* V156-PERF: اقتصاد هر ۴ثانیه اجرا می‌شود — محاسباتش باید همیشه انجام شود (طلا/نفت/ناآرامی) ولی
+     بازنویسی DOM تا بعد از پن/زوم صبر می‌کند؛ تیک بعدی (۴ثانیه) UI را تازه می‌کند. حین پن،
+     updateUI (calculateTotalAttack×۲ + رندر پنل ارتش) مستقیماً با فریم‌های حرکت رقابت می‌کرد. */
+  ['gold','food','oil'].forEach(k=>playerRes[k]=Math.max(0,playerRes[k]));if(!window.__wdMapBusy)updateUI()}
 const neutrals=()=>Object.keys(layersByName).filter(k=>statusOf(k)==='neutral');
 function tweakDef(f,txt){const ks=neutrals();if(!ks.length)return;const k=ks[Math.random()*ks.length|0],t=getCountryData(k);overrides[k]=Object.assign({},t,{def:Math.round(t.def*f)});news(txt.replace('X',t.fa))}
 const EV=[()=>{const g=150*Math.max(1,conqueredCountries.size);playerRes.gold+=g;news(`📈 رونق اقتصادی جهانی: ${g} طلا به خزانه‌ات رسید`,'win')},
@@ -3549,7 +3612,10 @@ addEventListener('load',()=>{const nb=document.querySelector('.bottom-nav');
   if(nb){const b=el('button','','nav-btn',()=>{renderShop();openModal('m-shop')});b.id='btn-m-shop';b.append(el('span','💎'),el('span','فروشگاه'));nb.append(b)}
   const s=S$('hud-strip');if(s){const g=el('div','💎 0','hchip',()=>{renderShop();openModal('m-shop')});g.id='hud-gem';g.style.cursor='pointer';const t=el('div','🏴 0 کشور','hchip');t.id='hud-terr';s.prepend(g);s.prepend(t)}
   const bt=S$('btn-m-tax');if(bt)bt.addEventListener('click',()=>{const a=S$('act-tax');if(a)a.textContent='💰 ۱۰۰ غذا ← '+taxAmount()+' طلا (بر اساس جمعیت)'});
-  setInterval(()=>{const g=S$('hud-gem'),t=S$('hud-terr');if(g){if(window.WD39_GEM)window.WD39_GEM(g,GEMS);else g.textContent='💎 '+GEMS};
+  /* V156-PERF: حین پن/زوم/اینرسی نقشه (+۴۰۰ms گریس) و تبِ مخفی، چیپ‌ها اصلاً بازنویسی نمی‌شوند —
+     یک ثانیه بعد از پایان ژست، تیک بعدی مقدار تازه را می‌گذارد. قبلاً همین تایمر وسط پن،
+     innerHTML کامل چیپ جم را باز می‌ساخت و مستقیم با فریم‌های پن رقابت می‌کرد. */
+  setInterval(()=>{if(document.hidden||window.__wdMapBusy)return;const g=S$('hud-gem'),t=S$('hud-terr');if(g){if(window.WD39_GEM)window.WD39_GEM(g,GEMS);else g.textContent='💎 '+GEMS};
     /* V152: چیپِ قلمرو حالتِ «هیچ کشوری نداری» را صادقانه نشان می‌دهد (دستور مالک) — hud-terr تنها چیپِ
        زنده‌ی قلمرو است (V101b نوار را گروه‌بندی کرد و hud-t2/hud-srv قدیمی از HUD حذف شدند) */
     if(t){const _none=(typeof myCountryName!=='undefined'&&!myCountryName&&(!(typeof DBMINE!=='undefined'&&DBMINE)||!DBMINE.size));
@@ -3625,6 +3691,7 @@ let sb=(function(){
       var fp=((e&&e.seq)||0)+'@'+((e&&e.at)||0);if(seen.indexOf(fp)>=0)return;seen.push(fp);if(seen.length>120)seen.splice(0,seen.length-120);
       (subs[e.event]||[]).forEach(function(cb){try{cb({payload:e.payload})}catch(x){}})}
     function poll(){
+      if(window.__wdMapBusy)return; /* V156-PERF: حین پن/زوم، fetch+json+fire به‌صفِ پن نمی‌افتد؛ SSE زنده است و تیک بعدی ۱۲ثانیه جبران می‌کند */
       if(!(typeof ACC!=='undefined'&&ACC&&ACC.uid))return;
       j(API+'/rt/'+encodeURIComponent(name)+'?since='+seq).then(function(r){
         if(r&&r.error){stop();return}
@@ -4745,7 +4812,7 @@ function setHatch(n,occ,anim,prev){if(!layersByName[n]||!map||!getG(myCountryNam
 let vassals = {};
 
 function tributeBonus(){let t=0;Object.keys(vassals).forEach(n=>{if(statusOf(n)==='conquered')t+=popM(n)*BALANCE.economy.tribute.perPop});return Math.round(t)} /* V72: BALANCE */
-setInterval(()=>{if(!myCountryName)return;const tb=tributeBonus();if(tb>0){playerRes.gold+=tb;updateUI()}},4000);
+setInterval(()=>{if(!myCountryName)return;const tb=tributeBonus();if(tb>0){playerRes.gold+=tb;if(!window.__wdMapBusy)updateUI()}},4000);
 
 function makeVassal(n){
   if(statusOf(n)!=='conquered'){showToast('❌ فقط قلمروهای تصرف‌شده (نه پایتخت) رو می‌شه دست‌نشانده کرد','lose');return}
@@ -7157,8 +7224,8 @@ function mapUpgrade(){
   /* 1) graticule (tactical grid, drawn under the land) */
   try{
     var gl=[];
-    for(var lat=-80;lat<=80;lat+=20){gl.push(L.polyline([[lat,-180],[lat,180]],{color:'#7fb4dd',weight:lat===0?.6:.35,opacity:lat===0?.16:.10,interactive:false,pane:'tilePane'}));}
-    for(var lon=-180;lon<180;lon+=20){gl.push(L.polyline([[-85,lon],[85,lon]],{color:'#7fb4dd',weight:.35,opacity:.10,interactive:false,pane:'tilePane'}));}
+    for(var lat=-80;lat<=80;lat+=20){gl.push(L.polyline([[lat,-180],[lat,180]],{color:'#7fb4dd',weight:lat===0?.6:.35,opacity:lat===0?.16:.10,interactive:false,renderer:window.WD_VEC}));}
+    for(var lon=-180;lon<180;lon+=20){gl.push(L.polyline([[-85,lon],[85,lon]],{color:'#7fb4dd',weight:.35,opacity:.10,interactive:false,renderer:window.WD_VEC}));}
     gl.forEach(function(l){l.addTo(map)});
   }catch(e){console.log('graticule',e)}
   /* 2) hover glow on countries — V125: فقط دسکتاپ. روی موبایل هر تپ، mouseover/mouseout شبیه‌سازی‌شده
@@ -7943,7 +8010,13 @@ var FA_SEL='#r-gold,#r-food,#r-oil,#r-army,#total-attack-power,#hud-gem,#hud-ter
    pollerهای دوره‌ای فقط بعد از تغییر واقعی اسکن می‌کنند — idle دیگر querySelectorAllِ بی‌پایان ندارد
    (پروفایل: ۱۵۱ms اسکن در ۱۲ ثانیه idle = منبع اصلی پ95=۲۲fps در سکون). */
 try{(function(){var t=null,n=0;window.__wdDomEpoch=0;
-  new MutationObserver(function(){if(t)return;t=setTimeout(function(){t=null;window.__wdDomEpoch=++n},350)})
+  /* V156-PERF: حین پن/زوم/اینرسی، جهشِ epoch به تعویق می‌افتد — قبلاً هر تغییرِ متنِ HUD در وسط پن
+     (تاریخ، منابع، count-up) ۳۵۰ms بعد یک اسکنِ faNum+rank+fabPlaceِ سراسری را بلافاصله بعد از
+     هر فلیک اجرا می‌کرد = بارانی از longtaskهای ۳۰-۸۰ms روی گوشی ضعیف، دقیقاً بعد از هر پن.
+     حالا: جهش‌ها حین ژست جمع می‌شوند و با پایان ژست (هوک busy-clear) «یک بار» اعمال می‌شوند. */
+  new MutationObserver(function(){
+    if(window.__wdMapBusy){window.__wdEpPend=1;return}
+    if(t)return;t=setTimeout(function(){t=null;window.__wdDomEpoch=++n},350)})
     .observe(D.body||D.documentElement,{childList:true,subtree:true,characterData:true});
 })();}catch(e){}
 var __faEpoch=-1;
@@ -8846,7 +8919,7 @@ function guardAll(){try{D.querySelectorAll(CHIP_SEL).forEach(function(e){guardCh
   }catch(e){}
 }
 try{D.querySelectorAll(CHIP_SEL).forEach(function(e){guardChip(e)})}catch(e){}
-setInterval(function(){if(!document.hidden)guardAll()},4000);
+setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;guardAll()}catch(e){}},4000);
 /* رندر سطح چیپ‌ها: فقط وقتی مقدار واقعی عوض شود DOM لمس می‌شود */
 var _srvChip=null;
 /* V152: چیپِ قلمرو — حالتِ «هیچ کشوری نداری» صادقانه با 🏳️ نمایش داده می‌شود (دستور مالک:
@@ -12835,7 +12908,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=155';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=156';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -13875,7 +13948,7 @@ function srvStart(){
   var n=0,iv=setInterval(function(){if(srvBoot()||++n>40)clearInterval(iv)},500);
 }
 if(D.readyState==='complete')srvStart();else window.addEventListener('load',srvStart);
-setInterval(function(){if(!D.hidden)srvUpd()},4000);
+setInterval(function(){if(!D.hidden&&!window.__wdMapBusy)srvUpd()},4000);
 /* keep the chip positioned right before the (hidden) legacy chip even if late scripts reorder the strip */
 setInterval(function(){try{
   if(srvChip&&srvChip.parentNode){
@@ -14068,7 +14141,15 @@ var GEM_SVG='<svg class="wd39-gem-ic" viewBox="0 0 24 24" aria-hidden="true">'+
  '<path d="M12 9l0 12" stroke="rgba(255,255,255,.28)" stroke-width=".7"/>'+
  '<path d="M8 4.4l2.6 3.4L8 9.6 6.4 6.4z" fill="url(#w39g2)" opacity=".9"/></svg>';
 window.WD39_GEM=function(el,v){if(!el)return;
-  el.innerHTML=GEM_SVG+'<span class="wd39-gem-n">'+esc39(faN(v==null?0:v))+'</span>'};
+  /* V156-PERF: این تابع هر ثانیه از تایمر چیپ جم صدا زده می‌شد و «بدون هیچ گاردی» کل SVG را با
+     innerHTML از نو می‌ساخت = ۶۰ بار در دقیقه parse+DOM rebuild+style recalc روی HUD = گرمای
+     دائمی گوشی و حفره‌های ۵۰ms+ وسط پن نقشه (پروفایل CDP: ۶۲ms خودِ تابع در ۱۲ثانیه).
+     حالا فقط با تغییر واقعی مقدار بازسازی می‌شود؛ گارد دوم مطمئن می‌شود اگر کسی innerHTML چیپ را
+     بیرون از این تابع بازنویسی کرده باشد، بازسازی انجام شود. */
+  var _v=v==null?0:v;
+  if(el._wd39v===_v&&el.firstChild&&el.firstChild.classList&&el.firstChild.classList.contains('wd39-gem-ic'))return;
+  el._wd39v=_v;
+  el.innerHTML=GEM_SVG+'<span class="wd39-gem-n">'+esc39(faN(_v))+'</span>'};
 
 /* ---------- 2) fast event-switch sync for everyone (12s + on tab return) ---------- */
 function evApply(olympicChanged,nowOff){
@@ -18690,7 +18771,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=155"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=156"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18716,7 +18797,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=155';
+              s.src='/game/cv-engine.js?v=156';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18728,7 +18809,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     })();
    </script>
 <script>/* V154 BOOT FAST: oly3.js (۱۳۴KB) — بایت از head می‌آید (preload)، exec بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=155')})</script>
+__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=156')})</script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18742,7 +18823,7 @@ __wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=155')})</script>
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=155';
+      s.src='/game/oly3d.js?v=156';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -20017,9 +20098,9 @@ setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}c
 })();
 </script>
 <script>/* V154 BOOT FAST: social.js (۷۵KB) بعد از نقشه — boot خودش را با readyState/تایمر امن شروع می‌کند */
-__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=155')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=156')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
 <script>/* V154 BOOT FAST: mentor.js (۵۰KB) بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=155')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=156')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
