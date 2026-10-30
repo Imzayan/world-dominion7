@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=156;/* V64 version beacon — self-heal swap uses /game/v.txt */
+  <script>window.__WD_V=157;/* V64 version beacon — self-heal swap uses /game/v.txt */
 /* V154 BOOT FAST — بارگذاری تنبل ماژول‌های سنگین (oly3/social/mentor ≈۳۴۵KB) بعد از آماده‌شدن نقشه؛
    بایت‌ها از قبل با preload می‌آیند (هدر) — فقط parse/exec از مسیر بحرانی بوت خارج می‌شود.
    ایمنی: اگر نقشه هرگز آماده نشد، حداکثر ۱۲ ثانیه بعد هر چه بود لود می‌شود (هیچ قفلی وجود ندارد). */
@@ -36,16 +36,16 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=156">
+   <link rel="preload" as="script" href="/game/balance.js?v=157">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=156">
-   <link rel="preload" as="script" href="/game/social.js?v=156">
-   <link rel="preload" as="script" href="/game/mentor.js?v=156">
+   <link rel="preload" as="script" href="/game/oly3.js?v=157">
+   <link rel="preload" as="script" href="/game/social.js?v=157">
+   <link rel="preload" as="script" href="/game/mentor.js?v=157">
    <!-- V155 BOOT: هندسه‌ی ۲۱۶KB کشورها از لحظه‌ی صفر دانلود می‌شود (موازی با parse اسکریپت‌ها)،
         نه بعد از init نقشه — متقارن با fetch same-origin cors (crossorigin لازم است تا cache match شود) -->
    <link rel="preload" as="fetch" href="/cdn/geo/countries.geo.json" crossorigin>
-  <script src="/game/balance.js?v=156"></script>
+  <script src="/game/balance.js?v=157"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1919,13 +1919,6 @@ function showToast(msg, kind) {
 }
 
 // ---------- Color helpers ----------
-function lerpColor(a, b, t) {
-  const ah = parseInt(a.slice(1), 16), bh = parseInt(b.slice(1), 16);
-  const ar = (ah >> 16) & 255, ag = (ah >> 8) & 255, ab = ah & 255;
-  const br = (bh >> 16) & 255, bg = (bh >> 8) & 255, bb = bh & 255;
-  const rr = Math.round(ar + (br - ar) * t), rg = Math.round(ag + (bg - ag) * t), rb = Math.round(ab + (bb - ab) * t);
-  return '#' + ((1 << 24) + (rr << 16) + (rg << 8) + rb).toString(16).slice(1);
-}
 
 // ---------- Map setup ----------
 function initGame() {
@@ -2244,14 +2237,6 @@ function renderUnits() {
   });
 }
 
-function buyUnit(key) {
-  const u = ARMY_UNITS[key];
-  if (!myCountryName) { showToast("❌ اول باید یک پایتخت انتخاب کنید!", "lose"); return; }
-  const realCostGold = Math.round(u.costGold * (1 - armsDiscount()));
-  if (playerRes.gold < realCostGold || playerRes.oil < u.costOil) { showToast("❌ منابع کافی نیست!", "lose"); return; }
-  playerRes.gold -= realCostGold; playerRes.oil -= u.costOil; u.count += 1;
-  updateUI();
-}
 
 // ---------- Country data ----------
 function getCountryData(engName) {
@@ -2801,6 +2786,10 @@ const WD_ATTACK_HOOKS={};window.WD_ATTACK_HOOKS=WD_ATTACK_HOOKS;
 async function attackTarget(n){
   if(battleBusy)return;                                            /* [گارد] همه‌ی لایه‌ها همین را داشتند */
   if(window.__wd39inflight)return;                                 /* [V39] نبرد PvP در جریان است (برچسب قدیمی wd5 اصلاح شد) */
+  /* V157: قفل همگامِ نیت — دبل‌تپ قبل از اولین await دوباره وارد اعتبارسنجی نمی‌شد و دو اجرای
+     موازی دوبار «خبر آغاز عملیات» و دوبار جهش تنش می‌ساخت؛ حالا intent تا ۴ثانیه یک‌تاست. */
+  if(window.__wdAtk157&&Date.now()-(window.__wdAtk157At||0)<4000)return;
+  window.__wdAtk157=true;window.__wdAtk157At=Date.now();
   if(!myCountryName){showToast('❌ اول باید یک پایتخت انتخاب کنید!','lose');
     /* V152: به‌جای بن‌بستِ توستِ خالی — مستقیم به حالتِ انتخابِ کشورِ جدید (بنر + هایلایتِ آزادها) */
     try{wdElimPickMode()}catch(e){}return} /* [core] برابری ترتیب قدیمی: پایتخت قبل از مرز */
@@ -2831,7 +2820,7 @@ async function attackTarget(n){
   const sup=(typeof window.wdLogisticsCost==='function')?window.wdLogisticsCost(power):250+Math.round(power*.06);
   if(playerRes.food<sup||playerRes.oil<sup){const _fc=(typeof window.foodStorageCap==='function')?window.foodStorageCap():0,_oc=(typeof window.oilStorageCap==='function')?window.oilStorageCap():0;
     showToast('❌ لجستیک ناکافی! این نبرد '+sup.toLocaleString('en')+' غذا و '+sup.toLocaleString('en')+' نفت می‌خواهد — داری: 🌾'+Math.round(playerRes.food).toLocaleString('en')+' / 🛢️'+Math.round(playerRes.oil).toLocaleString('en')+' (سقف انبار: 🌾'+_fc.toLocaleString('en')+' / 🛢️'+_oc.toLocaleString('en')+' — انبار مرکزی را ارتقا بده)','lose');return}
-  window.__wd51nat=true;window.__wd51natAt=Date.now();
+  window.__wd51nat=true;window.__wd51natAt=Date.now();window.__wdAtk157=false; /* V157: نیت تمام شد — از این‌جا battleBusy حاکم است */
   playerRes.food-=sup;playerRes.oil-=sup;battleBusy=true;
   const t=getCountryData(n),t0={fa:t.fa,def:t.def,gold:t.gold},wasMine=conqueredCountries.has(n),start=occupationPct[n]||0,power0=power;let occ=start;
   try{if(WD_ATTACK_HOOKS.cinemaStart)WD_ATTACK_HOOKS.cinemaStart(n,t0.fa)}catch(e){console.error('wd-cinema',e)}   /* [V30/V22] سینما */
@@ -3906,7 +3895,18 @@ async function enterOnline(u,nick){ACC.nick=nick;ACC.uid=u.id;LS.set('wd_seen','
     ACC.ready=true;
     A$('status-banner').textContent='👤 '+nick+' — پیشرفت بازی خودکار روی سرور ذخیره می‌شود';showToast('🌍 خوش آمدی '+nick,'win')}
   catch(e){console.log(e);/* never overwrite the cloud save if loading failed */
-    A$('status-banner').textContent='⚠️ بارگذاری پیشرفت از سرور ناموفق بود؛ صفحه را رفرش کن (ذخیره‌سازی فعلاً غیرفعال است)'}}
+    /* V157: سه تلاش مجدد — قبلاً یک قطعیِ شبکه یعنی کل نشست بدون سیو/داوری (ACC.ready=false) و
+       پایتختی که هرگز به سرور نمی‌رسید؛ حالا تا ۷.۵ثانیه دوباره تلاش می‌شود */
+    let ok157=false;
+    for(let k157=0;k157<3&&!ok157;k157++){
+      await new Promise(function(r){setTimeout(r,2500)});
+      try{const r2=await sb.from('saves').select('state,updated_at').eq('user_id',u.id).maybeSingle();
+        if(r2.error)throw r2.error;
+        if(r2.data&&r2.data.state){restoreState(r2.data.state);ACC.last=JSON.stringify(r2.data.state);ACC.ver=r2.data.updated_at}
+        ACC.ready=true;ok157=true;
+        A$('status-banner').textContent='👤 '+nick+' — پیشرفت بازی خودکار روی سرور ذخیره می‌شود';showToast('🌍 خوش آمدی '+nick,'win')}
+      catch(e2){console.log(e2)}}
+    if(!ok157)A$('status-banner').textContent='⚠️ بارگذاری پیشرفت از سرور ناموفق بود؛ صفحه را رفرش کن (ذخیره‌سازی فعلاً غیرفعال است)'}}
 async function saveOnline(){const st=snapState(),j=JSON.stringify(st);if(j===ACC.last||ACC.busy)return;
   ACC.busy=true;
   try{const conq=conqueredCountries.size,score=Math.max(0,Math.round(conq*1000+calculateTotalAttack())),now=new Date().toISOString();
@@ -3923,13 +3923,15 @@ async function saveOnline(){const st=snapState(),j=JSON.stringify(st);if(j===ACC
           if(ex&&ex.data&&ex.data.updated_at){ACC.ver=ex.data.updated_at;ACC.last=j;ok=true}}catch(e2){console.log(e2)}
         if(!ok)conflict=true;
       }else console.log(a.error)}
-    if(ok){ACC.ver=now;ACC.last=j;
+    if(ok){ACC.ver=now;ACC.last=j;window.__wdSaveFail=0; /* V157 */
       /* score/kills/economy are computed on the server from the save (see supabase-security.sql) */}
     else if(conflict){ /* V48: چنددستگاهی مجاز است — هیچ پیام خطایی نمایش داده نمی‌شود. ver تازه گرفته می‌شود و چرخه‌ی بعدی سیو (۸ ثانیه بعد) دوباره می‌نویسد؛ آخرین دستگاه برنده است */
       try{const ex=await sb.from('saves').select('updated_at').eq('user_id',ACC.uid).maybeSingle();
         if(ex&&ex.data&&ex.data.updated_at)ACC.ver=ex.data.updated_at}catch(e2){console.log(e2)}
       ACC.last='__wd48_retry__'}}
-  catch(e){console.log(e)}
+  catch(e){console.log(e)
+    /* V157: سیوِ خاموشِ ناموفق = پیشرفت گم‌شده بی‌هیچ خبری؛ بعد از ۳ شکست پیام صادقانه */
+    try{window.__wdSaveFail=(window.__wdSaveFail||0)+1;if(window.__wdSaveFail===3){window.__wdSaveFail=0;showToast('⚠️ ذخیره‌سازی خودکار چند بار ناموفق بود — اتصال اینترنت را بررسی کن','lose')}}catch(_){}}
   ACC.busy=false}
 async function rankOnline(box){box.append(mk('div','🌍 رتبه‌بندی سرور '+(typeof SRV!=='undefined'?SRV:1),'lr-h'));
   const load=mk('div','⏳','lr-row');box.append(load);
@@ -4208,7 +4210,9 @@ const _ccv=claimCapital;claimCapital=function(n){if(OTH[n]){showToast('❌ ای�
   try{if(sb&&ACC.uid&&MP_OK===true)sb.channel('wd-terr-'+SRV).send({type:'broadcast',event:'terr',payload:{srv:SRV,country:n,nick:(ACC.nick||'بازیکن'),uid:ACC.uid,cap:true}})}catch(e){}
   /* V80 FIX (باگ «گزینه‌ها باگه»): claimCapital کشوی کشور را با innerHTML بازنویسی می‌کند و هوک‌های post دیگر اجرا
      نمی‌شوند ← دکمه‌ی «🚪 ورود به کشور» تا تپِ دوم مخفی می‌ماند. همان کشور دوباره fire می‌شود تا کشوی تازه با دکمه‌ی ورود بیاید */
-  setTimeout(function(){try{const L=(typeof layersByName!=='undefined')?layersByName[n]:null;if(L&&L.fire)L.fire('click')}catch(e){}},420)};
+  setTimeout(function(){try{ /* V157: اگر بازیکن در همین ۴۲۰ms کشوری دیگر را زده باشد آتشِ مصنوعی تپش را نمی‌دزدد */
+    if(window.__wdTapAt157&&Date.now()-window.__wdTapAt157<430)return;
+    const L=(typeof layersByName!=='undefined')?layersByName[n]:null;if(L&&L.fire)L.fire('click')}catch(e){}},420)};
 /* V59 wave-2: wrapper حذف شد — نقش کشورِ دیگران (OTH)، پس‌هوک کلیک */
 try{WD_CLICK_HOOKS.post.push(function(f,l){const o=OTH[f.properties.name];if(!o)return;
   const r=S$('c-role'),d=S$('drawer-actions');if(r)r.textContent='🏴 تحت کنترل '+o.nick+(o.cap?' (پایتخت)':'')+' — سرور '+SRV;
@@ -4423,7 +4427,9 @@ function wdElimState(){
 function wdElimShow(info){
   /* پنجره‌ی سقوط — فقط برای گذارِ واقعی «داشتن → صفر» (یک‌بار در هر گذار) */
   /* وسطِ سینمای نبرد باز نمی‌شود — ۶.۵ثانیه بعد (پس از بستنِ خودکار سینما) نمایش داده می‌شود */
-  if(typeof battleBusy!=='undefined'&&battleBusy){setTimeout(function(){try{wdElimShow(info)}catch(e){}},6500);return}
+  if(typeof battleBusy!=='undefined'&&battleBusy){ /* V157: دو رویداد حذف در یک نبرد = دو تایمرِ به‌تعویق‌افتاده و پنجره‌ی دوبله */
+    if(!window.__wdElimDq157){window.__wdElimDq157=1;setTimeout(function(){window.__wdElimDq157=0;try{wdElimShow(info)}catch(e){}},6500)}
+    return}
   if(!window.__wdElimArmed)return;window.__wdElimArmed=false;
   window.__wdElimPrevCap=(info&&info.cap)||null;
   const domId='m-elim';
@@ -4874,9 +4880,6 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){
    <script>
     /* ===== v8: kills/economy tracking, weekly rewards, one-account-per-device ===== */
 
-function economyScore(){
-  return Math.round((infra.oil+infra.arms+infra.air)*300 + playerRes.gold*0.1 + playerRes.oil*0.05 + playerRes.food*0.02);
-}
 function catFa(c){return c==='kills'?'کشتار نظامی':c==='economy'?'اقتصاد':c==='recruits'?'استخدام نیرو':'کشورگشایی'}
 
 /* persist totalKills across saves/reloads */
@@ -5142,8 +5145,11 @@ restoreState=function(st){_rs(st);window.totalRecruits=(st&&st.rec)||0;infPool=M
     /* in-app confirm dialog (native confirm() is unreliable inside TWA/PWA) */
 function wdConfirm(msg,yesLabel){return new Promise(res=>{
   const box=document.getElementById('wd-confirm'),y=document.getElementById('wd-confirm-yes'),n=document.getElementById('wd-confirm-no');
+  /* V157: اگر دیالوگ قبلی هنوز باز باشد قولش می‌بندد — قبلاً await اول برای همیشه معلق می‌ماند */
+  if(window.__wdConfirmRes157){try{window.__wdConfirmRes157(false)}catch(e){}}
   document.getElementById('wd-confirm-msg').textContent=msg;y.textContent=yesLabel||'تأیید';box.classList.add('on');
-  const done=v=>{box.classList.remove('on');y.onclick=n.onclick=null;res(v)};y.onclick=()=>done(true);n.onclick=()=>done(false)})}
+  window.__wdConfirmRes157=res;
+  const done=v=>{box.classList.remove('on');y.onclick=n.onclick=null;window.__wdConfirmRes157=null;res(v)};y.onclick=()=>done(true);n.onclick=()=>done(false)})}
 /* Google Play policy: inside the Android app digital goods must use Play Billing, so external payment links are disabled there */
 (function(){try{if(document.referrer&&document.referrer.indexOf('android-app://')===0)localStorage.setItem('wd_twa','1')}catch(e){}})();
 /* V71: گارد مرده‌ی SHOP.packs حذف شد — SHOP هرگز تعریف نمی‌شد؛ سیاست پرداخت درون‌برنامه‌ای اکنون در فروشگاه V2 سرور-محور است */
@@ -5306,7 +5312,8 @@ function hook(){daily();mk();
 const oldBuy=window.buyUnit;if(typeof oldBuy==='function'&&!oldBuy.__wd6){const f=function(...a){const r=oldBuy.apply(this,a);mission('war',0);return r};f.__wd6=true;window.buyUnit=f}
 render();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(hook,900));else setTimeout(hook,900);
-setInterval(render,5000);
+setInterval(function(){try{ /* V157: بازنویسی innerHTML هر ۵ثانیه فقط وقتی چیزی دیده می‌شود */
+  if(document.hidden)return;var f=document.getElementById('wd6-feed');if(!f||f.offsetParent===null)return;render()}catch(e){}},5000);
 window.WD6={xp:addXP,mission,open,close};
 /* V59 wave-2: ثبت XP/مأموریت حمله در رجیستری — قبلاً فراخوانی global مرده بود */
 try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.push(function(){mission('war');addXP(12,'نبرد')})}catch(e){console.error('wd6-xp',e)}
@@ -5820,7 +5827,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
    <style id="wd-pro-pvp-chat-css">
     #wd-feature-dock{top:118px!important}
 #wd-chat-btn{border-color:rgba(255,204,0,.42);background:linear-gradient(180deg,#513b09,#241803)}
-#wd-pvp-pro .modal-card,#wd-chat .modal-card{width:min(94vw,520px);max-height:88vh;overflow:auto}
+#wd-chat .modal-card{width:min(94vw,520px);max-height:88vh;overflow:auto}
 .wdp-head{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:linear-gradient(135deg,#102d4b,#071526);border:1px solid rgba(0,240,255,.2);padding:10px;border-radius:14px}
 .wdp-target{font-size:15px;font-weight:1000}.wdp-sub{font-size:9px;color:#8eb9e8;margin-top:4px}
 .wdp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}.wdp-stat{padding:8px;border-radius:10px;background:#071a2d;border:1px solid rgba(255,255,255,.07);text-align:center;font-size:9px}.wdp-stat b{display:block;font-size:13px;color:#fff;margin-top:2px}
@@ -5837,11 +5844,6 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
   // Add a global chat button without changing the existing layout.
   const dock=$('wd-feature-dock');
   if(dock && !$('wd-chat-btn')){const b=document.createElement('button');b.className='wd-feature-btn';b.id='wd-chat-btn';b.textContent='💬 چت سرور';dock.appendChild(b);}
-  if(!$('wd-pvp-pro')){
-    const m=document.createElement('div');m.id='wd-pvp-pro';m.className='modal';m.innerHTML=`<div class="modal-card">
-      <div class="modal-title-row"><span>⚔️ اتاق عملیات — نبرد زمینی</span><span class="close-modal" style="cursor:pointer;font-size:18px">✕</span></div>
-      <div id="wdp-body"></div></div>`;document.body.appendChild(m);
-  }
   if(!$('wd-chat')){
     const m=document.createElement('div');m.id='wd-chat';m.className='modal';m.innerHTML=`<div class="modal-card">
       <div class="modal-title-row"><span>💬 چت سرور — سرور <span id="wdc-server">—</span></span><span class="close-modal" style="cursor:pointer;font-size:18px">✕</span></div>
@@ -5850,19 +5852,6 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
       <div class="wdc-compose"><input id="wdc-input" class="wdc-input" maxlength="240" placeholder="پیامت را بنویس..." autocomplete="off"><button id="wdc-send" class="wdc-send">ارسال</button></div>
     </div>`;document.body.appendChild(m);
   }
-  function pvpUnitRows(){
-    const keys=['infantry','tank','bomber','fighter','heli','missile','drone','transport','destroyer','carrier'];
-    return keys.filter(k=>ARMY_UNITS[k]&&ARMY_UNITS[k].count>0).map(k=>{const u=ARMY_UNITS[k];return `<div class="wdp-unit"><div class="ico">${u.icon}</div><div><b>${esc(u.name.split(' (')[0])}</b><small>قدرت هر واحد: ${Math.round(u.attack*(u.air?airBonus():1))}</small></div><div class="num">${u.count.toLocaleString()}</div></div>`}).join('')||'<div class="wd-card wd-muted">هیچ یگانی برای حمله نداری. از ارتش نیرو بساز.</div>';
-  }
-  function renderPvp(body,target,o,occ=0,defense=0,status='آماده حمله'){
-    const power=calculateTotalAttack();
-    body.innerHTML=`<div class="wdp-head"><div><div class="wdp-target">🎯 ${esc(target.fa)}</div><div class="wdp-sub">مدافع: <b>${esc(o.nick||'بازیکن')}</b>${o.cap?' • ⭐ پایتخت':''}</div></div><div style="font-size:24px">🏴</div></div>
-      <div class="wdp-stats"><div class="wdp-stat">قدرت حمله<b>${power.toLocaleString()}</b></div><div class="wdp-stat">دفاع تخمینی<b>${Number(defense||target.def).toLocaleString()}</b></div><div class="wdp-stat">تصرف جبهه<b id="wdp-occ">${Math.round(occ)}٪</b></div></div>
-      <div class="wdp-front"><i class="att" id="wdp-att" style="width:${Math.min(100,Math.max(0,occ))}%"></i><i class="def" id="wdp-def" style="width:${100-Math.min(100,Math.max(0,occ))}%"></i><span>خط مقدم — ${Math.round(occ)}٪</span></div>
-      <div id="wdp-log" class="wdp-log">${esc(status)}</div><div class="wdp-units">${pvpUnitRows()}</div>
-      <div class="wdp-actions"><button class="wdp-btn attack" id="wdp-attack">⚔️ آغاز موج حمله</button><button class="wdp-btn retreat" id="wdp-retreat">↩️ عقب‌نشینی</button></div>`;
-  }
-  function updateFront(occ){const o=Math.min(100,Math.max(0,Number(occ)||0));const a=$('wdp-att'),d=$('wdp-def'),p=$('wdp-occ');if(a)a.style.width=o+'%';if(d)d.style.width=(100-o)+'%';if(p)p.textContent=Math.round(o)+'٪';const f=document.querySelector('#wdp-body .wdp-front span');if(f)f.textContent='خط مقدم — '+Math.round(o)+'٪';}
   // Professional PvP: uses the exact same battle-report / wave flow as neutral-country attacks.
   /* ================= V39: اتاق فرماندهی سینمایی — بریفینگ + نبرد پنج‌دوره‌ای =================
      ۱) بریفینگ: قدرت دو طرف، یگان‌ها، لجستیک، آتش‌بس و حق انتقام — قبل از هر تصمیمی همه‌چیز شفاف است
@@ -7348,6 +7337,7 @@ setTimeout(function(){
 /* ================= online players in server chip ================= */
 setInterval(function(){
   try{
+    if(D.hidden||window.__wdMapBusy)return; /* V157 */
     var c=D.getElementById('hud-srv');
     if(c&&typeof MP_OK!=='undefined'&&MP_OK===true&&typeof STATS!=='undefined'&&STATS[SRV]){
       c.textContent='🖥️ سرور '+SRV+' — 🏴 '+taken(SRV)+' • 👥 '+((STATS[SRV].players)||0);c.title='سرور شما';
@@ -7496,13 +7486,9 @@ function sigOf(nick){
   return{color:'hsl('+h+',90%,62%)',glow:'hsla('+h+',95%,55%,.42)',dash:DASHES[h%DASHES.length]};
 }
 var OUT={};
-function ringPolys(l){try{var ll=l.getLatLngs();return Array.isArray(ll[0][0])?ll:[ll]}catch(e){return[]}}
 /* V57: دور دولایه (هاله + خط‌چین) از روی کشورهای مالک‌دار حذف شد — همان «دو خطی» که روی کشورها
    افتاده بود و چشم را خسته می‌کرد. مالکیت با رنگ خود کشور و نشان ⭐ پایتخت کاملاً مشخص است.
    تابع‌ها عمداً no-op نگه داشته شدند تا همه‌ی فراخوانی‌های قبلی بی‌خطر بمانند و خط‌های قبلی هم پاک شوند. */
-function drawOwnerOutline(n){
-  try{clearOutline(n)}catch(e){}
-}
 function drawMyOutline(n){
   try{clearOutline('__me__'+n)}catch(e){}
 }
@@ -8116,11 +8102,6 @@ function item(ic,t,sub,fn,gold){
   d.innerHTML='<i>'+ic+'</i><span><b>'+t+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</span>';
   d.onclick=function(){try{fn()}catch(e){console.log(e)}};return d;
 }
-function triggerBtn(id){
-  var b=D.getElementById(id);
-  if(b){b.click();sClose();return true}
-  return false;
-}
 function flyToCountry(n){
   try{
     var g=(typeof getG==='function')?getG(n):null;
@@ -8331,6 +8312,7 @@ function drawerIsOpen(){var d=D.getElementById('country-drawer');return !!(d&&d.
     if(typeof map==='undefined'||!map||!map.on||map.__wd26bound)return;
     clearInterval(t);map.__wd26bound=true;
     map.on('click',function(e){
+      window.__wdTapAt157=Date.now(); /* V157: نگه‌دارِ آخرین تپ واقعی — آتشِ مصنوعیِ ۴۲۰ms را شرطی می‌کند */
       /* V128: چیپ نام کشور همان لحظه — hit-test سبک با ایندکس bbox؛ دریا چیزی نشان نمی‌دهد */
       var hit0=null;try{hit0=hitTest(e.latlng)}catch(err){}
       if(hit0){var _fa=hit0.name;try{_fa=getCountryData(hit0.name).fa||hit0.name}catch(err){}
@@ -9748,7 +9730,9 @@ setInterval(function(){var m=$$id('m-market');if(m&&m.classList.contains('active
 /* اعتبار مالک پس از تکمیل پیشنهادش (یک‌بار برای هر شناسه، با محافظ در برابر ریلود) */
 function resName28(k){return k==='gold'?'طلا':k==='oil'?'نفت':'غذا'}
 window.markApplied28=function(id){
-  try{st28.tradeApplied=st28.tradeApplied||[];if(st28.tradeApplied.indexOf(id)<0)st28.tradeApplied.push(id);save28()}catch(e){}
+  try{st28.tradeApplied=st28.tradeApplied||[];if(st28.tradeApplied.indexOf(id)<0)st28.tradeApplied.push(id);
+    if(st28.tradeApplied.length>300)st28.tradeApplied=st28.tradeApplied.slice(-300) /* V157: بدون هرس، localStorage باد می‌کند */;
+    save28()}catch(e){}
 }
 setInterval(async function(){
   try{
@@ -9760,7 +9744,7 @@ setInterval(async function(){
     var changed=false;
     r.data.forEach(function(o){
       if(st28.tradeApplied.indexOf(o.id)>-1)return;
-      st28.tradeApplied.push(o.id);changed=true;
+      st28.tradeApplied.push(o.id);if(st28.tradeApplied.length>300)st28.tradeApplied=st28.tradeApplied.slice(-300) /* V157: هرس */;changed=true;
       if(o.status==='done'){
         playerRes[o.want_res]=(playerRes[o.want_res]||0)+o.want_qty;
         showToast('🤝 پیشنهادت پذیرفته شد! +'+num(o.want_qty)+' '+resName28(o.want_res),'win');
@@ -11198,7 +11182,6 @@ function placeCrown(){try{
   if(crownMk){try{crownMk.remove()}catch(e){}crownMk=null}
   updChampPill();
 }catch(e){}}
-function esc32(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 window.WD32_PLACE_CROWN=placeCrown;
 
 /* ---------- celebration + museum medal ---------- */
@@ -11829,9 +11812,6 @@ const GROUPS33=[['ath','🏃 دو و میدانی',['sprint','hurdles','run400',
 const ATTR_FA89={speed:'سرعت',reaction:'واکنش',precision:'دقت',endurance:'استقامت',power:'قدرت',balance:'تعادل',tactical:'تاکتیک'};
 const SPEC_FA89={speed:'⚡ متخصص سرعت',reaction:'⚡ب متخصص واکنش',precision:'🎯 متخصص دقت',endurance:'🫁 متخصص استقامت',power:'💪 متخصص قدرت',balance:'🤸 متخصص تعادل',tactical:'🧠 متخصص تاکتیک'};
 const HOF_FA89={golds:'🥇 بیشترین طلا',medals:'🏅 بیشترین مدال',record:'⚡ رکوردداران جهانی',finals:'🏟️ بیشترین فینال',multisport:'🎪 چندرشته‌ای‌ها',rivalry:'⚔️ رقابت‌های تاریخی',defense:'🛡️ دفاع از رکورد'};
-const WG_CACHE={};
-function wgCacheGet(k,ms){const c=WG_CACHE[k];if(c&&Date.now()-c.at<ms)return c.v;return null}
-function wgCachePut(k,v){WG_CACHE[k]={at:Date.now(),v:v}}
 function tabBar33(){return '<div class="wg89-tabs">'+TABS33.map(t=>'<button class="wg89-tab'+(wgTab===t[0]?' on':'')+'" data-t="'+t[0]+'"><span>'+t[1]+'</span><i>'+t[2]+'</i></button>').join('')+'</div>'}
 /* V89: اعلان‌های اولویت‌دار المپیک — بدون اسپم، گارد localStorage در هر دوره */
 function wg89Notify(){
@@ -12908,7 +12888,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=156';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=157';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -13468,22 +13448,6 @@ function renderPoster(b){
 
 /* ---------- 🔥 war heatmap — V55: دکمه‌ی مشعل/آتش زیر دکمه‌ی المپیک حذف شد (شلوغی صفحه) ---------- */
 function heatBtn(){/* V55: آیکون 🔥 برداشته شد — لایه‌ی حرارت دیگر از رابط کاربری در دسترس نیست */return null}
-function syncHeatPos(){try{const f=H('hud-olympic'),b=H('wd34-heat-btn');if(f&&b){let t=(parseFloat(getComputedStyle(f).top)||142)+(f.offsetHeight||72)+14;const fb=document.getElementById('wd96-fab');if(fb){const fr=fb.getBoundingClientRect();if(fr&&fr.height)t=Math.max(t,Math.round(fr.bottom)+12)}b.style.top=Math.round(t)+'px'}}catch(e){}}
-async function toggleHeat(){
-  S.heat=!S.heat;const b=H('wd34-heat-btn'),lg=H('wd34-heat-lg');
-  if(b)b.classList.toggle('on',S.heat);
-  if(!S.heat){if(S.heatL){try{S.heatL.remove()}catch(e){}S.heatL=null}if(lg)lg.classList.remove('on');return}
-  if(typeof L==='undefined'||typeof map==='undefined'||!map){toast('نقشه هنوز آماده نیست','lose');S.heat=false;if(b)b.classList.remove('on');return}
-  if(!S.heatData){const r=await wx('heatmap_data',{p_server:SRV()});if(r.ok)S.heatData=r.d}
-  drawHeat();toast('🔥 نقشه‌ی حرارت فعال شد — قرمز پررنگ یعنی کانون جنگ','win')}
-async function drawHeat(){
-  if(S.heatL){try{S.heatL.remove()}catch(e){}S.heatL=null}
-  const lg=H('wd34-heat-lg');if(lg)lg.classList.toggle('on',S.heat);
-  if(!S.heat||!S.heatData)return;
-  const d=S.heatData,mx=Math.max(1,d.max||1);const cells={};(d.cells||[]).forEach(c=>cells[c.country]=c.n);
-  let geo=null;try{const r=await fetch('/cdn/geo/countries.geo.json');geo=await r.json()}catch(e){return}
-  try{S.heatL=L.geoJSON(geo,{interactive:false,style:f=>{const n=cells[f.properties.name]||0;if(!n)return{fillOpacity:0,opacity:0,weight:0};
-    const t=n/mx;return{color:'#ff4d4d',weight:1,opacity:.4,fillColor:t>.66?'#ff1a1a':t>.33?'#ff6a00':'#ffb300',fillOpacity:.12+.38*t}}}).addTo(map)}catch(e){console.log(e)}}
 
 /* ---------- 🔥 daily streak card (in the tax/government modal) ---------- */
 function streakCard(){
@@ -13519,11 +13483,8 @@ function streakCard(){
       hp.addEventListener('click',()=>{S.poster=null;open34('poster')});p.prepend(hp);
     }}catch(e){}});
   mo.observe(D.body,{attributes:true,subtree:true,attributeFilter:['class']})}catch(e){}})();
-heatBtn();syncHeatPos();
-window.addEventListener('resize',syncHeatPos);
-setInterval(()=>{if(!D.hidden){syncHeatPos();
-  if(S.heat){wx('heatmap_data',{p_server:SRV()}).then(r=>{if(r.ok){S.heatData=r.d;drawHeat()}})}
-}},90000);
+heatBtn(); /* V157: syncHeatPos حذف شد — دکمه‌ی حرارت از V55 وجود ندارد و هر ۹۰s یک reflow اجباری می‌خواند */
+/* V157: poller ۹۰ثانیه‌ای heatmap حذف شد — لایه‌ی حرارت از V55 از رابط کاربری خارج شده و toggleHeat/drawHeat هیچ فراخوانی زنده‌ای نداشتند */
 setInterval(()=>{if(!D.hidden)badgeTick()},60000);
 setTimeout(()=>{badgeTick();heatBtn()},6000);
 setTimeout(()=>{try{if(typeof wx==='function')wx('streak_status',{}).then(r=>{if(r.ok)S.streakSt=r.d})}catch(e){}},9000);
@@ -16485,7 +16446,7 @@ function conquestWatch(){try{var n=0;try{n=conqueredCountries.size}catch(e){retu
   WD43.lastCq=n;try{conqueredCountries.forEach(function(k){WD43.cqSnap[k]=1})}catch(e){}
   if(newC){var fa='کشور جدید';try{fa=getCountryData(newC).fa}catch(e){}
    log('conquest '+newC);
-   conquestCinema(fa);rpc43('pass_xp',{p_mission:'conquest'})}}
+   conquestCinema(fa)}} /* V157: rpc43 pass_xp conquest حذف شد — سرور صریحاً رد می‌کرد (error:'mission')؛ فقط ترافیک بیهوده بود */
  else if(n<WD43.lastCq){WD43.lastCq=n;WD43.cqSnap={};try{conqueredCountries.forEach(function(k){WD43.cqSnap[k]=1})}catch(e){}}
  if(typeof myCountryName!=='undefined'&&myCountryName&&typeof calculateTotalAttack==='function'&&WD43.pwBase===0)WD43.pwBase=calculateTotalAttack();
 }catch(e){}}
@@ -18390,18 +18351,6 @@ function tickQueue(){
 const TRAITS={off:{n:'تهاجمی',ic:'⚔️'},def:{n:'دفاعی',ic:'🛡️'},log:{n:'لجستیک',ic:'🚚'},intel:{n:'اطلاعاتی',ic:'🛰️'}};
 const GEN_NAMES=['سپهبد آریا','سرلشکر کاوه','ارتشبد بهرام','دریاسالار کیان','ژنرال آرش','فرمانده سینا','امیر سپهدار رامین','سرهنگ مهرداد','ژنرال شهرام','سردار بهمن'];
 const activeGen=()=>st.gens.find(g=>g.active)||null;
-function hireGen(trait){
-  if(st.gens.length>=4)return toast65('🎖️ سقف فرماندهان (۴) پر است','lose');
-  const r=safe(()=>playerRes,null);if(!r)return;
-  const cost=15000*(st.gens.length+1);
-  if(r.gold<cost)return toast65('❌ طلا لازم: '+faN(cost),'lose');
-  r.gold-=cost;
-  const used=st.gens.map(g=>g.name),pool=GEN_NAMES.filter(n=>used.indexOf(n)<0);
-  const name=pool[Math.floor(Math.random()*pool.length)]||('فرمانده '+faN(st.gens.length+1));
-  st.gens.push({name,trait:TRAITS[trait]?trait:'off',level:1,xp:0,wins:0,losses:0,loyalty:70,active:st.gens.length===0});
-  chron('gen','فرمانده '+name+' ('+TRAITS[trait].ic+' '+TRAITS[trait].n+') به خدمت گرفته شد');save65();
-  safe(()=>W.updateUI&&W.updateUI());toast65('🎖️ '+name+' به خدمت پیوست');renderIfOpen();
-}
 function genXp(n){const g=activeGen();if(!g)return;g.xp+=n;
   while(g.xp>=g.level*300){g.xp-=g.level*300;g.level++;toast65('🎖️ فرمانده '+g.name+' به سطح '+faN(g.level)+' رسید')}
   save65()}
@@ -18771,7 +18720,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=156"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=157"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18797,7 +18746,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=156';
+              s.src='/game/cv-engine.js?v=157';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18809,7 +18758,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     })();
    </script>
 <script>/* V154 BOOT FAST: oly3.js (۱۳۴KB) — بایت از head می‌آید (preload)، exec بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=156')})</script>
+__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=157')})</script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18823,7 +18772,7 @@ __wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=156')})</script>
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=156';
+      s.src='/game/oly3d.js?v=157';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -18952,7 +18901,9 @@ function updGem(n){try{GEMS=Number(n)||GEMS;var g=D.getElementById('hud-gem');if
 /* نظم نوار بالا: حذف چیپ‌های کهنه/تکراری نسخه‌های قبل + ساخت چیپ پاداش (ترتیب با CSS order) */
 function tidy(){
   var s=D.getElementById('hud-strip');if(!s)return;
-  ['hud-terr','hud-srv'].forEach(function(id){var e=D.getElementById(id);if(e&&e.parentNode===s)e.parentNode.removeChild(e)});
+  /* V157: فقط وقتی نسخه‌ی گروهیِ WD101b همین حالا زنده است چیپِ نوار حذف می‌شود — قبلاً tidy
+     چیپِ تنها را می‌کشت و اگر home() با تاخیر (coalesce) می‌رسید، چیپ برای همیشه گم می‌شد */
+  ['hud-terr','hud-srv'].forEach(function(id){var e=D.getElementById(id);if(e&&e.parentNode===s&&D.querySelector('.wd101b-rows [id="'+id+'"]'))e.parentNode.removeChild(e)});
   var g=D.getElementById('wd86-gift');
   if(!g){g=D.createElement('div');g.id='wd86-gift';g.className='hchip';g.title='پاداش کانال تلگرام — '+fa(TG_GEMS)+' جم هدیه';
     g.innerHTML=GIFT_SVG+'<span class="wd86-tb">+'+fa(TG_GEMS)+'</span>';
@@ -19970,7 +19921,12 @@ function home(){
     rows.appendChild(e);
    }}}
 }
-function rec(){if(busy)return;busy=true;try{home()}catch(e){}busy=false}
+var recT=null,recFirst=true; /* V157: هم‌ارزِ coalesce ۱۲۰۰ms ناظر دوم — فقط برای امواج بعدی؛
+   فراخوانی اول همگام می‌ماند وگرنه tidy() در پنجره‌ی ۱۲۰۰ms چیپ hud-terr را از نوار حذف می‌کند
+   و home() دیگر نمی‌تواند به گروه برگرداند (باگ واقعی e2e T4b/T6d) */
+function rec(){if(busy)return;
+  if(recFirst){recFirst=false;busy=true;try{home()}catch(e){}busy=false;return}
+  if(recT)return;recT=setTimeout(function(){recT=null;busy=true;try{home()}catch(e){}busy=false},1200)}
 if(window.MutationObserver){var mo=new MutationObserver(function(){rec()});
  var arm=function(){try{mo.observe(D.body||D.documentElement,{childList:true,subtree:true})}catch(e){}rec()};
  if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',arm);else arm()}
@@ -20098,9 +20054,9 @@ setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}c
 })();
 </script>
 <script>/* V154 BOOT FAST: social.js (۷۵KB) بعد از نقشه — boot خودش را با readyState/تایمر امن شروع می‌کند */
-__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=156')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=157')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
 <script>/* V154 BOOT FAST: mentor.js (۵۰KB) بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=156')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=157')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);

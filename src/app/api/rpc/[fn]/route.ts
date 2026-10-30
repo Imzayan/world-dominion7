@@ -2678,7 +2678,49 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           owned: inv.map((r) => ({ item_id: r.itemId, source: r.source, rarity: r.rarity, expires_at: r.expiresAt ? r.expiresAt.toISOString() : null, created_at: r.createdAt.toISOString() })),
         })
       }
-      /* V157: case 'shop_inventory' حذف شد — ۰ ارجاع در کلاینت. shop_catalog همان داده را می‌دهد */
+      case 'shop_inventory': {
+        const w = await ensureWallet(user.id)
+        const inv = await shopOwnedRows(user.id)
+        return R({
+          ok: true,
+          items: inv.map((r) => ({ item_id: r.itemId, source: r.source, rarity: r.rarity, expires_at: r.expiresAt ? r.expiresAt.toISOString() : null, created_at: r.createdAt.toISOString() })),
+          vip_until: w.vipUntil ? w.vipUntil.toISOString() : null,
+        })
+      }
+      /* V157-RESTORE: توسط گیت‌های QA صدا زده می‌شود — حذف نشدنی */
+      case 'shop_history': {
+        const lim = Math.min(50, Math.max(5, Number(args.p_limit) || 30))
+        const rows = await db.shopPurchase.findMany({
+          where: { userId: user.id, status: 'ok' }, orderBy: { createdAt: 'desc' }, take: lim,
+          select: { itemId: true, price: true, currency: true, status: true, provider: true, createdAt: true, meta: true },
+        })
+        return R({ ok: true, rows: rows.map((r) => ({ item_id: r.itemId, price: r.price, currency: r.currency, provider: r.provider, created_at: r.createdAt.toISOString(), meta: r.meta })) })
+      }
+      case 'shop_collection_claim': {
+        const cid = String(args.p_collection || '')
+        const col = SHOP_COLLECTIONS.find((c) => c.id === cid)
+        if (!col) return R({ ok: false, error: 'collection' })
+        const inv = await shopOwnedRows(user.id)
+        const ownedIds = new Set(inv.map((r) => r.itemId))
+        const missing = col.members.filter((mid) => {
+          if (mid.endsWith('*')) {
+            const base = mid.slice(0, -1)
+            return ![...ownedIds].some((o) => o === base || o.startsWith(base + '@'))
+          }
+          return !ownedIds.has(mid)
+        })
+        if (missing.length) return R({ ok: false, error: 'incomplete', missing })
+        const rewardDef = SHOP_ITEM_MAP.get(col.reward)
+        if (!rewardDef) return R({ ok: false, error: 'reward' })
+        const already = ownedIds.has(col.reward)
+        if (!already) {
+          await shopGrant(user.id, col.reward, 'collection', rewardDef.rar, null, { collection: cid })
+          await db.shopPurchase.create({ data: { userId: user.id, itemId: col.reward, price: 0, status: 'ok', provider: 'collection', meta: JSON.stringify({ collection: cid }) } })
+          /* V88 — تکمیل مجموعه خبر جهانی دارد (ضد اسپم: فقط هنگام تکمیل واقعی) */
+          try { await addNews(await warUserServer(user.id), 'col_done', null, user.nick, col.fa) } catch (e) { console.log('colnews', e) }
+        }
+        return R({ ok: true, already, reward: col.reward, fa: rewardDef.fa, icon: rewardDef.icon })
+      }
       /* ---------------- V88 — WAR DEPTH RPCs (سرور-مأخذ، ضدتقلب) ---------------- */
       case 'war_state': {
         const { data } = await warStateOf(user.id)
@@ -2978,7 +3020,31 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
       }
 
       /* ---------------- V108 — پک شروع امپراتور (سرور-مأخذ) ---------------- */
-      /* V157: case 'starter_state' حذف شد — ۰ ارجاع در کلاینت. shop_catalog بلوک شروع را برمی‌گرداند */
+      case 'starter_state': {
+        const st = await starterStateOf(user.id)
+        /* تله‌متری نمایش — فقط وقتی پیشنهاد واقعاً فعال است و حداقل ۱۰ دقیقه از آخرین نمایش گذشته باشد */
+        if (st.phase === 'offer') {
+          const rowV = await db.starterOffer.findUnique({ where: { userId: user.id }, select: { lastViewAt: true, viewCount: true } })
+          if (!rowV?.lastViewAt || Date.now() - rowV.lastViewAt.getTime() > 10 * 60_000) {
+            await db.starterOffer.update({ where: { userId: user.id }, data: { viewCount: { increment: 1 }, lastViewAt: new Date() } }).catch(() => {})
+            const srvV = await warUserServer(user.id).catch(() => 1)
+            void telem('starter_offer_viewed', user.id, srvV, 'emperor_starter', {})
+          }
+        }
+        return R({
+          ok: true, phase: PAY_OFF ? 'expired' : st.phase,
+          /* V114: آفر نامحدود — دیگر پنجره‌ی ۴۸ ساعته وجود ندارد */
+          unlimited: true,
+          ends_in_ms: 0,
+          purchased_at: st.purchasedAt ? st.purchasedAt.toISOString() : null,
+          price_fa: STARTER_PACK.priceFa,
+          price_toman: STARTER_PACK.priceToman,
+          contents: starterContents(),
+          /* ارزش نمایشی فقط از قیمت واقعی پک‌های جم محاسبه می‌شود (ضد قیمت جعلی) */
+          value_note: STARTER_PACK.gems + ' جم — ارزش جم بر اساس نرخ بهترین بسته‌ی واقعی فروشگاه',
+        })
+      }
+      /* V157-RESTORE: توسط گیت‌های QA (wd108/v140/v145) صدا زده می‌شود — حذف نشدنی */
       case 'starter_claim': {
         const provider = String(args.p_provider || '')
         const receipt = String(args.p_receipt || '').slice(0, 200)

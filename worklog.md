@@ -1,3 +1,25 @@
+## V157 — 2026-10-30 — ممیزی ریزبه‌ریز + مقیاس‌پذیری
+
+## A) مقیاس‌پذیری — ۸ ایندکس گمشده‌ی مسیرهای داغ (schema.postgres + sqlite همگام؛ `prisma db push` در دیپلوی اعمال می‌کند)
+| جدول | ایندکس | کوئری‌ای که اسکن می‌کرد |
+|---|---|---|
+| users | `createdAt` | release_inactive هر ۶۰s (anti-join همه‌ی کاربران) |
+| saves | `updatedAt` | همان + خواندن دفاعِ pvp_attack |
+| scores | `kills`, `economy` | rankOf پروفایل (count کل-جهانی، هر باز شدن پروفایل) |
+| admin_grants | `[userId,claimed]` | claim_admin_grants هر ۳۰s برای هر بازیکن = اسکن کامل هدیه‌ها |
+| shop_purchases | `requestId` | dedup رسید مایکت (هر شارژ جم) |
+| trade_offers | `[ownerUid,status,createdAt]` | trade_offer_mine هر ۳۰s برای هر بازیکن |
+| special_uses | `[item,usedAt]` | سقف هفتگی ۴ عملیات (item اولِ ایندکس قبلی نبود) |
+| battle_logs | `[server,defender,createdAt]` | war_intel سطح ۴ |
+
+## B) باگ‌های سروری (پول/عدالت/حریم)
+1. **claim_admin_grants دوباره‌پرداخت** — دو درخواست موازی هر دو findMany می‌خواندند و هر دو واریز می‌کردند. حالا updateMany شرطیِ `claimed:false` + چک count (قفل ردیفی Postgres) — درخواست دوم بی‌پاداش.
+2. **pvp_attack: «باختی و پولت هم سوخت»** — هزینه در گیت V75 کسر می‌شد و بعد مسیرهای weak/supply/res/باختِ انتقال بدون بازگشت برمی‌گشتند (نقض وعده‌ی کامنت V75). `refundAtk157` روی هر ۴ مسیر، با `refunded:true` صادقانه.
+3. **چت: پیام مسدودشده‌ها می‌رسید** — فیلتر فرستنده حالا داخل خود کوئری (ایندکس یکتای [userId,blockedId]).
+4. **war_intel سطح ۴ بدون فیلتر server** — اسکن کامل تاریخ جنگ همه‌ی سرورها؛ حالا سرورِ هدف + ایندکس.
+5. **weeklyClaim P2002**…
+
+جزئیات کامل: worklog/V157-AUDIT-SCALE.md
 # Worklog
 
 ---
