@@ -321,6 +321,10 @@ function fabPlace(){
   var f=$('wd96-fab');if(!f)return;
   var oly=$('hud-olympic');
   if(!oly){f.style.top='234px';return}
+  /* V154 PERF: بدون تغییر DOM و بدون resize، خواندن getBoundingClientRect (رفلوی اجباری) ممنوع —
+     هر ۲.۵ ثانیه یک ریلayout اجباری در idle حذف شد؛ تغییر epoch یا resize دوباره اندازه می‌گیرد. */
+  if(window.__wdDomEpoch!=null&&fabPlace._ep===window.__wdDomEpoch&&f.style.top)return;
+  fabPlace._ep=window.__wdDomEpoch;
   var r=oly.getBoundingClientRect();
   if(!r||!r.height){f.style.top='234px';return}
   var top=Math.round(r.bottom)+16;
@@ -328,7 +332,7 @@ function fabPlace(){
   if(f.style.top!==top+'px')f.style.top=top+'px';
   try{if(typeof window.syncHeatPos==='function')window.syncHeatPos()}catch(e){}
 }
-window.addEventListener('resize',fabPlace);
+window.addEventListener('resize',function(){try{fabPlace._ep=null}catch(e){}fabPlace()});
 setInterval(fabPlace,2500);
 /* مقدار آنلاین کارت‌های صفحه‌ی سینمایی سرور را درجا تازه می‌کند (بدون رندر مجدد صفحه) */
 function paintSrvPage(){

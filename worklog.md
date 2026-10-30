@@ -3069,3 +3069,28 @@ v.txt=150، __WD_V=150، ۱۲×?v=150 (صفر ۱۴۹؛ rebase روی V149 با r
 
 ### نسخه و دروازه‌ها
 v.txt=153، __WD_V=153، ۱۲×?v=153 (صفر ۱۵۲) • check-html-js 104/0 • v146-iab-restore static 39/0 • node --check shop-v2 ✓ • apksigner verify ✓
+
+## V154 — 2026-10-30 — PERF ROUND 3: «همه جای بازی لگ داره» — measure-first, three measured roots closed
+Owner directive («رو باگ بازی کار کن رفع کن همرو بازی همچنان خیلی لگ داره…لودینگ…بازی رو سریع تر کن»). Doctrine V152 kept: measure first, never guess. NEW profilers committed: scripts/v154-perf.mjs (baseline suite + menu/shop latency + loading-screen meter + session-cookie seeding so it reaches the real logged-in map), v154-probe.mjs (boot CPU self-time / idle CPU / map-pane CSS audit / tap trace), v154-gesttest.mjs + v154-verify.mjs (gesture-key + lazy-module functional proof).
+
+### MEASURED (Pixel-5 profile, 4x CPU throttle + 120ms RTT, real session+map)
+- ROOT 1 — PINCH: pane CSS audit found 176 `.flag` markers EACH carrying CSS `filter:drop-shadow` + `box-shadow` + `transition:width/height` (layout-property transitions!) ⇒ during pinch Leaflet transforms the marker pane and the compositor re-rasters 176 filtered+shadowed layers per frame. Harness pinch = 16 jank frames >50ms, p50 37fps.
+- ROOT 2 — IDLE: `querySelectorAll` burned 151ms per 12s idle window (4x throttle) — the faNum digit-poller re-scanned a 17-selector list every 2s unconditionally, rank-badge poller scanned `#m-rank .lr-row` every 1.3s even with the modal CLOSED, fabPlace forced layout (getBoundingClientRect) every 2.5s — combined = the periodic 51-64ms longtasks at 30s/34s in baseline (idle p95=22fps).
+- ROOT 3 — BOOT: 345KB (oly3 134KB + social 75KB + mentor 50KB) sync-parse on the critical path before DCL; all three are post-boot engines (self-start safe: readyState/load/retry patterns verified).
+
+### FIXES (index.html + social.js, zero gameplay-surface change)
+- (A) FLAGS: `.flag` drop-shadow rule deleted; width/height transition deleted (instant resize at zoomend — no layout animation); NEW gesture key: map.on(movestart/zoomstart/dragstart) → `<html>.wd-gest` ⇒ CSS kills filter/box-shadow/animations on flags during the gesture, 260ms after moveend/zoomend/dragend restores. Zero per-frame cost (one class toggle).
+- (B) IDLE: new `window.__wdDomEpoch` (body MutationObserver, 350ms debounce) — faNum poller skips entirely when DOM unchanged; rank poller early-exits unless `#m-rank` open; social.js fabPlace skips its forced-layout read unless epoch changed or resize (resize resets its epoch latch).
+- (C) BOOT: `__wdLazyJS`+`__wdAfterMap` helpers in the head beacon; oly3/social/mentor `<script src>` → post-map-ready dynamic load (`wd-map-ready` event fired next to `__wdMapReady=true`; 12s failsafe so an offline boot still gets its modules). Bytes still warm from the existing `<link rel=preload>` hints — only parse/exec left the critical path. shop-v2 stays `defer` (V137), balance stays sync head (13KB).
+
+### MEASURED AFTER (same harness, same seed)
+- runtime longtasks 8s window: 5 (286ms) → **0 (0ms)**; idle jank>50ms 1→0; idle p50 60fps.
+- real CDP-input pinch: **zero longtasks**, CPU self-time ≈180ms program vs 3144ms idle over the whole gesture window (main thread effectively free); synthetic-harness FPS numbers remain noisy per V152 finding — longtask/CPU counters are the honest metric.
+- pageerrors: 0 across all suites; boot longtask mass unchanged locally — local dev serves raw bytes (no compression); production verified `content-encoding: br` (geo 218KB→~60KB wire) so real-device boot is materially lighter than local numbers suggest; on-device parse is now 345KB lighter.
+- functional proof (v154-verify): all three lazy modules present+working after map ready (WD_OLY3/WDSI/WD98_ADVISOR + FAB), gesture key toggles with real Leaflet events, zero pageerror.
+
+### GATES + infra truth restored
+check-html-js 107/0 • v144-srv-smoke 42/42 • wd108-smoke 39/39 • v138-smoke 29/29 • v132-smoke 18/18 • v140-release-smoke 25/25 (three STALE V142-era expectations updated to lock the V150/V151/V153 reality: real panel SKUs gems_100/800/1500 + legacy aliases, manifest versionCode 16/v1.0.15, direct-connect 0:nomyket + V153 0:bind mapping — wdStoreHelp must STAY deleted) • v146-iab-restore 39/0 • v145-iab-sig 11/0. NOTE: sandbox snapshot restore had rolled .env back (MYKET_ACCESS_TOKEN lost) — restored from owner's earlier delivery, still gitignored; REMINDER: the same value must exist in Vercel env (production verify path).
+
+### نسخه و دروازه‌ها
+v.txt=154، __WD_V=154، ۱۲×?v=154 (صفر ۱۵۳) • APK دست‌نخورده (vc16/v1.0.15 — این ریلیز فقط وب است؛ WebView همیشه revalidate می‌کند) • هیچ تغییر گیم‌پلی/سرور

@@ -19,12 +19,15 @@ check('PAY_OFF=false — real payment back on (single switch)', () => {
   if (/packs: PAY_OFF \? \[\] : SHOP_PACKS/.test(routeSrc)) void 0; /* switch intact */
   else throw new Error('catalog switch expression changed');
 });
-check('4 gem packs with the SAME old Myket SKUs (gems_100/300/550/1000)', () => {
+/* V154: انتظارات به‌روز شده — V151 SKUها را با پنل واقعی مالک هم‌تراز کرد (gems_100/800/1500) */
+check('3 gem packs with the REAL panel SKUs (gems_100/800/1500 — V151 alignment) + legacy aliases', () => {
   const m = routeSrc.match(/const SHOP_PACKS = \[[\s\S]*?\n\]/);
   if (!m) throw new Error('SHOP_PACKS missing');
   const body = m[0];
-  for (const sku of ['gems_100', 'gems_300', 'gems_550', 'gems_1000']) if (!body.includes(sku)) throw new Error('missing SKU ' + sku);
-  for (const g of ['100', '300', '800', '1500']) if (!body.includes('gems: ' + g + ',')) throw new Error('missing gems ' + g);
+  for (const sku of ['gems_100', 'gems_800', 'gems_1500']) if (!body.includes(sku)) throw new Error('missing SKU ' + sku);
+  for (const g of ['100', '800', '1500']) if (!body.includes('gems: ' + g + ',')) throw new Error('missing gems ' + g);
+  const legacy = routeSrc.match(/const SHOP_PACKS_LEGACY[\s\S]*?\n\]/);
+  if (!legacy || !legacy[0].includes('gems_550')) throw new Error('legacy receipt SKUs missing (historical verify)');
 });
 check('catalog switch: packs served when PAY_OFF=false + starter phase no longer forced expired', () => {
   if (!routeSrc.includes("phase: PAY_OFF ? 'expired' : stC.phase")) throw new Error('starter phase switch missing');
@@ -161,14 +164,17 @@ check('APK manifest restored: BILLING permission + <queries> for ir.mservices.ma
   const mf = fs.readFileSync(path.join(ROOT, 'apk-build/app/AndroidManifest.xml'), 'utf8');
   if (!mf.includes('com.android.vending.BILLING')) throw new Error('BILLING permission missing');
   if (!mf.includes('ir.mservices.market')) throw new Error('myket <queries> missing');
-  if (!mf.includes('android:versionCode="14"')) throw new Error('versionCode not bumped');
+  if (!mf.includes('android:versionCode="16"')) throw new Error('versionCode must be 16 (v1.0.15 — V153)');
 });
-check('shop-v2.js: 0:nomyket renders actionable store-help modal (V142 — not a dead-end toast)', () => {
+/* V154: انتظارات به‌روز — V150 مودال wdStoreHelp را طبق دستور مالک حذف کرد (اتصال مستقیم + تلاش مجدد خودکار);
+   V153 کد جدید 0:bind را برای «مایکت هست ولی مجوز نیست» اضافه کرد */
+check('shop-v2.js: 0:nomyket direct-connect with auto-retry (V150+ — no install/update modal)', () => {
   const sv = fs.readFileSync(path.join(ROOT, 'public/game/shop-v2.js'), 'utf8');
-  if (!sv.includes("if(r==='0:nomyket'){wdStoreHelp();return false}")) throw new Error('nomyket branch does not route to wdStoreHelp');
-  if (!sv.includes('wdStoreHelp')) throw new Error('wdStoreHelp modal missing');
-  if (!sv.includes('myket://app?id=com.worlddominion.game')) throw new Error('myket deep-link missing');
-  if (!sv.includes('https://myket.ir/app/com.worlddominion.game')) throw new Error('store URL fallback missing');
+  if (sv.includes('wdStoreHelp')) throw new Error('deleted V150 modal resurfaced');
+  if (sv.includes('myket://app?id=com.worlddominion.game')) throw new Error('V150 deleted the myket:// deep-link — it is back?');
+  if (!sv.includes('WD_NOMYKET_RETRY')) throw new Error('direct-connect auto-retry missing');
+  if (!sv.includes("'0:nomyket':'❌ اتصال به فروشگاه برقرار نشد")) throw new Error('0:nomyket honest toast missing');
+  if (!sv.includes("'0:bind':")) throw new Error('V153 0:bind (permission) mapping missing');
   if (sv.includes('بازی را از داخل مایکت به‌روزرسانی کن')) throw new Error('old dead-end toast text still present');
 });
 
