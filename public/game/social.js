@@ -444,6 +444,9 @@ async function pollBadges(){
   if(!myUid()||typeof sb==='undefined'||!sb)return;
   try{
     var r=await rpc('wd_badges');
+    /* V149: پاسخِ ناقص (شبکه‌ی ناپایدار → data:null) وضعیت بج‌ها را نباید پاک کند —
+       قبلاً ST.badges=null می‌شد و هر تیکِ بعدی «reading 'dm'» می‌انداخت و بج‌ها می‌مردند */
+    if(!r||typeof r!=='object'||typeof r.dm!=='number'||typeof r.nt!=='number')return;
     var prevNt=ST.badges.nt;
     ST.badges=r;
     if(r.nt>prevNt)toast('🔔 اعلان جدید داری','info');

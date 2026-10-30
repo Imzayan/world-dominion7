@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=148;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=149;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <script>
   /* V132 PERF GOVERNOR — یک پچِ سراسری قبل از همه‌ی اسکریپت‌های بازی.
      ۱) دستگاه ضعیف: بازه‌های نظرسنجیِ ≥۵ثانیه (presence/ذخیره/متادیتا/چت-پس‌زمینه) کشیده می‌شوند ×۱.۴
@@ -31,13 +31,13 @@
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=148">
+   <link rel="preload" as="script" href="/game/balance.js?v=149">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=148">
-   <link rel="preload" as="script" href="/game/social.js?v=148">
-   <link rel="preload" as="script" href="/game/mentor.js?v=148">
-  <script src="/game/balance.js?v=148"></script>
+   <link rel="preload" as="script" href="/game/oly3.js?v=149">
+   <link rel="preload" as="script" href="/game/social.js?v=149">
+   <link rel="preload" as="script" href="/game/mentor.js?v=149">
+  <script src="/game/balance.js?v=149"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -3614,14 +3614,30 @@ let sb=(function(){
       subscribe:function(){return obj},
       unsubscribe:function(){stop();return obj}};
     return obj}
+  /* ===== V149 PERF — دروازه‌ی بوت:RPCهای تزئینیِ لحظه‌ی ورود صف می‌شوند =====
+     ۱۸+ فراخوانی (کیف/فروشگاه/نشان/استریک/اخبار/چت/پاس/المپیک/انتخابات/اتحاد…) در همان
+     ثانیه‌های اول با مسیر بحرانی (سیو/آمار/سرور/قلمروها/داوری) بر سرِ شبکه‌ی موبایل گره می‌زدند
+     و «کشورهای دیگران دیر دیده می‌شد». این‌ها تا بسته‌شدنِ پنجره‌ی بحرانی (یا سقف ۴ثانیه)
+     صف می‌شوند و بعد همه یک‌جا می‌روند — هیچ چیزی حذف نمی‌شود، فقط جابه‌جایی زمانی. */
+  var BOOT_KEEP={wd_presence:1,srv_meta:1,territory_sync:1,release_inactive_territories:1,wd_servers:1};
+  var bootQ=[],bootOpen=true,bootArmT=null;
+  function bootGateOpen(){bootOpen=false;if(bootQ.length){var q=bootQ.splice(0);q.forEach(function(x){try{x.go()}catch(e){}})}}
+  function bootGate(fn,args){
+    var p=new Promise(function(res){
+      function run(){j(API+'/rpc/'+encodeURIComponent(fn),{method:'POST',body:JSON.stringify(args||{})}).then(res,res)}
+      if(bootOpen&&!BOOT_KEEP[fn]){bootQ.push({go:run});
+        if(!bootArmT)bootArmT=setTimeout(function(){bootArmT=null;try{bootGateOpen()}catch(e){}},4000)}
+      else run()});
+    return p}
   return{
+    __wdBootOpen:bootGateOpen,
     auth:{
       signUp:function(p){return j(API+'/auth/signup',{method:'POST',body:JSON.stringify(p||{})})},
       signInWithPassword:function(p){return j(API+'/auth/login',{method:'POST',body:JSON.stringify(p||{})})},
       getSession:function(){return j(API+'/auth/session')},
       signOut:function(){return j(API+'/auth/logout',{method:'POST'})}},
     from:function(t){return builder(t)},
-    rpc:function(fn,args){return j(API+'/rpc/'+encodeURIComponent(fn),{method:'POST',body:JSON.stringify(args||{})})},
+    rpc:function(fn,args){return bootGate(fn,args)},
     channel:channel,
     removeChannel:function(){}}})();
 
@@ -3774,6 +3790,15 @@ async function onlineLogin(n,p,m){const r=await sb.auth.signInWithPassword({emai
   if(r.error){m.textContent=errFa(r.error);return}
   const u=r.data.user;await enterOnline(u,(u.user_metadata&&u.user_metadata.nick)||n)}
 async function enterOnline(u,nick){ACC.nick=nick;ACC.uid=u.id;LS.set('wd_seen','1');
+  /* V149 PERF — نمایشِ فوریِ مالکیت‌ها («کشورهای دیگران دیر دیده می‌شد» ریشه‌ی دوم):
+     مسیر قدیمی ۶ رفت‌وبرگشتِ سری می‌خواست (سیو → آمار → srv_meta → scores → release → syncTerr)
+     تا رنگ دیگران روی نقشه می‌نشست. حالا سرورِ تأییدشده‌ی آخرین جلسه از localStorage می‌آید و
+     واکشیِ قلمروها «همراهِ» بارگذاری سیو شروع می‌شود — نمایشِ دیگران ≈ یک رفت‌وبرگشت.
+     فقط اعلان/نمایش است: داوریِ مالکیت همچنان انحصاراً با territory_sync سرور در initServer انجام
+     می‌شود؛ اگر سرورِ رسمی با کش فرق کند، همان‌جا اصلاح و بازرنگ می‌شود. */
+  try{const _c=parseInt(LS.get('wd_srv_cache')||'',10);
+    if(_c>=1){if(Number(SRV)!==_c)SRV=_c;window.__wdFastSrv=_c;
+      fetchTerr().then(function(f){applyOthers(f.oth);try{if(sb&&sb.__wdBootOpen)sb.__wdBootOpen()}catch(e){}}).catch(function(){})}}catch(e){}
   A$('auth').classList.remove('active');showChip(nick);
   try{if(window.wdPresenceBeat)wdPresenceBeat(true)}catch(e){} /* V125: نبض حضور — همین اول وارد شو */
   try{const r=await sb.from('saves').select('state,updated_at').eq('user_id',u.id).maybeSingle();
@@ -4012,7 +4037,14 @@ function chooseSrv(){
     try{wdPresenceBeat(true)}catch(e){} /* شمارنده‌های آنلاین هر ردیف با پاسخ ضربان درجا تازه می‌شوند */
     guard=setInterval(function(){const m2=S$('m-srv');if(!m2||!m2.classList.contains('active'))settle(rec)},350);
   })}
-async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
+async function initServer(){if(!sb||!ACC.uid)return;
+  /* V149 PERF — سه خواندنِ مستقلِ بوت که قبلاً «سری» بودند (آمار → srv_meta → scores = ۳ رفت‌وبرگشت
+     پشت‌سرهم) حالا موازی می‌روند. منطقِ انتخاب سرور برای تازه‌واردها همچنان بعد از رسیدنِ STATS
+     اجرا می‌شود (chooseSrv/pickServer به آمار نیاز دارند) — رفتار عوض نشده، فقط انتظارِ موازی. */
+  const pStats=loadStats();
+  const pMeta=sb.rpc('srv_meta').then(function(m){const md=(m&&m.data)||{};const tl=md.test_srvs;if(Array.isArray(tl))WD_TST=tl.map(Number).filter(n=>n>=1);const mc=Number(md.cap);if(mc>=10&&mc<=180)SRV_CAP=mc}).catch(function(){});
+  const pSrv=sb.from('scores').select('server').eq('user_id',ACC.uid).maybeSingle().then(function(r){if(r.data&&r.data.server){SRV=r.data.server;SRV_OK=true;try{LS.set('wd_srv_cache',String(SRV))}catch(e){}return true}return false}).catch(function(){return false});
+  await pStats;
   if(MP_OK!==true){const b=A$('status-banner');if(b)b.textContent='⚠️ اتصال به سرورهای چندنفره برقرار نشد؛ تا اتصال مجدد، پیشرفت شما ذخیره می‌شود';
     /* V114: تلاش مجدد خودکار — یک شکستِ گذرا در بوت دیگر «قطعی دائمی» نمی‌شود (بک‌آف ملایم، حداکثر ۱۲ تلاش) */
     try{window.__wdMpRetry=(window.__wdMpRetry||0)+1}catch(e){}
@@ -4021,25 +4053,31 @@ async function initServer(){if(!sb||!ACC.uid)return;await loadStats();
   /* V114: اتصال بعد از قطعی موقت برقرار شد — پیام صادقانه + ریست شمارنده */
   try{if(window.__wdMpRetry>0){const b=A$('status-banner');if(b)b.textContent='👤 '+(ACC.nick||'')+' — پیشرفت بازی خودکار روی سرور ذخیره می‌شود';showToast('✅ اتصال به سرور برقرار شد','win')}}catch(e){}
   try{window.__wdMpRetry=0}catch(e){}
-  /* V86: تازه‌سازی لیست سرورهای تستی از سرور — بعد از «حالت عرضه‌ی مایکت» سرور ۱ خودکار باز می‌شود.
-     V139: سقف ۹۰کشوری هم از srv_meta همگام می‌شود (تک‌منبع = سرور) */
-  try{const m=await sb.rpc('srv_meta');const md=(m&&m.data)||{};const tl=md.test_srvs;if(Array.isArray(tl))WD_TST=tl.map(Number).filter(n=>n>=1);const mc=Number(md.cap);if(mc>=10&&mc<=180)SRV_CAP=mc}catch(e){}
+  /* V86/V139: لیست سرورهای تستی + سقف ۹۰کشوری از srv_meta (تک‌منبع = سرور) — V149: موازی با آمار */
+  try{await pMeta}catch(e){}
   /* V139/V144: بازیکنِ بدونِ سرور (server=0 «انتخاب‌نشده» — حالا واقعاً حالتِ نصبِ تازه) = پلیر جدید —
      صفحه‌ی انتخاب سرور باز می‌شود (پیشنهاد: نخستین سرورِ پُرنشده) */
-  try{const r=await sb.from('scores').select('server').eq('user_id',ACC.uid).maybeSingle();
-    if(r.data&&r.data.server){SRV=r.data.server;SRV_OK=true}
-    else{SRV_OK=false;SRV=(MP_OK===true)?await chooseSrv():pickServer();
+  let haveSrv=false;try{haveSrv=await pSrv}catch(e){haveSrv=false}
+  if(!haveSrv){
+    try{SRV_OK=false;SRV=(MP_OK===true)?await chooseSrv():pickServer();
       /* V143/V144: عضویت سرورِ انتخاب‌شده بلافاصله ثبت می‌شود (قبل از ادعای کشور) تا territory_sync
          سمت سرور و بوت‌های بعدی همان سرور را بشناسند — بدون این، انتخابگر بعد از هر رفرش تکرار می‌شد.
          V144: اگر سطر scores اصلاً وجود نداشت، همین‌جا ساخته می‌شود تا انتخابِ بازیکن گم نشود */
       try{const pr=await sb.from('scores').update({server:SRV}).eq('user_id',ACC.uid).select('server');
         if(pr&&!pr.error&&pr.data&&pr.data.length)SRV_OK=true;
-        else{const ir=await sb.from('scores').insert({user_id:ACC.uid,nick:ACC.nick||'بازیکن',server:SRV,conquered:0,score:0,kills:0,economy:0,recruits:0});if(ir&&!ir.error)SRV_OK=true}}catch(pe){console.log(pe)}}}catch(e){SRV_OK=false;SRV=pickServer()}
+        else{const ir=await sb.from('scores').insert({user_id:ACC.uid,nick:ACC.nick||'بازیکن',server:SRV,conquered:0,score:0,kills:0,economy:0,recruits:0});if(ir&&!ir.error)SRV_OK=true}
+        if(SRV_OK){try{LS.set('wd_srv_cache',String(SRV))}catch(e){}}}catch(pe){console.log(pe)}}catch(e){SRV_OK=false;SRV=pickServer()}}
+  /* V149: اصلاحِ مسیرسریع — اگر سرورِ رسمی با سرورِ کش‌شده‌ی مسیرسریع فرق داشت، فهرست مالکیت‌ها
+     با سرور رسمی دوباره واکشی و تفاوتش بازرنگ می‌شود (applyOthers دیفرنسال است) */
+  try{if(window.__wdFastSrv&&Number(window.__wdFastSrv)!==Number(SRV)){window.__wdFastSrv=null;
+    fetchTerr().then(function(f){applyOthers(f.oth)}).catch(function(){})}}catch(e){}
   /* V144: حضورِ آنی در سرورِ انتخابی — ردیف presence بی‌درنگ جابه‌جا می‌شود (دیگر تا ۵۰ ثانیه روی
      سرور قبلی باقی نمی‌ماند) و گوش‌دهنده‌های ماژول اجتماعی (social.js) همین حالا تازه می‌شوند */
   try{window.dispatchEvent(new CustomEvent('wd-srv-changed',{detail:SRV}))}catch(e){}
   try{wdPresenceBeat(true)}catch(e){}
   renderSrvChip();try{await sb.rpc('release_inactive_territories')}catch(e){}await syncTerr();
+  /* V149: پنجره‌ی بحرانی بوت بسته شد — RPCهای صف‌شده (کیف/فروشگاه/اخبار/…) یک‌جا آزاد می‌شوند */
+  try{if(sb.__wdBootOpen)sb.__wdBootOpen()}catch(e){}
   if(!window.__wdSyncLoop){window.__wdSyncLoop=true; /* V71: گارد یک‌بار — قبلاً هر لاگین +۱ interval و +۱ listener انباشته می‌شد */
     setInterval(()=>{if(!document.hidden)syncTerr()},SYNC_MS);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncTerr()});
     /* V146 PERF: پیمایشِ سبکِ مالکیت هر ۱۰ثانیه — فقط یک SELECT سبک (بدون سیو، بدون RPC)؛
@@ -4087,7 +4125,7 @@ async function wdEnterSrv(k){
     return}
   if(!sb||!ACC.uid||MP_OK!==true){showToast('⚠️ اتصال برقرار نیست — دوباره تلاش کن','lose');return}
   try{
-    SRV=k;renderSrvChip();
+    SRV=k;renderSrvChip();try{LS.set('wd_srv_cache',String(k))}catch(e){} /* V149: کشِ مسیرسریع */
     const r=await sb.from('scores').update({server:k}).eq('user_id',ACC.uid).select('server');
     if(!r.error&&r.data&&r.data.length)SRV_OK=true;
     try{window.SRV=k}catch(e){}
@@ -12604,7 +12642,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=148';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=149';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -18454,7 +18492,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=148"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=149"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18480,7 +18518,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=148';
+              s.src='/game/cv-engine.js?v=149';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18491,7 +18529,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=148"></script>
+<script src="/game/oly3.js?v=149"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18505,7 +18543,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=148';
+      s.src='/game/oly3d.js?v=149';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19773,8 +19811,8 @@ try{if(window.MutationObserver){var _aQ=false;new MutationObserver(function(){if
 setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=148"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=148"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=149"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=149"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
