@@ -578,6 +578,7 @@ function starterReveal(res){
    جم هرگز در کلاینت ساخته نمی‌شود — گرنت فقط بعد از راستی‌آزمایی سرور با API رسمی مایکت. */
 function wdNative(){try{return !!(window.WDAndroid&&window.WDAndroid.billingAvailable&&window.WDAndroid.billingAvailable()==='1')}catch(e){return false}}
 var WDPAY=null; /* {type:'gem'|'starter', sku, rid, btn, modal} */
+var WD_NOMYKET_RETRY=false; /* V146: ضد تلاش‌های موازیِ اتصال مستقیم */
 var WD_RESTORED=false;
 window.__wdOnPurchase=function(o){
   var p=WDPAY,st=o&&o.status;
@@ -598,7 +599,8 @@ function wdStartPurchase(sku,plan){
   if(r==='1'){WDPAY=plan;showToast('💳 در حال اتصال به پرداخت…','win');return true}
   /* V120: نگاشت دقیق کد خطای پل به پیام قابل‌اقدام + واژگان خنثی «فروشگاه» (آماده‌ی انتشار در هر استور).
      کدها از WDIab.buy می‌آیند: rc3=BILLING_UNAVAILABLE، rc4=ITEM_UNAVAILABLE، rc5=DEVELOPER_ERROR. */
-  var PAYERR={'0:rc3':'⚠️ نسخه‌ی فروشگاه روی گوشی قدیمی است — اول فروشگاه را به‌روز کن',
+  var PAYERR={'0:nomyket':'❌ اتصال به فروشگاه برقرار نشد — اپ مایکت را باز کن و دوباره تلاش کن',
+    '0:rc3':'⚠️ نسخه‌ی فروشگاه روی گوشی قدیمی است — اول فروشگاه را به‌روز کن',
     '0:rc4':'⚠️ این محصول هنوز در فروشگاه فعال نشده — محصولات درون‌برنامه‌ای باید در پنل توسعه‌دهنده ساخته و فعال شوند',
     '0:rc5':'⚠️ فروشگاه این نسخه از بازی را تأیید نکرد — یا بازی هنوز در فروشگاه فعال نیست یا امضای APK با پنل نمی‌خواند',
     '0:busy':'⏳ یک خرید دیگر در جریان است — چند لحظه صبر کن',
@@ -611,48 +613,27 @@ function wdStartPurchase(sku,plan){
   var pmsg=PAYERR[r]||null;
   if(!pmsg&&r.indexOf('0:error:')===0)pmsg='❌ خطای پرداخت ('+r.slice(8)+') — رایج‌ترین علت: بازی هنوز در فروشگاه تأیید نشده؛ از پنل بازی/محصولات را آپلود و تأیید کن';
   if(!pmsg&&r.indexOf('0:sec:')===0)pmsg=PAYERR['0:sec'];
-  /* V141: پیام 0:nomyket دو علت دارد و هر دو صادقانه پوشش داده می‌شود:
-     ۱) اپ مایکت واقعاً نصب نیست؛ ۲) نسخه‌ی APK قدیمی است (بیلدهای V123..V139 بدون مجوز BILLING/queries
-     حتی با مایکتِ نصب هم bind=false می‌گیرند) — پس «به‌روزرسانی بازی از داخل مایکت» هم راه‌حل است. */
-  /* V142 — «فروشگاه/مایکت نصب نیست» دیگر بن‌بستِ یک‌خطی نیست (اعتراض مالک: «این چه باگ الکی‌ای است»):
-     مودال کوتاه با مسیر عملی — دکمه‌ی مستقیم به صفحه‌ی بازی در مایکت (نصبِ مایکت یا به‌روزرسانی بازی،
-     هر دو با همین یک دکمه حل می‌شود؛ نسخه‌ی جدید APK مجوز BILLING را دارد). سایر کدها همچنان toast. */
-  if(r==='0:nomyket'){wdStoreHelp();return false}
+  /* V146 — دستور مالک: هیچ مودال/گامِ «نصب/به‌روزرسانی از مایکت» وجود ندارد.
+     با زدن دکمه‌ی خرید، اتصال به فروشگاه مستقیم شروع می‌شود (WDIab.buy خودش هر بار setup تازه می‌زند)؛
+     اگر سرویس فروشگاه در همان لحظه آماده نبود، یک‌بار خودکار دوباره تلاش می‌شود؛
+     اگر وصل نشد فقط toast صادقانه — بدون هیچ پیام «نصب/به‌روزرسانی». */
+  if(r==='0:nomyket'){
+    showToast('💳 در حال اتصال به فروشگاه…','win');
+    if(!WD_NOMYKET_RETRY){
+      WD_NOMYKET_RETRY=true;
+      setTimeout(function(){
+        WD_NOMYKET_RETRY=false;
+        if(WDPAY)return;
+        var r2=null;try{r2=window.WDAndroid.startPurchase(String(sku))}catch(e){r2='0:error'}
+        if(r2==='1'){WDPAY=plan;try{if(plan.btn)plan.btn.disabled=true}catch(e){}return}
+        showToast(PAYERR['0:nomyket']||'❌ اتصال به فروشگاه برقرار نشد','lose');
+        try{if(plan.btn)plan.btn.disabled=false}catch(e){}
+      },1500);
+    }
+    return false;
+  }
   showToast(pmsg||('❌ اتصال به فروشگاه برقرار نشد (کد: '+r+') — فروشگاه را به‌روز کن و دوباره تلاش کن'),'lose');
   return false;
-}
-/* V142 — مودال راهنمای فروشگاه: کوتاه، صادقانه، قابل‌اقدام (بدون سرزنش کاربر) */
-var WD_STORE_URL='https://myket.ir/app/com.worlddominion.game';
-function wdStoreHelp(){
-  try{var old=document.getElementById('wd142-shelp');if(old&&old.parentNode)old.parentNode.removeChild(old)}catch(e){}
-  var m=el('div',null,'wd142-shelp');m.id='wd142-shelp';
-  m.style.cssText='position:fixed;inset:0;z-index:2147483000;background:rgba(3,7,13,.8);display:flex;align-items:center;justify-content:center;direction:rtl;font-family:inherit';
-  var box=el('div',null,'wd142-shbox');
-  box.style.cssText='width:min(92vw,360px);max-height:82vh;overflow:auto;background:linear-gradient(165deg,#111c2c,#0a111d);border:1px solid rgba(126,166,224,.38);border-radius:18px;padding:20px 16px 14px;text-align:center;box-shadow:0 22px 70px rgba(0,0,0,.65)';
-  box.append(el('div','💎','wd142-shic'));
-  box.firstChild.style.cssText='font-size:34px;line-height:1;margin-bottom:8px';
-  var ttl=el('div','خرید جم الان باز نشد','wd142-shttl');
-  ttl.style.cssText='font-size:17px;font-weight:800;color:#ffe08a;margin-bottom:10px';
-  box.append(ttl);
-  var b1=el('div','دو دلیل ساده دارد: مایکت روی گوشی نصب نیست، یا نسخه‌ی بازی که نصب کرده‌ای قدیمی است و اجازه‌ی اتصال به پرداخت را ندارد.','wd142-shtx');
-  b1.style.cssText='font-size:13.5px;color:#cfe0f5;line-height:2;margin-bottom:6px';
-  var b2=el('div','با دکمه‌ی زیر صفحه‌ی بازی در مایکت باز می‌شود — «نصب» یا «به‌روزرسانی» را بزن. بعد از آن، خرید جم بدون هیچ تغییری کار می‌کند و خریدهای قبلی‌ات هم حفظ می‌شود.','wd142-shtx');
-  b2.style.cssText='font-size:13.5px;color:#cfe0f5;line-height:2;margin-bottom:14px';
-  box.append(b1);box.append(b2); /* V142: append تک‌آرگومان — سازگار با WebViewهای قدیمی */
-  var go=el('button','📥 نصب / به‌روزرسانی از مایکت','wd142-shgo');
-  go.style.cssText='display:block;width:100%;padding:13px 10px;border:none;border-radius:12px;cursor:pointer;font-weight:800;font-size:14.5px;color:#08111c;background:linear-gradient(135deg,#ffd75e,#ffb84d);box-shadow:0 6px 18px rgba(255,190,60,.28)';
-  go.onclick=function(){
-    /* myket:// اگر اپ مایکت نصب باشد مستقیم بازش می‌کند؛ وگرنه ۱.۲ ثانیه بعد نسخه‌ی وب صفحه‌ی بازی */
-    try{window.location.href='myket://app?id=com.worlddominion.game'}catch(e){}
-    setTimeout(function(){try{window.location.href=WD_STORE_URL}catch(e){}},1200);
-  };
-  box.append(go);
-  var later=el('button','بعداً','wd142-shno');
-  later.style.cssText='display:block;width:100%;margin-top:9px;padding:10px;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:13px;color:#9fb4cc;background:rgba(120,150,190,.14)';
-  later.onclick=function(){try{m.parentNode.removeChild(m)}catch(e){}};
-  box.append(later);
-  m.onclick=function(ev){if(ev.target===m){try{m.parentNode.removeChild(m)}catch(e){}}};
-  m.append(box);D.body.appendChild(m);
 }
 function wdGemServer(o,p){
   var s=sb;if(!s){showToast('❌ برای اعمال خرید باید آنلاین باشی','lose');return}
@@ -680,12 +661,11 @@ function wdStarterServer(o,p){
   /* V144: p_json/p_sig برای مسیر تأیید امضای مایکت روی سرور */
   s.rpc('starter_claim',{p_provider:'myket',p_receipt:String(o.token||''),p_request_id:p.rid||('my'+Date.now().toString(36)),p_json:String(o.json||''),p_sig:String(o.signature||'')}).then(function(r){starterClaimAfter(r,p.btn,p.modal)}).catch(function(){showToast('❌ اتصال برقرار نشد','lose');if(p.btn){p.btn.disabled=false;p.btn.textContent='✅ خرید'}})
 }
-/* بازیابی خریدهای باز: پرداخت موفق ولی اعمال‌نشده (برنامه وسط کار بسته شد) — یک‌بار در هر سشن */
-function wdRestore(){
-  if(WD_RESTORED||!wdNative()||WDPAY)return;WD_RESTORED=true;
-  try{
-    var arr=JSON.parse(window.WDAndroid.ownedPurchases()||'[]');
-    (Array.isArray(arr)?arr:[]).forEach(function(o){
+/* بازیابی خریدهای باز: پرداخت موفق ولی اعمال‌نشده (برنامه وسط کار بسته شد) — یک‌بار در هر سشن.
+   V146 (مورد ۱ گزارش پرداخت): بدنه به wdRestoreItems جداشد تا مسیر استارتِ بازی هم از همان
+   منطق رسمی استفاده کند؛ هر آیتم فقط بعد از راستی‌آزمایی سرور اعمال می‌شود — کلاینت هرگز جم نمی‌دهد. */
+function wdRestoreItems(arr){
+  (Array.isArray(arr)?arr:[]).forEach(function(o){
       var sku=String(o.productId||''),tok=String(o.purchaseToken||'');
       if(!tok||!sb)return;
       /* V119: بازیابی پک شروعِ پرداخت‌شده ولی اعمال‌نشده (کلیدها دیر فعال شدند / وسط کار بسته شد) —
@@ -708,8 +688,25 @@ function wdRestore(){
           }
         }
       }).catch(function(){});
-    });
-  }catch(e){}
+  });
+}
+function wdRestore(){
+  if(WD_RESTORED||!wdNative()||WDPAY)return;WD_RESTORED=true;
+  try{wdRestoreItems(JSON.parse(window.WDAndroid.ownedPurchases()||'[]'))}catch(e){}
+}
+/* V146 (مورد ۲ گزارش پرداخت) — بازیابی خودکار در استارتِ بازی، بدون نیاز به بازکردن فروشگاه.
+   سرویس فروشگاه در لحظه‌ی شروع ممکن است هنوز وصل نباشد؛ ownedPurchases خالی یعنی «آماده نیست»
+   یا «خرید بازی نداری» — پس حداکثر ۴ تلاش فاصله‌دار (هر ۸ ثانیه) می‌زنیم و بعد رها می‌کنیم.
+   اگر WDPAY فعال شود یا بازیابی دستی انجام شود، حلقه فوراً می‌ایستد. */
+var WD_BOOT_TRIES=0;
+function wdRestoreBoot(){
+  if(WD_RESTORED||!wdNative()||WDPAY)return;
+  if(WD_BOOT_TRIES>=4)return;
+  WD_BOOT_TRIES++;
+  var arr=null;
+  try{arr=JSON.parse(window.WDAndroid.ownedPurchases()||'[]')}catch(e){}
+  if(Array.isArray(arr)&&arr.length){WD_RESTORED=true;wdRestoreItems(arr);return}
+  setTimeout(wdRestoreBoot,8000);
 }
 function starterClaim(btn,modal){
   var s=sb;if(!s){showToast('❌ برای خرید باید آنلاین باشی','lose');if(btn)btn.disabled=false;return}
@@ -1293,6 +1290,7 @@ function armTimer(){ /* تایمر خودپاک — فقط وقتی مودال �
 function boot66(){try{
   setTimeout(applyOwned,4000);
   setTimeout(applyOwned,9000);
+  setTimeout(wdRestoreBoot,6000); /* V146: بازیابی خریدهای ناقص در استارت — مستقل از بازکردن فروشگاه */
   try{if(typeof WD_COLOR_HOOKS!=='undefined')WD_COLOR_HOOKS.after.push(function(n){try{var C=COSC();
     if((C.owned||[]).indexOf(n)>=0||myCountryName===n)applyCapital()}catch(e){}})}catch(e){}
 }catch(e){}}
