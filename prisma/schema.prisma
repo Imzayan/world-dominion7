@@ -37,7 +37,9 @@ model User {
   perfDaily     PerfDaily[]
   starterOffer  StarterOffer?
 
-  @@map("users")
+    /* V157-SCALE: release_inactive_territories (هر 60s) روی createdAt اسکن می‌کرد */
+  @@index([createdAt])
+@@map("users")
 }
 
 model Session {
@@ -59,7 +61,9 @@ model Save {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("saves")
+    /* V157-SCALE: release_inactive (save.updatedAt < cutoff) */
+  @@index([updatedAt])
+@@map("saves")
 }
 
 model Score {
@@ -77,7 +81,10 @@ model Score {
   /* V144-PERF: قرینه‌ی اسکیمای postgres — رتبه‌بندی سرور بدون اسکن کامل */
   @@index([server, score(sort: Desc)])
   @@index([server])
-  @@map("scores")
+    /* V157-SCALE: rankOf پروفایل (count where kills/economy > value — کل-جهانی) بدون ایندکس = اسکن کامل */
+  @@index([kills])
+  @@index([economy])
+@@map("scores")
 }
 
 model ServerStat {
@@ -114,7 +121,9 @@ model AdminGrant {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("admin_grants")
+    /* V157-SCALE: claim_admin_grants هر 30s برای هر بازیکن — بدون ایندکس = اسکن کامل */
+  @@index([userId, claimed])
+@@map("admin_grants")
 }
 
 model WorldChat {
@@ -183,7 +192,9 @@ model ShopPurchase {
 
   @@unique([userId, requestId])
   @@index([userId, createdAt])
-  @@map("shop_purchases")
+    /* V157-SCALE: shop_gem_topup دوباره‌اعمال را با findFirst({requestId}) چک می‌کند */
+  @@index([requestId])
+@@map("shop_purchases")
 }
 
 /**
@@ -235,7 +246,9 @@ model TradeOffer {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([server, status, createdAt])
-  @@map("trade_offers")
+    /* V157-SCALE: trade_offer_mine هر 30s برای هر بازیکن روی ownerUid — بدون ایندکس = اسکن کامل */
+  @@index([ownerUid, status, createdAt])
+@@map("trade_offers")
 }
 
 model SpecialUse {
@@ -245,7 +258,9 @@ model SpecialUse {
   usedAt DateTime @default(now()) @map("used_at")
 
   @@index([userId, item, usedAt])
-  @@map("special_uses")
+    /* V157-SCALE: سقف هفتگی عملیات‌ها count({item, usedAt}) — اسکن قبلی */
+  @@index([item, usedAt])
+@@map("special_uses")
 }
 
 /**
@@ -686,7 +701,9 @@ model BattleLog {
   /* V147 BATTLE 2.0: کول‌داون هدف / سقف فتح ساعتی / خستگی جنگ — بدون اسکن */
   @@index([server, attacker, createdAt])
   @@index([server, attacker, win, createdAt])
-  @@map("battle_logs")
+    /* V157-SCALE: war_intel سطح4 — فیلتر server + ایندکس defender */
+  @@index([server, defender, createdAt])
+@@map("battle_logs")
 }
 
 /**
