@@ -2,12 +2,12 @@
  * performance baseline (local sqlite mirror only — NEVER against production).
  *
  * Creates N synthetic players (PERFBOT###) + one probe account (PERFPROBE),
- * a fully-owned server 1 (90 countries = SRV_CAP_GLOBAL), scores, saves,
+ * a fully-owned server 1 (SRV_CAP countries — V158: default 120, configurable --cap), scores, saves,
  * battle logs. All rows are wipeable: every user email ends with @perf.seed
  * and every battle-log attacker starts with PERFBOT.
  *
  * usage:
- *   node scripts/perf-seed.mjs --players 500 [--seed 157001] [--srv 1]
+ *   node scripts/perf-seed.mjs --players 500 [--seed 157001] [--srv 1] [--cap 120]
  *   node scripts/perf-seed.mjs --wipe
  *
  * output: scripts/perf-results/seed-manifest.json
@@ -26,6 +26,7 @@ const arg = (name, def) => {
 const PLAYERS = Number(arg('players', 500));
 const SEED = Number(arg('seed', 157001));
 const SRV = Number(arg('srv', 1));
+const CAP = Number(arg('cap', 120)); /* V158: server capacity = SRV_CAP_GLOBAL; the "full server" fixture follows it */
 const WIPE = process.argv.includes('--wipe');
 const EMAIL_DOMAIN = '@perf.seed';
 const RESULTS = path.resolve('scripts/perf-results');
@@ -81,10 +82,12 @@ if (WIPE) {
 const t0 = Date.now();
 const wipeInfo = await wipe();
 
-/* world layout: server 1 fully owned (90 rows = SRV_CAP_GLOBAL).
- * owners = min(players, 60): 30 owners hold 2 countries, the rest 1 → exactly 90 rows when players>=60 */
-const OWNED_TARGET = Math.min(90, uniq.length);
-const owners = Math.max(1, Math.min(PLAYERS, 60));
+/* world layout: server 1 fully owned (CAP rows — V158: cap default 120, was 90).
+ * owners = min(players, 80): the first `half` owners hold 2 countries, the rest 1
+ * (2*half + (owners-half) = CAP when owners+half = CAP) → exactly CAP rows when players are enough */
+const OWNED_TARGET = Math.min(CAP, uniq.length);
+const owners = Math.max(1, Math.min(PLAYERS, 80));
+const half = Math.max(0, Math.min(owners, Math.max(0, OWNED_TARGET - owners)));
 const owned = [];
 for (let i = 0; i < OWNED_TARGET; i++) owned.push(uniq[Math.floor((i * uniq.length) / OWNED_TARGET)]); /* stride = whole-world spread */
 
@@ -99,9 +102,9 @@ for (let i = 1; i <= PLAYERS; i++) {
   const nick = 'PERFBOT' + String(i).padStart(3, '0');
   const uid = 'perfbot' + String(i).padStart(4, '0') + 'seed' + SEED;
   const isOwner = i <= owners;
-  const c1 = isOwner ? owned[(i - 1) % owned.length] : null;
-  /* owners 1..30 get a 2nd country from the 60..89 band — zero overlap with owners 31..60 (30..59) */
-  const c2 = isOwner && i <= 30 ? owned[60 + ((i - 1) % 30)] : null;
+  const c1 = isOwner ? owned[(i - 1) % OWNED_TARGET] : null;
+  /* owners 1..half get a 2nd country from the band [owners, owners+half) — zero overlap with single-country owners */
+  const c2 = isOwner && i <= half ? owned[owners + ((i - 1) % half)] : null;
   const mine = c2 && c2 !== c1 ? [c1, c2] : c1 ? [c1] : [];
   if (mine.length) ownerCountries.set(nick, mine);
   await db.user.create({ data: mkUser(uid, 'perf' + String(i).padStart(4, '0') + EMAIL_DOMAIN, nick) });

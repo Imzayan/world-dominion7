@@ -94,26 +94,30 @@ try {
   check('old-server land freed on move', terrMv === 0, 'rows=' + terrMv);
 
   /* ---------- server-side refusals ---------- */
+  const CAP = Number((await rpc('srv_meta', {}))?.cap) || 120; /* V158: cap from the single source */
   const ts1 = await rpc('country_release', { p_target_server: 1 });
   check('move to TEST server refused (test_server)', ts1?.ok === false && ts1?.error === 'test_server', JSON.stringify(ts1).slice(0, 120));
 
-  /* 90-country full server: dummy user holding 90 rows on server 4 */
+  /* cap-country full server: dummy user holding CAP rows on server 4 (V158: cap from srv_meta, was hardcoded 90) */
   const dummy = await db.user.create({ data: { id: 'v140dummy' + ts, email: 'v140d' + ts + '@test.local', nick: 'V140d' + ts.slice(-5), nickLower: 'v140d' + ts.slice(-5), passwordHash: 'x' } });
-  const countries = Array.from({ length: 90 }, (_, i) => 'DummyLand' + i);
+  const countries = Array.from({ length: CAP }, (_, i) => 'DummyLand' + i);
   await db.territory.createMany({ data: countries.map((c) => ({ server: 4, country: c, userId: dummy.id, nick: dummy.nick })) });
   const full = await rpc('country_release', { p_target_server: 4 });
-  check('move to FULL (90/90) server refused (full)', full?.ok === false && full?.error === 'full', JSON.stringify(full).slice(0, 120));
+  check('move to FULL (cap/cap, cap=' + CAP + ') server refused (full)', full?.ok === false && full?.error === 'full', JSON.stringify(full).slice(0, 120));
   const terrAfterRefusal = await db.territory.count({ where: { userId: dummy.id } });
-  check('refusal left everything untouched (no partial wipe)', terrAfterRefusal === 90, 'rows=' + terrAfterRefusal);
+  check('refusal left everything untouched (no partial wipe)', terrAfterRefusal === CAP, 'rows=' + terrAfterRefusal);
   await db.territory.deleteMany({ where: { userId: dummy.id } });
   await db.user.delete({ where: { id: dummy.id } });
 
   /* ================= (A) PAY back ON — shop catalog ================= */
   const cat = await rpc('shop_catalog', {});
   const packs = cat?.packs || [];
-  check('shop_catalog serves the 4 Myket gem packs again (PAY_OFF=false)', packs.length === 4, 'packs=' + packs.length);
-  check('pack ids/SKUs unchanged (gems_100/300/550/1000)', JSON.stringify(packs.map((p) => p.id)) === JSON.stringify(['gems_100', 'gems_300', 'gems_550', 'gems_1000']), JSON.stringify(packs.map((p) => p.id)));
-  check('pack gems/prices = old shop shape (100/300/800/1500)', JSON.stringify(packs.map((p) => p.gems)) === JSON.stringify([100, 300, 800, 1500]), JSON.stringify(packs.map((p) => p.gems)));
+  /* V158 test-maintenance (pre-existing staleness, NOT a V158 regression): the catalog has been
+     the 3-pack lineup (gems_100/800/1500, V127/V145 price sync) since V150-era shop work —
+     these assertions still demanded the V140-era 4-pack shape and were red before V158. */
+  check('shop_catalog serves the current 3 Myket gem packs', packs.length === 3, 'packs=' + packs.length);
+  check('pack ids/SKUs = current lineup (gems_100/800/1500)', JSON.stringify(packs.map((p) => p.id)) === JSON.stringify(['gems_100', 'gems_800', 'gems_1500']), JSON.stringify(packs.map((p) => p.id)));
+  check('pack gems = current shape (100/800/1500)', JSON.stringify(packs.map((p) => p.gems)) === JSON.stringify([100, 800, 1500]), JSON.stringify(packs.map((p) => p.gems)));
   const starter = cat?.starter || {};
   check('emperor_starter (پک اولیه ۲۸۰ تومانی) is back as live offer', starter.phase === 'offer' && starter.price_toman === 280, JSON.stringify({ phase: starter.phase, price: starter.price_toman }));
   check('starter contents intact (1200 gems + resources + cosmetics)', starter.contents?.gems === 1200 && Array.isArray(starter.contents?.cosmetics) && starter.contents.cosmetics.length === 5, JSON.stringify(starter.contents).slice(0, 100));

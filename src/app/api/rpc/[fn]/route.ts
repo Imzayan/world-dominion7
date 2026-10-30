@@ -1346,8 +1346,9 @@ const TG_GEMS = 20
 const TEST_SRV_KEY = 'wd_test_srvs'
 
 /* V139 — سقف هر سرور: ۹۰ کشورِ تصرف‌شده. با رسیدن به آن، کلاینت سرور بعدیِ خالی را «باز» نشان می‌دهد و
-   بازیکنان جدید همان‌جا کشور انتخاب می‌کنند. تک‌منبع = همین ثابت؛ از srv_meta با کلید cap به کلاینت می‌رود */
-const SRV_CAP_GLOBAL = 90
+   بازیکنان جدید همان‌جا کشور انتخاب می‌کنند. تک‌منبع = همین ثابت؛ از srv_meta با کلید cap به کلاینت می‌رود
+   V158 — ظرفیت ۹۰→۱۲۰ به درخواست مالک (فقط همین ثابت؛ مصرف‌کننده‌ها: srv_meta/territory_sync/country_release/wd_servers) */
+const SRV_CAP_GLOBAL = 120
 let TST_CACHE: { at: number; list: number[] } = { at: 0, list: [] }
 async function testSrvsGet(): Promise<number[]> {
   if (Date.now() - TST_CACHE.at < 30_000) return TST_CACHE.list
@@ -3692,6 +3693,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         /* V144 — انتخاب آزادِ سرور (دستور مالک): ادعای تازه روی هر سرورِ غیرتستیِ غیرپُر مجاز است.
            ساکنانِ واقعی (score.server = همین سرور، یا قلمروی موجود) همیشه مجاز — حتی سرورِ پُر.
            سرورِ پُر (۹۰/۹۰) فقط جلوی تازه‌وارد را می‌گیرد: server_full — جا نیست */
+        let capApplies = false /* V158 — true فقط برای تازه‌واردِ غیرعضو (مشمولِ سقف)؛ برای داوری پسا-grant */
         if (current.length === 0) {
           const scRow = await db.score.findUnique({ where: { userId: user.id }, select: { server: true } })
           const isMember = !!scRow && scRow.server === server
@@ -3700,6 +3702,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
             if ((stRow?.taken || 0) >= SRV_CAP_GLOBAL) {
               return R({ ok: false, server_full: true, granted: [], denied: [], lost: [], mine: [] })
             }
+            capApplies = true
           }
         }
         const mine = new Set(current.map((t) => t.country))
@@ -3730,6 +3733,18 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
           } catch (e) {
             if ((e as { code?: string })?.code === 'P2002') lost.push(c)
             else throw e
+          }
+        }
+        /* V158 — قطعیت مرز ظرفیت (مسابقه‌ی همزمان): دو ادعای تازه‌ی همزمان هر دو می‌توانستند از گاردِ
+           taken<cap عبور کنند (پنجره‌ی TOCTOU بین خواندن و نوشتن). حالا پس از grant واقعی، شمارشِ
+           نهایی سرور گرفته می‌شود؛ اگر جمع از سقف گذشت، grantهای همین فراخوانی پس گرفته شده و
+           server_full برمی‌گردد — جمعِ پایدار هرگز از cap عبور نمی‌کند. برنده‌ی مسابقه قطعی نیست
+           ولی نتیجه قطعی است؛ بازنده در سینک ۳۰ثانیه‌ای بعدی خودکار دوباره تلاش می‌کند. */
+        if (capApplies && granted.length) {
+          const takenAfter = await db.territory.count({ where: { server } })
+          if (takenAfter > SRV_CAP_GLOBAL) {
+            await db.territory.deleteMany({ where: { userId: user.id, server, country: { in: granted } } })
+            return R({ ok: false, server_full: true, granted: [], denied: [...granted, ...denied], lost, mine: [] })
           }
         }
         /* بیرق پایتخت تک‌تایی — جابه‌جایی پایتخت میان کشورهایِ همین بازیکن هم درست می‌نشیند */

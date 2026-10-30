@@ -420,7 +420,9 @@ function augmentSrvList(){
     ts.innerHTML=WDSI_ICON('globeCine',18)+'<span> سرورهای جهان</span>';
     ts.style.display='inline-flex';ts.style.alignItems='center';ts.style.gap='6px'}}}catch(e){}
   var items=body.querySelectorAll('.lobby-item');
-  var STC={online:['st-on','آنلاین'],busy:['st-busy','شلوغ'],full:['st-full','پُر — ۹۰/۹۰'],maintenance:['st-maint','تعمیر']};
+  /* V158: برچسب پُر دیگر ۹۰ هاردکد نیست — سقف از SRV_CAP (همگام از srv_meta) می‌آید؛ fallback همان ۱۲۰ */
+  var _CAP=(typeof SRV_CAP!=='undefined'&&SRV_CAP)||120;
+  var STC={online:['st-on','آنلاین'],busy:['st-busy','شلوغ'],full:['st-full','پُر — '+fad(_CAP)+'/'+fad(_CAP)],maintenance:['st-maint','تعمیر']};
   items.forEach(function(item,i){
     var k=i+1,s=ST.srvs[k];if(!s)return;
     var sub=item.querySelector('.lobby-item-sub');if(!sub)return;

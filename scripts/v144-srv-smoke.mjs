@@ -49,7 +49,8 @@ check('social.js: heartbeat fires instantly on wd-srv-changed (no 45s stale onli
 check('social.js: m-srv open ALWAYS refetches wd_servers (no 60s stale counts)',
   social.includes('refreshSrvs().then(function(){augmentSrvList()});') && !social.includes('if(!ST.srvs){refreshSrvs()'))
 check('no chain-locked rows text anywhere', !html.includes('بعد از پُر شدن سرورهای قبلی باز می‌شود') && !html.includes('قفل زنجیره‌ای دارند'))
-check('full-server label honest (90/90 — no room for newcomers)', html.includes('۹۰/۹۰؛ برای تازه‌واردها جا ندارد'))
+check('full-server label honest (cap/cap — no room for newcomers; V158: dynamic from SRV_CAP)',
+  html.includes("شلوغ — '+faNum(SRV_CAP)+'/'+faNum(SRV_CAP)+'؛ برای تازه‌واردها جا ندارد") && html.includes("شلوغ — '+faNum(CAP31())+'/'+faNum(CAP31())"))
 check('wd31 grid uses srvListTop', html.includes("let M31=(typeof srvListTop==='function')?srvListTop()"))
 /* V146: نسخه-آگاه (الگوی V138) — v.txt تک‌منبع حقیقت است؛ نسخه‌ی ۱۴۴+ معتبر */
 const vTxt146 = readFileSync(join(ROOT, 'public/game/v.txt'), 'utf8').trim()

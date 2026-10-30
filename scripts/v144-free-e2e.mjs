@@ -4,7 +4,8 @@
    lives ONLY in server creation, not in locking existing servers).
    Covers: signup server=0 (fresh install sees the picker) · wd_servers spawn rule ·
    free-choice fresh claim passes on ANY non-test non-full server (V143 chain refusal gone) ·
-   full-server (90/90) fresh claim refused with server_full · member exemption · test door.
+   full-server (cap/cap) fresh claim refused with server_full · member exemption · test door.
+   V158: the cap is no longer a hardcoded 90 — it is read from the SAME single source the game uses (srv_meta.cap).
    Run: node scripts/v144-free-e2e.mjs   (dev server must be up) */
 process.env.DATABASE_URL = 'file:/home/z/my-project/db/custom.db';
 const { PrismaClient } = await import('@prisma/client');
@@ -49,6 +50,7 @@ try {
   check('fresh signup score.server = 0 (unassigned → chooser opens on first boot)', sc0?.server === 0, 'server=' + sc0?.server);
 
   /* ---------- T2: wd_servers spawn rule — no always-present trailing empty server ---------- */
+  const CAP = Number((await rpc('srv_meta', {}))?.cap) || 120; /* V158: cap from the single source */
   const ws = await rpc('wd_servers', {});
   const tst = (ws?.test_srvs || []).map(Number);
   const stats = await db.serverStat.findMany({ select: { server: true, taken: true } });
@@ -58,9 +60,9 @@ try {
   const srvCount = (ws?.servers || []).length;
   const expectedTop = srvCount; /* server-side list is 1..SRV_COUNT contiguous */
   let allFull = true;
-  for (let k = 1; k <= maxKnown; k++) { if (tst.includes(k)) continue; const st = stats.find((x) => x.server === k); if ((st?.taken || 0) < 90) { allFull = false; break } }
+  for (let k = 1; k <= maxKnown; k++) { if (tst.includes(k)) continue; const st = stats.find((x) => x.server === k); if ((st?.taken || 0) < CAP) { allFull = false; break } }
   const expectedCount = allFull ? maxKnown + 1 : maxKnown;
-  check('wd_servers count honors the 90-rule spawn (' + (allFull ? 'all full → +' : 'world has room → no') + '1)', expectedCount === srvCount, 'expected=' + expectedCount + ' got=' + srvCount);
+  check('wd_servers count honors the cap-rule spawn (cap=' + CAP + ') (' + (allFull ? 'all full → +' : 'world has room → no') + '1)', expectedCount === srvCount, 'expected=' + expectedCount + ' got=' + srvCount);
   check('wd_servers every listed server is contiguous from 1 (no gaps/fakes)', (ws?.servers || []).every((s, i) => s.server === i + 1));
 
   /* ---------- T4: FREE CHOICE — fresh claim on any non-test non-full server passes ---------- */
@@ -82,14 +84,14 @@ try {
   for (let k = maxKnown + 1; k <= maxKnown + 6; k++) { if (!tst.includes(k) && !bySrv.has(k)) { fullSrv = k; break } }
   if (fullSrv) {
     createdServerStat = fullSrv;
-    await db.serverStat.upsert({ where: { server: fullSrv }, create: { server: fullSrv, taken: 90, players: 12 }, update: { taken: 90, players: 12 } });
+    await db.serverStat.upsert({ where: { server: fullSrv }, create: { server: fullSrv, taken: CAP, players: 12 }, update: { taken: CAP, players: 12 } });
     await db.save.upsert({
       where: { userId: uid },
       create: { userId: uid, nick, state: JSON.stringify({ my: 'Brazil', conq: ['Brazil'], res: { gold: 50000, oil: 4000, food: 6000 } }) },
       update: { state: JSON.stringify({ my: 'Brazil', conq: ['Brazil'], res: { gold: 50000, oil: 4000, food: 6000 } }) },
     });
     const ref = await rpc('territory_sync', { p_server: fullSrv, p_held: ['Brazil'], p_capital: 'Brazil' });
-    check('FULL 90/90: fresh claim refused with server_full (V144 arbitration)', ref?.ok === false && ref?.server_full === true, JSON.stringify(ref).slice(0, 120));
+    check('FULL cap/cap (cap=' + CAP + '): fresh claim refused with server_full (V144 arbitration)', ref?.ok === false && ref?.server_full === true, JSON.stringify(ref).slice(0, 120));
     await db.score.update({ where: { userId: uid }, data: { server: fullSrv } });
     const mem = await rpc('territory_sync', { p_server: fullSrv, p_held: ['Brazil'], p_capital: 'Brazil' });
     check('MEMBER EXEMPTION: resident of the full server keeps claiming', Array.isArray(mem?.granted) && mem.granted.includes('Brazil'), JSON.stringify(mem).slice(0, 120));
