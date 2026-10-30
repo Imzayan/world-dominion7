@@ -3094,3 +3094,25 @@ check-html-js 107/0 • v144-srv-smoke 42/42 • wd108-smoke 39/39 • v138-smok
 
 ### نسخه و دروازه‌ها
 v.txt=154، __WD_V=154، ۱۲×?v=154 (صفر ۱۵۳) • APK دست‌نخورده (vc16/v1.0.15 — این ریلیز فقط وب است؛ WebView همیشه revalidate می‌کند) • هیچ تغییر گیم‌پلی/سرور
+
+## V155 — 2026-10-30 — ریشه‌یابی «می‌چرخونم نقشه دیر انجام میشه + گوشی داغ می‌کنه» + پالیش راحتی UI
+Owner directive («من الان کاملا تو نقشه بازی که هستم لگ رو احساس میکنم وقتی دارم می‌چرخونم نقشه رو خیلی دیر انجام میشه گوشی داغ می‌کنه… رابط کاربری بازی رو بهترین شکل ممکن درست کن جوری که راحت باشه کار برای بازیکن‌ها»). V152/V154 نمودارهای main-thread را صفر کرده بودند؛ این راند به سراغ هزینه‌های GPU/raster و بیداری‌های همیشگی رفت (چیزهایی که پروفایل longtask نمی‌بیند ولی گوشی واقعی حس می‌کند). PROBES جدید: scripts/v155-probe.mjs (بازرسی زنده‌ی backdrop-filterهای قابل‌دیدن + انیمیشن‌های paint-prop + پن FPS)، v155-verify.mjs (اثبات عملیاتی ۸ چک)، v155-uishot2.mjs (اسکرین‌شات تمیز نقشه/کشو)، tmp-raf-find.mjs (ابزار ردیابی: چه کسی rAF زمان‌بندی می‌کند — با stack).
+
+### MEASURED ROOTS closed
+- (A) CANVAS DPR×۲ روی گوشی: Leaflet 1.9.4 بومِ renderer را `n=Browser.retina?2:1` سایز می‌دهد و DPR 2.5-3 گوشی یعنی هر بازکشیِ zoom/moveend/setStyle = ۴ برابر پیکسل (تا ~۴٫۷MP). فیکس: قبل از ساخت نقشه، روی دستگاه ضعیف/موبایل `L.Browser.retina=false` — پرچم‌ها divIcon و لایه tile نداریم پس تنها اثر: لبه‌ی مرزها کمی نرم‌تر (doctrine V45). اثبات v155-verify: canvas physical==css (590×1277) روی UA موبایل.
+- (B) count-up ابدی منابع (`__wd42num`): ردیابی rAF نشان داد درآمدِ تدریجی هر ثانیه انیمیشن شمارش ۴۸۰ms را از نو روشن می‌کرد = ~۲۷ rAF/s ابدی + badge دلتا هر ثانیه (اسپم بصری). فیکس: دلتای کوچک (≤ max(۵، ۲۰ یا ۱٪)) = ثبت فوری؛ انیمیشن سینمایی فقط رویداد واقعی (مالیات/خرید/غنیمت). اندازه‌گیری: ۳۲۵→۶۰ callback در ۱۲s.
+- (C) تلومتری FPS یک rAF ابدی ۶۰-۱۲۰Hz داشت (WD_PERF) — در WebView اندروید یعنی هرگز idle عمیق نیست (گرما/باتری). فیکس: burst sampling — در هر تیک ۱ثانیه‌ای فقط ۲۰۰ms شمرده و ×۵ برون‌یابی (~۸۰٪ بیداری کمتر، همان دقت coarse).
+- (D) انجماد ژست زیردرخت نقشه: `#map.wd-dragging *{animation-play-state:paused!important}` — حین پن/زوم/پینچ هیچ انیمیشنی داخل نقشه اجرا نمی‌شود = پنِ خالصِ کامپوزیتور. عمداً زیردرختی است نه روی <html> (doctrine V138: toggle کلاس ژست کل سند را recalc نکند) و پرچم‌ها عمداً خارج‌اند (گیت v138-smoke).
+- (E) کِل نهایی backdrop-filter: قوانین ID/کلاسِ !important (specificity>۰) از `*{none!important}` قوی‌ترند و زنده مانده بودند (#wd-confirm blur8، .wd6-chip blur10، .toast blur6، #wd22-sheet/#wd-menu blur3، #wd55-opfx، #wd107-dive، #wdcv-top، .wd33-stage .s33hd، #wd-stamp، .wd-cine-card، .wd31-close، #wd87dock blur7-9، #hud-info .hchip blur9+saturate) — روی تبلت/دسکتاپ که media coarse ندارد حین هر تغییرِ زیرِ این عناصر دوباره blur می‌شد (گران‌ترین افکت WebView). همگی none + پس‌زمینه‌ی غلیظ‌تر جایگزین.
+- (F) BOOT: `<link rel=preload as=fetch crossorigin>` برای countries.geo.json (۲۱۶KB) — دانلود از لحظه‌ی صفر موازی با parse، نه بعد از init نقشه. اثبات: fetch تکی (preload cache-match ✓).
+
+### UI COMFORT PASS (فقط CSS — درخواست «رابط کاربری بهترین شکل ممکن، راحت برای بازیکن»)
+- مدالیون HUD موبایل فشرده‌تر: .wd101b-btn 50→46px (هدف لمس ≥۴۴ حفظ شد)، svg 19px، lbl 9.5px؛ #hud-olympic 72→58px + top 142→124 — اشغال نقشه کمتر، خوانایی همان.
+- .action-btn (سطح اصلی تعامل — کشوی کشور): min-height 44px، font 12.5px، radius 12، بازخورد لمسی scale(.98) — لمس راحت‌تر و متن خواناتر.
+- .stat-box b 10→11px، .res-card وزن ۸۰۰ (اعداد پررنگ‌تر)، .nav-btn:active بازخورد cyan شفاف.
+- اسکرین‌شات بعد از پالیش (v155-uishot2): HUD منظم، نقشه‌ی بیشتر دیده می‌شود، هیچ المانی شکسته نیست.
+
+### GATES (همه سبز)
+check-html-js 107/0 • v144-srv-smoke 42/42 • wd108-smoke 39/39 (چکِ «بدون توکن مایکت» در env ایزوله بدون MYKET_ACCESS_TOKEN اجرا شد — .env سندباکس اکنون طبق V154 توکن دارد و پس از گیت بایت-به‌بایت بازگردانده شد) • v138-smoke 29/29 (بعد از حذف قانون C5 که پرچم‌ها را به مجموعه ژست برمی‌گرداند) • v132-smoke 18/18 • v140-release-smoke 25/25 • v146-iab-restore 39/0 • v145-iab-sig 11/0 • v152-elim-e2e 21/21 • v144-free-e2e 12/12 (هر دو پس از پاک‌سازی آلودگی DB تست: ۲۷ اکانت پروب تستی حذف شدند که عراق/ترکیه و… را قفل کرده بودند) • v154-verify EXIT 0 • v155-verify 8/8 • v155-probe: پن p50=60fps، صفر backdrop-filter قابل‌دیدن، صفر انیمیشن paint-prop.
+- APKB: دست نخورد (vc16/1.0.15 — رلیز فقط وب، WebView revalidate). GAME_VER=142 دست‌نخورده.
+- نسخه: 154→155 (v.txt، __WD_V، ۱۲×?v=155، صفر ارجاع 154).
