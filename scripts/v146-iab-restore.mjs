@@ -62,13 +62,23 @@ check('WDIab.java: ownedPurchases امضای رسید را برمی‌گردان
 check('WDBridge.java: پل WDAndroid دست‌نخورده', bridge.includes('startPurchase') && bridge.includes('billingAvailable'));
 check('Manifest: مجوز پرداخت خودِ مایکت (ir.mservices.market.BILLING — ریشه‌ی «اتصال برقرار نشد» طبق مستند رسمی مایکت) + queries', manifest.includes('ir.mservices.market.BILLING') && manifest.includes('ir.mservices.market"'));
 
-/* ---------- نسخه (renumber دوم: ۱۴۶ محلی توسط V150 ریموت مصرف شد → ۱۵۱ روی V150) ---------- */
-check('v.txt=151', vtxt === '151', vtxt);
-check('index.html: __WD_V=151', html.includes('__WD_V=151') && !html.includes('__WD_V=150') && !html.includes('__WD_V=149'));
-const v151 = (html.match(/\?v=151/g) || []).length;
-check('index.html: ۱۲ × ?v=151', v151 === 12, String(v151));
-check('index.html: صفر باقی‌مانده‌ی v145/146/149/150', !html.includes('?v=145') && !html.includes('?v=146') && !html.includes('?v=149') && !html.includes('?v=150'));
+/* ---------- نسخه (V152: نسخه-آگاه — الگوی V138، v.txt تک‌منبع؛ شماره‌ها دیگر هاردکد نیستند) ---------- */
+const CUR = (vtxt || '').trim();
+check('v.txt: عدد تمیز ۳رقمی', /^\d{3}$/.test(CUR), vtxt);
+check('index.html: __WD_V=v.txt', html.includes('__WD_V=' + CUR) && !html.includes('__WD_V=' + (Number(CUR) - 1)));
+const vcur = (html.match(new RegExp('\\?v=' + CUR, 'g')) || []).length;
+check('index.html: ۱۲ × ?v=CUR (' + CUR + ')', vcur === 12, String(vcur));
+check('index.html: صفر باقی‌مانده‌ی نسخه‌های کهنه', !/\?v=(14[0-9]|15[0-9])/.test(html.replace(new RegExp('\\?v=' + CUR, 'g'), '')));
 check('index.html: فیکس‌های کارایی V148/V149 در ربیب دست‌نخورده', html.includes('wd-terr-') || html.includes('wd_srv_cache'));
+
+/* ---------- V152 — سقوط امپراتوری + پرف دوم (بازگشت‌ناپذیری در ربیب‌ها) ---------- */
+check('V152: ماژول سقوط (پنجره/بنر/هایلایت/چیپ 🏳️) سالم', ['wdElimShow', 'wdElimState', 'wdElimBanner', 'wdElimPulse', 'wdElimPickMode', 'wd-elim-banner', 'm-elim', 'هیچ کشوری نداری'].every((s) => html.includes(s)));
+check('V152: سیم‌کشی syncTerr (پنجره‌ی سقوط + wdElimState)', html.includes('wdElimShow({cap:oc') && html.includes('try{wdElimState()}catch(e){}'));
+check('V152: claimCapital دوباره‌مسلح + چیپ درجا', html.includes('wdElimState();renderSrvChip()'));
+check('V152: تلاش دومِ سینک بعد از مدعای پایتخت (نرخ syncBusy)', html.includes('setTimeout(function(){try{if(!window.__wdRel)syncTerr()}catch(e){}},2500)'));
+check('V152 پرف: .own بدون blur روی موبایل + پرچم بدون transition', /@media \(hover:none\),\(pointer:coarse\)/.test(html) && html.includes('.own{backdrop-filter:none!important') && /\.flag\{transition:none!important\}/.test(html));
+check('V152 پرف: سیو دوره‌ای حین ژست ممنوع', html.includes('!document.hidden&&!window.__wdMapBusy)saveNow()'));
+check('V152 پرف: arm() نرخ ۱۲۰۰ms', html.includes('now-_aAt<1200'));
 
 /* ---------- سینتکس ---------- */
 try { execSync('node --check public/game/shop-v2.js', { cwd: ROOT, stdio: 'pipe' }); check('shop-v2.js: node --check', true); }

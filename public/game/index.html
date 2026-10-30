@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=151;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
+  <script>window.__WD_V=152;/* V64 version beacon — self-heal swap uses /game/v.txt */</script>
   <script>
   /* V132 PERF GOVERNOR — یک پچِ سراسری قبل از همه‌ی اسکریپت‌های بازی.
      ۱) دستگاه ضعیف: بازه‌های نظرسنجیِ ≥۵ثانیه (presence/ذخیره/متادیتا/چت-پس‌زمینه) کشیده می‌شوند ×۱.۴
@@ -31,13 +31,13 @@
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=151">
+   <link rel="preload" as="script" href="/game/balance.js?v=152">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=151">
-   <link rel="preload" as="script" href="/game/social.js?v=151">
-   <link rel="preload" as="script" href="/game/mentor.js?v=151">
-  <script src="/game/balance.js?v=151"></script>
+   <link rel="preload" as="script" href="/game/oly3.js?v=152">
+   <link rel="preload" as="script" href="/game/social.js?v=152">
+   <link rel="preload" as="script" href="/game/mentor.js?v=152">
+  <script src="/game/balance.js?v=152"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2277,6 +2277,10 @@ function claimCapital(engName) {
   document.getElementById("drawer-actions").innerHTML =
     `<button class="action-btn btn-cyan" id="act-goto-lobby">🏢 مدیریت زیرساخت در لابی</button>`;
   document.getElementById("act-goto-lobby").addEventListener("click", () => { openModal("m-lobby"); switchLobbyTab("infra"); });
+  /* V152: پایتختِ جدید = خروج از حالتِ «هیچ کشوری نداری» — بنر جمع، هایلایت‌ها برگرد،
+     پنجره‌ی سقوطِ آینده دوباره مسلح. چیپِ HUD هم درجا تازه می‌شود (نه ۴ثانیه بعد).
+     `__wdElimPrevCap` هم برای سقوطِ بعدی پاک می‌شود. */
+  try{window.__wdElimPrevCap=null;wdElimState();renderSrvChip()}catch(e){}
 }
 
 // ---------- Combat with gradual occupation ----------
@@ -2716,7 +2720,9 @@ const WD_ATTACK_HOOKS={};window.WD_ATTACK_HOOKS=WD_ATTACK_HOOKS;
 async function attackTarget(n){
   if(battleBusy)return;                                            /* [گارد] همه‌ی لایه‌ها همین را داشتند */
   if(window.__wd39inflight)return;                                 /* [V39] نبرد PvP در جریان است (برچسب قدیمی wd5 اصلاح شد) */
-  if(!myCountryName){showToast('❌ اول باید یک پایتخت انتخاب کنید!','lose');return} /* [core] برابری ترتیب قدیمی: پایتخت قبل از مرز */
+  if(!myCountryName){showToast('❌ اول باید یک پایتخت انتخاب کنید!','lose');
+    /* V152: به‌جای بن‌بستِ توستِ خالی — مستقیم به حالتِ انتخابِ کشورِ جدید (بنر + هایلایتِ آزادها) */
+    try{wdElimPickMode()}catch(e){}return} /* [core] برابری ترتیب قدیمی: پایتخت قبل از مرز */
   try{const T=WD_ATTACK_HOOKS.truce;if(T&&T(n))return}catch(e){console.error('wd-truce',e)}                 /* [V33] آتش‌بس المپیک */
   /* V74: هوک doctrinePre حذف شد (تنها ثبت‌کننده‌اش WD5 بود) */
   try{news('⚔️ آغاز عملیات علیه '+getCountryData(n).fa)}catch(e){}                                          /* [wd7] خبر آغاز */
@@ -3523,7 +3529,12 @@ addEventListener('load',()=>{const nb=document.querySelector('.bottom-nav');
   const s=S$('hud-strip');if(s){const g=el('div','💎 0','hchip',()=>{renderShop();openModal('m-shop')});g.id='hud-gem';g.style.cursor='pointer';const t=el('div','🏴 0 کشور','hchip');t.id='hud-terr';s.prepend(g);s.prepend(t)}
   const bt=S$('btn-m-tax');if(bt)bt.addEventListener('click',()=>{const a=S$('act-tax');if(a)a.textContent='💰 ۱۰۰ غذا ← '+taxAmount()+' طلا (بر اساس جمعیت)'});
   setInterval(()=>{const g=S$('hud-gem'),t=S$('hud-terr');if(g){if(window.WD39_GEM)window.WD39_GEM(g,GEMS);else g.textContent='💎 '+GEMS};
-    if(t){const n=conqueredCountries.size,tot=Object.keys(layersByName).length||177;t.textContent='🏴 '+n+' کشور ('+Math.round(n/tot*100)+'٪ جهان)'}},1000)});
+    /* V152: چیپِ قلمرو حالتِ «هیچ کشوری نداری» را صادقانه نشان می‌دهد (دستور مالک) — hud-terr تنها چیپِ
+       زنده‌ی قلمرو است (V101b نوار را گروه‌بندی کرد و hud-t2/hud-srv قدیمی از HUD حذف شدند) */
+    if(t){const _none=(typeof myCountryName!=='undefined'&&!myCountryName&&(!(typeof DBMINE!=='undefined'&&DBMINE)||!DBMINE.size));
+      if(_none){if(t._wd152v!=='none'){t._wd152v='none';t.textContent='🏳️ هیچ کشوری نداری — کشورِ جدید انتخاب کن'}return}
+      const n=conqueredCountries.size,tot=Object.keys(layersByName).length||177;const v='🏴 '+n+' کشور ('+Math.round(n/tot*100)+'٪ جهان)';
+      if(t._wd152v!==v){t._wd152v=v;t.textContent=v}}},1000)});
    </script>
    <script src="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
    </script>
@@ -3843,7 +3854,10 @@ async function rankOnline(box){box.append(mk('div','🌍 رتبه‌بندی س�
 
 /* ---------- glue ---------- */
 async function saveNow(){if(window.__wdRel||!ACC.ready||!myCountryName)return;if(sb)await saveOnline();else saveLocal()}
-setInterval(()=>{if(!document.hidden)saveNow()},8000);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow()});addEventListener('pagehide',saveNow);
+/* V152 PERF: سیوِ دوره‌ای وسط ژستِ نقشه (پان/زوم) JSON.stringify کل وضعیت + POST می‌سازد —
+   اگر دقیقاً وسط پینچ بیفتد یک Task چندده‌میلی‌ثانیه‌ای روی همان فریم می‌نشیند. گارد __wdMapBusy:
+   سیو حداکثر ۴۰۰ms بعد از پایان ژست انجام می‌شود (تناوب ۸ثانیه‌ای، سیوی از دست نمی‌رود). */
+setInterval(()=>{if(!document.hidden&&!window.__wdMapBusy)saveNow()},8000);document.addEventListener('visibilitychange',()=>{if(document.hidden)saveNow()});addEventListener('pagehide',saveNow);
 A$('auth').addEventListener('click',e=>e.stopImmediatePropagation());
 A$('acc-chip').addEventListener('click',async()=>{if(!await wdConfirm('از حساب خارج می‌شوی؟','خروج'))return;await saveNow();try{localStorage.removeItem('wd_last')}catch(e){}try{if(sb)await sb.auth.signOut()}catch(e){}location.reload()});
 A$('btn-m-rank').addEventListener('click',async()=>{await saveNow();fillWorldRank();const card=document.querySelector('#m-rank .modal-card');let box=A$('live-rank');if(!box){box=mk('div');box.id='live-rank';card.appendChild(box)}
@@ -3983,14 +3997,21 @@ async function syncTerr(){if(window.__wdRel||syncBusy||!sb||!ACC.uid||!ACC.ready
     if(!r.error&&r.data){DBMINE=new Set((r.data.mine||[]).map(x=>x.country));(r.data.lost||[]).forEach(n=>{if(!lost.includes(n))lost.push(n)})}
     else if(r.error)console.log(r.error);
     try{await pStats}catch(e){}
+    /* V152: پیش از حذف — «قبل‌اً چند داشتم؟» و «فاتحِ پایتخت کی بود؟» برای پنجره‌ی سقوط */
+    const _heldBefore=held.size;
     if(lost.length){lost.forEach(n=>{conqueredCountries.delete(n);delete occupationPct[n];held.delete(n)});
-      if(!myCountryName||lost.includes(myCountryName)){const oc=myCountryName,nc=[...held][0]||null;if(!nc){conqueredCountries.clear()}myCountryName=nc;
+      if(!myCountryName||lost.includes(myCountryName)){const oc=myCountryName,nc=[...held][0]||null;if(!nc){conqueredCountries.clear();
+        /* V152 — گذارِ واقعی «داشتن → صفر»: پنجره‌ی سقوط + فاتحِ پایتخت (از فهرست رسمی سرور) */
+        try{const _own=oc?(f.oth[oc]||null):null;wdElimShow({cap:oc,by:_own?_own.nick:null,heldBefore:_heldBefore})}catch(e){}}
+        myCountryName=nc;
         setTimeout(()=>showToast(nc?'⭐ پایتخت قبلی‌ات به بازیکن دیگری رسید؛ پایتخت جدید: '+((getCountryData(nc)||{}).fa||nc):'🏴 همه‌ی کشورهایت از دست رفت؛ یک پایتخت جدید انتخاب کن','lose'),1600)}
       f=await fetchTerr();lost.forEach(n=>{try{applyCountryColor(n)}catch(e){}});updateUI();
       showToast('⚠️ '+lost.length+' کشور در این سرور قبلاً به بازیکن دیگری رسیده بود و از قلمرو تو خارج شد','lose')}
     applyOthers(f.oth);
-    /* V143 — ایزولاسیون و راهنمایی: بازیکنِ بدونِ کشور روی سرورِ پُرشده گیر نمی‌کند —
-       یک‌بار در هر نشسته به پنجره‌ی سرورها هدایت می‌شود تا سرورِ تازه را انتخاب کند */
+    /* V152 — حالتِ پایدارِ «بدون کشور» (بنر + هایلایتِ کشورهای آزاد) را با واقعیت هم‌تراز نگه می‌دارد:
+       تازه‌کارِ بدون کشور هم همین حالت را می‌بیند؛ بعد از مدعای پایتخت، بنر خودکار جمع می‌شود.
+       پنجره‌ی سرورهای V143 هم سرِ جای خودش ماند — بنر جایگزین آن نیست، تکمیلش است. */
+    try{wdElimState()}catch(e){}
     try{if(!myCountryName&&!(DBMINE&&DBMINE.size)&&taken(SRV)>=SRV_CAP&&!window.__wdFullNudged){window.__wdFullNudged=1;
       showToast('🔴 سرور '+faNum(SRV)+' پُر شده (۹۰/۹۰) — از پنجره‌ی سرورها (🖥️ در نوار بالا) سرورِ تازه را انتخاب کن','lose')}}catch(e){}
     if(!SRV_OK&&myCountryName){const r2=await sb.from('scores').update({server:SRV}).eq('user_id',ACC.uid).select('server');if(!r2.error&&r2.data&&r2.data.length)SRV_OK=true}}
@@ -4091,6 +4112,10 @@ document.addEventListener('visibilitychange',function(){try{if(!document.hidden&
 /* other players' countries can't be attacked/claimed (PvP comes later) */
 /* V59: wrapper V28 حذف شد — چک مالکیت لحظه‌ای + syncTerr داخل attackTarget واحد ادغام شد */
 const _ccv=claimCapital;claimCapital=function(n){if(OTH[n]){showToast('❌ این کشور در سرور تو مال بازیکن دیگری است؛ کشور دیگری انتخاب کن','lose');return}_ccv(n);setTimeout(syncTerr,300);
+  /* V152: اگر سینکِ ۳۰ثانیه‌ای وسط کار بود، syncTerr در +۳۰۰ms زودهنگام خارج می‌شود (گارد syncBusy)
+     و مدعای پایتخت تا ۳۰ثانیه به سرور نمی‌رسد — تلاش دومِ ۲.۵ثانیه‌ای این پنجره را می‌بندد.
+     syncTerr idempotent است؛ دوباره‌کاری ندارد. */
+  setTimeout(function(){try{if(!window.__wdRel)syncTerr()}catch(e){}},2500);
   /* V146: اعلانِ فوریِ انتخابِ پایتخت — پرچم/رنگِ همین لحظه روی نقشه‌ی بقیه */
   try{if(sb&&ACC.uid&&MP_OK===true)sb.channel('wd-terr-'+SRV).send({type:'broadcast',event:'terr',payload:{srv:SRV,country:n,nick:(ACC.nick||'بازیکن'),uid:ACC.uid,cap:true}})}catch(e){}
   /* V80 FIX (باگ «گزینه‌ها باگه»): claimCapital کشوی کشور را با innerHTML بازنویسی می‌کند و هوک‌های post دیگر اجرا
@@ -4238,6 +4263,121 @@ async function wdReleaseCountry(){
   showToast(d.released>0?('🏳️ '+faNum(d.released)+' کشور آزاد شد — جهان خبردار می‌شود'):'🏳️ کشورت رها شد — حالا کشور جدیدت را انتخاب کن','win');
   setTimeout(function(){location.reload()},600);
 }
+
+/* ==================== V152 — سقوطِ امپراتوری: «هیچ کشوری نداری» ====================
+   دستور مالک: «میخوام وقتی پلیری کل کشوراش فتح میشه و کشوری نداره نشون بده که هیچ کشوری
+   نداره و باید کشور جدید انتخاب کنه — بهترین شکل ممکن».
+   سه لایه:
+   ۱) wdElimShow — پنجره‌ی سقوط (یک‌بار برای هر گذارِ «داشتن → صفر»): چه چیزی از دست رفت،
+      فاتحِ پایتخت کی بود، چه چیزی حفظ می‌شود + دو دکمه‌ی روشن: انتخاب کشور جدید / سرور دیگر.
+   ۲) wdElimState — حالتِ پایدارِ بدون‌کشور: بنرِ همیشه‌بالا + هایلایتِ تا ۶ کشورِ آزادِ
+      نزدیک + پروازِ دوربین به بهترینشان. برای «همه» (تازه‌کارِ بدون کشور هم همین حالت است)
+      و idempotent — هر سینک می‌تواند صدا بزند بدون دوباره‌کاری.
+   ۳) ضدِ بن‌بست — اگر همین سرور پُر (۹۰/۹۰) باشد، انتخاب‌گرِ سرور (chooseSrv/renderSrv)
+      پیشنهاد می‌شود؛ دکمه‌ها هر دو مسیر را همیشه باز نگه می‌دارند.
+   داوری مالکیت همچنان انحصاراً server-side (territory_sync) است؛ این ماژول فقط نمایش است. */
+window.__wdElimArmed=true;          /* پس از هر مدعا دوباره مسلح می‌شود */
+let __wdElimPulse=[];               /* کشورهای هایلایت‌شده‌ی حالتِ بدون‌کشور */
+function wdElimPulseClear(){
+  const list=__wdElimPulse;__wdElimPulse=[];
+  list.forEach(function(n){try{applyCountryColor(n)}catch(e){}})}
+function wdElimBanner(mode){ /* mode: 0=پنهان 1=بدون کشور 2=بدون کشور + سرورِ پُر */
+  let b=document.getElementById('wd-elim-banner');
+  if(!mode){if(b)b.remove();return}
+  const full=mode===2;
+  const txt=full
+    ?('🏳️ هیچ کشوری نداری — سرور '+faNum(SRV)+' پُر است (۹۰/۹۰)؛ باید سرورِ دیگری انتخاب کنی')
+    :'🏳️ هیچ کشوری نداری — یک کشورِ آزاد (خاکستری) را لمس کن تا پایتختت شود';
+  const act=full?'':'<button class="wd152-b-btn" id="wd-elim-hint">کدام‌ها؟</button>'
+    +'<button class="wd152-b-btn wd152-b-srv" id="wd-elim-srv">🖥️ سرور دیگر</button>';
+  const html=txt+act;
+  if(b){if(b._h===html)return;b._h=html;
+    const t=b.querySelector('.wd152-b-txt');if(t)t.textContent=txt;
+    const a=b.querySelector('.wd152-b-act');if(a)a.innerHTML=act;return}
+  b=document.createElement('div');b.id='wd-elim-banner';b._h=html;
+  b.innerHTML='<div class="wd152-b-txt">'+txt+'</div><div class="wd152-b-act">'+act+'</div>';
+  document.body.appendChild(b);
+  b.addEventListener('click',function(ev){
+    const t=ev.target;
+    if(t&&t.id==='wd-elim-srv'){ev.stopPropagation();try{wdElimPulseClear()}catch(e){}
+      try{if(window.WDS&&window.WDS.servers){window.WDS.servers();return}}catch(e){}
+      try{renderSrv();openModal('m-srv')}catch(e){}return}
+    if(t&&t.id==='wd-elim-hint'){ev.stopPropagation();wdElimPulse();return}});
+}
+function wdElimPulse(){
+  /* تا ۶ کشورِ آزادِ نزدیکِ آخرین پایتخت (یا مرکزِ جهان) — استایلِ یک‌باره، صفر هزینه‌ی فریمی */
+  try{wdElimPulseClear()}catch(e){}
+  const prev=(window.__wdElimPrevCap&&layersByName[window.__wdElimPrevCap])?getG(window.__wdElimPrevCap):null;
+  const c0=prev?prev.c:[22,18];
+  const free=Object.keys(layersByName).filter(function(n){return statusOf(n)==='neutral'&&!OTH[n]&&n!=='Antarctica'&&layersByName[n]});
+  const d2=function(n){const g=getG(n);if(!g)return 1e9;const dx=g.c[0]-c0[0],dy=g.c[1]-c0[1];return dx*dx+dy*dy};
+  const pick=free.sort(function(a,b){return d2(a)-d2(b)}).slice(0,6);
+  pick.forEach(function(n){const l=layersByName[n];if(!l)return;
+    __wdElimPulse.push(n);
+    try{l.setStyle({fillColor:'#0d2f4a',fillOpacity:.9,color:'#ffd84d',weight:2.4,dashArray:'4 4'})}catch(e){}});
+  if(pick.length){
+    try{flyToCountry(pick[0])}catch(e){}
+    showToast('⭐ '+faNum(pick.length)+' کشورِ آزاد به تو نشان داده شد — یکی را لمس کن','win')}
+  else showToast('در این سرور کشورِ آزادی نمانده — از بنر، «🖥️ سرور دیگر» را بزن','lose');
+  return pick.length}
+function wdElimState(){
+  /* وضعیتِ «بدون کشور» را با واقعیت هم‌تراز می‌کند — idempotent؛ از syncTerr و claimCapital صدا زده می‌شود */
+  const none=!myCountryName&&!(DBMINE&&DBMINE.size);
+  if(none){
+    const full=(typeof taken==='function')&&(typeof SRV==='number')&&taken(SRV)>=SRV_CAP;
+    wdElimBanner(full?2:1);
+    if(!window.__wdElimPick){window.__wdElimPick=1;
+      /* V152: هایلایت خودکار — بازیکنِ تازه‌کار هم بی‌راهنما نمی‌ماند */
+      setTimeout(function(){try{if(window.__wdElimPick)wdElimPulse()}catch(e){}},700)}
+  }else{
+    if(window.__wdElimPick){window.__wdElimPick=0;wdElimBanner(0);wdElimPulseClear()}
+    window.__wdElimArmed=true}}
+function wdElimShow(info){
+  /* پنجره‌ی سقوط — فقط برای گذارِ واقعی «داشتن → صفر» (یک‌بار در هر گذار) */
+  /* وسطِ سینمای نبرد باز نمی‌شود — ۶.۵ثانیه بعد (پس از بستنِ خودکار سینما) نمایش داده می‌شود */
+  if(typeof battleBusy!=='undefined'&&battleBusy){setTimeout(function(){try{wdElimShow(info)}catch(e){}},6500);return}
+  if(!window.__wdElimArmed)return;window.__wdElimArmed=false;
+  window.__wdElimPrevCap=(info&&info.cap)||null;
+  const domId='m-elim';
+  if(!document.getElementById(domId)){
+    const m=document.createElement('div');m.className='modal';m.id=domId;
+    m.innerHTML='<div class="modal-card wd152-card">'
+      +'<div class="wd152-ico">🏴</div>'
+      +'<div class="wd152-title">امپراتوری‌ات فتح شد!</div>'
+      +'<div class="wd152-sub" id="wd-elim-sub"></div>'
+      +'<div class="wd152-note">💎 جم‌ها، خریدها و نشان‌هایت حفظ می‌شوند — فقط کشورها را دوباره انتخاب می‌کنی.</div>'
+      +'<button class="action-btn btn-gold" id="wd-elim-pick">🏛️ انتخاب کشور جدید</button>'
+      +'<button class="action-btn btn-cyan" id="wd-elim-gosrv">🖥️ رفتن به سرورِ دیگر</button>'
+      +'</div>';
+    document.body.appendChild(m);
+    m.addEventListener('click',function(ev){if(ev.target===m){try{closeModal(domId)}catch(e){}}});
+    m.querySelector('#wd-elim-pick').addEventListener('click',function(){
+      try{closeModal(domId)}catch(e){}wdElimPickMode()});
+    m.querySelector('#wd-elim-gosrv').addEventListener('click',function(){
+      try{closeModal(domId)}catch(e){}wdElimPulseClear();
+      try{if(window.WDS&&window.WDS.servers){window.WDS.servers();return}}catch(e){}
+      try{renderSrv();openModal('m-srv')}catch(e){}});
+  }
+  const by=info&&info.by?wdEscNick(String(info.by).slice(0,24)):'بازیکنی دیگر';
+  const capFa=(info&&info.cap)?((getCountryData(info.cap)||{}).fa||info.cap):'آخرین پایتختت';
+  const sub=document.querySelector('#m-elim .wd152-sub');
+  if(sub)sub.innerHTML=(info&&info.heldBefore>1
+      ?('هر '+faNum(info.heldBefore)+' کشورت در سرور '+faNum(SRV)+' به بازیکنان دیگر رسید — ')
+      :('کشورهایت در سرور '+faNum(SRV)+' از دست رفت — '))
+    +'<b>'+capFa+'</b> به دست <b style="color:'+nickHue(info&&info.by)+'">'+by+'</b> افتاد.'
+    +'<br>الان هیچ کشوری نداری و باید یک کشورِ جدید انتخاب کنی.';
+  const full=(typeof taken==='function')&&taken(SRV)>=SRV_CAP;
+  try{const pk=document.getElementById('wd-elim-pick');if(pk)pk.style.display=full?'none':''}catch(e){}
+  try{openModal(domId)}catch(e){}
+  try{snd('lose')}catch(e){}
+}
+function wdElimPickMode(){
+  /* از پنجره‌ی سقوط به حالتِ انتخاب — بنر + هایلایت + پرواز */
+  window.__wdElimPick=1;
+  const full=(typeof taken==='function')&&taken(SRV)>=SRV_CAP;
+  wdElimBanner(full?2:1);
+  if(!full)setTimeout(function(){try{wdElimPulse()}catch(e){}},450)}
+/* V152: رندرِ مؤثرِ چیپ‌ها wrapperِ V28 (پایین‌تر در فایل) است — شاخه‌ی 🏳️ «هیچ کشوری نداری» آنجا اضافه شد */
 function renderSrvChip(){const c=S$('hud-srv'),t=S$('hud-t2');if(c)c.textContent=(window.WDS&&window.WDS.srvLabel)?window.WDS.srvLabel():(MP_OK===true?'🖥️ '+SRV+' ('+taken(SRV)+'/'+SRV_CAP+')':'🖥️ —');
   if(t){const n=conqueredCountries.size;t.textContent='🏴 '+n;t.title=n+' کشور'}}
 addEventListener('load',()=>{const s=S$('hud-strip');if(!s)return;
@@ -8659,7 +8799,10 @@ try{D.querySelectorAll(CHIP_SEL).forEach(function(e){guardChip(e)})}catch(e){}
 setInterval(function(){if(!document.hidden)guardAll()},4000);
 /* رندر سطح چیپ‌ها: فقط وقتی مقدار واقعی عوض شود DOM لمس می‌شود */
 var _srvChip=null;
-window.renderSrvChip=function(){var c=S$('hud-srv'),t=S$('hud-t2');if(c){var txt=(typeof MP_OK!=='undefined'&&MP_OK===true)?'🖥️ '+(typeof SRV!=='undefined'?SRV:'')+' ('+(typeof taken==='function'?taken(SRV):0)+'/'+(typeof SRV_CAP!=='undefined'?SRV_CAP:90)+')':'🖥️ …';if(c.__wd28v!==txt){c.__wd28v=txt;c.textContent=txt;c.style.opacity=(typeof MP_OK!=='undefined'&&MP_OK===true)?'1':'.55'}}if(t){var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var tt='🏴 '+n;if(t.__wd28v!==tt){t.__wd28v=tt;t.textContent=tt}}};
+/* V152: چیپِ قلمرو — حالتِ «هیچ کشوری نداری» صادقانه با 🏳️ نمایش داده می‌شود (دستور مالک:
+   «نشون بده که هیچ کشوری نداره»). تعریفِ مؤثرِ رندر چیپ همین wrapper V28 است (نسخه‌ی پایین‌تر
+   را بازنویسی می‌کند) — پس شاخه‌ی 🏳️ همین‌جاست. */
+window.renderSrvChip=function(){var c=S$('hud-srv'),t=S$('hud-t2');if(c){var txt=(typeof MP_OK!=='undefined'&&MP_OK===true)?'🖥️ '+(typeof SRV!=='undefined'?SRV:'')+' ('+(typeof taken==='function'?taken(SRV):0)+'/'+(typeof SRV_CAP!=='undefined'?SRV_CAP:90)+')':'🖥️ …';if(c.__wd28v!==txt){c.__wd28v=txt;c.textContent=txt;c.style.opacity=(typeof MP_OK!=='undefined'&&MP_OK===true)?'1':'.55'}}if(t){var _none=(typeof myCountryName!=='undefined'&&!myCountryName&&(typeof DBMINE==='undefined'||!DBMINE||!DBMINE.size));if(_none){var tf='🏳️ —';if(t.__wd28v!==tf){t.__wd28v=tf;t.textContent=tf;t.title='هیچ کشوری نداری — کشورِ جدید انتخاب کن'}return}var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var tt='🏴 '+n;if(t.__wd28v!==tt){t.__wd28v=tt;t.textContent=tt;t.title=n+' کشور'}}};
 (function(){if(typeof renderLvlChip!=='function')return;var _rlc=renderLvlChip;window.renderLvlChip=function(){try{var chip=D.getElementById('wd-lvlchip');if(!chip)return;var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var r=(typeof rankOf==='function')?rankOf(n):['','🎖️'];var next=null;if(typeof RANKS!=='undefined'){for(var i=0;i<RANKS.length;i++){if(RANKS[i][0]>n){next=RANKS[i];break}}}var html='<span>'+r[1]+'</span><small>🏴 '+fa(n)+' کشور'+(next?(' → '+fa(next[0])):'')+'</small>';if(chip.__wd28v!==html){chip.__wd28v=html;chip.innerHTML=html}}catch(e){}}})();
 /* نمایش سرور هنگام قطعی لحظه‌ای: چیپ خاموش نمی‌شود، فقط کم‌نور */
 
@@ -12642,7 +12785,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=151';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=152';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -18492,7 +18635,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=151"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=152"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18518,7 +18661,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=151';
+              s.src='/game/cv-engine.js?v=152';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18529,7 +18672,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
       }catch(e){console.error('wdcv-hook-reg',e)}
     })();
    </script>
-<script src="/game/oly3.js?v=151"></script>
+<script src="/game/oly3.js?v=152"></script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18543,7 +18686,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=151';
+      s.src='/game/oly3d.js?v=152';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19807,12 +19950,18 @@ function arm(){
 }
 arm();
 /* V134: coalesce با rAF — قبلاً هر تغییر DOM در کل سند فوراً querySelectorAll کل سند می‌زد */
-try{if(window.MutationObserver){var _aQ=false;new MutationObserver(function(){if(_aQ)return;_aQ=true;requestAnimationFrame(function(){_aQ=false;try{arm()}catch(e){}})}).observe(D.documentElement,{childList:true,subtree:true})}}catch(e){}
+/* V152 PERF: رگبار جهش‌های DOM (چت/تُست/سینما) قبلاً در «هر فریمِ دارای جهش» یک
+   querySelectorAll('.wd101b-btn') تمام‌سند می‌ساخت (کوآلسِ rAF فقط چند فریم را ادغام می‌کرد).
+   حالا بین دو اجرا حداقل ۱۲۰۰ms فاصله است — دکمه‌های wd101b حداکثر ۱.۲ثانیه دیر بایند می‌شوند
+   (ابزارهای نوار، نه دکمه‌های حساس گیم‌پلی) و رگبارها به یک پیمایش سبک می‌رسند. */
+try{if(window.MutationObserver){var _aQ=false,_aAt=0;new MutationObserver(function(){if(_aQ)return;_aQ=true;
+  requestAnimationFrame(function(){_aQ=false;var now=Date.now();if(now-_aAt<1200)return;_aAt=now;
+    try{arm()}catch(e){}})}).observe(D.documentElement,{childList:true,subtree:true})}}catch(e){}
 setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}catch(e){}},2500);
 })();
 </script>
-<script src="/game/social.js?v=151"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
-<script src="/game/mentor.js?v=151"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+<script src="/game/social.js?v=152"></script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+<script src="/game/mentor.js?v=152"></script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -20165,6 +20314,32 @@ html.wd-quiet .nav-btn.wd-ready span:first-child{animation:none!important;filter
 /* وقتی بازی در پس‌زمینه است (سوییچ اپ/قفل صفحه) همه‌ی انیمیشن‌ها متوقف = صفر مصرف */
 html.wd-tabhidden *,html.wd-tabhidden *::before,html.wd-tabhidden *::after{animation-play-state:paused!important;transition:none!important}
 </style>
+<style id="wd152-css">
+/* ============ V152 — سقوطِ امپراتوری + حالتِ «هیچ کشوری نداری» ============ */
+/* بنرِ پایدارِ بالای صفحه — فقط-کامپوزیتور برای انیمیشن ورود (doctrine V135) */
+#wd-elim-banner{position:fixed;top:calc(62px + env(safe-area-inset-top,0px));left:8px;right:8px;z-index:10800;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+  background:linear-gradient(135deg,rgba(28,10,4,.96),rgba(10,8,22,.96));
+  border:1px solid rgba(255,140,60,.55);border-radius:14px;padding:9px 12px;
+  box-shadow:0 10px 28px rgba(0,0,0,.5);animation:wd152in .38s ease both}
+#wd-elim-banner .wd152-b-txt{font-size:11.5px;font-weight:800;color:#ffd9b0;line-height:1.7;flex:1 1 100%}
+#wd-elim-banner .wd152-b-act{display:flex;gap:6px}
+.wd152-b-btn{background:rgba(255,216,77,.14);border:1px solid rgba(255,216,77,.4);color:#ffe9a8;
+  font-size:11px;font-weight:800;font-family:inherit;border-radius:9px;padding:5px 10px;cursor:pointer;touch-action:manipulation}
+.wd152-b-btn:active{transform:scale(.96)}
+.wd152-b-btn.wd152-b-srv{background:rgba(18,181,229,.16);border-color:rgba(18,181,229,.5);color:#bfeaff}
+@keyframes wd152in{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+/* پنجره‌ی سقوط */
+.wd152-card{text-align:center;max-width:340px;padding:22px 18px!important}
+.wd152-ico{font-size:44px;line-height:1;margin-bottom:8px;filter:drop-shadow(0 4px 14px rgba(255,90,0,.4))}
+.wd152-title{font-size:19px;font-weight:950;color:#ffd9b0;margin-bottom:8px}
+.wd152-sub{font-size:12px;color:#cfe0f5;line-height:2;margin-bottom:10px}
+.wd152-sub b{color:#ffe9a8}
+.wd152-note{font-size:10.5px;color:#8fb4d9;line-height:1.9;background:rgba(18,181,229,.08);
+  border:1px solid rgba(18,181,229,.22);border-radius:10px;padding:8px 10px;margin-bottom:12px}
+.wd152-card .action-btn{width:100%;margin-bottom:8px}
+@media (prefers-reduced-motion:reduce){#wd-elim-banner{animation:none}}
+</style>
 <script id="wd125-governor">
 /* ===== V125 PERF GOVERNOR — فعال‌ساز خودکار ===== */
 (function(){'use strict';
@@ -20210,6 +20385,15 @@ html.wd-tabhidden *,html.wd-tabhidden *::before,html.wd-tabhidden *::after{anima
   .modal{background:rgba(2,8,18,.94)!important}
   #wd-menu,#wd22-sheet{background:rgba(2,8,18,.72)!important}
   .modal-card{box-shadow:0 18px 44px rgba(0,0,0,.6)!important}
+  /* V152 PERF (روون‌تر شدن نقشه): دو پرهزینه‌ی باقی‌مانده روی پنِ نقشه —
+     ۱) pill مالکِ (.own) با backdrop-filter:blur(6px) روی خودِ پنِ نقشه سوار است؛ حین پان/زوم
+        هر فریم باید پس‌زمینه‌اش دوباره رستر شود (طبق doctrine V135 = دشمن کامپوزیتور).
+        روی موبایل حذف؛ پس‌زمینه‌ی پیل کمی غلیظ‌تر تا خوانایی همان بماند.
+     ۲) transition:width/height پرچم‌ها = انیمیشنِ Layout روی تا ~۱۸۰ <img> درست بعد از
+        پایانِ هر زوم (zoomend → sizeFlags همه را انیمیت می‌کند). Layout-anim دقیقاً همان
+        الگوی ممنوعه V135 است؛ روی موبایل تغییر اندازه فوری می‌شود (یک relayout به‌جای ~۱۵ فریم). */
+  .own{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(8,14,22,.94)!important}
+  .flag{transition:none!important}
 }
 /* ۳) حالت کارایی: خاموشی کامل حلقه‌های تزئینی */
 html.wd-perf .nav-btn span:first-child,html.wd-perf .res-card i,html.wd-perf .bic-icon,
