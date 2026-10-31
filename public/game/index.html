@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=162;/* V64 version beacon — self-heal swap uses /game/v.txt */
+  <script>window.__WD_V=163;/* V64 version beacon — self-heal swap uses /game/v.txt */
 /* V154 BOOT FAST — بارگذاری تنبل ماژول‌های سنگین (oly3/social/mentor ≈۳۴۵KB) بعد از آماده‌شدن نقشه؛
    بایت‌ها از قبل با preload می‌آیند (هدر) — فقط parse/exec از مسیر بحرانی بوت خارج می‌شود.
    ایمنی: اگر نقشه هرگز آماده نشد، حداکثر ۱۲ ثانیه بعد هر چه بود لود می‌شود (هیچ قفلی وجود ندارد). */
@@ -36,16 +36,16 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=162">
+   <link rel="preload" as="script" href="/game/balance.js?v=163">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=162">
-   <link rel="preload" as="script" href="/game/social.js?v=162">
-   <link rel="preload" as="script" href="/game/mentor.js?v=162">
+   <link rel="preload" as="script" href="/game/oly3.js?v=163">
+   <link rel="preload" as="script" href="/game/social.js?v=163">
+   <link rel="preload" as="script" href="/game/mentor.js?v=163">
    <!-- V155 BOOT: هندسه‌ی ۲۱۶KB کشورها از لحظه‌ی صفر دانلود می‌شود (موازی با parse اسکریپت‌ها)،
         نه بعد از init نقشه — متقارن با fetch same-origin cors (crossorigin لازم است تا cache match شود) -->
    <link rel="preload" as="fetch" href="/cdn/geo/countries.geo.json" crossorigin>
-  <script src="/game/balance.js?v=162"></script>
+  <script src="/game/balance.js?v=163"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -104,6 +104,13 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
       --red-glow: #ff3366;
       --green-glow: #00ff88;
       --border-line: rgba(0, 240, 255, 0.35);
+      /* V163-TOKENS: مقیاس‌های واحد پوسته — تک‌منبع فاز ارتقای UI (فونت/فاصله/شعاع/سایه)؛
+         فازهای بعدی اجزای قدیمی را همین‌ها مهاجرت می‌دهند. مقدارها = رنگ‌های غالب فعلی بازی */
+      --wd-f-xs: 10px; --wd-f-sm: 11px; --wd-f-md: 12px; --wd-f-lg: 14px; --wd-f-xl: 17px;
+      --wd-sp-1: 4px; --wd-sp-2: 8px; --wd-sp-3: 12px; --wd-sp-4: 16px;
+      --wd-r-sm: 10px; --wd-r-md: 14px; --wd-r-lg: 18px; --wd-r-full: 999px;
+      --wd-glass: rgba(4, 11, 22, 0.92); --wd-glass-brd: rgba(0, 240, 255, 0.18);
+      --wd-sh-1: 0 6px 18px rgba(0, 0, 0, 0.35); --wd-sh-2: 0 12px 32px rgba(0, 0, 0, 0.45);
     }
 
     * {
@@ -162,21 +169,9 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
       transition: background 0.3s ease;
     }
 
-    .bottom-nav {
-      position: fixed; bottom: 0; left: 0; right: 0; height: 56px; z-index: 9999;
-      background: #030a16; border-top: 1px solid var(--border-line);
-      display: flex; justify-content: space-around; align-items: center; padding: 0 3px;
-      backdrop-filter: blur(8px);
-    }
-    .nav-btn {
-      flex: 1; margin: 0 1.5px; height: 46px; border-radius: 10px; border: 1px solid rgba(0,240,255,0.25);
-      background: rgba(10, 28, 51, 0.9); color: #8ab4f8; font-size: 8.5px; font-weight: bold;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-      /* V124 پرف: transition:all = بازمحاسبه‌ی استایل همه‌ی ویژگی‌ها؛ فقط همان‌هایی که واقعاً تغییر می‌کنند */
-      transition: background .15s ease, color .15s ease, transform .1s ease; cursor: pointer;
-    }
-    .nav-btn span:first-child { font-size: 15px; }
-    .nav-btn:active { background: var(--cyan-glow); color: #000; transform: scale(0.96); }
+    /* V163: نسل اول .bottom-nav/.nav-btn حذف شد — تک‌تعریفی زنده در wd16-clean-ui است
+       (نواوِ گرید + اسکین g + گوی‌های a130). فقط cursor برای دسکتاپ این‌جا می‌ماند */
+    .nav-btn { cursor: pointer; }
 
     .country-drawer {
       position: fixed; bottom: 62px; left: 8px; right: 8px; z-index: 9998;
@@ -312,10 +307,8 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
 .res-card.bump b{animation:bump .5s ease}
 @keyframes bump{40%{transform:scale(1.45)}}
 .rc-r-gold{--rc:#ffcc00}.rc-r-food{--rc:#7dff6a}.rc-r-oil{--rc:#ff9a3c}.rc-r-army{--rc:#ff4d6d}
-.nav-btn span:first-child{filter:drop-shadow(0 0 6px var(--cyan-glow));animation:floaty 3s ease-in-out infinite}
-.nav-btn:nth-child(2) span:first-child{animation-delay:.4s}.nav-btn:nth-child(3) span:first-child{animation-delay:.8s}.nav-btn:nth-child(4) span:first-child{animation-delay:1.2s}.nav-btn:nth-child(5) span:first-child{animation-delay:1.6s}
+/* V163: انیمیشن floaty و گرادیان نسل دوم ناوبار حذف شد (قبلاً هم با V124/V3152 مرده بودند)؛ فقط هاله‌ی لیبل ماند */
 .nav-btn span:last-child{color:#e3f8ff;-webkit-text-stroke:.5px #000;paint-order:stroke fill;text-shadow:0 0 7px rgba(0,240,255,.8)}
-.nav-btn{background:linear-gradient(180deg,rgba(16,44,80,.95),rgba(5,16,32,.95));box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
 .unit-title,.bic-icon{text-shadow:0 0 8px rgba(0,240,255,.8);-webkit-text-stroke:.4px #000}
 .bic-icon{animation:floaty 2s ease-in-out infinite;filter:drop-shadow(0 0 6px #ff3366)}
 /* battle HUD: map stays visible */
@@ -2920,7 +2913,8 @@ addEventListener('load',()=>{if(typeof map==='undefined'||!map)return;
 #tn-bar{width:46px;height:6px;border-radius:3px;background:#0a2a4a;overflow:hidden}
 #tn-fill{height:100%;width:0;background:linear-gradient(90deg,#00ff88,#ffcc00,#ff3366);background-size:46px 100%;transition:width .6s}
 #hud-snd{cursor:pointer}
-#ticker{position:fixed;left:0;right:0;bottom:56px;height:22px;z-index:9996;background:rgba(3,10,22,.88);border-top:1px solid rgba(0,240,255,.25);overflow:hidden;direction:ltr;pointer-events:none}
+/* V163: تیکر بالای داک شناور (۵۶px زیر داک ۵۸px گیر می‌کرد) */
+#ticker{position:fixed;left:0;right:0;bottom:calc(74px + var(--wd-safe-bottom,0px));height:22px;z-index:9996;background:rgba(3,10,22,.88);border-top:1px solid rgba(0,240,255,.25);overflow:hidden;direction:ltr;pointer-events:none}
 #ticker span{position:absolute;white-space:nowrap;line-height:22px;font-size:10px;color:#ffe08a;animation:tk 34s linear infinite;padding:0 20px}
 #ticker::before{content:"🔴 خبر فوری";position:absolute;left:0;top:0;z-index:2;background:#b3002d;color:#fff;font-size:9px;font-weight:900;line-height:22px;padding:0 8px}
 @keyframes tk{from{transform:translateX(100vw)}to{transform:translateX(-100%)}}
@@ -3989,8 +3983,11 @@ async function startup(){
    <style id="v4-css">
     /* tidy top area: compact grid on the right, date + tension stacked on the left */
 #hud-strip{gap:4px!important;direction:ltr}
-#hud-strip .hchip{padding:2px 8px!important;font-size:10px!important}
-#hud-terr{display:none!important}
+/* V163: فونت چیپ ۱۱px (خوانا روی موبایل)؛ پدینگ واقعی را V101 تعیین می‌کند و همان‌جا هماهنگ شد */
+#hud-strip .hchip{padding:0 10px!important;font-size:11px!important}
+/* V163: چیپ قلمرو دوباره زنده شد — v4 آن را مخفی کرده بود و پیام صادقانه‌ی V152 («هیچ کشوری نداری»)
+   و شمارش «N کشور (X٪ جهان)» هرگز روی صفحه دیده نمی‌شد */
+#hud-terr{display:flex!important}
 #hud-info{position:fixed;top:106px;left:8px;z-index:9997;display:flex;flex-direction:column;gap:4px;align-items:flex-start;direction:ltr}
 #hud-info .hchip{padding:2px 8px;font-size:9.5px}
 .own.oth{background:rgba(0,0,0,.72)}
@@ -5305,7 +5302,7 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){
     #wd6-hud{position:fixed;top:12px;left:12px;right:12px;z-index:9997;display:flex;gap:8px;align-items:center;justify-content:center;pointer-events:none;font-family:inherit}
 .wd6-chip{pointer-events:auto;display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(8,13,24,.82);backdrop-filter:blur(10px);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12px;color:#fff;white-space:nowrap}
 .wd6-chip b{font-size:13px}.wd6-dot{width:7px;height:7px;border-radius:50%;background:#36e6a2;box-shadow:0 0 10px #36e6a2}
-#wd6-toast{position:fixed;left:50%;bottom:86px;transform:translate(-50%,20px);opacity:0;z-index:10020;pointer-events:none;transition:.25s;max-width:min(92vw,520px);padding:11px 15px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(9,14,26,.94);color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.35);font-size:13px;text-align:center}
+#wd6-toast{position:fixed;left:50%;bottom:calc(90px + var(--wd-safe-bottom,0px));transform:translate(-50%,20px);opacity:0;z-index:10020;pointer-events:none;transition:.25s;max-width:min(92vw,520px);padding:11px 15px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(9,14,26,.94);color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.35);font-size:13px;text-align:center}
 #wd6-toast.show{opacity:1;transform:translate(-50%,0)}
 #wd6-panel{position:fixed;inset:auto 12px 72px 12px;max-width:720px;margin:auto;z-index:10010;display:none;background:linear-gradient(180deg,rgba(13,20,36,.98),rgba(7,11,21,.98));border:1px solid rgba(255,255,255,.12);border-radius:22px;box-shadow:0 24px 80px rgba(0,0,0,.55);overflow:hidden;color:#fff}
 #wd6-panel.open{display:block;animation:wd6in .2s ease-out}@keyframes wd6in{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
@@ -6454,11 +6451,7 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
 .res-card{min-width:49px!important;padding:4px 6px!important;border-color:rgba(0,246,233,.14)!important;background:linear-gradient(145deg,rgba(12,29,48,.9),rgba(5,10,22,.9))!important;box-shadow:inset 0 1px rgba(255,255,255,.04)}
 .res-card b{font-size:10px!important;text-shadow:0 0 8px rgba(255,255,255,.18)}
 .status-banner{top:58px!important;height:26px!important;background:linear-gradient(90deg,rgba(5,18,31,.94),rgba(21,9,42,.94),rgba(5,18,31,.94))!important;color:#bffcff!important;border-bottom:1px solid rgba(155,92,255,.25)!important;box-shadow:0 5px 18px rgba(0,0,0,.35)!important;text-shadow:0 0 9px rgba(0,246,233,.3)}
-/* Bottom command rail */
-.bottom-nav{height:64px!important;padding:4px 6px calc(4px + env(safe-area-inset-bottom,0px))!important;background:linear-gradient(180deg,rgba(3,6,15,.75),rgba(2,4,11,.98))!important;border-top:1px solid rgba(0,246,233,.22)!important;box-shadow:0 -12px 35px rgba(0,0,0,.45)!important;backdrop-filter:none!important}
-.nav-btn{height:52px!important;border-color:rgba(0,246,233,.12)!important;background:linear-gradient(145deg,rgba(12,27,44,.86),rgba(7,10,23,.9))!important;color:#9bd8df!important;transition:transform .16s ease,border-color .16s ease,background .16s ease!important}
-.nav-btn span:first-child{font-size:17px!important;text-shadow:0 0 10px rgba(0,246,233,.22)}
-.nav-btn:active{transform:translateY(1px) scale(.97)!important;background:linear-gradient(145deg,rgba(0,150,160,.7),rgba(67,31,113,.75))!important;color:#fff!important}
+/* V163: نسل سوم (V10) ناوبار حذف شد — زنده: wd16-clean-ui + اسکین g + گوی‌های a130 */
 /* Country drawer becomes a premium intel card */
 .country-drawer{bottom:70px!important;background:linear-gradient(145deg,rgba(5,13,27,.97),rgba(13,6,27,.97))!important;border-color:rgba(0,246,233,.38)!important;box-shadow:0 18px 55px rgba(0,0,0,.7),0 0 30px rgba(0,246,233,.08)!important}
 .stat-box{background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.015))!important;border-color:rgba(155,92,255,.13)!important}
@@ -6613,10 +6606,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 #wd7-content .wd7-toolbar{display:none!important}
 #wd7-content .wd11-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin:0 0 10px!important}
 #wd7-content .wd11-action{min-height:50px!important;border-radius:14px!important}
-/* Make the five legacy bottom buttons a clean floating command dock, not a crowded strip. */
-.bottom-nav{left:8px!important;right:8px!important;bottom:calc(7px + env(safe-area-inset-bottom,0px))!important;height:58px!important;padding:5px!important;border:1px solid rgba(0,246,233,.16)!important;border-radius:18px!important;background:rgba(3,10,20,.94)!important;box-shadow:0 12px 32px rgba(0,0,0,.45),inset 0 1px rgba(255,255,255,.04)!important;backdrop-filter:none!important;gap:5px!important}
-.nav-btn{height:46px!important;margin:0!important;border-radius:12px!important;border-color:rgba(0,246,233,.12)!important;background:rgba(8,23,39,.9)!important;font-size:8px!important}
-.nav-btn span:first-child{font-size:16px!important}.nav-btn:active{background:rgba(0,246,233,.25)!important;color:#fff!important}
+/* V163: نسل چهارم (V12 dock) حذف شد — زنده: wd16-clean-ui (گرید ۵ستونه با safe-area) */
 /* Do not let country drawer collide with the dock. */
 .country-drawer{bottom:calc(72px + env(safe-area-inset-bottom,0px))!important;backdrop-filter:none!important}
 /* One lightweight animated ocean/radar layer. It is one element, not one animation per country. */
@@ -6647,7 +6637,6 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
  #wd7-shell{width:calc(100vw - 10px)!important;height:80vh!important;max-height:80vh!important}
  .wd7-tabs{grid-template-columns:repeat(4,1fr)!important}
  .wd7-tab{font-size:8px!important;height:37px!important}
- .bottom-nav{left:6px!important;right:6px!important}
 }
    </style>
    <script id="wd-v13-clean-fix">
@@ -6742,7 +6731,6 @@ html.wd-perf,html.wd-perf body{scroll-behavior:auto!important}
 #wd7-panel,#wd7-shell,.modal,.modal-card,.bottom-nav,.country-drawer{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 #wd7-panel{background:rgba(1,5,12,.96)!important}
 #wd7-shell{box-shadow:0 12px 38px rgba(0,0,0,.55)!important}
-.bottom-nav{box-shadow:0 -8px 24px rgba(0,0,0,.38)!important}
 /* Reduce paint complexity on ordinary cards without changing the layout. */
 .wd7-tool,.wd7-card,.wd11-action,.wd6-chip,.res-card,.modal-card{box-shadow:0 5px 16px rgba(0,0,0,.22)!important}
 /* Keep country aura static on low-power mode; selection highlight still works. */
@@ -6933,22 +6921,24 @@ body.wd-low-power .res-card::after,body.wd-low-power .action-btn::after,body.wd-
 .bottom-nav{
  position:fixed!important;left:10px!important;right:10px!important;
  bottom:calc(8px + var(--wd-safe-bottom))!important;
- height:54px!important;min-height:54px!important;padding:4px!important;
- display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
+ /* V163: ارتفاع ۵۸px و ستون‌های خودتطبیق — فروشگاه/مدیریت که با ۵ستون ثابت به ردیف دومِ بریده می‌رفتند
+    دوباره در داک دیده می‌شوند؛ لیبل ۸px → ۱۰px (حد خوانایی موبایل) */
+ height:58px!important;min-height:58px!important;padding:4px!important;
+ display:grid!important;grid-template-columns:repeat(auto-fit,minmax(0,1fr))!important;
  gap:4px!important;z-index:100020!important;box-sizing:border-box!important;
  overflow:hidden!important;border-radius:16px!important;
  background:rgba(2,8,17,.96)!important;border:1px solid rgba(0,240,255,.16)!important;
  box-shadow:0 8px 22px rgba(0,0,0,.38)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important
 }
 .bottom-nav .nav-btn{
- min-width:0!important;width:100%!important;height:44px!important;padding:2px 1px!important;
+ min-width:0!important;width:100%!important;height:48px!important;padding:2px 1px!important;
  margin:0!important;border:0!important;border-radius:12px!important;
  display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
  gap:1px!important;overflow:hidden!important;line-height:1!important;box-sizing:border-box!important;
  background:transparent!important;color:#b9d4e7!important;font-size:8px!important;font-weight:800!important
 }
 .bottom-nav .nav-btn span:first-child{font-size:17px!important;line-height:18px!important;height:19px!important}
-.bottom-nav .nav-btn span:last-child{font-size:8px!important;white-space:nowrap!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.bottom-nav .nav-btn span:last-child{font-size:var(--wd-f-xs,10px)!important;white-space:nowrap!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important}
 .bottom-nav .nav-btn:active{background:rgba(0,240,255,.12)!important;transform:none!important}
 #wd7-btn{
  right:14px!important;bottom:calc(70px + var(--wd-safe-bottom))!important;
@@ -6957,7 +6947,7 @@ body.wd-low-power .res-card::after,body.wd-low-power .action-btn::after,body.wd-
 }
 #wd7-btn{font-size:20px!important} /* V74: سلکتورهای wd5-launcher حذف شدند */
 .country-drawer{
- left:10px!important;right:10px!important;bottom:calc(70px + var(--wd-safe-bottom))!important;
+ left:10px!important;right:10px!important;bottom:calc(74px + var(--wd-safe-bottom))!important;
  width:auto!important;max-height:min(42vh,360px)!important;overflow:auto!important;
  z-index:100010!important;border-radius:18px!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
  box-shadow:0 12px 30px rgba(0,0,0,.45)!important
@@ -6965,11 +6955,11 @@ body.wd-low-power .res-card::after,body.wd-low-power .action-btn::after,body.wd-
 .status-banner{z-index:100015!important;max-width:calc(100vw - 24px)!important;left:12px!important;right:12px!important;box-sizing:border-box!important}
 #map{padding-bottom:0!important}
 @media(max-width:430px){
- .bottom-nav{left:7px!important;right:7px!important;height:52px!important;min-height:52px!important}
- .bottom-nav .nav-btn{height:44px!important}.bottom-nav .nav-btn span:first-child{font-size:16px!important}
- .bottom-nav .nav-btn span:last-child{font-size:7px!important}
- #wd7-btn{right:10px!important;bottom:calc(67px + var(--wd-safe-bottom))!important;width:47px!important;height:47px!important}
- .country-drawer{bottom:calc(67px + var(--wd-safe-bottom))!important}
+ .bottom-nav{left:7px!important;right:7px!important;height:56px!important;min-height:56px!important}
+ .bottom-nav .nav-btn{height:46px!important}.bottom-nav .nav-btn span:first-child{font-size:16px!important}
+ .bottom-nav .nav-btn span:last-child{font-size:9.5px!important}
+ #wd7-btn{right:10px!important;bottom:calc(72px + var(--wd-safe-bottom))!important;width:50px!important;height:50px!important}
+ .country-drawer{bottom:calc(74px + var(--wd-safe-bottom))!important}
 }
 @media(min-width:701px){.bottom-nav{left:50%!important;right:auto!important;width:min(620px,calc(100vw - 24px))!important;transform:translateX(-50%)!important}}
   </style>
@@ -7118,7 +7108,8 @@ window.addEventListener('resize',cleanDock,{passive:true});
 <style id="wd25-clean-core">
 /* One interaction layer: map + top status + bottom navigation + one command button. */
 #wd6-hud,#wd10-live-corner,#wd-feature-dock{display:none!important}
-#wd7-btn{display:flex!important;position:fixed!important;right:12px!important;bottom:70px!important;z-index:10001!important;width:48px!important;height:48px!important;align-items:center!important;justify-content:center!important}
+/* V163: دکمه‌ی فرمان کمی بزرگ‌تر (۵۲px هدف لمسی) و بالاتر از داک ۵۸px */
+#wd7-btn{display:flex!important;position:fixed!important;right:12px!important;bottom:calc(72px + var(--wd-safe-bottom,0px))!important;z-index:10001!important;width:52px!important;height:52px!important;align-items:center!important;justify-content:center!important}
 #wd7-panel{z-index:10000!important}
 .top-bar{z-index:9990!important}
 .status-banner{z-index:9989!important}
@@ -12889,7 +12880,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=162';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=163';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -17914,8 +17905,8 @@ function ic55(k){return k==='cyber'?'🛰️':k==='commando'?'🪂':k==='missile
     #hud-olympic.wg33-live{animation:none!important}
     /* ۸) چیپ‌های HUD: یک ردیف تمیز — شمارنده‌ی تکراری و دکمه‌ی صدا (در تنظیمات موجود است) حذف */
     #hud-t2,#hud-snd{display:none!important}
-    /* ۹) دکمه‌ی ابزار پایین: کوچک‌تر و آرام‌تر */
-    #wd7-btn{width:44px!important;height:44px!important;bottom:74px!important;font-size:20px!important;z-index:9998!important}
+    /* ۹) دکمه‌ی ابزار پایین: V163 — ۵۰px هدف لمسی (قبلاً ۴۴px)؛ آرامش خودش حفظ شد */
+    #wd7-btn{width:50px!important;height:50px!important;bottom:74px!important;font-size:20px!important;z-index:9998!important}
     /* ۱۰) تیکر خبر فقط دسکتاپ — روی موبایل حرکت دائمی حذف می‌شود */
     @media(pointer:coarse){#ticker{display:none!important}}
     /* ۱۰-ب) نوار زنده‌ی المپیک هم روی موبایل حذف — دکمه‌ی المپیک کافی است */
@@ -18665,7 +18656,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=162"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=163"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18691,7 +18682,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=162';
+              s.src='/game/cv-engine.js?v=163';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18703,7 +18694,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     })();
    </script>
 <script>/* V154 BOOT FAST: oly3.js (۱۳۴KB) — بایت از head می‌آید (preload)، exec بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=162')})</script>
+__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=163')})</script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18717,7 +18708,7 @@ __wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=162')})</script>
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=162';
+      s.src='/game/oly3d.js?v=163';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19702,7 +19693,8 @@ var tries=0;
 #hud-srv2 .wd-srv-bar{display:none!important}
 #wd86-gift b{display:none!important}
 #hud-strip{gap:7px!important}
-#hud-strip .hchip{height:26px!important;padding:0 8px!important;border-radius:13px!important}
+/* V163: چیپ‌های HUD — ارتفاع ۳۰px و پدینگ ۱۰px (هماهنگ با فونت ۱۱px در v4-css) */
+#hud-strip .hchip{height:30px!important;padding:0 10px!important;border-radius:13px!important}
 #wd86-gift{border-color:rgba(255,204,64,.5)!important;box-shadow:0 3px 10px rgba(0,0,0,.4),0 0 12px rgba(255,200,60,.2),inset 0 1px 0 rgba(180,220,255,.16)!important}
 #hud-gem{border-color:rgba(178,132,255,.48)!important;box-shadow:0 3px 10px rgba(0,0,0,.4),0 0 12px rgba(178,132,255,.18),inset 0 1px 0 rgba(180,220,255,.16)!important}
 #hud-news{border-color:rgba(255,204,64,.38)!important}
@@ -19975,9 +19967,9 @@ setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}c
 })();
 </script>
 <script>/* V154 BOOT FAST: social.js (۷۵KB) بعد از نقشه — boot خودش را با readyState/تایمر امن شروع می‌کند */
-__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=162')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=163')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
 <script>/* V154 BOOT FAST: mentor.js (۵۰KB) بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=162')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=163')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -20640,7 +20632,7 @@ setTimeout(function(){try{ensureFab()}catch(e){}},1500);
 .bottom-nav .nav-btn>span:first-child svg{width:21px!important;height:21px!important;display:block;filter:drop-shadow(0 2px 3px rgba(0,10,25,.65)) brightness(1.18) saturate(1.3)!important}
 .bottom-nav .nav-btn>span:first-child span,.bottom-nav .nav-btn>span:first-child{font-size:19px;line-height:1}
 .bottom-nav .nav-btn:active>span:first-child{transform:scale(.86) translateY(1px)!important}
-.bottom-nav .nav-btn>span:last-child{font-size:8.5px!important;font-weight:900!important;letter-spacing:.3px;color:#cfe6ff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important}
+.bottom-nav .nav-btn>span:last-child{font-size:var(--wd-f-xs,10px)!important;font-weight:900!important;letter-spacing:.3px;color:#cfe6ff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important}
 @keyframes wd130breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2.5px) scale(1.045)}}
 @keyframes wd130glow{0%,100%{opacity:.35}50%{opacity:.85}}
 /* — ۲) منوی ☰: آیکون‌های گوی طلایی — */
@@ -20941,11 +20933,21 @@ var N1={render:function(b){
 window.WD130_NEWS=N1;
 })();
 </script>
+<script id="wd163-shell-haptics">
+/* V163-SHELL: فیدبک لمسی ملایم (۸ms) روی ناوبری و دکمه‌ی فرمان — فقط حس؛ هیچ منطقی عوض نمی‌شود */
+(function(){
+'use strict';
+if(window.__wd163shell)return;window.__wd163shell=true;
+document.addEventListener('pointerdown',function(e){
+  try{var t=e.target&&e.target.closest&&e.target.closest('.nav-btn,#wd7-btn,.wd7-tab');if(t&&navigator.vibrate)navigator.vibrate(8)}catch(err){}
+},{passive:true,capture:true});
+})();
+</script>
 <script id="wd130-icosw">
 /* V130: یکدست‌سازی گلیف‌های نوار پایین — ایموجی خام به آیکون‌های SVG اصلی بازی تبدیل می‌شود */
 (function(){
 'use strict';
-var MAP={'btn-m-lobby':'icon-map','btn-m-tax':'icon-gold','btn-m-market':'icon-trade','btn-m-shop':'icon-diamond'};
+var MAP={'btn-m-lobby':'icon-map','btn-m-tax':'icon-gold','btn-m-market':'icon-trade','btn-m-shop':'icon-diamond','btn-m-admin':'icon-settings'};/* V163: مدیریت هم آیکون SVG گرفت (قبلاً ایموجی 👑 می‌ماند) */
 function swap(){
   var done=true;
   Object.keys(MAP).forEach(function(id){
