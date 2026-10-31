@@ -70,7 +70,7 @@ var css=[
 '@keyframes wd95in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}',
 '.wd95-head{display:flex;align-items:center;gap:8px}',
 '.wd95-head .wd95-title{font-size:13px;font-weight:900;color:#eaf8ff;flex:1;display:flex;align-items:center;gap:6px}',
-'.wd95-icobtn{width:44px;height:44px;min-width:44px;border-radius:12px;border:1px solid rgba(120,200,255,.22);background:rgba(10,30,55,.6);',
+'.wd95-icobtn{width:44px;height:44px;min-width:44px;border-radius:var(--wd-r-sm);border:1px solid rgba(120,200,255,.22);background:rgba(10,30,55,.6);',
  'display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:transform .12s,background .2s}',
 '.wd95-icobtn:active{transform:scale(.92)}.wd95-icobtn:hover{background:rgba(20,50,85,.75)}',
 '.wd95-icobtn svg{width:22px;height:22px}',
@@ -82,7 +82,7 @@ var css=[
 '.wd95-dot.on{background:#39e6a0;box-shadow:0 0 7px #39e6a0}.wd95-dot.idle{background:#ffcf4d;box-shadow:0 0 7px #ffcf4d}.wd95-dot.off{background:#5a7a95}',
 /* ردیف‌ها */
 '.wd95-list{overflow-y:auto;overscroll-behavior:contain;flex:1;display:flex;flex-direction:column;gap:6px;min-height:120px;padding:2px}',
-'.wd95-row{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:14px;border:1px solid rgba(120,200,255,.14);',
+'.wd95-row{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--wd-r-md);border:1px solid rgba(120,200,255,.14);',
  'background:rgba(10,26,48,.55);cursor:pointer;min-height:52px;transition:background .15s}',
 '.wd95-row:hover{background:rgba(18,42,74,.7)}.wd95-row:active{transform:scale(.985)}',
 '.wd95-row.unread{border-color:rgba(80,220,255,.4);background:rgba(12,38,66,.65)}',
@@ -103,7 +103,7 @@ var css=[
 '.wd95-act.ok{background:rgba(16,90,60,.5);border-color:rgba(70,230,160,.4);color:#d2ffe8}',
 '.wd95-actions{display:flex;flex-wrap:wrap;gap:7px}',
 /* ورودی */
-'.wd95-input{flex:1;min-height:44px;border-radius:13px;border:1px solid rgba(120,200,255,.25);background:rgba(6,16,32,.8);',
+'.wd95-input{flex:1;min-height:44px;border-radius:var(--wd-r-md);border:1px solid rgba(120,200,255,.25);background:rgba(6,16,32,.8);',
  'color:#eaf8ff;font-size:16px;padding:8px 12px;outline:none}',
 '.wd95-input:focus{border-color:rgba(90,220,255,.6)}',
 /* گپ خصوصی (سبک مسنجر) */
@@ -118,7 +118,7 @@ var css=[
 '.wd95-send[disabled]{opacity:.5}',
 /* تب‌ها */
 '.wd95-tabs{display:flex;gap:5px}',
-'.wd95-tab{flex:1;min-height:40px;border-radius:11px;border:1px solid rgba(120,200,255,.18);background:rgba(8,22,42,.6);color:#9fc4e4;font-size:10.5px;font-weight:800;cursor:pointer}',
+'.wd95-tab{flex:1;min-height:44px;border-radius:var(--wd-r-sm);border:1px solid rgba(120,200,255,.18);background:rgba(8,22,42,.6);color:#9fc4e4;font-size:10.5px;font-weight:800;cursor:pointer}',
 '.wd95-tab.on{background:linear-gradient(135deg,#173f66,#1d5486);color:#fff;border-color:rgba(120,210,255,.45)}',
 /* پروفایل */
 '.wd95-prof-head{display:flex;align-items:center;gap:12px}',

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=165;/* V64 version beacon — self-heal swap uses /game/v.txt */
+  <script>window.__WD_V=166;/* V64 version beacon — self-heal swap uses /game/v.txt */
 /* V154 BOOT FAST — بارگذاری تنبل ماژول‌های سنگین (oly3/social/mentor ≈۳۴۵KB) بعد از آماده‌شدن نقشه؛
    بایت‌ها از قبل با preload می‌آیند (هدر) — فقط parse/exec از مسیر بحرانی بوت خارج می‌شود.
    ایمنی: اگر نقشه هرگز آماده نشد، حداکثر ۱۲ ثانیه بعد هر چه بود لود می‌شود (هیچ قفلی وجود ندارد). */
@@ -36,16 +36,16 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=165">
+   <link rel="preload" as="script" href="/game/balance.js?v=166">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=165">
-   <link rel="preload" as="script" href="/game/social.js?v=165">
-   <link rel="preload" as="script" href="/game/mentor.js?v=165">
+   <link rel="preload" as="script" href="/game/oly3.js?v=166">
+   <link rel="preload" as="script" href="/game/social.js?v=166">
+   <link rel="preload" as="script" href="/game/mentor.js?v=166">
    <!-- V155 BOOT: هندسه‌ی ۲۱۶KB کشورها از لحظه‌ی صفر دانلود می‌شود (موازی با parse اسکریپت‌ها)،
         نه بعد از init نقشه — متقارن با fetch same-origin cors (crossorigin لازم است تا cache match شود) -->
    <link rel="preload" as="fetch" href="/cdn/geo/countries.geo.json" crossorigin>
-  <script src="/game/balance.js?v=165"></script>
+  <script src="/game/balance.js?v=166"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -6357,14 +6357,14 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
   position:relative!important;
 }
 .wdc-input{
-  min-height:40px!important;border-radius:13px!important;
+  min-height:44px!important;border-radius:var(--wd-r-sm)!important; /* V166: unified compose metrics */
   background:#030b14!important;border-color:rgba(0,220,255,.22)!important;
   box-shadow:inset 0 0 18px rgba(0,150,255,.035);
   transition:.2s;
 }
 .wdc-input:focus{border-color:rgba(0,230,255,.58)!important;box-shadow:0 0 0 3px rgba(0,210,255,.07),inset 0 0 18px rgba(0,150,255,.06)}
 .wdc-send{
-  min-width:66px!important;border-radius:13px!important;
+  min-width:66px!important;min-height:44px!important;border-radius:var(--wd-r-sm)!important; /* V166: unified compose metrics */
   background:linear-gradient(135deg,#00b8d9,#006d9c)!important;
   box-shadow:0 5px 18px rgba(0,190,255,.18);
   transition:transform .16s,filter .16s;
@@ -7972,7 +7972,7 @@ window.renderAdmin=async function(){
 #wd7-btn{background:linear-gradient(145deg,#14335a,#0a1a34)!important;border:1.5px solid rgba(255,201,60,.5)!important;box-shadow:0 10px 26px rgba(0,0,0,.5),0 0 18px rgba(255,201,60,.15)!important;color:var(--g-gold)!important}
 
 /* ---------- 6) کشوی کشور: کارت GeoWar + نوارهای رنگی آمار ---------- */
-.country-drawer{background:linear-gradient(180deg,#101f36 0%,#0b1830 100%)!important;border:1px solid #1e3a5f!important;border-radius:20px!important}
+.country-drawer{background:var(--wd-glass)!important;border:1px solid var(--wd-glass-brd)!important;border-radius:var(--wd-r-lg)!important} /* V166: token surface */
 #c-name{font-size:17px!important;font-weight:900!important;color:var(--g-gold)!important}
 #c-role{color:var(--g-mut)!important;font-size:10px!important}
 .stats-grid{gap:7px!important;margin:10px 0 8px!important}
@@ -8781,7 +8781,7 @@ window.WD27_API={cosBuy:cosBuy,openPick:openPick,setColor:setColor,setEmblem:set
 .wd28-bub .wd28-t{font-size:7.5px;color:#7d99bb;margin-top:3px}
 .wd28-pend{opacity:.55}
 .wd28-compose{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:8px;position:sticky;bottom:0;background:transparent;padding-top:4px}
-.wd28-compose .wdc-input{background:rgba(6,17,30,.9);border:1px solid rgba(0,220,255,.28);border-radius:12px;padding:11px 12px;font-size:12px;transition:border .2s}
+.wd28-compose .wdc-input{background:rgba(6,17,30,.9);border:1px solid rgba(0,220,255,.28);border-radius:var(--wd-r-sm);padding:11px 12px;font-size:12px;transition:border .2s}
 .wd28-compose .wdc-input:focus{border-color:#39e6d0;box-shadow:0 0 0 3px rgba(57,230,208,.12)}
 .wd28-send{border:0;border-radius:12px;background:linear-gradient(135deg,#00d4ff,#39e6d0);color:#022;font-weight:900;padding:0 16px;font-size:12px;cursor:pointer;transition:transform .12s}
 .wd28-send:active{transform:scale(.94)}
@@ -12902,7 +12902,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=165';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=166';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -18678,7 +18678,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=165"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=166"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18704,7 +18704,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=165';
+              s.src='/game/cv-engine.js?v=166';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18716,7 +18716,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     })();
    </script>
 <script>/* V154 BOOT FAST: oly3.js (۱۳۴KB) — بایت از head می‌آید (preload)، exec بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=165')})</script>
+__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=166')})</script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18730,7 +18730,7 @@ __wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=165')})</script>
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=165';
+      s.src='/game/oly3d.js?v=166';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19989,9 +19989,9 @@ setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}c
 })();
 </script>
 <script>/* V154 BOOT FAST: social.js (۷۵KB) بعد از نقشه — boot خودش را با readyState/تایمر امن شروع می‌کند */
-__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=165')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=166')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
 <script>/* V154 BOOT FAST: mentor.js (۵۰KB) بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=165')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=166')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -21212,6 +21212,67 @@ html.wd-quiet :is(#act-tax:not([disabled]),#act-un-aid:not([disabled]),#hud-olym
     /* unified press feedback + 44px min target for the primary button families */
     .wdp-btn,.wd65-btn,.wd-btn{min-height:44px}
     .wdp-btn:active,.wd65-btn:active,.wd-btn:active{transform:scale(.98)}
+   </style>
+   <style id="wd-v166-skin">
+    /* ===== V166 PHASE-3 SKIN — unified reskin of the key pages (login/auth · wd7 · country-drawer ·
+       wd-menu · wd6 · wd28/wdc · wd31). Pure V163-TOKEN adoption + ONE button language.
+       Zero mechanics/JS changes, no new animation/blur/scroll work (perf red line).
+       wd31/shop-v2(wd66)/social(wd95) were built on-language already → metric adoption only. ===== */
+
+    /* A — ONE BUTTON LANGUAGE: the 8 ripple families (action-btn/nav-btn/lobby-item-btn/lobby-tab-btn/
+       buy-btn/wdp-btn/wdc-send/wd-btn) + the late families (wd6-btn/wd7-btn/wd65-btn/wd31-btn/wd28-send/
+       wd7-tab/wd-menu-item). :where() = zero specificity → each family keeps its own identity colors;
+       only metrics, press feel and focus ring unify.
+       44px floor = ACTION buttons only. Compact segment/list controls (lobby tabs+rows, wd7 tabs,
+       menu cards) get the unified feel WITHOUT the floor — forcing 44px there grew the lobby card
+       +40px, pushed its top edge under the V152 elim-banner (z10800) and broke the V165 swipe-down
+       zone. Caught by v165-comp-visual T5 — the layout risk phase 2 warned about, now fixed here. */
+    :where(.action-btn,.nav-btn,.buy-btn,.wdp-btn,.wdc-send,.wd-btn,
+           .wd6-btn,.wd7-btn,.wd65-btn,.wd31-btn,.wd28-send){
+      min-height:44px;border-radius:var(--wd-r-sm);
+      font-family:inherit;font-weight:800;cursor:pointer;
+      transition:transform .12s ease,filter .12s ease;
+    }
+    :where(.lobby-item-btn,.lobby-tab-btn,.wd7-tab,.wd-menu-item){
+      border-radius:var(--wd-r-sm);font-family:inherit;font-weight:800;cursor:pointer;
+      transition:transform .12s ease,filter .12s ease;
+    }
+    :where(.action-btn:active,.nav-btn:active,.lobby-item-btn:active,.lobby-tab-btn:active,.buy-btn:active,
+           .wdp-btn:active,.wdc-send:active,.wd-btn:active,.wd6-btn:active,.wd7-btn:active,
+           .wd65-btn:active,.wd31-btn:active,.wd28-send:active,.wd7-tab:active,.wd-menu-item:active){transform:scale(.97)}
+    :where(.action-btn:focus-visible,.nav-btn:focus-visible,.lobby-item-btn:focus-visible,.lobby-tab-btn:focus-visible,
+           .buy-btn:focus-visible,.wdp-btn:focus-visible,.wdc-send:focus-visible,.wd-btn:focus-visible,
+           .wd6-btn:focus-visible,.wd7-btn:focus-visible,.wd65-btn:focus-visible,.wd31-btn:focus-visible,
+           .wd28-send:focus-visible,.wd7-tab:focus-visible,.wd-menu-item:focus-visible){outline:2px solid var(--cyan-glow);outline-offset:2px}
+    :where(.action-btn:disabled,.buy-btn:disabled,.wdp-btn:disabled,.wdc-send:disabled,.wd-btn:disabled,
+           .wd6-btn:disabled,.wd7-btn:disabled,.wd65-btn:disabled,.wd31-btn:disabled,.wd28-send:disabled){opacity:.5;cursor:not-allowed;transform:none}
+
+    /* B1 — LOGIN/AUTH: the last old-school surface → token language (card shell already themed globally) */
+    #auth h3{font-size:var(--wd-f-xl)}
+    #auth input{border-radius:var(--wd-r-sm);border-color:rgba(0,240,255,.30);background:#020b1a;min-height:44px}
+    #auth .btn-ghost{border-radius:var(--wd-r-sm);min-height:44px;font-weight:800}
+    .lr-row{border-radius:var(--wd-r-sm)}
+    .lr-h{font-size:var(--wd-f-sm)}
+
+    /* B2 — WD7 COMMAND PANEL: tab pills + btn colors are already on-language via the live !important
+       skin generation (L441-445) — only the card chrome gets token adoption here */
+    .wd7-card{border-radius:var(--wd-r-md);border-color:rgba(255,255,255,.07)}
+
+    /* B3 — COUNTRY DRAWER: live surface token-ized IN PLACE at its !important definition (L~7975);
+       transform/will-change/overflow untouched — perf red line */
+
+    /* B4 — WD-MENU: align to glass tokens */
+    #wd-menu-card{border-radius:var(--wd-r-lg) var(--wd-r-lg) 0 0;border-color:var(--wd-glass-brd)}
+    .wd-menu-item{border-radius:var(--wd-r-md)}
+
+    /* B5 — WD6 OPS CENTER */
+    #wd6-panel{border-radius:var(--wd-r-lg);border-color:var(--wd-glass-brd)}
+    .wd6-card{border-radius:var(--wd-r-md)}
+    .wd6-btn{background:rgba(255,255,255,.05);border-color:rgba(0,240,255,.22);border-radius:var(--wd-r-sm)}
+
+    /* B6 — WD28/COMMS: wdc-input/wdc-send token-ized IN PLACE at their !important live definitions;
+       here only the wd28 send button joins the unified language */
+    .wd28-send{min-height:44px;border-radius:var(--wd-r-sm)}
    </style>
    <script id="v165-components">
     /* ===== V165 - modal swipe-down-to-close (mobile) =====
