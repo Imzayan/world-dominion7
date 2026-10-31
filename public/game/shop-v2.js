@@ -840,8 +840,8 @@ function viewIdentity(c){
 function viewBattle(c){
   c.append(el('div','⚔️ کازمتیک جنگ — نمایشی، صفر قدرت جنگی','wd66-h'));
   ['fx_conq','fx_storm','fx_comet','war_badge','battle_frame'].forEach(function(id){var it=itemOf(id);if(it)c.append(card(it))});
-  c.append(el('div','🎯 عملیات حمله‌ای (سقف سخت‌گیرانه‌ی سرور)','wd66-h'));
-  c.append(el('div','نفوذ سایبری، راید کماندو، موشک پنچر و ضربه‌ی هسته‌ای — با کول‌داون و سقف هفتگی از سرور (ضد P2W)','wd66-note'));
+  c.append(el('div','🎯 عملیات حمله‌ای (بدون کول‌داون و سقف)','wd66-h'));
+  c.append(el('div','نفوذ سایبری، راید کماندو، موشک پنچر و ضربه‌ی هسته‌ای — بدون کول‌داون و سقف؛ تنها هزینه جم و پیامد جهانی (تنش/دولت سرکش) است — V159','wd66-note'));
   try{if(window.WD54_SO_CARD&&window.WD54_OPS)Object.keys(WD54_OPS).forEach(function(k){var cd=WD54_SO_CARD(k);if(cd)c.append(cd)})}catch(e){}}
 function viewMap(c){
   c.append(el('div','🗺️ کازمتیک نقشه — پیش‌نمایش واقعی قبل از خرید','wd66-h'));
@@ -1177,8 +1177,8 @@ function viewWar(c){
   var s5=el('div',null,'wd66-sec');wd88ItemRow(['war_prep_pack','war_starter','war_commander','war_defender','war_imperial'],s5);c.append(s5);
   c.append(el('div','🎖️ پرتره‌ها، اسلات فرماندهی و آموزش','wd66-h'));
   var s6=el('div',null,'wd66-sec');wd88ItemRow(['cp_iron','cp_sky','cp_admiral','cmd_training','tactical_slot','at_slash','df_shield'],s6);c.append(s6);
-  c.append(el('div','🎯 عملیات حمله‌ای سروری (کول‌داون و سقف هفتگی سرور)','wd66-h'));
-  c.append(el('div','نفوذ سایبری، راید کماندو، موشک پنچر و ضربه‌ی هسته‌ای — با کول‌داون و سقف هفتگی از سرور (ضد P2W)','wd66-note'));
+  c.append(el('div','🎯 عملیات حمله‌ای سروری (بدون کول‌داون و سقف)','wd66-h'));
+  c.append(el('div','نفوذ سایبری، راید کماندو، موشک پنچر و ضربه‌ی هسته‌ای — بدون کول‌داون و سقف؛ تنها هزینه جم و پیامد جهانی (تنش/دولت سرکش) است — V159','wd66-note'));
   try{if(window.WD54_SO_CARD&&window.WD54_OPS)Object.keys(WD54_OPS).forEach(function(k){var cd=window.WD54_SO_CARD(k);if(cd)c.append(cd)})}catch(e){}}
 function viewLandmarks(c){
   c.append(el('div','🗿 بناهای ماندگار — امضای ابدی کشور تو','wd66-h'));
