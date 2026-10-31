@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=163;/* V64 version beacon — self-heal swap uses /game/v.txt */
+  <script>window.__WD_V=164;/* V64 version beacon — self-heal swap uses /game/v.txt */
 /* V154 BOOT FAST — بارگذاری تنبل ماژول‌های سنگین (oly3/social/mentor ≈۳۴۵KB) بعد از آماده‌شدن نقشه؛
    بایت‌ها از قبل با preload می‌آیند (هدر) — فقط parse/exec از مسیر بحرانی بوت خارج می‌شود.
    ایمنی: اگر نقشه هرگز آماده نشد، حداکثر ۱۲ ثانیه بعد هر چه بود لود می‌شود (هیچ قفلی وجود ندارد). */
@@ -36,16 +36,16 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=163">
+   <link rel="preload" as="script" href="/game/balance.js?v=164">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=163">
-   <link rel="preload" as="script" href="/game/social.js?v=163">
-   <link rel="preload" as="script" href="/game/mentor.js?v=163">
+   <link rel="preload" as="script" href="/game/oly3.js?v=164">
+   <link rel="preload" as="script" href="/game/social.js?v=164">
+   <link rel="preload" as="script" href="/game/mentor.js?v=164">
    <!-- V155 BOOT: هندسه‌ی ۲۱۶KB کشورها از لحظه‌ی صفر دانلود می‌شود (موازی با parse اسکریپت‌ها)،
         نه بعد از init نقشه — متقارن با fetch same-origin cors (crossorigin لازم است تا cache match شود) -->
    <link rel="preload" as="fetch" href="/cdn/geo/countries.geo.json" crossorigin>
-  <script src="/game/balance.js?v=163"></script>
+  <script src="/game/balance.js?v=164"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -2787,7 +2787,11 @@ async function attackTarget(n){
   try{news('⚔️ آغاز عملیات علیه '+getCountryData(n).fa)}catch(e){}                                          /* [wd7] خبر آغاز */
   try{const R=WD_ATTACK_HOOKS.pvpRoute;if(R){const rr=await R(n);if(rr!==undefined)return rr}}catch(e){console.error('wd-pvp',e)} /* [pvp] مسیر PvP */
   try{ /* [V28] مالکیت لحظه‌ای سرور — ممکن است کسی در ثانیه‌های آخر گرفته باشد */
-    if(OTH[n]){showToast('🏴 این کشور تحت کنترل بازیکن دیگری است؛ حمله به بازیکنان هنوز فعال نیست','lose');return}
+    /* V163 FIX: توست قدیمی «حمله به بازیکنان هنوز فعال نیست» دروازه‌ی مرده‌ی V28 بود — PvP از V39 فعال است.
+       هر ورودی حمله (act-attack، برنامه‌ی نبرد WD65) برای کشورِ دارای مالک به اتاق فرماندهی V39 می‌رود */
+    if(OTH[n]){
+      if(typeof window.WD39_PRO_ATTACK==='function'){window.WD39_PRO_ATTACK(n);return}
+      showToast('🏴 این کشور تحت کنترل بازیکن دیگری است؛ عملیات زمینی از کشوی کشور در دسترس است','lose');return}
     if(sb&&ACC.uid&&MP_OK===true){
       const r=await sb.from('territories').select('user_id,nick,is_capital').eq('server',SRV).eq('country',n).maybeSingle();
       if(!r.error&&r.data&&r.data.user_id!==ACC.uid){OTH[n]={nick:r.data.nick,cap:r.data.is_capital};paintOther(n);renderSrvChip();
@@ -6088,19 +6092,23 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
         document.getElementById("battle-close-btn").onclick=()=>{battleBusy=false;closeModal("m-battle")};
         return;
       }
-      /* V75 — P4: خطاهای هزینه/کول‌داون حمله (سرور واقعی پول و فاصله‌ی حمله را می‌سنجد) */
-      if(x.error==='res'||x.error==='cd'||x.error==='weak'||x.error==='rate'||x.error==='cdt'){
+      /* V75 — P4: خطاهای هزینه/کول‌داون حمله (سرور واقعی پول و فاصله‌ی حمله را می‌سنجد)
+         V163 FIX: خطای 'supply' (تدارکات دکترین V88) تا امروز کلاینت نمی‌شناخت و به‌جای پیام،
+         مسیر "دفع حمله" جعلی می‌رفت — حالا مثل بقیه‌ی خطاها پیام صادقانه دارد */
+      if(x.error==='res'||x.error==='cd'||x.error==='weak'||x.error==='rate'||x.error==='cdt'||x.error==='supply'){
         battleBusy=false;window.__war30=false;document.body.classList.remove('wd-war');warOff();
         if(pvpLine){pvpLine.remove();pvpLine=null}
         hpBox.style.display='none';
         const _msg75=x.error==='res'
           ?'خزانه برای هزینه‌ی حمله کافی نیست — هر حمله '+faN(BALANCE.conquest.pvpAttack.costGold)+' طلا + '+faN(BALANCE.conquest.pvpAttack.costOil)+' نفت می‌برد.'
           :x.error==='weak'
-          ?('نیروی تو برای این دفاع کافی نیست — حداقل قدرت لازم ≈ '+fmt(x.need||0)+' (قدرت تو: '+fmt(x.have||0)+'). اول ارتش بساز یا هدف کوچک‌تر انتخاب کن.')
+          ?('نیروی تو برای این دفاع کافی نیست — حداقل قدرت لازم ≈ '+fmt(x.need||0)+' (قدرت مؤثر تو: '+fmt(x.have||0)+'). اول ارتش بساز یا هدف کوچک‌تر انتخاب کن.'+(x.shielded?' — توجه: مدافع زیر «سپر نوپدید» ۲۴ساعته است و دفاعش ۸۰٪ قوی‌تر محاسبه می‌شود.':''))
           :x.error==='rate'
           ?('سقف فتح در ساعت پر شد ('+faN(WD_BATTLE.pvp.maxCapsPerHour)+' فتح) — دفاع سرور به تو و به حریف فرصت نفس می‌دهد.')
           :x.error==='cdt'
           ?('به همین هدف به‌زودی دوباره نمی‌توانی حمله کنی — کول‌داون حمله به هر هدف: '+faN(WD_BATTLE.pvp.targetCdMin)+' دقیقه.')
+          :x.error==='supply'
+          ?('تدارکات جبهه کافی نیست — این دکترین '+fmt(x.need||0)+' تدارک می‌خواهد (داری: '+fmt(x.have||0)+'). از پنل جنگ، سفارش «پشتیبانی» بگیر یا دکترین سبک‌تری انتخاب کن.')
           :'فرمانده! بین دو حمله چند ثانیه مکث لازم است — ستاد فرماندهی دارد تجدید سازمان می‌کند.';
         log.innerHTML='<span class="wd39-round">'+(x.error==='res'?'💰 خزانه':'⏳ فرماندهی')+'</span><div class="wd39-narr">'+_msg75+'</div>';
         document.getElementById("battle-close-btn").textContent="باشه";
@@ -6241,6 +6249,12 @@ try{WD_ATTACK_HOOKS.xpPost=WD_ATTACK_HOOKS.xpPost||[];WD_ATTACK_HOOKS.xpPost.pus
   }
   /* V39: اتصال جهانی عملیات زمینی — واتچ‌داگ کشو از این هندل استفاده می‌کند */
   window.WD39_PRO_ATTACK=professionalAttack;
+  /* V163 FIX: هوک pvpRoute بالاخره سیم‌کشی شد — تا امروز هیچ‌کس ثبتش نکرده بود و "برنامه‌ی نبرد"
+     (WD65) و act-attack روی کشورِ دارای مالک به گیت مرده‌ی V28 می‌خوردند (حمله انگار اجرا نمی‌شد).
+     قرارداد هوک دست‌نخورده: result|undefined — undefined یعنی مسیر خنثی ادامه پیدا کند */
+  try{WD_ATTACK_HOOKS.pvpRoute=function(n){
+    if(window.OTH&&OTH[n]&&typeof window.WD39_PRO_ATTACK==='function'){window.WD39_PRO_ATTACK(n);return true}
+    return undefined}}catch(e){console.error('wd-pvproute',e)}
 
   // Final override: clicking another player's country opens the same tactical battle flow as neutral land.
   /* V59 wave-2: wrapper حذف شد — دکمه حمله زمینی به OTH، پس‌هوک کلیک (این آخرین بازنویسی OTH است و مثل قبل آخرین می‌ماند) */
@@ -12880,7 +12894,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=163';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=164';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -18656,7 +18670,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=163"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=164"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18682,7 +18696,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=163';
+              s.src='/game/cv-engine.js?v=164';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18694,7 +18708,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     })();
    </script>
 <script>/* V154 BOOT FAST: oly3.js (۱۳۴KB) — بایت از head می‌آید (preload)، exec بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=163')})</script>
+__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=164')})</script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18708,7 +18722,7 @@ __wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=163')})</script>
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=163';
+      s.src='/game/oly3d.js?v=164';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19967,9 +19981,9 @@ setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}c
 })();
 </script>
 <script>/* V154 BOOT FAST: social.js (۷۵KB) بعد از نقشه — boot خودش را با readyState/تایمر امن شروع می‌کند */
-__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=163')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=164')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
 <script>/* V154 BOOT FAST: mentor.js (۵۰KB) بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=163')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=164')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);

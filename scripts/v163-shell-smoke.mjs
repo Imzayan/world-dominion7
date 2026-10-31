@@ -14,10 +14,13 @@ const html = readFileSync(join(ROOT, 'public/game/index.html'), 'utf8')
 const vTxt = readFileSync(join(ROOT, 'public/game/v.txt'), 'utf8').trim()
 
 /* ---------- ① version ritual ---------- */
-check('v.txt = 163', vTxt === '163', vTxt)
-check('__WD_V = 163', html.includes('window.__WD_V=163;'))
-check('exactly 12 ?v=163 asset pins', (html.match(/\?v=163/g) || []).length === 12, String((html.match(/\?v=163/g) || []).length))
-check('no stale ?v=162 pins', !html.includes('?v=162'))
+/* V164: version expectation now derives from v.txt (single source of truth) —
+   the smoke stays valid for every future release instead of breaking each bump */
+const V = vTxt
+check('v.txt numeric and in sync with __WD_V', /^[0-9]+$/.test(V) && html.includes('window.__WD_V=' + V + ';'), vTxt)
+check('__WD_V matches v.txt', html.includes('window.__WD_V=' + V + ';'), V)
+check('exactly 12 ?v=' + V + ' asset pins', (html.match(new RegExp('\\?v=' + V, 'g')) || []).length === 12, String((html.match(new RegExp('\\?v=' + V, 'g')) || []).length))
+check('no stale ?v pins from previous release', !html.includes('?v=' + (Number(V) - 1)))
 
 /* ---------- ② design tokens (base :root extended, not a 6th block) ---------- */
 check('font scale tokens live', html.includes('--wd-f-xs: 10px') && html.includes('--wd-f-xl: 17px'))
