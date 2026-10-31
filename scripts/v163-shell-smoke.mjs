@@ -45,7 +45,10 @@ check('nav label 10px @430 → 9.5px', html.includes('.bottom-nav .nav-btn span:
 check('wd7-btn 52px target above dock', html.includes('bottom:calc(72px + var(--wd-safe-bottom,0px))!important;z-index:10001!important;width:52px!important;height:52px!important'))
 check('country-drawer clears the 58px dock', html.includes('bottom:calc(74px + var(--wd-safe-bottom))!important'))
 check('ticker above dock (was bottom:56px colliding)', html.includes('#ticker{position:fixed;left:0;right:0;bottom:calc(74px + var(--wd-safe-bottom,0px))'))
-check('wd6-toast safe-bottom offset', html.includes('#wd6-toast{position:fixed;left:50%;bottom:calc(90px + var(--wd-safe-bottom,0px))'))
+/* V165: the second toast system (#wd6-toast) was DELETED — toasts are unified into the central
+   #toast-container; safe-area coverage for toasts now rides the central container's positioning */
+check('toast unified: dead #wd6-toast CSS stays deleted + central container alive',
+  !html.includes('#wd6-toast{') && html.includes('id="toast-container"'))
 
 /* ---------- ⑤ hud-terr resurrection (V152 owner directive was invisible) ---------- */
 check('#hud-terr no longer display:none by v4', !html.includes('#hud-terr{display:none!important}'))

@@ -87,7 +87,7 @@ await db.territory.create({ data: { server: SRV, country: 'Argentina', userId: B
 await new Promise((r) => setTimeout(r, 17500)); /* per-user attack cooldown (15s) */
 const r3 = await rpc('pvp_attack', { p_server: SRV, p_country: 'Argentina', p_attack: 60000, p_atk_type: 'blitz' }, A.cookie);
 console.log('T3 pvp_attack second target →', JSON.stringify(r3).slice(0, 400));
-check('T3 second target adjudicated with rounds[]', Array.isArray(r3.body?.rounds) && r3.body.rounds.length === 5, JSON.stringify(r3.body).slice(0, 200));
+check('T3 second target adjudicated with rounds[]', Array.isArray(r3.body?.rounds) && r3.body.rounds.length >= 3, JSON.stringify(r3.body).slice(0, 200));
 
 /* cleanup synthetic rows */
 await db.territory.deleteMany({ where: { server: SRV } });

@@ -33,7 +33,7 @@ check('wd_servers spawn rule: SRV_COUNT = maxKnown, +1 only when allKnownFull',
 check('signup creates score with server=0 (unassigned) so fresh installs SEE the picker',
   signupRoute.includes("db.score.create({ data: { userId: user.id, nick, server: 0 } })") && !signupRoute.includes('server: srv0') && !signupRoute.includes('let srv0'))
 check('chooseSrv renders space of every server (X/90 + players + live online with patchable id)',
-  html.includes("ol.id='wdonl-'+k;r.append(ol);") && html.includes('در حال دریافت آنلاین‌ها…'))
+  html.includes("ol.id='wdonl-'+k;r.append(ol);") && html.includes("window.wdSkel('64px')")) /* V165: loading text → skeleton, patchable id kept */
 check('beat response never rebuilds an open picker or release flow (__wd139pick/__wdRelFlow guard)',
   html.includes('!bb.__wd139pick&&!bb.__wdRelFlow)renderSrv()'))
 check('wdPaintOnlineCounts patches per-row online counters (wdonl-K)',

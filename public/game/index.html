@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=164;/* V64 version beacon — self-heal swap uses /game/v.txt */
+  <script>window.__WD_V=165;/* V64 version beacon — self-heal swap uses /game/v.txt */
 /* V154 BOOT FAST — بارگذاری تنبل ماژول‌های سنگین (oly3/social/mentor ≈۳۴۵KB) بعد از آماده‌شدن نقشه؛
    بایت‌ها از قبل با preload می‌آیند (هدر) — فقط parse/exec از مسیر بحرانی بوت خارج می‌شود.
    ایمنی: اگر نقشه هرگز آماده نشد، حداکثر ۱۲ ثانیه بعد هر چه بود لود می‌شود (هیچ قفلی وجود ندارد). */
@@ -36,16 +36,16 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=164">
+   <link rel="preload" as="script" href="/game/balance.js?v=165">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=164">
-   <link rel="preload" as="script" href="/game/social.js?v=164">
-   <link rel="preload" as="script" href="/game/mentor.js?v=164">
+   <link rel="preload" as="script" href="/game/oly3.js?v=165">
+   <link rel="preload" as="script" href="/game/social.js?v=165">
+   <link rel="preload" as="script" href="/game/mentor.js?v=165">
    <!-- V155 BOOT: هندسه‌ی ۲۱۶KB کشورها از لحظه‌ی صفر دانلود می‌شود (موازی با parse اسکریپت‌ها)،
         نه بعد از init نقشه — متقارن با fetch same-origin cors (crossorigin لازم است تا cache match شود) -->
    <link rel="preload" as="fetch" href="/cdn/geo/countries.geo.json" crossorigin>
-  <script src="/game/balance.js?v=164"></script>
+  <script src="/game/balance.js?v=165"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1820,7 +1820,7 @@ window.WD105_load = async function(force) {
 window.WD105_render = async function() {
   let host = document.getElementById('wd105-career');
   if (!host) { const c = document.getElementById('units-container'); if (!c) return; host = document.createElement('div'); host.id = 'wd105-career'; c.parentNode.appendChild(host); }
-  host.innerHTML = '<div class="wd105-h">⚔️ فتح‌نامه — کارنامه‌ی لشکر<small>سرور-محور · فقط از نبردهای واقعی</small></div><div style="font-size:9px;color:#8fb4d4">در حال دریافت...</div>';
+  host.innerHTML = '<div class="wd105-h">⚔️ فتح‌نامه — کارنامه‌ی لشکر<small>سرور-محور · فقط از نبردهای واقعی</small></div><div style="display:flex;align-items:center;gap:6px;font-size:9px;color:#8fb4d4">در حال دریافت <span class="wd-skel" style="width:70px"></span></div>';
   const d = await window.WD105_load(true);
   if (!d || !d.ok) { host.innerHTML = '<div class="wd105-h">⚔️ فتح‌نامه</div><div style="font-size:9px;color:#ff8ba0">اتصال برقرار نشد — مودال را دوباره باز کن.</div>'; return; }
   const gs = d.generals || {}, owned = d.owned || [], asg = d.assigned || {};
@@ -1897,6 +1897,11 @@ function showToast(msg, kind) {
   setTimeout(() => el.remove(), 2600);
   try{for(const h of WD_TOAST_HOOKS.post){h(msg,kind)}}catch(e){console.error('wd-toast-post',e)}
 }
+
+/* ================= V165 - skeleton helper =================
+   wdSkel(width?, lg?) -> .wd-skel element - defined early (right after showToast) so every
+   module that renders during boot can use it; CSS lives in the wd165-components block */
+window.wdSkel=function(w,lg){var s=document.createElement('span');s.className='wd-skel'+(lg?' wd-skel-lg':'');if(w)s.style.width=w;return s};
 
 // ---------- Color helpers ----------
 
@@ -4167,7 +4172,8 @@ function chooseSrv(){
       const r=el('div','','lobby-item'+(k===rec?' me':''));
       r.append(el('div','سرور '+faNum(k)+(ts?' 🧪':'')+' — '+faNum(t)+'/'+faNum(SRV_CAP)+' کشور • '+faNum(p)+' بازیکن','lobby-item-text'));
       r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':full?'🔴 شلوغ — '+faNum(SRV_CAP)+'/'+faNum(SRV_CAP)+'؛ برای تازه‌واردها جا ندارد':(k===rec?'🟢 خالی — پیشنهادی برای شروع':'🟢 باز — برای ورود بزن'),'lobby-item-sub'));
-      const ol=el('div','🟢 '+(typeof onl==='number'?faNum(onl)+' بازیکن آنلاین همین حالا':'در حال دریافت آنلاین‌ها…'),'lobby-item-sub');
+      const ol=el('div','','lobby-item-sub');ol.append('🟢 '+(typeof onl==='number'?faNum(onl)+' بازیکن آنلاین همین حالا':''));
+      if(typeof onl!=='number')ol.append(window.wdSkel('64px'));
       ol.id='wdonl-'+k;r.append(ol);
       if(open&&!ts&&!full){r.style.cursor='pointer';r.addEventListener('click',function(){settle(k)})}
       b.append(r)}
@@ -4304,7 +4310,8 @@ function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';b.__wd
     const r=el('div','','lobby-item'+(mine2?' me':''));
     r.append(el('div','سرور '+faNum(k)+(mine2?' (تو اینجایی)':'')+(ts?' 🧪':'')+' — '+faNum(t)+'/'+faNum(SRV_CAP)+' کشور • '+faNum(p)+' بازیکن','lobby-item-text'));
     r.append(el('span',ts?'🧪 سرور تستی — درِ ورود بسته':mine2?(full?'🏠 سرور فعلی تو — 🔴 پُر شده ('+faNum(SRV_CAP)+'/'+faNum(SRV_CAP)+')':'🏠 سرور فعلی تو'):full?'🔴 شلوغ — '+faNum(SRV_CAP)+'/'+faNum(SRV_CAP)+'؛ برای تازه‌واردها جا ندارد':(myCountryName||(DBMINE&&DBMINE.size))?'🏠 برای ورود اول کشورت را رها کن':'🟢 باز — برای ورود به نقشه بزن','lobby-item-sub'));
-    const ol=el('div','🟢 '+(typeof onl==='number'?faNum(onl)+' بازیکن آنلاین همین حالا':'در حال دریافت آنلاین‌ها…'),'lobby-item-sub');
+    const ol=el('div','','lobby-item-sub');ol.append('🟢 '+(typeof onl==='number'?faNum(onl)+' بازیکن آنلاین همین حالا':''));
+    if(typeof onl!=='number')ol.append(window.wdSkel('64px'));
     ol.id='wdonl-'+k;r.append(ol); /* V144: شمارنده با هر ضربان presence درجا تازه می‌شود */
     if(!ts&&open&&!full&&!mine2){r.style.cursor='pointer';r.addEventListener('click',function(){wdEnterSrv(k)})}
     b.append(r)}
@@ -4314,7 +4321,7 @@ function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';b.__wd
   b.append(el('div','🟢 آنلاین‌های سرور '+SRV,'sites-h'));
   const ol=document.createElement('div');ol.id='srv-online';b.append(ol);
   const fresh=O&&O.at&&(Date.now()-O.at)<180000;
-  if(!fresh){ol.append(el('div','در حال دریافت آنلاین‌ها…','sites-sub'));try{wdPresenceBeat(true)}catch(e){}}
+  if(!fresh){const _sl=el('div','','sites-sub');_sl.append(window.wdSkel('64px'));ol.append(_sl);try{wdPresenceBeat(true)}catch(e){}}
   else{
     const me=(ACC&&ACC.nick)||'',list=(O.players||[]).slice();
     if(me&&list.indexOf(me)<0)list.unshift(me);
@@ -4322,7 +4329,7 @@ function renderSrv(){const b=S$('srv-body');if(!b)return;b.textContent='';b.__wd
     else list.forEach(n=>{const r=el('div','','lr-row'+(n===me?' me':''));r.append(el('span','🟢 '+n),el('span',n===me?'تو':'آنلاین'));ol.append(r)});
     ol.append(el('div','مجموع آنلاین همه‌ی سرورها: '+faNum(O.total||0),'sites-sub'))}
   b.append(el('div','👥 ساکنان سرور '+SRV,'sites-h'));
-  const pl=document.createElement('div');pl.id='srv-res';pl.append(el('div','در حال دریافت…','sites-sub'));b.append(pl);
+  const pl=document.createElement('div');pl.id='srv-res';const _sl2=el('div','','sites-sub');_sl2.append(window.wdSkel('110px'));pl.append(_sl2);b.append(pl);
   if(typeof sb!=='undefined'&&sb&&typeof SRV==='number'){
     sb.from('scores').select('nick,conquered').eq('server',SRV).order('conquered',{ascending:false}).limit(20)
       .then(function(res){pl.textContent='';
@@ -4556,7 +4563,7 @@ window.wdPaintOnlineCounts=function(){ /* هر شمارنده‌ی «بازیک�
       const n=O.servers[k];if(typeof n==='number')b.textContent=faNum(n);
     });
     /* V144: شمارنده‌های ردیفیِ پنجره‌ی سرورها و انتخابگر (id=wdonl-K) — فقط عددِ «همین» سرور،
-       بلادرنگ بعد از هر ضربان؛ تا پاسخِ تازه برسد متنِ «در حال دریافت آنلاین‌ها…» می‌ماند */
+       بلادرنگ بعد از هر ضربان؛ تا پاسخِ تازه برسد متنِ «اسکلتون V165 می‌ماند و با اولین عدد معتبر جایش را می‌گیرد */
     document.querySelectorAll('[id^="wdonl-"]').forEach(b=>{
       const k=Number(String(b.id).slice('wdonl-'.length));if(!k)return;
       const n=O.servers[k];
@@ -5242,7 +5249,7 @@ async function rankQuery(cat){
 async function renderRank(box,cat){
   const my=++RANK_TOKEN;box.textContent='';
   const h=mk('div','🌍 رتبه‌بندی — '+catFa(cat),'lr-h');box.append(h);
-  const load=mk('div','⏳ در حال دریافت…','lr-row');box.append(load);
+  const load=mk('div','','lr-row');load.append(window.wdSkel('96px'));box.append(load);
   if(!sb){load.textContent='رتبه‌بندی فقط با حساب آنلاین کار می‌کند';return}
   try{
     const res=await Promise.race([rankQuery(cat),new Promise((_,no)=>setTimeout(()=>no(new Error('timeout')),15000))]);
@@ -5306,8 +5313,7 @@ try{WD_CLICK_HOOKS.post.push(function(f,l){
     #wd6-hud{position:fixed;top:12px;left:12px;right:12px;z-index:9997;display:flex;gap:8px;align-items:center;justify-content:center;pointer-events:none;font-family:inherit}
 .wd6-chip{pointer-events:auto;display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(8,13,24,.82);backdrop-filter:blur(10px);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:12px;color:#fff;white-space:nowrap}
 .wd6-chip b{font-size:13px}.wd6-dot{width:7px;height:7px;border-radius:50%;background:#36e6a2;box-shadow:0 0 10px #36e6a2}
-#wd6-toast{position:fixed;left:50%;bottom:calc(90px + var(--wd-safe-bottom,0px));transform:translate(-50%,20px);opacity:0;z-index:10020;pointer-events:none;transition:.25s;max-width:min(92vw,520px);padding:11px 15px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:rgba(9,14,26,.94);color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.35);font-size:13px;text-align:center}
-#wd6-toast.show{opacity:1;transform:translate(-50%,0)}
+/* V165: #wd6-toast CSS removed (second toast system) - the game's single toast is #toast-container */
 #wd6-panel{position:fixed;inset:auto 12px 72px 12px;max-width:720px;margin:auto;z-index:10010;display:none;background:linear-gradient(180deg,rgba(13,20,36,.98),rgba(7,11,21,.98));border:1px solid rgba(255,255,255,.12);border-radius:22px;box-shadow:0 24px 80px rgba(0,0,0,.55);overflow:hidden;color:#fff}
 #wd6-panel.open{display:block;animation:wd6in .2s ease-out}@keyframes wd6in{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
 .wd6-head{display:flex;justify-content:space-between;align-items:center;padding:15px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
@@ -5326,7 +5332,9 @@ const metaKey='wd6_meta_v6';
 let M={xp:0,level:1,streak:0,lastDay:'',missions:{war:0,trade:0,spy:0,research:0},activity:[]};
 try{M=Object.assign(M,JSON.parse(localStorage.getItem(metaKey)||'{}'))}catch(e){}
 function save(){try{localStorage.setItem(metaKey,JSON.stringify(M))}catch(e){}}
-function toast(t){const x=$('wd6-toast');if(!x)return;x.textContent=t;x.classList.add('show');clearTimeout(window.__wd6t);window.__wd6t=setTimeout(()=>x.classList.remove('show'),2200)}
+/* V165 FIX: #wd6-toast was a REAL second toast system (DOM+CSS+its own show logic) - now delegates
+   to the central showToast like every other module; call-sites untouched, one visual language */
+function toast(t){try{showToast(t,'win')}catch(e){}}
 function stat(name){try{if(typeof playerRes!=='undefined'&&playerRes&&name in playerRes)return Math.floor(Number(playerRes[name])||0)}catch(e){}return 0}
 function day(){return new Date().toISOString().slice(0,10)}
 function daily(){const d=day();if(M.lastDay!==d){M.lastDay=d;M.streak=(M.streak||0)+1;M.missions={war:0,trade:0,spy:0,research:0};save()}}
@@ -5342,7 +5350,7 @@ if($('wd6-hud'))return;
 const hud=document.createElement('div');hud.id='wd6-hud';hud.innerHTML='<div class="wd6-chip"><span class="wd6-dot"></span><b id="wd6-level">Lv 1</b></div><div class="wd6-chip">⭐ <b id="wd6-xpbar">XP</b><span class="wd6-progress" style="width:65px"><span id="wd6-xp"></span></span></div><div class="wd6-chip" id="wd6-streak">🔥 1</div><button class="wd6-chip" id="wd6-open" style="border:1px solid rgba(100,170,255,.35)">⚡ مرکز عملیات</button>';
 document.body.appendChild(hud);
 const panel=document.createElement('section');panel.id='wd6-panel';panel.innerHTML='<div class="wd6-head"><h3>⚡ مرکز عملیات فرماندهی</h3><button class="wd6-close" id="wd6-close">بستن</button></div><div class="wd6-grid"><div class="wd6-card"><h4>🎯 عملیات امروز</h4><p>سه نبرد، پنج معامله، دو عملیات اطلاعاتی و دو پژوهش.</p><p>⚔️ <b id="wd6-war">0 / 3</b> &nbsp; 💰 <b id="wd6-trade">0 / 5</b></p><p>🛰️ <b id="wd6-spy">0 / 2</b> &nbsp; 🧪 <b id="wd6-research">0 / 2</b></p></div><div class="wd6-card"><h4>📈 پیشرفت فرمانده</h4><p>XP برای بازکردن سطوح و ارتقای مسیر فرماندهی.</p><div class="wd6-progress"><span id="wd6-xp2"></span></div></div><div class="wd6-card"><h4>🪖 بسیج سریع</h4><p>از سیستم ارتش فعلی بازی استفاده کن و نیرو را قبل از حمله آماده کن.</p><button class="wd6-btn" id="wd6-army">⚔️ باز کردن ارتش</button></div><div class="wd6-card"><h4>🛰️ دیده‌بانی</h4><p>هدف انتخاب‌شده را بررسی کن و قبل از حمله اطلاعات جمع کن.</p><button class="wd6-btn" id="wd6-intel">🔎 باز کردن اطلاعات</button></div><div class="wd6-card"><h4>🌍 نبض جهان</h4><p>منابع فعلی: 💰 '+stat('gold')+' &nbsp; 🛢️ '+stat('oil')+' &nbsp; 🌾 '+stat('food')+' &nbsp; 🔩 '+stat('steel')+'</p><button class="wd6-btn" id="wd6-refresh">↻ بروزرسانی وضعیت</button></div><div class="wd6-card"><h4>📜 گزارش عملیات</h4><div id="wd6-feed"></div></div></div>';
-document.body.appendChild(panel);const toastEl=document.createElement('div');toastEl.id='wd6-toast';document.body.appendChild(toastEl);
+document.body.appendChild(panel); /* V165: #wd6-toast element removed - central toast owns feedback */
 $('wd6-open').onclick=open;$('wd6-close').onclick=close;$('wd6-refresh').onclick=()=>{try{if(typeof updateUI==='function')updateUI()}catch(e){}render();toast('🌐 وضعیت فرماندهی بروزرسانی شد')};
 $('wd6-army').onclick=()=>{close();document.querySelector('[data-tab*="ارتش"],button[onclick*="army"],#tab-army')?.click();toast('⚔️ بخش ارتش باز شد')};
 $('wd6-intel').onclick=()=>{close();document.querySelector('[data-tab*="اطلاعات"],button[onclick*="intel"],#tab-intel')?.click();toast('🛰️ بخش اطلاعات باز شد')};
@@ -7847,7 +7855,7 @@ function rel(t){try{if(!t)return 'هرگز';var d=(Date.now()-new Date(t).getTim
   if(d<1)return 'همین حالا آنلاین';if(d<60)return Math.floor(d)+' دقیقه پیش';if(d<1440)return Math.floor(d/60)+' ساعت پیش';return Math.floor(d/1440)+' روز پیش'}catch(e){return '—'}}
 window.renderAdmin=async function(){
   var b=D.getElementById('admin-body');if(!b)return;b.textContent='';
-  b.appendChild(h('div','⏳ در حال دریافت اطلاعات بازیکنان...','sites-info'));
+  const _si=h('div','','sites-info');_si.append('اطلاعات بازیکنان ');_si.append(window.wdSkel('90px'));b.appendChild(_si);
   var ok=false;try{ok=!!(await serverAdmin())}catch(e){}
   if(!ok){b.textContent='';b.appendChild(h('div','❌ این بخش فقط برای مدیر بازی فعال است.','sites-info'));return}
   var rows=null;
@@ -9365,7 +9373,7 @@ function richRow(x,i,maxVal){
 async function renderRank28(box,cat){
   var my=++RANK_TOKEN;box.textContent='';
   var head=D.createElement('div');head.className='wd28-rk-head';
-  head.innerHTML='<div><div class="t">🏆 '+esc(catFa(cat))+'</div><div class="s" id="wd28-rk-sub">در حال دریافت…</div></div>';
+  head.innerHTML='<div><div class="t">🏆 '+esc(catFa(cat))+'</div><div class="s" id="wd28-rk-sub"><span class="wd-skel" style="width:72px"></span></div></div>';
   var rf=D.createElement('button');rf.className='refresh';rf.textContent='⟳ بروزرسانی';
   rf.onclick=function(){renderRank28(box,cat)};head.append(rf);box.append(head);
   if(!sb){var e1=D.createElement('div');e1.className='lr-row';e1.textContent='رتبه‌بندی فقط با حساب آنلاین کار می‌کند';box.append(e1);return}
@@ -9724,7 +9732,7 @@ function renderMarket(){
     var list=D.createElement('div');list.id='wd28-p2p-list';b.append(list);
     function resIc(k){return k==='gold'?'💰':k==='oil'?'🛢️':'🌾'}
     async function loadP2P(){
-      list.textContent='';var ld=D.createElement('div');ld.style.cssText='font-size:10.5px;color:#8fb0d6;padding:6px';ld.textContent='⏳ در حال دریافت…';list.append(ld);
+      list.textContent='';var ld=D.createElement('div');ld.style.cssText='display:flex;align-items:center;gap:6px;font-size:10.5px;color:#8fb0d6;padding:6px';ld.append(window.wdSkel('110px'));list.append(ld);
       try{
         var r=await sb.rpc('trade_offer_list',{p_server:SRV});
         if(r.error)throw r.error;
@@ -12894,7 +12902,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=164';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=165';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -13314,7 +13322,7 @@ function renderAlly(b){
 /* ---------- 🏛️ world elections ---------- */
 function renderElect(b){
   const e=S.elect;
-  if(!e){b.innerHTML='<div class="wd34-card"><div class="wd34-empty">در حال دریافت وضعیت انتخابات…</div></div>';return}
+  if(!e){b.innerHTML='<div class="wd34-card"><div class="wd34-empty">وضعیت انتخابات <span class="wd-skel" style="width:80px"></span></div></div>';return}
   const myUid=(typeof ACC!=='undefined'&&ACC&&ACC.uid)||'';
   let h='<div class="wd34-card"><div class="wd34-h">🏛️ انتخابات جهانی<small>چرخه‌ی ۱۰ روزه</small></div>'+
     '<div class="wd34-mini">فاز: <b style="color:'+(e.phase==='cand'?'#7dff9e':'#ffd75e')+'">'+(e.phase==='cand'?'ثبت نامزدی':'رأی‌گیری')+'</b> — '+
@@ -13347,7 +13355,7 @@ function renderElect(b){
 /* ---------- 🎓 mentorship ---------- */
 function renderMentor(b){
   const m=S.mentor;
-  if(!m){b.innerHTML='<div class="wd34-card"><div class="wd34-empty">در حال دریافت…</div></div>';return}
+  if(!m){b.innerHTML='<div class="wd34-card"><div class="wd34-empty"><span class="wd-skel" style="width:110px"></span></div></div>';return}
   let h='<div class="wd34-card"><div class="wd34-h">🎓 سیستم منتور<small>پیوند کهنه‌سرباز + تازه‌کار</small></div>'+
     '<div class="wd34-mini">منتور هر روز که شاگردش بازی کند <b style="color:#ffd75e">۳ جم</b> می‌گیرد؛ شاگرد <b style="color:#ffd75e">۸٬۰۰۰ طلا</b>. کهنه‌سرباز = امتیاز ۶۰۰+ یا ۳ خاک.</div></div>';
   /* as mentee */
@@ -13470,7 +13478,7 @@ function streakCard(){
     wx('streak_status',{}).then(r=>{if(r.ok&&S.streakSt!==r.d){S.streakSt=r.d;streakCard()}}).catch(()=>{})}
   if(!c){c=D.createElement('div');c.id='wd34-streak';c.className='wd34-streak';
     const t=mc.querySelector('.modal-title-row');if(t&&t.nextSibling)mc.insertBefore(c,t.nextSibling);else mc.appendChild(c)}
-  if(!st){c.innerHTML='<div class="t">🔥 استریک روزانه<small>در حال دریافت…</small></div>';return}
+  if(!st){c.innerHTML='<div class="t">🔥 استریک روزانه<small><span class="wd-skel" style="width:64px"></span></small></div>';return}
   const fill=st.claimed_today?st.day_in_cycle:Math.max(0,st.day_in_cycle-1);
   let dots='';const ics=['🪙','🪙','🪙','🪙','🪙','🪙','💎'];
   for(let i=1;i<=7;i++)dots+='<span class="wd34-dot'+(i<=fill?' on':(i===fill+1&&!st.claimed_today?' next':''))+'">'+ics[i-1]+'</span>';
@@ -13657,7 +13665,7 @@ async function renderRank35(box,cat){
   window.__wd35poll=setTimeout(function(){var m=D.getElementById('m-rank');
     if(!m||!m.classList.contains('active')||!box||!box.isConnected)return;renderRank35(box,cat)},6000);
   const head=D.createElement('div');head.className='wd35-head';
-  head.innerHTML='<div style="flex:1"><div class="t">'+CAT35[cat].fa+'</div><div class="s">در حال دریافت…</div></div>';
+  head.innerHTML='<div style="flex:1"><div class="t">'+CAT35[cat].fa+'</div><div class="s"><span class="wd-skel" style="width:72px"></span></div></div>';
   const rf=D.createElement('button');rf.className='rf';rf.textContent='⟳ بروزرسانی';
   rf.addEventListener('click',()=>renderRank35(box,cat));head.appendChild(rf);box.appendChild(head);
   const tip=D.createElement('div');tip.style.cssText='font-size:9px;color:#6f8db0;font-weight:700;margin:-4px 2px 8px';
@@ -17570,7 +17578,7 @@ function ensureAdminBox(){
     if(D.getElementById('wd53-olybox'))return;
     var box=D.createElement('div');box.id='wd53-olybox';
     box.innerHTML='<div class="wd53-ph">🎮 کنترل المپیک — شروع و پایان دوره در دست توست</div>'+
-      '<div class="wd53-ph" id="wd53-olyph">⏳ در حال دریافت وضعیت از سرور…</div>'+
+      '<div class="wd53-ph" id="wd53-olyph">وضعیت از سرور <span class="wd-skel" style="width:90px"></span></div>'+
       '<div class="wd53-olyad">'+
       '<button class="action-btn btn-green" id="wd53-olyopen">▶️ شروع فوری بازی‌ها (افتتاحیه + آتش‌بس)</button>'+
       '<button class="action-btn btn-red" id="wd53-olyclose">🏁 پایان فوری دوره (اختتامیه + قهرمانی)</button>'+
@@ -18670,7 +18678,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=164"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=165"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18696,7 +18704,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=164';
+              s.src='/game/cv-engine.js?v=165';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18708,7 +18716,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     })();
    </script>
 <script>/* V154 BOOT FAST: oly3.js (۱۳۴KB) — بایت از head می‌آید (preload)، exec بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=164')})</script>
+__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=165')})</script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18722,7 +18730,7 @@ __wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=164')})</script>
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=164';
+      s.src='/game/oly3d.js?v=165';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19307,7 +19315,7 @@ WD88.plan=function(ctx){try{
   if(ib)ib.onclick=function(){
     var tg=card.querySelector('#w65-tg');var nick=tg?tg.value:'';
     var p=$88('wd88-intel');if(!p)return;
-    p.style.display='block';p.innerHTML='⏳ در حال دریافت از سرور…';
+    p.style.display='block';p.innerHTML='<span class="wd-skel" style="width:120px"></span>';
     var s=sb88();if(!s){p.textContent='برای اطلاعات باید آنلاین باشی.';return}
     s.rpc('war_intel',{p_target:nick}).then(function(r){
       if(r.error||!r.data||!r.data.ok){
@@ -19981,9 +19989,9 @@ setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}c
 })();
 </script>
 <script>/* V154 BOOT FAST: social.js (۷۵KB) بعد از نقشه — boot خودش را با readyState/تایمر امن شروع می‌کند */
-__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=164')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=165')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
 <script>/* V154 BOOT FAST: mentor.js (۵۰KB) بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=164')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=165')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -21184,5 +21192,74 @@ html.wd-quiet :is(#act-tax:not([disabled]),#act-un-aid:not([disabled]),#hud-olym
 /* NOTE V155: پرچم‌ها عمداً به مجموعه‌ی ژست اضافه نشدند — doctrine V154 (گیت v138-smoke):
    toggle کلاس ژست نباید ۱۷۶ پرچم را recalc کند؛ مهار پرچم با html.wd-gest (۷۳۸۴) انجام شده است. */
 </style>
+   <style id="wd165-components">
+    /* ===== V165 - shared components (UI phase 2): skeleton / sheet handle / touch feedback
+       red lines: no transition:all; transform/background-position animations only;
+       prefers-reduced-motion honored; conservative CSS only (flex/transform/custom-prop) */
+    .wd-skel{display:inline-block;height:10px;border-radius:6px;vertical-align:middle;
+      background:linear-gradient(90deg,rgba(143,180,212,.14),rgba(143,180,212,.34),rgba(143,180,212,.14));
+      background-size:200% 100%;animation:wdSkel 1.15s linear infinite}
+    .wd-skel.wd-skel-lg{height:14px;border-radius:8px}
+    @keyframes wdSkel{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    @media (prefers-reduced-motion:reduce){.wd-skel{animation:none;background:rgba(143,180,212,.22)}}
+    /* grab handle for swipe-down - touch only, normal modals (battle/auth excluded) */
+    @media (pointer:coarse){
+      .modal.active .modal-card{position:relative}
+      .modal.active .modal-card::before{content:'';position:sticky;top:0;z-index:2;display:block;
+        width:44px;height:4px;margin:-4px auto 8px;border-radius:4px;background:rgba(140,190,230,.35);pointer-events:none}
+      #m-battle .modal-card::before,#auth .modal-card::before{display:none}
+    }
+    /* unified press feedback + 44px min target for the primary button families */
+    .wdp-btn,.wd65-btn,.wd-btn{min-height:44px}
+    .wdp-btn:active,.wd65-btn:active,.wd-btn:active{transform:scale(.98)}
+   </style>
+   <script id="v165-components">
+    /* ===== V165 - modal swipe-down-to-close (mobile) =====
+       ONE delegated handler on .modal.active - vertical downward drag only, started at the top of
+       non-scrolled content; horizontal gesture = bail (zero conflict with in-card gestures);
+       rAF-throttled transform writes; passive listeners; m-battle/auth never close; 90px threshold. */
+    (function(){
+      'use strict';
+      if(!('ontouchstart' in window))return;
+      var EXC={'m-battle':1,'auth':1},sy=0,sx=0,dy=0,card=null,tracking=false,locked=null;
+      document.addEventListener('touchstart',function(e){
+        var m=e.target&&e.target.closest?e.target.closest('.modal.active'):null;
+        if(!m||EXC[m.id])return;
+        var c=m.querySelector('.modal-card');if(!c)return;
+        var t=e.target;if(t.closest&&t.closest('input,textarea,select,button,a,.close-modal'))return;
+        if(c.scrollTop>2)return;
+        sy=e.touches[0].clientY;sx=e.touches[0].clientX;dy=0;tracking=true;locked=null;card=c;
+      },{passive:true});
+      document.addEventListener('touchmove',function(e){
+        if(!tracking||!card)return;
+        var ny=e.touches[0].clientY-sy,dx=e.touches[0].clientX-sx;
+        if(locked===null){
+          if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(ny)){tracking=false;card.style.transform='';card=null;return}
+          if(Math.abs(ny)>8)locked=(ny>0?'down':'up');
+        }
+        if(locked!=='down')return;
+        dy=ny;
+        if(card.__skAF)cancelAnimationFrame(card.__skAF);
+        var c=card;
+        card.__skAF=requestAnimationFrame(function(){c.style.transition='none';c.style.transform='translateY('+Math.max(0,dy)+'px)'});
+      },{passive:true});
+      document.addEventListener('touchend',function(){
+        if(!tracking)return;tracking=false;
+        var c=card;card=null;if(!c)return;
+        if(c.__skAF){cancelAnimationFrame(c.__skAF);c.__skAF=null}
+        var went=Math.max(0,dy);dy=0;locked=null;
+        if(went>90){
+          c.style.transition='transform .18s ease';c.style.transform='translateY(110%)';
+          var mid=c.closest('.modal')?c.closest('.modal').id:null;
+          setTimeout(function(){try{if(mid)closeModal(mid)}catch(e){}
+            c.style.transition='';c.style.transform=''},175);
+        }else{
+          c.style.transition='transform .22s ease';c.style.transform='';
+          setTimeout(function(){c.style.transition=''},240);
+        }
+      },{passive:true});
+    })();
+    /* wdSkel helper is defined early, next to showToast */
+   </script>
 </body>
 </html>
