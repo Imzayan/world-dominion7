@@ -217,7 +217,23 @@ async function clampSaveState(stateStr: string, userId: string): Promise<string>
   /* --- سایر فیلدهای امتیازآور --- */
   if (Array.isArray(st.conq)) st.conq = (st.conq as unknown[]).slice(0, MAX_COUNTRIES_DB).map((x) => String(x))
   st.kills = sNum(st.kills, 1_000_000 + MAX_UNIT_ATK * 3)
-  st.occ = sNum(st.occ, 100)
+  /* V167 — باگ نابودیِ پیشرویِ فتح: تا امروز «occ» با sNum اسکالر clamp می‌شد، در حالی که
+     occ در بلابِ سیو یک شیء {کشور: درصد} است (occupationPct کلاینت). Number({})=NaN ⇒
+     کل نقشه‌ی اشغال با «0» جایگزین می‌شد — روی نوشتن و خواندن. نتیجه: پیشرویِ جزئیِ
+     (٪های وسط راه) بعد از هر رفت‌وبرگشتِ سیو صفر می‌شد و هاشورِ نقشه هم بعد از ورود
+     مجدد می‌پرید. حالا همان سقف‌های ضدتقلب به‌صورت ساخت‌یافته اعمال می‌شود: هر کشور
+     ۰..۱۰۰، حداکثر MAX_COUNTRIES_DB کشور — هیچ فرمولی عوض نمی‌شود، فقط داده سالم می‌ماند. */
+  if (st.occ && typeof st.occ === 'object' && !Array.isArray(st.occ)) {
+    const occIn = st.occ as Record<string, unknown>
+    const occOut: Record<string, number> = {}
+    for (const k of Object.keys(occIn).slice(0, MAX_COUNTRIES_DB)) {
+      const v = Number(occIn[k])
+      if (Number.isFinite(v) && v > 0) occOut[k] = Math.max(0, Math.min(100, Math.round(v)))
+    }
+    st.occ = occOut
+  } else if (st.occ !== undefined) {
+    delete st.occ /* شکلِ خرابِ قدیمی (اسکالر از clamp قبلی) — restoreState کلاینت پیش‌فرض {} می‌گیرد */
+  }
   if (st.infra && typeof st.infra === 'object') {
     const infra = st.infra as Record<string, unknown>
     for (const k of Object.keys(infra)) infra[k] = sNum(infra[k], 99)
