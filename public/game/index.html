@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=161;/* V64 version beacon — self-heal swap uses /game/v.txt */
+  <script>window.__WD_V=162;/* V64 version beacon — self-heal swap uses /game/v.txt */
 /* V154 BOOT FAST — بارگذاری تنبل ماژول‌های سنگین (oly3/social/mentor ≈۳۴۵KB) بعد از آماده‌شدن نقشه؛
    بایت‌ها از قبل با preload می‌آیند (هدر) — فقط parse/exec از مسیر بحرانی بوت خارج می‌شود.
    ایمنی: اگر نقشه هرگز آماده نشد، حداکثر ۱۲ ثانیه بعد هر چه بود لود می‌شود (هیچ قفلی وجود ندارد). */
@@ -36,16 +36,16 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=161">
+   <link rel="preload" as="script" href="/game/balance.js?v=162">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=161">
-   <link rel="preload" as="script" href="/game/social.js?v=161">
-   <link rel="preload" as="script" href="/game/mentor.js?v=161">
+   <link rel="preload" as="script" href="/game/oly3.js?v=162">
+   <link rel="preload" as="script" href="/game/social.js?v=162">
+   <link rel="preload" as="script" href="/game/mentor.js?v=162">
    <!-- V155 BOOT: هندسه‌ی ۲۱۶KB کشورها از لحظه‌ی صفر دانلود می‌شود (موازی با parse اسکریپت‌ها)،
         نه بعد از init نقشه — متقارن با fetch same-origin cors (crossorigin لازم است تا cache match شود) -->
    <link rel="preload" as="fetch" href="/cdn/geo/countries.geo.json" crossorigin>
-  <script src="/game/balance.js?v=161"></script>
+  <script src="/game/balance.js?v=162"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -4520,7 +4520,16 @@ window.wdPresenceBeat=async function(force){
     if(!ACC||!ACC.uid)return;
     if(typeof SRV!=='number')return;
     if(document.hidden&&!force)return;
-    const r=await sb.rpc('wd_presence',{p_server:SRV,p_status:document.hidden?'idle':'online'});
+    /* V162-PERF: ادغام ضربان‌های پنجره‌ی بوت — چند مسیرِ init هرکدام یک ضربان می‌فرستند
+       (واترفال v161-boot-waterfall: ۴× wd_presence در ۲.۵s اول) = ترافیک دوباره‌کاری روی
+       شبکه‌ی موبایل. رجیستری مشترک window.__wdBeat با social.js — رد شدن فقط اگر همان
+       سرور + همان وضعیت در ۴s اخیر ضربان واقعی داشته؛ تغییر سرور/وضعیت همیشه عبور می‌کند
+       و اینتروال ۵۰s نبض را زنده نگه می‌دارد. */
+    var _bSt=document.hidden?'idle':'online';
+    var _bNow=Date.now(),_bLast=window.__wdBeat;
+    if(_bLast&&_bLast.srv===SRV&&_bLast.status===_bSt&&_bNow-_bLast.t<4000)return;
+    window.__wdBeat={srv:SRV,status:_bSt,t:_bNow};
+    const r=await sb.rpc('wd_presence',{p_server:SRV,p_status:_bSt});
     const d=r&&r.data;
     if(d&&typeof d==='object'){
       window.WD_ONLINE.servers={};
@@ -4755,10 +4764,13 @@ refreshSites=function(){if(typeof map==='undefined'||!map||!Object.keys(layersBy
   /* V154: رویداد آماده‌شدن نقشه — ماژول‌های تنبل (oly3/social/mentor) همان‌جا بوت می‌شوند */
   try{window.dispatchEvent(new Event('wd-map-ready'))}catch(e){}
   /* V154 PERF: کلید ژست — در پینچ/درگ/زوم افکت‌های پرهزینه (سایه/فیلتر/انیمیشن پرچم) خاموش؛
-     ۲۶۰ms بعد از پایان ژست برمی‌گردند. صفر کار در هر فریم — فقط کلاس روی <html>. */
+     ۴۰۰ms بعد از پایان ژست برمی‌گردند. صفر کار در هر فریم — فقط کلاس روی <html>. */
+  /* V162-PERF: تأخیر ۲۶۰→۴۰۰ms — هم‌تراز با تایمر wd-dragging (خط ~۲۰۰۸) تا هر دو حذف کلاس
+     در همان برشِ تایمر براوزر اجرا شوند = یک recalc پساژست به‌جای دو تا (پروب v161-moveend-attr:
+     دو لانگ‌تسک جدا در +۲۶۰ و +۴۰۰ms بعد از ژست). اثر جانبی مثبت: افکت‌ها تا انتهای اینرسیِ فلیک خاموش می‌مانند. */
   try{var ge=null;
     map.on('movestart zoomstart dragstart',function(){try{document.documentElement.classList.add('wd-gest');if(ge){clearTimeout(ge);ge=null}}catch(e){}});
-    map.on('moveend zoomend dragend',function(){try{if(ge)clearTimeout(ge);ge=setTimeout(function(){ge=null;document.documentElement.classList.remove('wd-gest')},260)}catch(e){}});
+    map.on('moveend zoomend dragend',function(){try{if(ge)clearTimeout(ge);ge=setTimeout(function(){ge=null;document.documentElement.classList.remove('wd-gest')},400)}catch(e){}});
   }catch(e){}
   /* V134: smoothFactor تطبیقی — در زوم‌های پایین (نمای جهانی) خطوط ساده‌تر project می‌شوند
      (کاهش مستقیم هزینه‌ی بازکشی بوم در moveend/zoomend)؛ زوم ۴+ دقیقِ واقعی.
@@ -7265,11 +7277,12 @@ function mapUpgrade(){
     }
   }catch(e){console.log('hover',e)}
   /* 3) Persian labels per zoom tier */
-  var labelMarkers={};
+  var labelMarkers={};var _ulStep=0;
   function tierFor(z){return z>=5.2?2:(z>=3.8?1:0);}
   function areaOf(n){try{var g=mainRing(layersByName[n]);if(!g)return 0;return (g.n-g.s)*(g.e-g.w);}catch(e){return 0}}
   function updateLabels(){
     var z=map.getZoom(),tier=tierFor(z);
+    var toAdd=[],toRemove=[];
     Object.keys(layersByName).forEach(function(n){
       var show=false;
       if(tier===2)show=true;
@@ -7277,15 +7290,31 @@ function mapUpgrade(){
       else show=areaOf(n)>=42&&z>=3.2;
       if(typeof OL2!=='undefined'&&OL2[n])show=false;
       var have=!!labelMarkers[n];
-      if(show&&!have){
-        var g=mainRing(layersByName[n]);if(!g)return;
-        labelMarkers[n]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:420,
-          icon:L.divIcon({className:'wd-clabel-wrap',iconSize:[0,0],html:'<div class="wd-clabel">'+faName(n)+'</div>'})}).addTo(map);
-      }else if(!show&&have){
-        try{labelMarkers[n].remove();}catch(e){}
-        delete labelMarkers[n];
-      }
+      if(show&&!have)toAdd.push(n);
+      else if(!show&&have)toRemove.push(n);
     });
+    /* V162-PERF: tier-flip قبلاً ~۸۰ divIcon را در «یک» مأموریت می‌ساخت/حذف می‌کرد = یک LongTask
+       ~۱۰۰ms دقیقاً در +۸۰ms پساژست (پروب v161-moveend-attr). حالا با بودجه‌ی ۱۲ms برش می‌خورد —
+       همان الگوی اثبات‌شده‌ی ساخت پرچم‌ها؛ خروجی DOM یکسان، فقط پخش‌شده در چند فریم.
+       _ulStep: اگر سینک تازه‌ای برسد (ژست بعدی) استپر قبلی بی‌اعتبار و دیف تازه از وضعیت فعلی ساخته می‌شود. */
+    var myRun=++_ulStep;
+    (function step(){
+      if(myRun!==_ulStep)return;
+      var t0=performance.now();
+      while(toRemove.length){
+        var nr=toRemove.shift();
+        if(labelMarkers[nr]){try{labelMarkers[nr].remove()}catch(e){}delete labelMarkers[nr]}
+        if(performance.now()-t0>12)return void setTimeout(step,16);
+      }
+      while(toAdd.length){
+        var na=toAdd.shift();
+        if(labelMarkers[na])continue;
+        var g=mainRing(layersByName[na]);if(!g)continue;
+        labelMarkers[na]=L.marker(g.c,{interactive:false,keyboard:false,zIndexOffset:420,
+          icon:L.divIcon({className:'wd-clabel-wrap',iconSize:[0,0],html:'<div class="wd-clabel">'+faName(na)+'</div>'})}).addTo(map);
+        if(performance.now()-t0>12)return void setTimeout(step,16);
+      }
+    })();
   }
   /* V69: updateLabels قبلاً روی zoomend+moveend هر دو ثبت بود — در هر زوم دوبار اجرا می‌شد.
      حالا zoomend از دیسپچر مرکزی + moveend مستقیم، با debounce ۸۰ms (ادغام دوبار اجرا) */
@@ -12860,7 +12889,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=161';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=162';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -13162,9 +13191,16 @@ async function refresh34(){
 
 /* background tick: badges + streak (powers chat/leaderboard tags even when page closed) */
 async function badgeTick(){if(D.hidden)return;const srv=SRV();
-  const e=await wx('election_status',{p_server:srv});if(e.ok&&e.d){S.elect=e.d;S.pres=e.d.president||null}
-  const a=await wx('alliance_list',{p_server:srv});if(a.ok&&a.d){S.tags=a.d.tags||{};S.allyList=a.d}
-  const st=await wx('streak_status',{});if(st.ok)S.streakSt=st.d;
+  /* V162-PERF: سه واکشیِ مستقل قبلاً پشت‌سرهم await می‌شدند = ۳×RTT سریالی (واترفال v161-boot-waterfall:
+     ‏+۶۵۰۴→+۶۶۴۵→+۶۷۸۳ در دمِ بوت). حالا یک موج موازی؛ wx هرگز throw نمی‌کند ({ok:false}) */
+  const [e,a,st]=await Promise.all([
+    wx('election_status',{p_server:srv}),
+    wx('alliance_list',{p_server:srv}),
+    wx('streak_status',{}),
+  ]);
+  if(e&&e.ok&&e.d){S.elect=e.d;S.pres=e.d.president||null}
+  if(a&&a.ok&&a.d){S.tags=a.d.tags||{};S.allyList=a.d}
+  if(st&&st.ok)S.streakSt=st.d;
   if(S.open)render34()}
 
 /* ---------- render ---------- */
@@ -13459,7 +13495,8 @@ function streakCard(){
 /* V157: poller ۹۰ثانیه‌ای heatmap حذف شد — لایه‌ی حرارت از V55 از رابط کاربری خارج شده و toggleHeat/drawHeat هیچ فراخوانی زنده‌ای نداشتند */
 setInterval(()=>{if(!D.hidden)badgeTick()},60000);
 setTimeout(()=>{badgeTick()},6000);
-setTimeout(()=>{try{if(typeof wx==='function')wx('streak_status',{}).then(r=>{if(r.ok)S.streakSt=r.d})}catch(e){}},9000);
+/* V162-PERF: واکشیِ تکراریِ streak_status@9s حذف شد — badgeTick@6s همین واکشی را انجام می‌دهد
+   (و اینتروال ۶۰s + lazyِ خودِ کارتِ استریک هم پوشش می‌دهند)؛ قبلاً در +۹s یک RPC دوباره می‌رفت */
 /* drawer hooks run after login (OTH/ACC exist by then) */
 let drHooked=false;
 setInterval(()=>{if(drHooked||D.hidden)return;
@@ -18628,7 +18665,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=161"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=162"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18654,7 +18691,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=161';
+              s.src='/game/cv-engine.js?v=162';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18666,7 +18703,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     })();
    </script>
 <script>/* V154 BOOT FAST: oly3.js (۱۳۴KB) — بایت از head می‌آید (preload)، exec بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=161')})</script>
+__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=162')})</script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18680,7 +18717,7 @@ __wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=161')})</script>
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=161';
+      s.src='/game/oly3d.js?v=162';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19938,9 +19975,9 @@ setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}c
 })();
 </script>
 <script>/* V154 BOOT FAST: social.js (۷۵KB) بعد از نقشه — boot خودش را با readyState/تایمر امن شروع می‌کند */
-__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=161')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=162')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
 <script>/* V154 BOOT FAST: mentor.js (۵۰KB) بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=161')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=162')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);

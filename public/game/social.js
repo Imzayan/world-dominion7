@@ -249,9 +249,24 @@ if(!$('wd95-css')){var st=D.createElement('style');st.id='wd95-css';st.textConte
 var ST={badges:{dm:0,nt:0,fr:0},onl:{},srvs:null,blocks:{},hbT:0,profOpen:null,dmOpen:null,dmPoll:0,dmSig:'',players:[]};
 
 /* ---------- حضور زنده (heartbeat) ---------- */
+/* V162-PERF: ادغام ضربان با سیستم V125 (wdPresenceBeat) — هر دو همان wd_presence را می‌زنند و
+   در پنجره‌ی بوت ۳-۴ ضربان دوباره‌کاری می‌رفت. رجیستری مشترک window.__wdBeat: رد شدن فقط برای
+   هم‌سرور+هم‌وضعیت در ۴s؛ در آن صورت داده از WD_ONLINE (پاسخِ همان ضربانِ واقعی) رنگ می‌شود. */
+function wdSyncOnlFromShared(){
+  var O=window.WD_ONLINE;if(!O||!O.at)return false;
+  ST.onl={};for(var k in O.servers)ST.onl[k]=O.servers[k];
+  ST.total=O.total||0;ST.players=(O.players||[]).map(function(n){return {nick:n}});
+  renderLive();return true;
+}
 async function heartbeat(){
   if(!myUid()||typeof sb==='undefined'||!sb)return;
   var status=D.hidden?'idle':'online';
+  var B=window.__wdBeat,now=Date.now();
+  if(B&&B.srv===mySrv()&&B.status===status&&now-B.t<4000){
+    if(!wdSyncOnlFromShared())setTimeout(function(){if(myUid())wdSyncOnlFromShared()},1300);
+    return;
+  }
+  window.__wdBeat={srv:mySrv(),status:status,t:now};
   try{
     var r=await rpc('wd_presence',{p_server:mySrv(),p_status:status});
     ST.onl={};
