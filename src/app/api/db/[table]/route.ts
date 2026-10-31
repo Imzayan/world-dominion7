@@ -242,6 +242,58 @@ async function clampSaveState(stateStr: string, userId: string): Promise<string>
   return JSON.stringify(st)
 }
 
+/* ============================================================
+   V168 — بند ۱.۵ سند امنیتی: چک «دلتا-نرخ زمانی» بین دو سیو
+   ------------------------------------------------------------
+   تا V167 تنها دفاع، سقف‌های مطلق (clampSaveState) بود: هیچ سیوی بالای
+   سقف نمی‌رفت، اما «پرش صفر→سقف» در یک سیو دیده نمی‌شد (سیوِ دستکاری‌شده
+   بعد از هر خرج‌کردن دوباره پر می‌شد). این چک رشدِ ممکن بین دو سیوِ
+   پشت‌سرهم را محدود می‌کند — مرزها از مکانیک واقعی بازی، با حاشیه‌ی ایمن:
+   • jump: بزرگ‌ترین گرنت مشروعِ آنی — پک شروع (۱۰۰k طلا/۱۵k نفت/۲۵k غذا)
+     + جوایز المپیک (۱۰۰k/۱۰k/۱۰k) + آیتم‌های جم — جمع‌شده با حاشیه‌ی چندبرابری.
+   • perTerr×terr: جای سرِ کافی برای درآمد ساختمان‌ها در امپراتوری بزرگ
+     (بانک ۲۲ طلا/تیک — هر تیک ۴ ثانیه) و همه‌ی جریان‌های جمعیتی (popM).
+   • rate×dt: هیچ جریان مشروعی به‌ازای هر ثانیه به این نرخ نمی‌رسد.
+   dt تا سقف ۹۰۰ثانیه: نرخ‌سنج فقط برای فاصله‌های کوتاه معنا دارد؛ بازگشت
+   بعد از ساعت‌ها باید آزاد باشد (سقف مطلق همان‌جا حاکم است).
+   چرا سیوِ سالم هرگز نمی‌خورد: ترید/بازیابی/جوایز رسمی سمت سرور روی خودِ
+   ردیف اعمال می‌شوند ⇒ در «prev» همین محاسبه دیده می‌شوند و دلتای کلاینت
+   کوچک می‌ماند. تخلف: فقط همان منبع به مرز مجاز بریده می‌شود (نه ردِ کل
+   سیو — سیوهای سالمِ ترکیبی مصون) + event log ساختاریافته برای بررسی.
+   ============================================================ */
+const RATE_JUMP = { gold: 1_200_000, oil: 20_000, food: 30_000 }
+const RATE_PER_TERR = { gold: 10_000, oil: 5_000, food: 10_000 }
+const RATE_PER_SEC = { gold: 20_000, oil: 5_000, food: 8_000 }
+const RATE_DT_CAP = 900 /* ثانیه — بالای این فقط سقف مطلق حاکم است */
+
+async function rateClampSaveState(stateStr: string, userId: string): Promise<string> {
+  let st: Record<string, unknown> = {}
+  try { st = JSON.parse(stateStr || '{}') || {} } catch { return stateStr }
+  const res = (st.res && typeof st.res === 'object' ? st.res : {}) as Record<string, unknown>
+  if (res.gold === undefined && res.oil === undefined && res.food === undefined) return stateStr /* سیو بی‌منبع */
+  let prevRes: Record<string, unknown> = {}
+  let dtSec = 0
+  try {
+    const prev = await db.save.findUnique({ where: { userId }, select: { state: true, updatedAt: true } })
+    if (prev) {
+      dtSec = Math.max(0, Math.min(RATE_DT_CAP, (Date.now() - prev.updatedAt.getTime()) / 1000))
+      try { prevRes = ((JSON.parse(String(prev.state || '{}')) || {}).res || {}) as Record<string, unknown> } catch { prevRes = {} }
+    }
+  } catch { prevRes = {} /* خواندن prev شکست خورد ⇒ مثل اولین سیو: فقط سقف مطلق */ }
+  const { terr } = await stateCapsFor(userId) /* کش ۳۰ثانیه‌ای — هزینه‌ی اضافه ندارد */
+  for (const k of ['gold', 'oil', 'food'] as const) {
+    const v = Math.max(0, Math.round(Number(res[k]) || 0))
+    const prevV = Math.max(0, Math.round(Number(prevRes[k]) || 0))
+    const allowed = prevV + RATE_JUMP[k] + RATE_PER_TERR[k] * terr + RATE_PER_SEC[k] * dtSec
+    if (v > allowed) {
+      console.log(`[WD-ANTICHEAT] save-rate user=${userId} res=${k} prev=${prevV} got=${v} allowed=${Math.round(allowed)} dt=${Math.round(dtSec)}s terr=${terr}`)
+      res[k] = Math.round(allowed)
+    }
+  }
+  st.res = res
+  return JSON.stringify(st)
+}
+
 function computeMetrics(stateJson: string) {
   let st: Record<string, unknown> = {}
   try { st = JSON.parse(stateJson) || {} } catch {}
@@ -497,6 +549,8 @@ async function preparePayload(table: string, spec: TableSpec, raw: Record<string
     if ((data.state as string).length > 524288) throw new Error('save state too large')
     /* V75 — P3: سقف‌های واقعی اقتصاد/ارتش روی بلاب (نوشتن) — همان فرمول‌های BALANCE */
     data.state = await clampSaveState(data.state as string, user.id)
+    /* V168 — بند ۱.۵: سقف نرخ رشد بین دو سیو پشت‌سرهم (پس از سقف مطلق) */
+    data.state = await rateClampSaveState(data.state as string, user.id)
   }
   if (table === 'scores') {
     /* V60sec: متریک‌های رتبه‌بندی (score/conquered/kills/economy/recruits) فقط از

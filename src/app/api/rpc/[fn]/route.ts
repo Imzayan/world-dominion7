@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { rateLimit, clientIp } from '@/lib/ratelimit'
 import { safeErr } from '@/lib/apierr' /* V116: متن خام Prisma هرگز به کلاینت نمی‌رود */
-import { myketSigVerify } from '@/lib/myket' /* V144: راستی‌آزمایی امضای رسید مایکت با کلید عمومی (توکن عمومی پنل) */
+import { myketSigVerify, paytokOf, parseDevPayload } from '@/lib/myket' /* V144: راستی‌آزمایی امضای رسید مایکت با کلید عمومی (توکن عمومی پنل) — V168: + paytok/parseDevPayload برای بند ۱.۳ */
 import { computeScore, hasRecalc, SIM_V2_ED, type Telemetry, type TelemEvent } from '@/lib/olyScore'
 import {
   skillOf, consistencyOf, potentialOf, evalAchievements, achDef, bullseyesFromTelemetry,
@@ -2572,6 +2572,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         return R({ ok: true, gems: w.gems, boost_until: w.boostUntil ? w.boostUntil.toISOString() : null, daily_granted: granted, vip_granted: vipGranted ?? 0,
           vip_until: w.vipUntil ? w.vipUntil.toISOString() : null,
           tg_bonus: w.tgBonus,
+          /* V168 — بند ۱.۳: توکن ماتِ مقید به حساب برای developerPayload خرید (APK جدید آن را منعکس می‌کند؛
+             سرور در shop_gem_topup/starter_claim مطابقت می‌دهد — طراحی و دلیل در src/lib/myket.ts) */
+          paytok: paytokOf(user.id),
           streak: streak ? { streak: streak.streak, best: streak.best, claimed: streak.claimed, day_in_cycle: streak.day_in_cycle, reward: streak.reward } : null })
       }
       /* ---------------- V86 — پاداش یک‌بارمصرف عضویت تلگرام (+۲۰ جم) ----------------
@@ -2614,6 +2617,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
         if (prior) return R({ ok: true, duplicate: true, gems_added: 0, wallet: { gems: (await ensureWallet(user.id)).gems } })
         const ver = await verifyProviderReceipt('myket', token, user, sku, /* V144: رسید امضاشده برای مسیر کلید عمومی */ { json: String(args.p_json || '').slice(0, 8192), sig: String(args.p_sig || '').slice(0, 4096) })
         if (!ver.ok) return R({ ok: false, error: ver.error })
+        /* V168 — بند ۱.۳ سند امنیتی: اگر رسید، payloadِ جدیدِ wd2 دارد، باید متعلق به «همین حساب» باشد.
+           فرمت قدیمی wd-… / خالی (APKهای تا V167 و مسیر QA ساندباکس) مثل امروز می‌گذرد — سازگاری عقب کامل.
+           ترتیب مهم: بعد از راستی‌آزمایی امضا/API — چون payload داخل متنِ امضاشده است و دستکاری‌اش امضا را می‌شکند. */
+        const plTop168 = parseDevPayload(String(args.p_json || ''))
+        if (plTop168) {
+          if (plTop168.sku !== sku) return R({ ok: false, error: 'payload' })
+          if (plTop168.paytok !== paytokOf(user.id)) return R({ ok: false, error: 'payload_session' }) /* رسیدِ حسابِ دیگر */
+        }
         try {
           await db.$transaction(async (tx) => {
             await tx.shopPurchase.create({ data: { id: 'MYKTX-' + token, userId: user.id, itemId: sku, price: 0, currency: 'toman', status: 'ok', provider: 'myket', requestId: token, meta: JSON.stringify({ kind: 'gem_topup', gems: pack.gems, order_id: String(args.p_order_id || '').slice(0, 80) }) } })
@@ -3044,6 +3055,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ fn: string
               V144: مسیر کلید عمومی مایکت — p_json/p_sig خام از خرید زنده‌ی اپ */
         const ver = await verifyProviderReceipt(provider, receipt, user, 'emperor_starter', { json: String(args.p_json || '').slice(0, 8192), sig: String(args.p_sig || '').slice(0, 4096) })
         if (!ver.ok) return R({ ok: false, error: ver.error })
+        /* V168 — بند ۱.۳ سند امنیتی: همان چکِ shop_gem_topup — payloadِ wd2 فقط برای همین حساب گرنت می‌خورد.
+           ساندباکس (بدون p_json) و APKهای قدیمی (فرمت wd-…) مثل امروز می‌گذرند — سازگاری عقب کامل. */
+        const plSt168 = parseDevPayload(String(args.p_json || ''))
+        if (plSt168) {
+          if (plSt168.sku !== 'emperor_starter') return R({ ok: false, error: 'payload' })
+          if (plSt168.paytok !== paytokOf(user.id)) return R({ ok: false, error: 'payload_session' }) /* رسیدِ حسابِ دیگر */
+        }
         const txId = ver.txId
         /* ۳) ضد پخش مجدد رسید — requestId = شناسه‌ی تراکنش (یکتا به‌ازای هر کاربر)؛
               پخش مجدد رسیدِ مصرف‌شده = duplicate:true (نه خرید دوم، نه خطای مبهم) */

@@ -46,7 +46,7 @@ if (MODE === 'static') {
   check('myket.ts: کلید عمومی واقعی مالک (توکن عمومی) پیش‌فرض lib است', lib.includes('MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCEA9lv4z'));
   check('myket.ts: هر دو الگوریتم RSA-SHA1 و RSA-SHA256 پذیرفته می‌شوند', lib.includes("RSA-SHA1") && lib.includes("RSA-SHA256"));
   check('myket.ts: env چرخش کلید MYKET_PUBLIC_KEY خوانده می‌شود', lib.includes('process.env.MYKET_PUBLIC_KEY'));
-  check('route.ts: myketSigVerify import شده', route.includes("import { myketSigVerify } from '@/lib/myket'"));
+  check('route.ts: myketSigVerify import شده', /\{ myketSigVerify\b[^}]*\} from '@\/lib\/myket'/.test(route) && route.includes('myketSigVerify(pj, ps)')); /* V168: import با paytokOf/parseDevPayload گسترش یافت */
   check('route.ts: مسیر امضا فقط وقتی اعتبار API نیست فعال است', /if \(!accessToken && !\(cid && sec\)\)/.test(route));
   check('route.ts: کنترل packageName/productId/purchaseState/purchaseToken روی json امضاشده', route.includes('j.packageName !== pkg') && route.includes('j.productId !== sku') && route.includes('j.purchaseState !== 0') && route.includes('j.purchaseToken !== receipt'));
   check('route.ts: shop_gem_topup پیام p_json/p_sig را می‌فرستد به verifyProviderReceipt', route.includes("String(args.p_json || '').slice(0, 8192)") && route.includes("String(args.p_sig || '').slice(0, 4096)"));
