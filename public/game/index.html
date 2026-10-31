@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=160;/* V64 version beacon — self-heal swap uses /game/v.txt */
+  <script>window.__WD_V=161;/* V64 version beacon — self-heal swap uses /game/v.txt */
 /* V154 BOOT FAST — بارگذاری تنبل ماژول‌های سنگین (oly3/social/mentor ≈۳۴۵KB) بعد از آماده‌شدن نقشه؛
    بایت‌ها از قبل با preload می‌آیند (هدر) — فقط parse/exec از مسیر بحرانی بوت خارج می‌شود.
    ایمنی: اگر نقشه هرگز آماده نشد، حداکثر ۱۲ ثانیه بعد هر چه بود لود می‌شود (هیچ قفلی وجود ندارد). */
@@ -36,16 +36,16 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=160">
+   <link rel="preload" as="script" href="/game/balance.js?v=161">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=160">
-   <link rel="preload" as="script" href="/game/social.js?v=160">
-   <link rel="preload" as="script" href="/game/mentor.js?v=160">
+   <link rel="preload" as="script" href="/game/oly3.js?v=161">
+   <link rel="preload" as="script" href="/game/social.js?v=161">
+   <link rel="preload" as="script" href="/game/mentor.js?v=161">
    <!-- V155 BOOT: هندسه‌ی ۲۱۶KB کشورها از لحظه‌ی صفر دانلود می‌شود (موازی با parse اسکریپت‌ها)،
         نه بعد از init نقشه — متقارن با fetch same-origin cors (crossorigin لازم است تا cache match شود) -->
    <link rel="preload" as="fetch" href="/cdn/geo/countries.geo.json" crossorigin>
-  <script src="/game/balance.js?v=160"></script>
+  <script src="/game/balance.js?v=161"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -1926,6 +1926,9 @@ function initGame() {
       if (__wdWeak && L.Browser) L.Browser.retina = false;
     } catch (e) { }
     /* V134: wheelDebounceTime 0 — قبلاً ۴۰ms تأخیر مصنوعی روی زوم چرخ موس بود (Leaflet default) */
+    /* V160-PERF: zoomAnimation عمداً false ماند (doctrine V134) — آزمایش شد و اثرش صفر بود:
+       قانون ۲۱۰۹۷ transition حین ژست را می‌کُشد، و طوفان recalc از «شنونده‌ی zoom:this.update مارکرها» است
+       نه از خودِ انیمیشن — ریشه‌یابی در v160-pinchprof/v160-who-writes. فیکس واقعی: wd-zooming (پنهان‌سازی مارکر). */
     map = L.map('map', { center: [25, 15], zoom: 2.5, minZoom: 2, maxZoom: 6, markerZoomAnimation: false, fadeAnimation: false, zoomAnimation: false, preferCanvas: true, inertia: true, wheelDebounceTime: 0 });
     /* V156-PERF: یک رندرر Canvas مشترک برای «همه‌ی» وکتورهای نقشه (کشورها + شبکه‌ی جغرافیایی).
        قبلاً کشورها بومِ خودشان را داشتند و ۲۷ خطِ گراتیکول بومِ دومی در tilePane — یعنی هر
@@ -1996,6 +1999,12 @@ function initGame() {
        invalidation ژست نیستند (انیمیشن‌هایشان compositor-only است و با پن رقابت نمی‌کند — doctrine V135). */
     try{
       map.on('movestart zoomstart',function(){window.__wdMapBusy=true;try{map.getContainer().classList.add('wd-dragging')}catch(e){}});
+      /* V160-PERF: حین زوم، پنِ مارکر display:none می‌شود — ریشه‌یابی v160-pinchprof/who-writes: Leaflet
+         Marker.getEvents شنونده‌ی «zoom:this.update» دارد و TouchZoom در هر touchmove ‏«zoom» می‌دهد ⇒
+         ‏~۴۰۰ مارکر در هر فریم transform می‌گیرند (~۲۹هزار جهش style در یک جفت‌پینچ) = طوفان recalc ‏~۲٫۲s.
+         گره‌های داخل display:none کلاً از recalc/layout می‌پرند؛ در zoomend (و moveend ایمنی) برمی‌گردند. */
+      map.on('zoomstart',function(){try{map.getContainer().classList.add('wd-zooming')}catch(e){}});
+      map.on('zoomend moveend',function(){try{map.getContainer().classList.remove('wd-zooming')}catch(e){}});
       map.on('moveend zoomend',function(){clearTimeout(window.__wdMapBusyT);window.__wdMapBusyT=setTimeout(function(){window.__wdMapBusy=false;try{if(map&&map.getContainer)map.getContainer().classList.remove('wd-dragging')}catch(e){}
           /* V156-PERF: جهش‌های epoch جمع‌شده در طول ژست — یک اسکن پس از پایان حرکت */
           if(window.__wdEpPend){window.__wdEpPend=0;window.__wdDomEpoch=(window.__wdDomEpoch||0)+1}},400)});
@@ -12851,7 +12860,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=160';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=161';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -18619,7 +18628,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=160"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=161"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18645,7 +18654,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=160';
+              s.src='/game/cv-engine.js?v=161';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18657,7 +18666,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     })();
    </script>
 <script>/* V154 BOOT FAST: oly3.js (۱۳۴KB) — بایت از head می‌آید (preload)، exec بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=160')})</script>
+__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=161')})</script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18671,7 +18680,7 @@ __wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=160')})</script>
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=160';
+      s.src='/game/oly3d.js?v=161';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -19929,9 +19938,9 @@ setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}c
 })();
 </script>
 <script>/* V154 BOOT FAST: social.js (۷۵KB) بعد از نقشه — boot خودش را با readyState/تایمر امن شروع می‌کند */
-__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=160')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=161')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
 <script>/* V154 BOOT FAST: mentor.js (۵۰KB) بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=160')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=161')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);
@@ -21083,6 +21092,12 @@ html.wd-quiet :is(#act-tax:not([disabled]),#act-un-aid:not([disabled]),#hud-olym
    (doctrine V138: هیچ کلاسی روی <html> برای ژست — recalc کل سند ممنوع). */
 #map.wd-dragging *,#map.wd-dragging *::before,#map.wd-dragging *::after{animation-play-state:paused!important}
 #map.wd-dragging .leaflet-zoom-animated{transition:none!important}
+/* V160-PERF: طوفان recalc پینچ ریشه‌یابی شد (v160-pinchprof/v160-who-writes): Leaflet Marker.getEvents
+   شنونده‌ی «zoom:this.update» دارد و TouchZoom با هر touchmove «zoom» می‌دهد ⇒ ~۴۰۰ مارکر DOM در
+   «هر فریم» transform می‌گیرند (~۲۹هزار جهش style در یک جفت‌پینچ ⇒ recalc ‏~۲٫۲s و ‏۲۰ longtask در 4x).
+   فیکس: حین زوم پنِ مارکر display:none می‌شود — گره‌های داخل display:none از recalc/layout کلاً می‌پرند؛
+   در zoomend/moveend برمی‌گردند (تاگل در هندلرهای zoomstart/zoomend). پنِ خالص در طول ژست، بدون مارکر-پرش. */
+#map.wd-zooming .leaflet-marker-pane{display:none!important}
 
 /* ─── B) کِل نهایی backdrop-filter: قوانینِ ID/کلاسِ دارای !important از *{...none!important}
    (specificity صفر) قوی‌ترند و زنده مانده بودند — روی تبلت/دسکتاپ که media coarse هم ندارد،
