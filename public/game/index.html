@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
  <head>
-  <script>window.__WD_V=168;/* V64 version beacon — self-heal swap uses /game/v.txt */
+  <script>window.__WD_V=169;/* V64 version beacon — self-heal swap uses /game/v.txt */
 /* V154 BOOT FAST — بارگذاری تنبل ماژول‌های سنگین (oly3/social/mentor ≈۳۴۵KB) بعد از آماده‌شدن نقشه؛
    بایت‌ها از قبل با preload می‌آیند (هدر) — فقط parse/exec از مسیر بحرانی بوت خارج می‌شود.
    ایمنی: اگر نقشه هرگز آماده نشد، حداکثر ۱۲ ثانیه بعد هر چه بود لود می‌شود (هیچ قفلی وجود ندارد). */
@@ -36,16 +36,16 @@ window.__wdAfterMap=function(cb){try{if(window.__wdMapReady)return cb();window.a
   </script>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Regular.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/game/fonts/Vazirmatn-Bold.woff2" crossorigin>
-   <link rel="preload" as="script" href="/game/balance.js?v=168">
+   <link rel="preload" as="script" href="/game/balance.js?v=169">
    <link rel="preload" as="script" href="/cdn/leaflet/leaflet.min.js">
    <link rel="preload" as="script" href="/cdn/npm/@supabase/supabase-js@2/dist/umd/supabase.js">
-   <link rel="preload" as="script" href="/game/oly3.js?v=168">
-   <link rel="preload" as="script" href="/game/social.js?v=168">
-   <link rel="preload" as="script" href="/game/mentor.js?v=168">
+   <link rel="preload" as="script" href="/game/oly3.js?v=169">
+   <link rel="preload" as="script" href="/game/social.js?v=169">
+   <link rel="preload" as="script" href="/game/mentor.js?v=169">
    <!-- V155 BOOT: هندسه‌ی ۲۱۶KB کشورها از لحظه‌ی صفر دانلود می‌شود (موازی با parse اسکریپت‌ها)،
         نه بعد از init نقشه — متقارن با fetch same-origin cors (crossorigin لازم است تا cache match شود) -->
    <link rel="preload" as="fetch" href="/cdn/geo/countries.geo.json" crossorigin>
-  <script src="/game/balance.js?v=168"></script>
+  <script src="/game/balance.js?v=169"></script>
   <style>
    /* Leaflet core CSS, inlined (published pages can't load external stylesheets) */
 .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
@@ -4010,8 +4010,8 @@ async function startup(){
 .own.oth{background:rgba(0,0,0,.72)}
    </style>
    <script>
-    /* ===== v4: سرورهای پویا (V139) — سقف هر سرور ۱۲۰ کشورِ تصرف‌شده (V158: ۹۰→۱۲۰ به درخواست مالک)؛ با پرشدن، سرور بعدیِ خالی همان لحظه باز می‌شود ===== */
-let SRV_CAP=120,SYNC_MS=30000; /* V139: سقف از srv_meta (cap) همگام می‌شود (تک‌منبع = سرور)؛ V158: پیش‌فرض هم ۱۲۰ شد تا قبل از اولین سینک هم عدد درست دیده شود */
+    /* ===== v4: سرورهای پویا (V139) — سقف هر سرور = اندازه‌ی نقشه (V169: ۱۸۰ کشور، همگام از srv_meta)؛ با پُرشدنِ واقعی همه‌ی سرورها، سرور بعدی همان لحظه باز می‌شود ===== */
+let SRV_CAP=180,SYNC_MS=30000; /* V139: سقف از srv_meta (cap) همگام می‌شود (تک‌منبع = سرور)؛ V158: پیش‌فرض ۱۲۰ شد؛ V169: سقف = اندازه‌ی نقشه (۱۸۰ کشور) — سقفِ دستیِ ۱۲۰ کهنه بود، سرورها را کاذب «پُر» نشان می‌داد و چرخش سرور جدید را برای همیشه قفل می‌کرد؛ پیش‌فرض هم ۱۸۰ تا قبل از اولین سینک عدد درست دیده شود */
 let SRV=1,SRV_OK=false,STATS={},OTH={},DBMINE=new Set(),MP_OK=null,syncBusy=false;
 /* V86: سرورهای تستی — درِ ورود بازیکنان تازه بسته است (گارد واقعی سمت سرور در territory_sync/pvp_capture).
    لیست از RPC srv_meta تازه می‌شود؛ روی عرضه‌ی مایکت سرور آن را به [] برمی‌گرداند ⇒ همه از سرور ۱ صفر شروع می‌کنند */
@@ -4197,7 +4197,7 @@ async function initServer(){if(!sb||!ACC.uid)return;
      پشت‌سرهم) حالا موازی می‌روند. منطقِ انتخاب سرور برای تازه‌واردها همچنان بعد از رسیدنِ STATS
      اجرا می‌شود (chooseSrv/pickServer به آمار نیاز دارند) — رفتار عوض نشده، فقط انتظارِ موازی. */
   const pStats=loadStats();
-  const pMeta=sb.rpc('srv_meta').then(function(m){const md=(m&&m.data)||{};const tl=md.test_srvs;if(Array.isArray(tl))WD_TST=tl.map(Number).filter(n=>n>=1);const mc=Number(md.cap);if(mc>=10&&mc<=180)SRV_CAP=mc}).catch(function(){});
+  const pMeta=sb.rpc('srv_meta').then(function(m){const md=(m&&m.data)||{};const tl=md.test_srvs;if(Array.isArray(tl))WD_TST=tl.map(Number).filter(n=>n>=1);const mc=Number(md.cap);if(mc>=10&&mc<=400)SRV_CAP=mc /* V169: سقفِ پذیرش تا ۴۰۰ — رشد آینده‌ی نقشه دیگر بی‌اثر نمی‌شود */}).catch(function(){});
   const pSrv=sb.from('scores').select('server').eq('user_id',ACC.uid).maybeSingle().then(function(r){if(r.data&&r.data.server){SRV=r.data.server;SRV_OK=true;try{LS.set('wd_srv_cache',String(SRV))}catch(e){}return true}return false}).catch(function(){return false});
   await pStats;
   if(MP_OK!==true){const b=A$('status-banner');if(b)b.textContent='⚠️ اتصال به سرورهای چندنفره برقرار نشد؛ تا اتصال مجدد، پیشرفت شما ذخیره می‌شود';
@@ -8994,7 +8994,7 @@ var _srvChip=null;
 /* V152: چیپِ قلمرو — حالتِ «هیچ کشوری نداری» صادقانه با 🏳️ نمایش داده می‌شود (دستور مالک:
    «نشون بده که هیچ کشوری نداره»). تعریفِ مؤثرِ رندر چیپ همین wrapper V28 است (نسخه‌ی پایین‌تر
    را بازنویسی می‌کند) — پس شاخه‌ی 🏳️ همین‌جاست. */
-window.renderSrvChip=function(){var c=S$('hud-srv'),t=S$('hud-t2');if(c){var txt=(typeof MP_OK!=='undefined'&&MP_OK===true)?'🖥️ '+(typeof SRV!=='undefined'?SRV:'')+' ('+(typeof taken==='function'?taken(SRV):0)+'/'+(typeof SRV_CAP!=='undefined'?SRV_CAP:120)+')':'🖥️ …';if(c.__wd28v!==txt){c.__wd28v=txt;c.textContent=txt;c.style.opacity=(typeof MP_OK!=='undefined'&&MP_OK===true)?'1':'.55'}}if(t){var _none=(typeof myCountryName!=='undefined'&&!myCountryName&&(typeof DBMINE==='undefined'||!DBMINE||!DBMINE.size));if(_none){var tf='🏳️ —';if(t.__wd28v!==tf){t.__wd28v=tf;t.textContent=tf;t.title='هیچ کشوری نداری — کشورِ جدید انتخاب کن'}return}var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var tt='🏴 '+n;if(t.__wd28v!==tt){t.__wd28v=tt;t.textContent=tt;t.title=n+' کشور'}}};
+window.renderSrvChip=function(){var c=S$('hud-srv'),t=S$('hud-t2');if(c){var txt=(typeof MP_OK!=='undefined'&&MP_OK===true)?'🖥️ '+(typeof SRV!=='undefined'?SRV:'')+' ('+(typeof taken==='function'?taken(SRV):0)+'/'+(typeof SRV_CAP!=='undefined'?SRV_CAP:180)+')':'🖥️ …';if(c.__wd28v!==txt){c.__wd28v=txt;c.textContent=txt;c.style.opacity=(typeof MP_OK!=='undefined'&&MP_OK===true)?'1':'.55'}}if(t){var _none=(typeof myCountryName!=='undefined'&&!myCountryName&&(typeof DBMINE==='undefined'||!DBMINE||!DBMINE.size));if(_none){var tf='🏳️ —';if(t.__wd28v!==tf){t.__wd28v=tf;t.textContent=tf;t.title='هیچ کشوری نداری — کشورِ جدید انتخاب کن'}return}var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var tt='🏴 '+n;if(t.__wd28v!==tt){t.__wd28v=tt;t.textContent=tt;t.title=n+' کشور'}}};
 (function(){if(typeof renderLvlChip!=='function')return;var _rlc=renderLvlChip;window.renderLvlChip=function(){try{var chip=D.getElementById('wd-lvlchip');if(!chip)return;var n=(typeof conqueredCountries!=='undefined')?conqueredCountries.size:0;var r=(typeof rankOf==='function')?rankOf(n):['','🎖️'];var next=null;if(typeof RANKS!=='undefined'){for(var i=0;i<RANKS.length;i++){if(RANKS[i][0]>n){next=RANKS[i];break}}}var html='<span>'+r[1]+'</span><small>🏴 '+fa(n)+' کشور'+(next?(' → '+fa(next[0])):'')+'</small>';if(chip.__wd28v!==html){chip.__wd28v=html;chip.innerHTML=html}}catch(e){}}})();
 /* نمایش سرور هنگام قطعی لحظه‌ای: چیپ خاموش نمی‌شود، فقط کم‌نور */
 
@@ -10953,7 +10953,7 @@ async function q(fn){try{return{ok:true,d:await fn()}}catch(e){return{ok:false,e
 async function rpcQ(fn,args){try{const r=await sb.rpc(fn,args);if(r&&r.error)return{ok:false,e:r.error};return{ok:true,d:r?r.data:null}}catch(e){return{ok:false,e}}}
 async function tblQ(p){try{const r=await p;if(r&&r.error)return{ok:false,e:r.error};return{ok:true,d:r?r.data:null}}catch(e){return{ok:false,e}}}
 const isMe=n=>{try{return typeof ACC!=='undefined'&&ACC&&n===ACC.nick}catch(e){return false}};
-const CAP31=()=>{try{return (typeof SRV_CAP!=='undefined')?SRV_CAP:120}catch(e){return 120}};
+const CAP31=()=>{try{return (typeof SRV_CAP!=='undefined')?SRV_CAP:180}catch(e){return 180}};
 
 /* ================================================================
    PAGE 1 — شناسنامه‌ی سینمایی سرور (وارد شدن با چیپ سرور در HUD)
@@ -12915,7 +12915,7 @@ function intro33(bd,m,e,live,onOfficial,onTrain){
           '<button class="wg33-start" id="wg33-b5story" style="background:linear-gradient(90deg,#ff9d2e,#ffd75e);color:#3a2200;font-weight:900">🎬 داستان: دور آخر</button>'+
           '<button class="wg33-start" id="wg33-b5prof" style="background:rgba(255,255,255,.08);color:#cfeaff">🥊 پروفایل بوکس</button></div>'+
           '<p style="font-size:10px;color:#8fb8dd;margin-top:6px;text-align:center">کمپین سینمایی سه‌بعدی — ۵ حریف امضادار، مربی، تمرین و فینال استادیوم بزرگ</p>';
-        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=168';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
+        const ensureBox5=(cb)=>{ if(window.WD_BOX5){cb();return} const sc=D.createElement('script');sc.src='/game/box5.js?v=169';sc.onload=()=>cb();sc.onerror=()=>showToast2('بارگیری موتور بوکس ناموفق بود','lose');D.head.appendChild(sc) };
         row.querySelector('#wg33-b5story').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openStory(bd).then((ok)=>{ if(ok===false)showToast2('مرورگر شما WebGL پشتیبانی نمی‌کند','lose') }).catch((er)=>console.log('b5story',er)) }catch(er){console.log('b5story2',er)} }) });
         row.querySelector('#wg33-b5prof').addEventListener('click',()=>{ ensureBox5(()=>{ try{ window.WD_BOX5.openProfile(bd) }catch(er){console.log('b5prof',er)} }) });
       }
@@ -13896,10 +13896,10 @@ function faN(n){try{return Number(n||0).toLocaleString('fa-IR')}catch(e){return 
 var SRV_SVG='<svg class="wd-srv-ic" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="wsvA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9be8ff"/><stop offset="1" stop-color="#1e9ad6"/></linearGradient></defs><rect x="3" y="3.5" width="18" height="7" rx="2.4" fill="url(#wsvA)"/><rect x="3" y="13.5" width="18" height="7" rx="2.4" fill="url(#wsvA)" opacity=".72"/><circle cx="7" cy="7" r="1.5" fill="#04222b"/><circle cx="7" cy="17" r="1.5" fill="#04222b"/><rect x="11" y="6" width="7" height="2" rx="1" fill="#04222b" opacity=".55"/><rect x="11" y="16" width="7" height="2" rx="1" fill="#04222b" opacity=".55"/></svg>';
 var srvChip=null,srvB=null,srvS=null,srvBar=null;
 function srvVals(){
-  var ok=false,srv=1,cap=120,tk=0;
+  var ok=false,srv=1,cap=180,tk=0; /* V169: fallback هم ۱۸۰ = اندازه‌ی نقشه */
   try{ok=(typeof MP_OK!=='undefined'&&MP_OK===true)}catch(e){}
   try{srv=Number((typeof SRV!=='undefined'&&SRV)||1)||1}catch(e){}
-  try{cap=Number((typeof SRV_CAP!=='undefined'&&SRV_CAP)||120)||120}catch(e){}
+  try{cap=Number((typeof SRV_CAP!=='undefined'&&SRV_CAP)||180)||180}catch(e){}
   try{if(typeof taken==='function')tk=Number(taken(srv)||0)}catch(e){}
   return{ok:ok,srv:srv,cap:cap,tk:tk};
 }
@@ -18691,7 +18691,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
 })();
 
    </script>
-<script defer src="/game/shop-v2.js?v=168"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
+<script defer src="/game/shop-v2.js?v=169"></script><!-- V137: shop engine off the parse-critical path (was 105KB inline) -->
 
 <script>
     /* ============ V67 — COUNTRY VIEW: دکمه‌ی «🚪 ورود به کشور» + lazy-load موتور ============
@@ -18718,7 +18718,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
               try{ if(l&&l.setStyle){ l.setStyle({weight:3.5,color:'#ffd84d',fillColor:'#ffd84d',fillOpacity:.95}); setTimeout(function(){ try{ if(typeof applyCountryColor==='function')applyCountryColor(n) }catch(e){} },420) } }catch(e){}
               if(window.WDCV&&window.WDCV.open){window.WDCV.open(n);return}
               const s=document.createElement('script');
-              s.src='/game/cv-engine.js?v=168';
+              s.src='/game/cv-engine.js?v=169';
               s.onload=function(){try{window.WDCV&&window.WDCV.open(n)}catch(e){console.error('wdcv-open',e)}};
               s.onerror=function(){try{delete b.dataset.loading;showToast('❌ بارگذاری موتور کشور ناموفق بود')}catch(e){}};
               document.head.appendChild(s);
@@ -18730,7 +18730,7 @@ window.WD65={open:openEmpireTab,open65,close65,plan:openPlan,civ:st.civ,st,tick:
     })();
    </script>
 <script>/* V154 BOOT FAST: oly3.js (۱۳۴KB) — بایت از head می‌آید (preload)، exec بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=168')})</script>
+__wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=169')})</script>
 <script id="v92-oly3d-boot">
 /* ============ OLYMPICS V4 (V93) — بوت نسخه‌ی 3D پریمیوم ============
    لود تنبل oly3d.js فقط برای پنج رشته‌ی پرچم‌دار؛ سوییچ 3D/کلاسیک
@@ -18744,7 +18744,7 @@ __wdAfterMap(function(){__wdLazyJS('/game/oly3.js?v=168')})</script>
     if(loaded)return loaded;
     loaded=new Promise(function(res){
       var s=document.createElement('script');
-      s.src='/game/oly3d.js?v=168';
+      s.src='/game/oly3d.js?v=169';
       s.onload=function(){res(true);try{if(window.WD_OLY3D&&window.WD_OLY3D.preload)window.WD_OLY3D.preload()}catch(e){}};s.onerror=function(){res(false)};
       document.head.appendChild(s);
     });
@@ -20003,9 +20003,9 @@ setInterval(function(){try{if(document.hidden||window.__wdMapBusy)return;arm()}c
 })();
 </script>
 <script>/* V154 BOOT FAST: social.js (۷۵KB) بعد از نقشه — boot خودش را با readyState/تایمر امن شروع می‌کند */
-__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=168')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
+__wdAfterMap(function(){__wdLazyJS('/game/social.js?v=169')})</script><!-- V95 SOCIAL & PLAYER IDENTITY V1 -->
 <script>/* V154 BOOT FAST: mentor.js (۵۰KB) بعد از نقشه */
-__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=168')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
+__wdAfterMap(function(){__wdLazyJS('/game/mentor.js?v=169')})</script><!-- V99 مشاور ارشد علیرضا — ۱۲ فصل کامل + وضعیت زنده + کار بعدی هوشمند -->
 <script>/* V104 client error monitor */
 (function(){function wdePush(k,m){try{m=String(m||"").slice(0,220);var a=[];try{a=JSON.parse(localStorage.getItem("wd_errs")||"[]")||[]}catch(e){a=[]}a.push({t:Date.now(),v:window.__WD_V||0,k:k,m:m});if(a.length>25)a=a.slice(-25);localStorage.setItem("wd_errs",JSON.stringify(a))}catch(e){}}
 window.addEventListener("error",function(e){try{if(e&&e.target&&e.target.tagName&&(e.target.src||e.target.href)){wdePush("res",String(e.target.src||e.target.href).split("/").pop()+":"+e.target.tagName);return}wdePush("err",((e&&e.message)||"error")+" @"+String((e&&e.filename)||"").split("/").pop()+":"+((e&&e.lineno)||0))}catch(x){}},true);

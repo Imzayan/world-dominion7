@@ -18,11 +18,13 @@ const route = fs.readFileSync(path.join(ROOT, 'src/app/api/rpc/[fn]/route.ts'), 
 const html = fs.readFileSync(path.join(ROOT, 'public/game/index.html'), 'utf8');
 const social = fs.readFileSync(path.join(ROOT, 'public/game/social.js'), 'utf8');
 
-/* 1) the single server-side source */
-const m = route.match(/const SRV_CAP_GLOBAL = (\d+)/);
-const CAP = m ? Number(m[1]) : 0;
-check('route.ts declares SRV_CAP_GLOBAL (single server source)', !!m);
-check('SRV_CAP_GLOBAL is 120 (V158 owner directive)', CAP === 120, 'got=' + CAP);
+/* 1) the single server-side source — V169: derived from the map itself (COUNTRY_DEF = server mirror of the client map), no hand-set literal anymore */
+const m = route.match(/const SRV_CAP_GLOBAL = Object\.keys\(COUNTRY_DEF\)\.length/);
+check('route.ts derives SRV_CAP_GLOBAL from COUNTRY_DEF (single server source, V169)', !!m);
+check('no stale literal SRV_CAP_GLOBAL = <digits> remains', !/const SRV_CAP_GLOBAL = \d+/.test(route));
+const cdefs = fs.readFileSync(path.join(ROOT, 'src/lib/countryDefs.ts'), 'utf8');
+const CAP = (cdefs.match(/^  "/gm) || []).length;
+check('cap = map size: COUNTRY_DEF count is 180 (V169)', CAP === 180, 'got=' + CAP);
 check('SRV_CAP_GLOBAL referenced by all 4 consumers (srv_meta/territory_sync/country_release/wd_servers)',
   (route.match(/SRV_CAP_GLOBAL/g) || []).length >= 5, 'refs=' + (route.match(/SRV_CAP_GLOBAL/g) || []).length);
 

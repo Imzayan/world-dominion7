@@ -45,11 +45,18 @@ async function signup(tag) {
 
 const ts = Date.now().toString(36).slice(-6);
 const SRV = 90; /* a far server number — guaranteed untouched by real gameplay */
-const CAP = Number((await rpc('srv_meta', {}))?.cap) || 120;
-check('T1 srv_meta.cap = 120 (single source reaches the wire)', CAP === 120, 'cap=' + CAP);
 
 const A = await signup('a' + ts);
 cookie = A.cookie; /* global session for later rpc() calls (wd_servers etc.) */
+/* V169 FIX (harness): srv_meta is session-gated — T1 used to run BEFORE any signup, get a 401,
+ * and silently measure its own `|| 120` fallback. At V158 the fallback EQUALLED the real cap so
+ * the test was vacuously green; at cap=180 it fabricated 7 failures. Now: authenticated read,
+ * no fallback — if srv_meta is unreachable the harness fails loudly instead of lying. */
+const CAP_RAW = (await rpc('srv_meta', {}))?.cap;
+const CAP = Number(CAP_RAW);
+if (!Number.isFinite(CAP) || CAP <= 0) throw new Error('srv_meta.cap unreachable (got ' + JSON.stringify(CAP_RAW) + ') — refusing to run boundary tests against a fallback');
+check('T1 srv_meta.cap = 180 = map size (single source reaches the wire, V169)', CAP === 180, 'cap=' + CAP);
+
 await new Promise((r) => setTimeout(r, 800));
 const B = await signup('b' + ts);
 const countryOf = (i) => 'CapLand' + ts + i;
