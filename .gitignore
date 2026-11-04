@@ -76,3 +76,28 @@ scripts/next44.log
 # U5: باینری‌های خروجی build APK — هرگز در گیت (فقط خروجی نهایی public/apk/ می‌ماند)
 apk-build/build/
 .dev.vars
+
+# --- CF Workers local build/state (regenerable — never commit) ---
+/.open-next/
+/.wrangler/
+
+# --- NEVER publish: release signing material ---
+/keystore-vault/
+
+# --- sandbox strays: old drafts/artifacts, deliberately untracked ---
+/cf-build.mjs
+/sandbox-e2e.sh
+/sandbox-start-pg.mjs
+/patches/
+/backup-v116/
+/public/apk/WorldDominion-v1.0.1.apk
+/public/apk/WorldDominion-v1.0.2.apk
+/public/apk/WorldDominion-v1.0.3.apk
+/public/apk/WorldDominion-v1.0.4.apk
+/public/apk/WorldDominion-v1.0.5.apk
+/public/apk/WorldDominion-v1.0.6.apk
+/public/game/cv-engine-v83-uploaded.js
+# old V95 stray wrapper + Olympics P0 drafts (سند §۴.۱/§۴.۲) — untracked until the Olympics workflow resumes deliberately
+/src/app/api/war/
+/src/lib/olyCircuit.ts
+/src/lib/olyRewards.ts
