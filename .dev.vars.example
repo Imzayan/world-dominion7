@@ -1,0 +1,8 @@
+# World Dominion — Cloudflare local dev secrets
+# Copy this file to `.dev.vars` (git-ignored) and fill real values,
+# then `npm run cf:dev` → http://localhost:8787
+# NEVER commit .dev.vars with real credentials.
+
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require"
+# optional, defaults to 'alireza':
+ADMIN_NICKS="alireza"

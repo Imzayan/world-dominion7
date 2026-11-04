@@ -1,0 +1,16 @@
+# World Dominion — Cloudflare Workers Assets headers
+# Mirrors vercel.json exactly (host migration). Later matching rules override
+# earlier ones, so /game/v.txt (no-store) wins over the broad immutable rules.
+
+/game/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
+
+/game/:file.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/game/v.txt
+  Cache-Control: no-store, must-revalidate
+
+/cdn/*
+  Cache-Control: public, max-age=2592000, immutable

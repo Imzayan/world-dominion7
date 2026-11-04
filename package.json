@@ -13,7 +13,10 @@
     "db:reset": "prisma migrate reset",
     "render-build": "node scripts/prisma-setup.mjs && prisma generate && prisma db push --accept-data-loss && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "render-start": "NODE_ENV=production HOSTNAME=0.0.0.0 node .next/standalone/server.js",
-    "vercel-build": "node scripts/prisma-setup.mjs && prisma generate && prisma db push --accept-data-loss && next build"
+    "vercel-build": "node scripts/prisma-setup.mjs && prisma generate && prisma db push --accept-data-loss && next build",
+    "cf:build": "node scripts/cf-build.mjs",
+    "cf:dev": "node scripts/cf-build.mjs && npx wrangler dev",
+    "cf:deploy": "node scripts/cf-build.mjs && npx wrangler deploy"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -21,6 +24,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.1.1",
     "@mdxeditor/editor": "^3.39.1",
+    "@prisma/adapter-pg": "^6.19.3",
     "@prisma/client": "^6.11.1",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -64,6 +68,7 @@
     "next-auth": "^4.24.11",
     "next-intl": "^4.3.4",
     "next-themes": "^0.4.6",
+    "pg": "^8.16.3",
     "prisma": "^6.11.1",
     "react": "^19.0.0",
     "react-day-picker": "^9.8.0",
@@ -84,7 +89,9 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.16",
     "@tailwindcss/postcss": "^4",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "bun-types": "^1.3.4",
@@ -92,7 +99,8 @@
     "eslint-config-next": "^16.1.1",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.157.0"
   },
   "engines": {
     "node": ">=18.17"

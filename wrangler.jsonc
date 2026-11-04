@@ -1,0 +1,17 @@
+{
+  /* World Dominion — Cloudflare Workers (OpenNext adapter)
+     Build:  npm run cf:build      → .open-next/
+     Local:  npm run cf:dev        → wrangler dev
+     Deploy: npm run cf:deploy     → wrangler deploy  (or Cloudflare Workers Builds from GitHub)
+     Secrets are set via dashboard / wrangler secret (DATABASE_URL, ADMIN_NICKS…) — never committed. */
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "world-dominion",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true }
+}

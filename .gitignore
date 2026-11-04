@@ -75,3 +75,4 @@ scripts/next44.log
 
 # U5: باینری‌های خروجی build APK — هرگز در گیت (فقط خروجی نهایی public/apk/ می‌ماند)
 apk-build/build/
+.dev.vars
